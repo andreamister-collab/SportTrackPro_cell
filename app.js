@@ -1,6 +1,6 @@
 import { supabaseUrl, supabaseAnonKey } from './config.js';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-
+ 
 const S = {
   user: null,
   systemRole: null,
