@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>SportTrackPro</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-light">
+
+  <div id="app">
+    <!-- LOGIN -->
+    <div id="login-view" class="login-container">
+      <h1>SportTrackPro</h1>
+      <form id="login-form">
+        <label>Username</label>
+        <input type="text" id="login-username" required>
+
+        <label>Password</label>
+        <input type="password" id="login-password" required>
+
+        <button type="submit">Accedi</button>
+      </form>
+      <div id="login-error" class="error-msg"></div>
+    </div>
+
+    <!-- APP AUTENTICATA -->
+    <div id="main-layout" class="layout hidden">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h2>SportTrackPro</h2>
+          <div id="user-info" class="user-email"></div>
+        </div>
+        <nav class="sidebar-nav" id="sidebar-nav">
+          <!-- voci generate da JS -->
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <header class="main-header">
+          <div>
+            <h1 id="view-title">Dashboard</h1>
+            <div class="season-info">
+              Stagione attiva: <span id="active-season-label">-</span>
+            </div>
+          </div>
+        </header>
+
+        <section id="content"></section>
+        <div id="toast" class="toast hidden"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Supabase UMD -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <!-- App -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
