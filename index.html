@@ -100,7 +100,7 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
   }
 })
 
-/* ---------- LOGIN CORRETTA ---------- */
+/* ---------- LOGIN CORRETTA (QUELLA CHE DEVI USARE) ---------- */
 async function login(e){
   e.preventDefault()
   const err=document.getElementById('login-err')
@@ -109,6 +109,8 @@ async function login(e){
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
 
+  console.log('STEP 1 - Cerco username:', username)
+
   // 1) PRENDO LA MAIL DA PUBLIC.USERS
   const {data:userRow, error:userErr}=await client
     .from('users')
@@ -116,25 +118,29 @@ async function login(e){
     .eq('username', username)
     .maybeSingle()
 
+  console.log('STEP 2 - Risultato public.users:', userRow, userErr)
+
   if(userErr){
-    err.textContent='Errore DB: '+userErr.message
-    console.error(userErr)
+    err.textContent='ERRORE DB: '+userErr.message
     return
   }
   if(!userRow){
-    err.textContent='Username non trovato'
+    err.textContent='Username non trovato in public.users'
     return
   }
 
-  // 2) MI AUTENTICO SU AUTH.USERS CON QUELLA MAIL
-  const {data,error}=await client.auth.signInWithPassword({
+  console.log('STEP 3 - Faccio login su auth.users con email:', userRow.email)
+
+  // 2) MI AUTENTICO SU AUTH.USERS
+  const {data, error}=await client.auth.signInWithPassword({
     email:userRow.email,
     password
   })
 
+  console.log('STEP 4 - Risultato auth.signInWithPassword:', data, error)
+
   if(error){
-    err.textContent='Password errata'
-    console.error(error)
+    err.textContent='Password errata: '+error.message
     return
   }
 
