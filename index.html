@@ -152,7 +152,7 @@ async function login(e) {
     // ── STEP 1: recupera email da public.users tramite username ──
     const { data: userRow, error: userErr } = await client
       .from('users')
-      .select('id, email, username, role, name')
+      .select('id, email, username, name')
       .ilike('username', username)
       .maybeSingle()
 
@@ -231,7 +231,7 @@ async function logout() {
     // Sessione valida → carica profilo da public.users
     const { data: userRow, error: profileErr } = await client
       .from('users')
-      .select('id, email, username, role, name')
+      .select('id, email, username, name')
       .eq('id', session.user.id)
       .maybeSingle()
 
