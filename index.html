@@ -18,7 +18,6 @@ body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text)
 .login-card h1{margin:0 0 16px;font-size:22px}
 .login-card input{width:100%;margin-bottom:10px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 .login-card button{width:100%;padding:10px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer}
-.login-card button:disabled{opacity:.6;cursor:not-allowed}
 .login-card .err{color:#b91c1c;font-size:13px;margin-top:8px}
 .app{display:flex;height:100vh}
 .sidebar{width:220px;background:var(--sidebar);color:#fff;padding:20px}
@@ -46,7 +45,7 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
     <h1>Accedi</h1>
     <input id="username" placeholder="Username" autocomplete="username" required>
     <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button type="submit" id="login-btn">Entra</button>
+    <button type="submit">Entra</button>
     <div id="login-err" class="err"></div>
   </form>
 </div>
@@ -86,61 +85,46 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
 </div>
 
 <script>
-// Inizializza client Supabase — SUPABASE_URL e SUPABASE_ANON vengono da config.js
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
-    persistSession: true,       // salva la sessione nel localStorage
-    autoRefreshToken: true,     // rinnova il token automaticamente
-    detectSessionInUrl: false   // non leggere token dall'URL (non usiamo OAuth)
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
   }
 })
-
 let USER = null
 
-/* ─────────────────────────────────────────────
-   NAV
-───────────────────────────────────────────── */
-document.querySelectorAll('.sidebar button[data-sec]').forEach(b => {
-  b.onclick = () => {
-    document.querySelectorAll('.sidebar button[data-sec]').forEach(x => x.classList.remove('active'))
+/* ---------- NAV ---------- */
+document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.sidebar button[data-sec]').forEach(x=>x.classList.remove('active'))
     b.classList.add('active')
-    document.querySelectorAll('.main section').forEach(s => s.classList.add('hidden'))
-    document.getElementById('sec-' + b.dataset.sec).classList.remove('hidden')
-    if (b.dataset.sec === 'dashboard') loadDashboard()
-    if (b.dataset.sec === 'sport')     loadSports()
+    document.querySelectorAll('.main section').forEach(s=>s.classList.add('hidden'))
+    document.getElementById('sec-'+b.dataset.sec).classList.remove('hidden')
+    if(b.dataset.sec==='dashboard') loadDashboard()
+    if(b.dataset.sec==='sport') loadSports()
   }
 })
 
-/* ─────────────────────────────────────────────
-   HELPERS UI
-───────────────────────────────────────────── */
+/* ---------- HELPERS UI ---------- */
 function showApp() {
   document.getElementById('login').classList.add('hidden')
   document.getElementById('app').classList.remove('hidden')
   loadDashboard()
 }
-
 function showLogin(msg) {
   document.getElementById('app').classList.add('hidden')
   document.getElementById('login').classList.remove('hidden')
   document.getElementById('username').value = ''
   document.getElementById('password').value = ''
-  const errEl = document.getElementById('login-err')
-  errEl.textContent = msg || ''
+  if (msg) document.getElementById('login-err').textContent = msg
 }
 
-/* ─────────────────────────────────────────────
-   LOGIN
-   Flusso:
-   1. Cerca la mail reale in public.users per username (case-insensitive)
-   2. Autentica con email + password su Supabase Auth
-   3. Mostra l'app
-───────────────────────────────────────────── */
-async function login(e) {
+/* ---------- LOGIN ---------- */
+async function login(e){
   e.preventDefault()
-
-  const errEl = document.getElementById('login-err')
-  const btn   = document.getElementById('login-btn')
+  const errEl  = document.getElementById('login-err')
+  const btn    = document.querySelector('.login-card button[type="submit"]')
   errEl.textContent = ''
   btn.disabled = true
   btn.textContent = 'Accesso in corso...'
@@ -149,27 +133,18 @@ async function login(e) {
   const password = document.getElementById('password').value
 
   try {
-    // ── STEP 1: recupera email da public.users tramite username ──
+    // STEP 1 — recupera email da public.users tramite username
     const { data: userRow, error: userErr } = await client
       .from('users')
-      .select('id, email, username, name')
+      .select('id, email, username, name')  // solo colonne esistenti
       .ilike('username', username)
       .maybeSingle()
 
-    if (userErr) {
-      errEl.textContent = 'Errore database: ' + userErr.message
-      return
-    }
-    if (!userRow) {
-      errEl.textContent = 'Username non trovato'
-      return
-    }
-    if (!userRow.email) {
-      errEl.textContent = 'Account non configurato correttamente (email mancante)'
-      return
-    }
+    if (userErr) { errEl.textContent = 'Errore database: ' + userErr.message; return }
+    if (!userRow) { errEl.textContent = 'Username non trovato'; return }
+    if (!userRow.email) { errEl.textContent = 'Email non configurata per questo account'; return }
 
-    // ── STEP 2: login su Supabase Auth con email reale ───────────
+    // STEP 2 — autentica con Supabase Auth
     const { data: authData, error: authErr } = await client.auth.signInWithPassword({
       email:    userRow.email,
       password: password
@@ -177,18 +152,18 @@ async function login(e) {
 
     if (authErr) {
       let msg = authErr.message
-      if (msg.toLowerCase().includes('invalid login'))         msg = 'Password errata'
-      if (msg.toLowerCase().includes('email not confirmed'))   msg = 'Email non confermata — controlla la casella'
-      if (msg.toLowerCase().includes('too many requests'))     msg = 'Troppi tentativi — riprova tra qualche minuto'
+      if (msg.toLowerCase().includes('invalid login'))       msg = 'Password errata'
+      if (msg.toLowerCase().includes('email not confirmed')) msg = 'Email non confermata'
+      if (msg.toLowerCase().includes('too many requests'))   msg = 'Troppi tentativi — riprova tra qualche minuto'
       errEl.textContent = msg
       return
     }
 
-    // ── STEP 3: login riuscito ───────────────────────────────────
+    // STEP 3 — login riuscito
     USER = { ...authData.user, ...userRow }
     showApp()
 
-  } catch (err) {
+  } catch(err) {
     errEl.textContent = 'Errore imprevisto: ' + err.message
     console.error('[login]', err)
   } finally {
@@ -197,38 +172,24 @@ async function login(e) {
   }
 }
 
-/* ─────────────────────────────────────────────
-   LOGOUT
-───────────────────────────────────────────── */
-async function logout() {
-  try { await client.auth.signOut() } catch (_) {}
+/* ---------- LOGOUT ---------- */
+async function logout(){
+  try { await client.auth.signOut() } catch(_) {}
   USER = null
   showLogin()
 }
 
-/* ─────────────────────────────────────────────
-   AUTO-RESTORE SESSIONE
-   Se l'utente ha già fatto login (token nel localStorage),
-   ripristina la sessione automaticamente senza reinserire
-   le credenziali.
-   Se il token è scaduto o invalido, pulisce il localStorage
-   e mostra il login (senza errori in console).
-───────────────────────────────────────────── */
+/* ---------- AUTO-RESTORE SESSIONE ---------- */
 ;(async () => {
   try {
     const { data: { session }, error } = await client.auth.getSession()
-
-    // Token scaduto/invalido → pulizia locale e schermata di login
     if (error) {
-      console.warn('[AutoRestore] Errore sessione:', error.message)
-      try { await client.auth.signOut({ scope: 'local' }) } catch (_) {}
+      // Token scaduto/invalido — pulisci localStorage senza chiamate di rete
+      try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
       return
     }
+    if (!session) return  // nessuna sessione salvata
 
-    // Nessuna sessione salvata → rimane sul login
-    if (!session) return
-
-    // Sessione valida → carica profilo da public.users
     const { data: userRow, error: profileErr } = await client
       .from('users')
       .select('id, email, username, name')
@@ -236,82 +197,69 @@ async function logout() {
       .maybeSingle()
 
     if (profileErr || !userRow) {
-      console.warn('[AutoRestore] Profilo non trovato')
-      try { await client.auth.signOut({ scope: 'local' }) } catch (_) {}
+      try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
       return
     }
 
     USER = { ...session.user, ...userRow }
     showApp()
 
-  } catch (err) {
-    // Refresh token scaduto o qualsiasi altra eccezione → login pulito
-    console.warn('[AutoRestore] Fallito:', err.message)
-    try { await client.auth.signOut({ scope: 'local' }) } catch (_) {}
+  } catch(err) {
+    console.warn('[AutoRestore]', err.message)
+    try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
   }
 })()
 
-/* ─────────────────────────────────────────────
-   DASHBOARD
-───────────────────────────────────────────── */
-async function loadDashboard() {
-  try {
-    const [
-      { count: sport },
-      { count: societa },
-      { count: atleti }
-    ] = await Promise.all([
-      client.from('sports').select('id',    { count: 'exact', head: true }),
-      client.from('societies').select('id', { count: 'exact', head: true }),
-      client.from('athletes').select('id',  { count: 'exact', head: true })
+/* ---------- DASHBOARD ---------- */
+async function loadDashboard(){
+  try{
+    const [{count:sport},{count:societa},{count:atleti}]=await Promise.all([
+      client.from('sports').select('id',{count:'exact',head:true}),
+      client.from('societies').select('id',{count:'exact',head:true}),
+      client.from('athletes').select('id',{count:'exact',head:true})
     ])
-    document.getElementById('k-sport').textContent   = sport   ?? 0
-    document.getElementById('k-societa').textContent = societa ?? 0
-    document.getElementById('k-atleti').textContent  = atleti  ?? 0
-  } catch (err) {
-    console.error('[loadDashboard]', err)
-    document.getElementById('k-sport').textContent   = '?'
-    document.getElementById('k-societa').textContent = '?'
-    document.getElementById('k-atleti').textContent  = '?'
+    document.getElementById('k-sport').textContent=sport||0
+    document.getElementById('k-societa').textContent=societa||0
+    document.getElementById('k-atleti').textContent=atleti||0
+  }catch(e){
+    console.error('DASHBOARD ERROR:', e)
+    document.getElementById('k-sport').textContent='?'
+    document.getElementById('k-societa').textContent='?'
+    document.getElementById('k-atleti').textContent='?'
   }
 }
-
-/* ─────────────────────────────────────────────
-   SPORT
-───────────────────────────────────────────── */
-async function loadSports() {
-  const tb = document.querySelector('#tbl-sport tbody')
-  const { data, error } = await client.from('sports').select('*').order('name')
-  if (error) {
-    tb.innerHTML = `<tr><td colspan="3" style="color:red">Errore: ${error.message}</td></tr>`
-    return
-  }
-  tb.innerHTML = data.length
-    ? data.map(s => `
-        <tr>
-          <td>${s.id}</td>
-          <td>${s.name}</td>
-          <td><button onclick="deleteSport('${s.id}')">Elimina</button></td>
-        </tr>`).join('')
-    : `<tr><td colspan="3">Nessuno sport presente</td></tr>`
+/* ---------- SPORT ---------- */
+async function loadSports(){
+  const {data,error}=await client.from('sports').select('*').order('name')
+  const tb=document.querySelector('#tbl-sport tbody')
+  if(error){ tb.innerHTML=`<tr><td colspan="3" style="color:red">ERRORE: ${error.message}</td></tr>`; return }
+  tb.innerHTML=data.length? data.map(s=>`
+    <tr>
+      <td>${s.id}</td>
+      <td>${s.name}</td>
+      <td><button onclick="deleteSport('${s.id}')">Elimina</button></td>
+    </tr>`).join('')
+  : `<tr><td colspan="3">Nessuno sport presente</td></tr>`
 }
 
-async function createSport() {
-  const id   = document.getElementById('sport-id').value.trim()
-  const name = document.getElementById('sport-nome').value.trim()
-  if (!id || !name) return alert('Compila ID e Nome')
-  const { error } = await client.from('sports').insert({ id, name })
-  if (error) return alert(error.message)
-  document.getElementById('sport-id').value   = ''
-  document.getElementById('sport-nome').value = ''
+async function createSport(){
+  const id=document.getElementById('sport-id').value.trim()
+  const name=document.getElementById('sport-nome').value.trim()
+  if(!id || !name) return alert('Compila ID e Nome')
+
+  const {error}=await client.from('sports').insert({id,name})
+  if(error) return alert(error.message)
+
+  document.getElementById('sport-id').value=''
+  document.getElementById('sport-nome').value=''
   loadSports()
   loadDashboard()
 }
 
-async function deleteSport(id) {
-  if (!confirm('Eliminare lo sport ' + id + '?')) return
-  const { error } = await client.from('sports').delete().eq('id', id)
-  if (error) return alert(error.message)
+async function deleteSport(id){
+  if(!confirm('Eliminare lo sport '+id+' ?')) return
+  const {error}=await client.from('sports').delete().eq('id',id)
+  if(error) return alert(error.message)
   loadSports()
   loadDashboard()
 }
