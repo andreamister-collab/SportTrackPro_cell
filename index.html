@@ -112,13 +112,13 @@ async function login(e){
   console.log('STEP 1 - Cerco username:', username)
 
   // 1) PRENDO LA MAIL DA PUBLIC.USERS
-  const {data:userRow, error:userErr}=await client
-    .from('users')
-    .select('email')
-    .eq('username', username)
-    .maybeSingle()
+const {data:userRow, error:userErr}=await client
+  .from('users')
+  .select('*')                 // ← prendi TUTTE le colonne, non solo email
+  .ilike('username', username.trim())
+  .maybeSingle()
 
-  console.log('STEP 2 - Risultato public.users:', userRow, userErr)
+console.log('STEP 2 - Risultato public.users:', userRow, userErr)
 
   if(userErr){
     err.textContent='ERRORE DB: '+userErr.message
