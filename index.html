@@ -39,7 +39,7 @@
   select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
   button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
   button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
-  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:12px}
   th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;font-size:13px;color:var(--muted)}
 .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0}
@@ -57,6 +57,8 @@
   <h2>SportTrack</h2>
   <button class="active" data-sec="dashboard">Dashboard</button>
   <button data-sec="sport">Sport</button>
+  <button data-sec="category">Categorie</button>
+  <button data-sec="team">Squadre</button>
   <button onclick="logout()" style="margin-top:auto;color:#fca5a5">Esci</button>
 </div>
 
@@ -104,16 +106,44 @@
       <!-- SPORT -->
       <section id="sec-sport" style="display:none">
         <h1>Gestione Sport</h1>
-
         <div class="form-row">
           <input id="sport-id" placeholder="ID (es. calcio)">
           <input id="sport-name" placeholder="Nome (es. Calcio)">
           <input id="sport-icon" placeholder="Icona (es. 🏅)">
           <button class="primary" onclick="createSport()">Aggiungi Sport</button>
         </div>
-
         <table id="tbl-sport">
           <thead><tr><th>ID</th><th>Nome</th><th>Icona</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="4">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
+
+      <!-- CATEGORIA -->
+      <section id="sec-category" style="display:none">
+        <h1>Gestione Categorie</h1>
+        <div class="form-row">
+          <input id="category-id" placeholder="ID (es. under14)">
+          <input id="category-name" placeholder="Nome (es. Under 14)">
+          <select id="category-society"><option value="">Seleziona società</option></select>
+          <button class="primary" onclick="createCategory()">Aggiungi Categoria</button>
+        </div>
+        <table id="tbl-category">
+          <thead><tr><th>ID</th><th>Nome</th><th>Società</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="4">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
+
+      <!-- SQUADRA -->
+      <section id="sec-team" style="display:none">
+        <h1>Gestione Squadre</h1>
+        <div class="form-row">
+          <input id="team-id" placeholder="ID (es. under14_a)">
+          <input id="team-name" placeholder="Nome (es. Under 14 A)">
+          <select id="team-society"><option value="">Seleziona società</option></select>
+          <button class="primary" onclick="createTeam()">Aggiungi Squadra</button>
+        </div>
+        <table id="tbl-team">
+          <thead><tr><th>ID</th><th>Nome</th><th>Società</th><th>Azioni</th></tr></thead>
           <tbody><tr><td colspan="4">Caricamento...</td></tr></tbody>
         </table>
       </section>
@@ -134,6 +164,8 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
     document.getElementById('sec-'+btn.dataset.sec).style.display='block'
     if(btn.dataset.sec==='dashboard') refresh()
     if(btn.dataset.sec==='sport') loadSports()
+    if(btn.dataset.sec==='category') { loadSocietiesForSelect('category-society'); loadCategories() }
+    if(btn.dataset.sec==='team') { loadSocietiesForSelect('team-society'); loadTeams() }
   }
 })
 
@@ -338,22 +370,13 @@ document.getElementById('f-team').onchange=e=>{STATE.teamId=e.target.value;refre
 /* ===== SPORT CRUD ===== */
 async function loadSports(){
   const {data, error} = await client.from('sports').select('*').order('name')
-  console.log('SPORTS:', data, error)
   const tbody=document.querySelector('#tbl-sport tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
     return
   }
   tbody.innerHTML = data.length
-   ? data.map(s=>`
-        <tr>
-          <td>${s.id}</td>
-          <td>${s.name}</td>
-          <td>${s.icon||''}</td>
-          <td class="actions">
-            <button class="danger" onclick="deleteSport('${s.id}')">Elimina</button>
-          </td>
-        </tr>`).join('')
+  ? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td><td class="actions"><button class="danger" onclick="deleteSport('${s.id}')">Elimina</button></td></tr>`).join('')
     : `<tr><td colspan="4">Nessuno sport presente</td></tr>`
 }
 
@@ -361,12 +384,9 @@ async function createSport(){
   const id=document.getElementById('sport-id').value.trim()
   const name=document.getElementById('sport-name').value.trim()
   const icon=document.getElementById('sport-icon').value.trim()
-
   if(!id ||!name) return alert('ID e Nome sono obbligatori')
-
   const {error}=await client.from('sports').insert({id,name,icon})
   if(error) return alert(error.message)
-
   document.getElementById('sport-id').value=''
   document.getElementById('sport-name').value=''
   document.getElementById('sport-icon').value=''
@@ -378,6 +398,78 @@ async function deleteSport(id){
   const {error}=await client.from('sports').delete().eq('id',id)
   if(error) return alert(error.message)
   loadSports()
+}
+
+/* ===== CATEGORIA CRUD ===== */
+async function loadSocietiesForSelect(selectId){
+  const {data}=await client.from('societies').select('id,name').order('name')
+  const sel=document.getElementById(selectId)
+  sel.innerHTML='<option value="">Seleziona società</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+}
+
+async function loadCategories(){
+  const {data, error} = await client.from('categories').select('id,name,societies(name)').order('name')
+  const tbody=document.querySelector('#tbl-category tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tbody.innerHTML = data.length
+  ? data.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteCategory('${c.id}')">Elimina</button></td></tr>`).join('')
+    : `<tr><td colspan="4">Nessuna categoria presente</td></tr>`
+}
+
+async function createCategory(){
+  const id=document.getElementById('category-id').value.trim()
+  const name=document.getElementById('category-name').value.trim()
+  const society_id=document.getElementById('category-society').value
+  if(!id ||!name ||!society_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('categories').insert({id,name,society_id})
+  if(error) return alert(error.message)
+  document.getElementById('category-id').value=''
+  document.getElementById('category-name').value=''
+  document.getElementById('category-society').value=''
+  loadCategories()
+}
+
+async function deleteCategory(id){
+  if(!confirm(`Eliminare la categoria "${id}"?`)) return
+  const {error}=await client.from('categories').delete().eq('id',id)
+  if(error) return alert(error.message)
+  loadCategories()
+}
+
+/* ===== SQUADRA CRUD ===== */
+async function loadTeams(){
+  const {data, error} = await client.from('teams').select('id,name,societies(name)').order('name')
+  const tbody=document.querySelector('#tbl-team tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tbody.innerHTML = data.length
+  ? data.map(t=>`<tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteTeam('${t.id}')">Elimina</button></td></tr>`).join('')
+    : `<tr><td colspan="4">Nessuna squadra presente</td></tr>`
+}
+
+async function createTeam(){
+  const id=document.getElementById('team-id').value.trim()
+  const name=document.getElementById('team-name').value.trim()
+  const society_id=document.getElementById('team-society').value
+  if(!id ||!name ||!society_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('teams').insert({id,name,society_id})
+  if(error) return alert(error.message)
+  document.getElementById('team-id').value=''
+  document.getElementById('team-name').value=''
+  document.getElementById('team-society').value=''
+  loadTeams()
+}
+
+async function deleteTeam(id){
+  if(!confirm(`Eliminare la squadra "${id}"?`)) return
+  const {error}=await client.from('teams').delete().eq('id',id)
+  if(error) return alert(error.message)
+  loadTeams()
 }
 </script>
 </body>
