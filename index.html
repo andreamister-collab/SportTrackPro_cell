@@ -1,60 +1,472 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <title>SportTrackPro</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SportTrack Pro – Admin</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
+  --c1:#3b82f6; --c2:#10b981; --c3:#f59e0b; --c4:#06b6d4; --c5:#8b5cf6; --c6:#ec4899; --c7:#f97316; --c8:#14b8a6;
+  --sidebar:#1f2937; --sidebar-active:#2563eb;
+}
+*{box-sizing:border-box}
+body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
+.sidebar{width:240px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+.sidebar h2{font-size:18px;padding:0 16px 16px;border-bottom:1px solid #374151;margin:0}
+.nav{display:flex;flex-direction:column;gap:4px;padding:8px}
+.nav button{background:none;border:none;color:#d1d5db;text-align:left;padding:10px 12px;font-size:14px;cursor:pointer;width:100%;border-radius:8px}
+.nav button.active,.nav button:hover{background:var(--sidebar-active);color:#fff}
+.main{flex:1;overflow:auto;padding:20px}
+.container{max-width:1400px;margin:0 auto}
+h1{font-size:24px;margin:0 0 16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--c1)}
+.card.c2::before{background:var(--c2)}.card.c3::before{background:var(--c3)}.card.c4::before{background:var(--c4)}
+.card.c5::before{background:var(--c5)}.card.c6::before{background:var(--c6)}.card.c7::before{background:var(--c7)}.card.c8::before{background:var(--c8)}
+.card h3{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.card.val{margin:6px 0 0;font-size:32px;font-weight:800}
+.card.sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+input,select,button,textarea{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:14px}
+button.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+button.ghost{background:#fff}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
+th{background:#f9fafb;font-size:12px;color:var(--muted);text-transform:uppercase}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0}
+.badge.ok{background:#dcfce7;color:#166534}
+.badge.warn{background:#fef3c7;color:#92400e}
+.badge.bad{background:#fee2e2;color:#991b1b}
+.badge.staff{background:#dbeafe;color:#1e40af}
+.section{display:none}
+.section.active{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.small{font-size:12px;color:var(--muted)}
+</style>
 </head>
-<body class="theme-light">
+<body>
+<div class="sidebar">
+  <h2>SportTrack</h2>
+  <div class="nav">
+    <button data-sec="dashboard" class="active">Dashboard</button>
+    <button data-sec="stagioni">Stagioni</button>
+    <button data-sec="societa">Società</button>
+    <button data-sec="sport">Sport</button>
+    <button data-sec="categorie">Categorie</button>
+    <button data-sec="squadre">Squadre</button>
+    <button data-sec="relazioni">Relazioni (Team-Categoria-Stagione)</button>
+    <button data-sec="utenti">Utenti</button>
+    <button data-sec="ruoli">Ruoli/Assegnazioni</button>
+    <button data-sec="atleti">Atleti</button>
+    <button data-sec="sessioni">Sessioni & Presenze</button>
+    <button data-sec="import">Importa da altro progetto</button>
+  </div>
+</div>
 
-  <div id="app">
-    <!-- LOGIN -->
-    <div id="login-view" class="login-container">
-      <h1>SportTrackPro</h1>
-      <form id="login-form">
-        <label>Username</label>
-        <input type="text" id="login-username" required>
+<div class="main"><div class="container">
 
-        <label>Password</label>
-        <input type="password" id="login-password" required>
-
-        <button type="submit">Accedi</button>
-      </form>
-      <div id="login-error" class="error-msg"></div>
-    </div>
- 
-    <!-- APP AUTENTICATA -->
-    <div id="main-layout" class="layout hidden">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <h2>SportTrackPro</h2>
-          <div id="user-info" class="user-email"></div>
-        </div>
-        <nav class="sidebar-nav" id="sidebar-nav">
-          <!-- voci generate da JS -->
-        </nav>
-      </aside>
-
-      <main class="main-content">
-        <header class="main-header">
-          <div>
-            <h1 id="view-title">Dashboard</h1>
-            <div class="season-info">
-              Stagione attiva: <span id="active-season-label">-</span>
-            </div>
-          </div>
-        </header>
-
-        <section id="content"></section>
-        <div id="toast" class="toast hidden"></div>
-      </main>
-    </div>
+  <!-- AUTH -->
+  <div id="auth-section">
+    <h1>Accedi</h1>
+    <form onsubmit="login(event)" class="toolbar">
+      <input id="username" placeholder="Username" autocomplete="username" required>
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button class="primary" type="submit">Entra</button>
+      <span class="small">* login via username→email (tabella users)</span>
+    </form>
+    <hr>
   </div>
 
-  <!-- Supabase UMD -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- APP -->
+  <div id="app" style="display:none">
 
-  <!-- App -->
-  <script type="module" src="app.js"></script>
-</body>
-</html>
+    <!-- DASHBOARD -->
+    <section id="sec-dashboard" class="section active">
+      <h1>Dashboard</h1>
+      <div class="cards">
+        <div class="card c1"><h3>ATLETI TOTALI</h3><div class="val" id="c-atleti">0</div><div class="sub" id="c-atleti-sub">in 0 categorie</div></div>
+        <div class="card c2"><h3>SESSIONI</h3><div class="val" id="c-sessioni">0</div><div class="sub">nella stagione attiva</div></div>
+        <div class="card c3"><h3>% PRESENZE</h3><div class="val" id="c-pres">0%</div><div class="sub" id="c-pres-sub">0/0</div></div>
+        <div class="card c4"><h3>SOCIETÀ</h3><div class="val" id="c-societa">0</div><div class="sub" id="c-societa-sub">0 sport</div></div>
+        <div class="card c5"><h3>CATEGORIE</h3><div class="val" id="c-categorie">0</div><div class="sub">attive</div></div>
+        <div class="card c6"><h3>UTENTI</h3><div class="val" id="c-staff">0</div><div class="sub">registrati</div></div>
+        <div class="card c7"><h3>RESPONSABILI</h3><div class="val" id="c-responsabili">0</div><div class="sub">assegnati</div></div>
+        <div class="card c8"><h3>ALLENATORI</h3><div class="val" id="c-allenatori">0</div><div class="sub">assegnati</div></div>
+        <div class="card c4"><h3>PROFESSIONISTI</h3><div class="val" id="c-prof">0</div><div class="sub">assegnati</div></div>
+      </div>
+
+      <div class="toolbar">
+        <select id="f-society"><option value="">Tutte le società</option></select>
+        <select id="f-category"><option value="">Tutte le categorie</option></select>
+        <select id="f-team"><option value="">Tutte le squadre</option></select>
+        <select id="f-season"><option value="">Tutte le stagioni</option></select>
+      </div>
+
+      <table id="tbl">
+        <thead><tr><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>SPORT</th><th>STAFF</th><th>ATLETI</th><th>SESSIONI</th><th>% PRESENZE</th><th>AZIONI</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- STAGIONI -->
+    <section id="sec-stagioni" class="section">
+      <h1>Stagioni</h1>
+      <div class="toolbar">
+        <input id="stag-nome" placeholder="Nome (es. 2025/26)">
+        <input id="stag-start" type="date">
+        <input id="stag-end" type="date">
+        <button class="primary" onclick="createSeason()">Crea stagione</button>
+        <select id="stag-attiva"></select>
+        <button onclick="activateSeason()">Attiva selezionata</button>
+      </div>
+      <table id="tbl-stagioni"><thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Attiva</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- SOCIETA -->
+    <section id="sec-societa" class="section">
+      <h1>Società</h1>
+      <div class="toolbar">
+        <input id="soc-nome" placeholder="Nome società">
+        <input id="soc-city" placeholder="Città">
+        <input id="soc-email" placeholder="Email">
+        <select id="soc-sport"><option value="">Sport…</option></select>
+        <button class="primary" onclick="createSociety()">Crea</button>
+      </div>
+      <table id="tbl-societa"><thead><tr><th>Nome</th><th>Città</th><th>Email</th><th>Sport</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- SPORT -->
+    <section id="sec-sport" class="section">
+      <h1>Sport</h1>
+      <div class="toolbar">
+        <input id="sport-id" placeholder="id (es. calcio)">
+        <input id="sport-nome" placeholder="Nome">
+        <button class="primary" onclick="createSport()">Crea</button>
+      </div>
+      <table id="tbl-sport"><thead><tr><th>ID</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- CATEGORIE -->
+    <section id="sec-categorie" class="section">
+      <h1>Categorie</h1>
+      <div class="toolbar">
+        <select id="cat-society"><option value="">Società…</option></select>
+        <input id="cat-nome" placeholder="Nome categoria (es. U15)">
+        <button class="primary" onclick="createCategory()">Crea</button>
+      </div>
+      <table id="tbl-categorie"><thead><tr><th>Società</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- SQUADRE -->
+    <section id="sec-squadre" class="section">
+      <h1>Squadre</h1>
+      <div class="toolbar">
+        <select id="team-society"><option value="">Società…</option></select>
+        <select id="team-sport"><option value="">Sport…</option></select>
+        <input id="team-nome" placeholder="Nome squadra">
+        <button class="primary" onclick="createTeam()">Crea</button>
+      </div>
+      <table id="tbl-squadre"><thead><tr><th>Società</th><th>Sport</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- RELAZIONI -->
+    <section id="sec-relazioni" class="section">
+      <h1>Relazioni Team–Categoria–Stagione</h1>
+      <div class="toolbar">
+        <select id="rel-team"><option value="">Squadra…</option></select>
+        <select id="rel-category"><option value="">Categoria…</option></select>
+        <select id="rel-season"><option value="">Stagione…</option></select>
+        <button class="primary" onclick="linkTCS()">Collega</button>
+      </div>
+      <table id="tbl-rel"><thead><tr><th>Squadra</th><th>Categoria</th><th>Stagione</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- UTENTI -->
+    <section id="sec-utenti" class="section">
+      <h1>Utenti</h1>
+      <div class="toolbar">
+        <input id="u-username" placeholder="username">
+        <input id="u-email" placeholder="email">
+        <input id="u-name" placeholder="nome visualizzato">
+        <button class="primary" onclick="createUser()">Crea</button>
+      </div>
+      <table id="tbl-utenti"><thead><tr><th>Username</th><th>Email</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- RUOLI / ASSEGNAZIONI -->
+    <section id="sec-ruoli" class="section">
+      <h1>Assegnazioni Ruoli (per Categoria/Team/Stagione)</h1>
+      <div class="toolbar">
+        <select id="as-user"><option value="">Utente…</option></select>
+        <select id="as-category"><option value="">Categoria…</option></select>
+        <select id="as-team"><option value="">Squadra…</option></select>
+        <select id="as-season"><option value="">Stagione…</option></select>
+        <select id="as-role">
+          <option value="responsabile">responsabile</option>
+          <option value="allenatore">allenatore</option>
+          <option value="professionista">professionista</option>
+        </select>
+        <button class="primary" onclick="assignRole()">Assegna</button>
+      </div>
+      <table id="tbl-assign"><thead><tr><th>Utente</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th>Ruolo</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <!-- ATLETI -->
+    <section id="sec-atleti" class="section">
+      <h1>Atleti & Assegnazioni</h1>
+      <div class="grid2">
+        <div>
+          <h3>Crea atleta</h3>
+          <div class="toolbar">
+            <select id="ath-society"><option value="">Società…</option></select>
+            <input id="ath-name" placeholder="Nome atleta">
+            <input id="ath-bd" type="date">
+            <button class="primary" onclick="createAthlete()">Crea</button>
+          </div>
+          <table id="tbl-atleti"><thead><tr><th>Nome</th><th>Società</th><th>Nascita</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div>
+          <h3>Assegna ad annata</h3>
+          <div class="toolbar">
+            <select id="as-athlete"><option value="">Atleta…</option></select>
+            <select id="as-ath-cat"><option value="">Categoria…</option></select>
+            <select id="as-ath-team"><option value="">Squadra…</option></select>
+            <select id="as-ath-season"><option value="">Stagione…</option></select>
+            <button class="primary" onclick="assignAthlete()">Assegna</button>
+          </div>
+          <table id="tbl-ath-seasons"><thead><tr><th>Atleta</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SESSIONI -->
+    <section id="sec-sessioni" class="section">
+      <h1>Sessioni & Presenze</h1>
+      <div class="toolbar">
+        <select id="ses-cat"><option value="">Categoria…</option></select>
+        <select id="ses-team"><option value="">Squadra…</option></select>
+        <select id="ses-season"><option value="">Stagione…</option></select>
+        <input id="ses-date" type="date">
+        <input id="ses-notes" placeholder="Note">
+        <button class="primary" onclick="createSession()">Crea sessione</button>
+      </div>
+      <table id="tbl-sessions"><thead><tr><th>Data</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th>Note</th><th>Azioni</th></tr></thead><tbody></tbody></table>
+      <hr>
+      <div id="att-panel" style="display:none">
+        <h3>Presenze del <span id="att-date"></span></h3>
+        <div class="toolbar"><button onclick="saveAttendances()" class="primary">Salva presenze</button></div>
+        <table id="tbl-att"><thead><tr><th>Atleta</th><th>Stato</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- IMPORT -->
+    <section id="sec-import" class="section">
+      <h1>Importa da altro progetto Supabase</h1>
+      <p class="small">Incolla URL e ANON KEY del progetto sorgente. Importa le tabelle nell'ordine corretto.</p>
+      <div class="toolbar">
+        <input id="src-url" placeholder="https://xxx.supabase.co" style="min-width:320px">
+        <input id="src-key" placeholder="PUBLIC ANON KEY" style="min-width:320px">
+        <button class="primary" onclick="importAll()">Importa tutto</button>
+      </div>
+      <pre id="import-log" style="background:#0b1020;color:#d1e7ff;padding:12px;border-radius:8px;max-height:300px;overflow:auto"></pre>
+    </section>
+
+  </div>
+</div></div>
+
+<script>
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
+let CACHE={sports:[], seasons:[], societies:[], categories:[], teams:[], users:[], athletes:[]}
+
+/* ========= NAV ========= */
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'))
+    b.classList.add('active')
+    const sec=b.dataset.sec
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'))
+    document.getElementById('sec-'+sec).classList.add('active')
+    if(sec==='dashboard') refreshDashboard()
+    if(sec==='stagioni') loadSeasons()
+    if(sec==='societa') loadSocieties()
+    if(sec==='sport') loadSports()
+    if(sec==='categorie') loadCategories()
+    if(sec==='squadre') loadTeams()
+    if(sec==='relazioni') loadRel()
+    if(sec==='utenti') loadUsers()
+    if(sec==='ruoli') loadAssign()
+    if(sec==='atleti') loadAthletes()
+    if(sec==='sessioni') loadSessions()
+  }
+})
+
+/* ========= AUTH ========= */
+async function login(e){
+  e.preventDefault()
+  const username = document.getElementById('username').value.trim()
+  const password = document.getElementById('password').value
+  const { data: userRow, error: userErr } = await client.from('users').select('email,id').eq('username', username).single()
+  if(userErr ||!userRow ||!userRow.email) return alert('Username non trovato o email mancante')
+  const { data, error } = await client.auth.signInWithPassword({email: userRow.email, password})
+  if(error) return alert(error.message)
+  USER = data.user
+  document.getElementById('auth-section').style.display='none'
+  document.getElementById('app').style.display='block'
+  await boot()
+}
+
+async function boot(){
+  await Promise.all([loadSports(), loadSeasons(true), loadSocieties(), loadCategories(), loadTeams(), loadUsers(), loadAthletes()])
+  await refreshDashboard()
+}
+
+/* ========= HELPERS ========= */
+function opt(el, arr, val, label){
+  const s=document.getElementById(el); if(!s) return
+  s.innerHTML='<option value="">—</option>'+(arr||[]).map(x=>`<option value="${x[val]}">${typeof label==='function'?label(x):x[label]}</option>`).join('')
+}
+function tbody(id){ return document.querySelector('#'+id+' tbody') }
+
+/* ========= SPORT ========= */
+async function loadSports(){
+  const {data}=await client.from('sports').select('*').order('name')
+  CACHE.sports=data||[]
+  opt('soc-sport', CACHE.sports,'id','name')
+  opt('team-sport', CACHE.sports,'id','name')
+  const tb=tbody('tbl-sport'); tb.innerHTML=''
+  CACHE.sports.forEach(s=> tb.innerHTML+=`<tr><td>${s.id}</td><td>${s.name}</td>
+    <td><button onclick="delRow('sports','id','${s.id}')">Elimina</button></td></tr>`)
+}
+async function createSport(){
+  const id=document.getElementById('sport-id').value.trim()
+  const name=document.getElementById('sport-nome').value.trim()
+  if(!id||!name) return
+  const {error}=await client.from('sports').insert({id,name})
+  if(error) return alert(error.message)
+  document.getElementById('sport-id').value=''; document.getElementById('sport-nome').value=''
+  loadSports()
+}
+
+/* ========= SEASONS ========= */
+async function loadSeasons(setDefault){
+  const {data}=await client.from('seasons').select('*').order('start_date',{ascending:false})
+  CACHE.seasons=data||[]
+  const tb=tbody('tbl-stagioni'); tb.innerHTML=''
+  CACHE.seasons.forEach(s=>{
+    tb.innerHTML+=`<tr><td>${s.name}</td><td>${s.start_date||''}</td><td>${s.end_date||''}</td>
+    <td>${s.active?'✅':''}</td>
+    <td>
+      <button onclick="activateSeasonId('${s.id}')">Attiva</button>
+      <button onclick="delRow('seasons','id','${s.id}')">Elimina</button>
+    </td></tr>`
+  })
+  opt('stag-attiva', CACHE.seasons,'id','name')
+  opt('f-season', CACHE.seasons,'id','name')
+  opt('rel-season', CACHE.seasons,'id','name')
+  opt('as-season', CACHE.seasons,'id','name')
+  opt('as-ath-season', CACHE.seasons,'id','name')
+  opt('ses-season', CACHE.seasons,'id','name')
+  if(setDefault){
+    const active = CACHE.seasons.find(x=>x.active) || CACHE.seasons[0]
+    STATE.seasonId = active?.id || ''
+    document.getElementById('f-season').value = STATE.seasonId
+  }
+}
+async function createSeason(){
+  const name=document.getElementById('stag-nome').value.trim()
+  const start_date=document.getElementById('stag-start').value||null
+  const end_date=document.getElementById('stag-end').value||null
+  if(!name||!start_date) return alert('Nome e data inizio obbligatori')
+  const {error}=await client.from('seasons').insert({name,start_date,end_date,active:false})
+  if(error) return alert(error.message)
+  document.getElementById('stag-nome').value=''; document.getElementById('stag-start').value=''; document.getElementById('stag-end').value=''
+  loadSeasons()
+}
+async function activateSeason(){
+  const id=document.getElementById('stag-attiva').value
+  if(!id) return
+  await client.from('seasons').update({active:false}).neq('id', id)
+  await client.from('seasons').update({active:true}).eq('id', id)
+  STATE.seasonId=id
+  loadSeasons()
+}
+async function activateSeasonId(id){ document.getElementById('stag-attiva').value=id; activateSeason() }
+
+/* ========= SOCIETIES ========= */
+async function loadSocieties(){
+  const {data}=await client.from('societies').select('*, sports(name)').order('name')
+  CACHE.societies=data||[]
+  const tb=tbody('tbl-societa'); tb.innerHTML=''
+  CACHE.societies.forEach(s=>{
+    tb.innerHTML+=`<tr><td>${s.name}</td><td>${s.city||''}</td><td>${s.email||''}</td><td>${s.sports?.name||'—'}</td>
+    <td><button onclick="delRow('societies','id','${s.id}')">Elimina</button></td></tr>`
+  })
+  opt('cat-society', CACHE.societies,'id','name')
+  opt('team-society', CACHE.societies,'id','name')
+  opt('f-society', CACHE.societies,'id','name')
+  opt('ath-society', CACHE.societies,'id','name')
+}
+async function createSociety(){
+  const name=document.getElementById('soc-nome').value.trim()
+  const city=document.getElementById('soc-city').value.trim()
+  const email=document.getElementById('soc-email').value.trim()
+  const sport_id=document.getElementById('soc-sport').value||null
+  if(!name) return
+  const {error}=await client.from('societies').insert({name,city,email,sport_id})
+  if(error) return alert(error.message)
+  document.getElementById('soc-nome').value=''; document.getElementById('soc-city').value=''; document.getElementById('soc-email').value=''; document.getElementById('soc-sport').value=''
+  loadSocieties()
+}
+
+/* ========= CATEGORIES ========= */
+async function loadCategories(){
+  const {data}=await client.from('categories').select('*, societies(name)').order('name')
+  CACHE.categories=data||[]
+  const tb=tbody('tbl-categorie'); tb.innerHTML=''
+  CACHE.categories.forEach(c=>{
+    tb.innerHTML+=`<tr><td>${c.societies?.name||'—'}</td><td>${c.name}</td>
+    <td><button onclick="delRow('categories','id','${c.id}')">Elimina</button></td></tr>`
+  })
+  opt('f-category', CACHE.categories,'id','name')
+  opt('rel-category', CACHE.categories,'id','name')
+  opt('as-category', CACHE.categories,'id','name')
+  opt('as-ath-cat', CACHE.categories,'id','name')
+  opt('ses-cat', CACHE.categories,'id','name')
+}
+async function createCategory(){
+  const society_id=document.getElementById('cat-society').value
+  const name=document.getElementById('cat-nome').value.trim()
+  if(!society_id||!name) return
+  const {error}=await client.from('categories').insert({society_id,name})
+  if(error) return alert(error.message)
+  document.getElementById('cat-nome').value=''
+  loadCategories()
+}
+
+/* ========= TEAMS ========= */
+async function loadTeams(){
+  const {data}=await client.from('teams').select('*, societies(name), sports(name)').order('name')
+  CACHE.teams=data||[]
+  const tb=tbody('tbl-squadre'); tb.innerHTML=''
+  CACHE.teams.forEach(t=>{
+    tb.innerHTML+=`<tr><td>${t.societies?.name||'—'}</td><td>${t.sports?.name||'—'}</td><td>${t.name}</td>
+    <td><button onclick="delRow('teams','id','${t.id}')">Elimina</button></td></tr>`
+  })
+  opt('f-team', CACHE.teams,'id','name')
+  opt('rel-team', CACHE.teams,'id','name')
+  opt('as-team', CACHE.teams,'id','name')
+  opt('as-ath-team', CACHE.teams,'id','name')
+  opt('ses-team', CACHE.teams,'id','name')
+}
+async function createTeam(){
+  const society_id=document.getElementById('team-society').value
+  const sport_id=document.getElementById('team-sport').value||null
+  const name=document.getElementById('team-nome').value.trim()
+  if(!society_id||!name) return
+  const {error}=await client
