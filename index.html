@@ -63,6 +63,7 @@
   <button data-sec="category">Categorie</button>
   <button data-sec="team">Squadre</button>
   <button data-sec="link">Associazioni</button>
+  <button data-sec="staff">Staff</button> <!-- NEW -->
   <button onclick="logout()" style="margin-top:auto;color:#fca5a5">Esci</button>
 </div>
 
@@ -91,7 +92,10 @@
           <div class="card c6"><h3>STAFF TOTALE</h3><div class="val" id="c-staff">0</div><div class="sub">utenti registrati</div></div>
           <div class="card c7"><h3>RESPONSABILI</h3><div class="val" id="c-responsabili">0</div><div class="sub">registrati</div></div>
           <div class="card c8"><h3>ALLENATORI</h3><div class="val" id="c-allenatori">0</div><div class="sub">registrati</div></div>
-          <div class="card c4"><h3>PROFESSIONIS...</h3><div class="val" id="c-prof">0</div><div class="sub">registrati</div></div>
+          <div class="card c6"><h3>PRESIDENTE</h3><div class="val" id="c-presidente">0</div><div class="sub">registrati</div></div> <!-- NEW -->
+          <div class="card c7"><h3>DIRIGENTE</h3><div class="val" id="c-dirigente">0</div><div class="sub">registrati</div></div> <!-- NEW -->
+          <div class="card c8"><h3>SEGRETARIO</h3><div class="val" id="c-segretario">0</div><div class="sub">registrati</div></div> <!-- NEW -->
+          <div class="card c4"><h3>PROFESSIONISTA</h3><div class="val" id="c-prof">0</div><div class="sub">registrati</div></div>
         </section>
 
         <div class="filters">
@@ -199,6 +203,32 @@
           <tbody><tr><td colspan="5">Caricamento...</td></tr></tbody>
         </table>
       </section>
+
+      <!-- STAFF --> <!-- NEW -->
+      <section id="sec-staff" style="display:none">
+        <h1>Gestione Staff</h1>
+        <div class="form-row">
+          <select id="staff-user"><option value="">Seleziona utente</option></select>
+          <select id="staff-season"><option value="">Seleziona stagione</option></select>
+          <select id="staff-society"><option value="">Seleziona società</option></select>
+          <select id="staff-category"><option value="">Seleziona categoria</option></select>
+          <select id="staff-team"><option value="">Seleziona squadra</option></select>
+          <select id="staff-role">
+            <option value="">Seleziona ruolo</option>
+            <option value="allenatore">Allenatore</option>
+            <option value="responsabile">Responsabile</option>
+            <option value="presidente">Presidente</option>
+            <option value="dirigente">Dirigente</option>
+            <option value="segretario">Segretario</option>
+            <option value="professionista">Professionista</option>
+          </select>
+          <button class="primary" onclick="createStaff()">Assegna Ruolo</button>
+        </div>
+        <table id="tbl-staff">
+          <thead><tr><th>Utente</th><th>Stagione</th><th>Società</th><th>Categoria</th><th>Squadra</th><th>Ruolo</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="7">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
     </div>
   </div>
 </div>
@@ -221,6 +251,7 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
     if(btn.dataset.sec==='category') { loadSocietiesForSelect('category-society'); loadCategories() }
     if(btn.dataset.sec==='team') { loadSocietiesForSelect('team-society'); loadTeams() }
     if(btn.dataset.sec==='link') { loadLinkSelects(); loadLinks() }
+    if(btn.dataset.sec==='staff') { loadStaffSelects(); loadStaff() } // NEW
   }
 })
 
@@ -289,7 +320,7 @@ async function refresh(){
     return
   }
 
-  /* CARD — conteggi diretti, non dipendono da team_category_season */
+  /* CARD — conteggi diretti */
   const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s)
   const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true})
   const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true})
@@ -300,6 +331,12 @@ async function refresh(){
 .eq('season_id',s).eq('role','responsabile')
   const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
 .eq('season_id',s).eq('role','allenatore')
+  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}) // NEW
+.eq('season_id',s).eq('role','presidente')
+  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}) // NEW
+.eq('season_id',s).eq('role','dirigente')
+  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}) // NEW
+.eq('season_id',s).eq('role','segretario')
   const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
 .eq('season_id',s).eq('role','professionista')
 
@@ -319,6 +356,9 @@ async function refresh(){
   document.getElementById('c-staff').textContent=utenti||0
   document.getElementById('c-responsabili').textContent=responsabili||0
   document.getElementById('c-allenatori').textContent=allenatori||0
+  document.getElementById('c-presidente').textContent=presidente||0 // NEW
+  document.getElementById('c-dirigente').textContent=dirigente||0 // NEW
+  document.getElementById('c-segretario').textContent=segretario||0 // NEW
   document.getElementById('c-prof').textContent=prof||0
 
   /* ---- TABELLA ---- */
@@ -362,15 +402,15 @@ async function refresh(){
 
     if(c?.id && t?.id){
       const {count:sessCntTmp}=await client.from('sessions').select('id',{count:'exact',head:true})
-    .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+   .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
       sessCnt=sessCntTmp||0
 
       const {count:athCntTmp}=await client.from('athlete_seasons').select('id',{count:'exact',head:true})
-    .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+   .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
       athCnt=athCntTmp||0
 
       const {data:sidData}=await client.from('sessions').select('id')
-    .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+   .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
       const sessionIds = sidData?.map(x=>x.id) || []
       if(sessionIds.length){
         const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
@@ -378,10 +418,10 @@ async function refresh(){
       }
 
       const {data:staffData}=await client.from('user_category_seasons')
-    .select('users(name),role')
-    .eq('category_id',c.id)
-    .eq('season_id',s)
-    .eq('team_id',t.id)
+   .select('users(name),role')
+   .eq('category_id',c.id)
+   .eq('season_id',s)
+   .eq('team_id',t.id)
 
       const staff = staffData || []
       staffHtml = staff.length? staff.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
@@ -624,6 +664,7 @@ async function createTeam(){
   document.getElementById('team-society').value=''
   loadTeams()
 }
+
 async function deleteTeam(id){
   if(!confirm(`Eliminare la squadra "${id}"?`)) return
   const {error}=await client.from('teams').delete().eq('id',id)
@@ -724,6 +765,116 @@ async function deleteLink(season_id,team_id,category_id){
 
   if(error) return alert(error.message)
   loadLinks()
+  refresh()
+}
+
+/* ===== STAFF (ALLENATORE, RESPONSABILE, PRESIDENTE, DIRIGENTE, SEGRETARIO, PROFESSIONISTA) ===== */
+async function loadStaffSelects(){
+  const {data:users}=await client.from('users').select('id,name').order('name')
+  const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
+  const {data:socs}=await client.from('societies').select('id,name').order('name')
+  
+  populate('staff-user', users, 'id', 'name')
+  populate('staff-season', seasons, 'id', 'name')
+  populate('staff-society', socs, 'id', 'name')
+  populate('staff-category', [], 'id', 'name')
+  populate('staff-team', [], 'id', 'name')
+}
+
+document.getElementById('staff-society').onchange=async e=>{
+  const societyId=e.target.value
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',societyId)
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',societyId)
+  populate('staff-category', cats, 'id', 'name')
+  populate('staff-team', teams, 'id', 'name')
+}
+
+async function loadStaff(){
+  const {data, error} = await client.from('user_category_seasons')
+  .select(`
+      user_id,
+      season_id,
+      category_id,
+      team_id,
+      role,
+      users(id,name),
+      seasons(id,name),
+      categories(id,name),
+      teams(id,name,societies(id,name))
+    `)
+  .order('season_id',{ascending:false})
+
+  const tbody=document.querySelector('#tbl-staff tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="7" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+
+  tbody.innerHTML = data.length
+   ? data.map(s=>`<tr>
+        <td>${s.users?.name||'—'}</td>
+        <td>${s.seasons?.name||'—'}</td>
+        <td>${s.teams?.societies?.name||'—'}</td>
+        <td>${s.categories?.name||'—'}</td>
+        <td>${s.teams?.name||'—'}</td>
+        <td><span class="badge staff">${s.role}</span></td>
+        <td class="actions"><button class="danger" onclick="deleteStaff('${s.user_id}','${s.season_id}','${s.category_id}','${s.team_id}','${s.role}')">Rimuovi</button></td>
+      </tr>`).join('')
+    : `<tr><td colspan="7">Nessun membro staff assegnato</td></tr>`
+}
+
+async function createStaff(){
+  const user_id=document.getElementById('staff-user').value
+  const season_id=document.getElementById('staff-season').value
+  const society_id=document.getElementById('staff-society').value
+  const category_id=document.getElementById('staff-category').value
+  const team_id=document.getElementById('staff-team').value
+  const role=document.getElementById('staff-role').value
+
+  if(!user_id ||!season_id ||!society_id ||!category_id ||!team_id ||!role) 
+    return alert('Compila tutti i campi')
+
+  // controllo coerenza: la categoria e la squadra devono appartenere alla stessa società
+  const {data:cat}=await client.from('categories').select('society_id').eq('id',category_id).single()
+  const {data:team}=await client.from('teams').select('society_id').eq('id',team_id).single()
+  if(cat?.society_id !== team?.society_id || cat?.society_id !== society_id){
+    return alert('Categoria e Squadra devono appartenere alla stessa Società')
+  }
+
+  const {error}=await client.from('user_category_seasons')
+  .insert({user_id,season_id,category_id,team_id,role})
+
+  if(error){
+    if(error.code==='23505'){
+      alert('Questo ruolo è già assegnato')
+    }else{
+      alert(error.message)
+    }
+    return
+  }
+
+  document.getElementById('staff-user').value=''
+  document.getElementById('staff-season').value=''
+  document.getElementById('staff-society').value=''
+  document.getElementById('staff-category').value=''
+  document.getElementById('staff-team').value=''
+  document.getElementById('staff-role').value=''
+  loadStaff()
+  refresh()
+}
+
+async function deleteStaff(user_id,season_id,category_id,team_id,role){
+  if(!confirm('Rimuovere questo membro dallo staff?')) return
+  const {error}=await client.from('user_category_seasons')
+  .delete()
+  .eq('user_id',user_id)
+  .eq('season_id',season_id)
+  .eq('category_id',category_id)
+  .eq('team_id',team_id)
+  .eq('role',role)
+
+  if(error) return alert(error.message)
+  loadStaff()
   refresh()
 }
 </script>
