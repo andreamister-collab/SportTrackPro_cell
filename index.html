@@ -100,7 +100,7 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
   }
 })
 
-/* ---------- LOGIN (USERNAME + PASSWORD) ---------- */
+/* ---------- LOGIN (USERNAME → EMAIL IN auth.users) ---------- */
 async function login(e){
   e.preventDefault()
   const err=document.getElementById('login-err')
@@ -109,27 +109,41 @@ async function login(e){
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
 
-  // CERCA l'utente nella TUA tabella users
-  const {data,error}=await client
+  // 1) Prendi l'email dalla TUA tabella users (che ha username + email)
+  const {data:userRow, error:userErr}=await client
     .from('users')
-    .select('*')
+    .select('email')
     .eq('username',username)
-    .eq('password',password)   // <-- CONFRONTO DIRETTO
-    .single()
+    .maybeSingle()
 
-  if(error || !data){
-    err.textContent='Username o password errati'
+  if(userErr){
+    err.textContent='Errore DB: '+userErr.message
+    return
+  }
+  if(!userRow){
+    err.textContent='Username non trovato'
     return
   }
 
-  USER=data
+  // 2) Fai il login VERO su auth.users
+  const {data,error}=await client.auth.signInWithPassword({
+    email:userRow.email,
+    password
+  })
+
+  if(error){
+    err.textContent='Password errata'
+    return
+  }
+
+  USER=data.user
   document.getElementById('login').classList.add('hidden')
   document.getElementById('app').classList.remove('hidden')
   loadDashboard()
 }
 
 function logout(){
-  USER=null
+  client.auth.signOut()
   document.getElementById('app').classList.add('hidden')
   document.getElementById('login').classList.remove('hidden')
   document.getElementById('username').value=''
