@@ -594,14 +594,7 @@ async function createSeason(){
 
   if(!id ||!name ||!start_date) return alert('ID, Nome e Data inizio sono obbligatori')
 
-  if(active){
-    await client.from('seasons').update({active:false}).neq('id',id)
-  }
-
-  const {error}=await client.from('seasons').insert({id,name,start_date,end_date,active})
-  if(error) return alert(error.message)
-
-  document.getElementById('season  if(active){
+if(active){
     await client.from('seasons').update({active:false}).neq('id',id)
   }
 
