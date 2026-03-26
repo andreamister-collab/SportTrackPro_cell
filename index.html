@@ -39,6 +39,7 @@
   select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
   button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
   button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
+  button.success{background:var(--c2);color:#fff;border:none;cursor:pointer}
   table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:12px}
   th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;font-size:13px;color:var(--muted)}
@@ -57,6 +58,8 @@
   <h2>SportTrack</h2>
   <button class="active" data-sec="dashboard">Dashboard</button>
   <button data-sec="sport">Sport</button>
+  <button data-sec="season">Stagioni</button>
+  <button data-sec="society">Società</button>
   <button data-sec="category">Categorie</button>
   <button data-sec="team">Squadre</button>
   <button onclick="logout()" style="margin-top:auto;color:#fca5a5">Esci</button>
@@ -118,6 +121,38 @@
         </table>
       </section>
 
+      <!-- STAGIONI -->
+      <section id="sec-season" style="display:none">
+        <h1>Gestione Stagioni</h1>
+        <div class="form-row">
+          <input id="season-id" placeholder="ID (es. 2025_2026)">
+          <input id="season-name" placeholder="Nome (es. 2025/2026)">
+          <input id="season-start" type="date">
+          <input id="season-end" type="date">
+          <label><input id="season-active" type="checkbox"> Attiva</label>
+          <button class="primary" onclick="createSeason()">Aggiungi Stagione</button>
+        </div>
+        <table id="tbl-season">
+          <thead><tr><th>ID</th><th>Nome</th><th>Periodo</th><th>Attiva</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="5">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
+
+      <!-- SOCIETÀ -->
+      <section id="sec-society" style="display:none">
+        <h1>Gestione Società</h1>
+        <div class="form-row">
+          <input id="society-id" placeholder="ID (es. ac_milano)">
+          <input id="society-name" placeholder="Nome (es. AC Milano)">
+          <select id="society-sport"><option value="">Seleziona sport</option></select>
+          <button class="primary" onclick="createSociety()">Aggiungi Società</button>
+        </div>
+        <table id="tbl-society">
+          <thead><tr><th>ID</th><th>Nome</th><th>Sport</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="4">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
+
       <!-- CATEGORIA -->
       <section id="sec-category" style="display:none">
         <h1>Gestione Categorie</h1>
@@ -164,6 +199,8 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
     document.getElementById('sec-'+btn.dataset.sec).style.display='block'
     if(btn.dataset.sec==='dashboard') refresh()
     if(btn.dataset.sec==='sport') loadSports()
+    if(btn.dataset.sec==='season') loadSeasons()
+    if(btn.dataset.sec==='society') { loadSportsForSelect('society-sport'); loadSocieties() }
     if(btn.dataset.sec==='category') { loadSocietiesForSelect('category-society'); loadCategories() }
     if(btn.dataset.sec==='team') { loadSocietiesForSelect('team-society'); loadTeams() }
   }
@@ -376,7 +413,7 @@ async function loadSports(){
     return
   }
   tbody.innerHTML = data.length
-  ? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td><td class="actions"><button class="danger" onclick="deleteSport('${s.id}')">Elimina</button></td></tr>`).join('')
+? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td><td class="actions"><button class="danger" onclick="deleteSport('${s.id}')">Elimina</button></td></tr>`).join('')
     : `<tr><td colspan="4">Nessuno sport presente</td></tr>`
 }
 
@@ -400,6 +437,105 @@ async function deleteSport(id){
   loadSports()
 }
 
+/* ===== STAGIONI CRUD ===== */
+async function loadSeasons(){
+  const {data, error} = await client.from('seasons').select('*').order('start_date',{ascending:false})
+  const tbody=document.querySelector('#tbl-season tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="5" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tbody.innerHTML = data.length
+? data.map(s=>`<tr>
+      <td>${s.id}</td>
+      <td>${s.name}</td>
+      <td>${s.start_date} → ${s.end_date||'—'}</td>
+      <td>${s.active?'✅':'—'}</td>
+      <td class="actions">
+        ${!s.active?`<button class="success" onclick="setSeasonActive('${s.id}')">Attiva</button>`:''}
+        <button class="danger" onclick="deleteSeason('${s.id}')">Elimina</button>
+      </td>
+    </tr>`).join('')
+    : `<tr><td colspan="5">Nessuna stagione presente</td></tr>`
+}
+
+async function createSeason(){
+  const id=document.getElementById('season-id').value.trim()
+  const name=document.getElementById('season-name').value.trim()
+  const start_date=document.getElementById('season-start').value
+  const end_date=document.getElementById('season-end').value
+  const active=document.getElementById('season-active').checked
+
+  if(!id ||!name ||!start_date) return alert('ID, Nome e Data inizio sono obbligatori')
+
+  if(active){
+    await client.from('seasons').update({active:false}).neq('id',id)
+  }
+
+  const {error}=await client.from('seasons').insert({id,name,start_date,end_date,active})
+  if(error) return alert(error.message)
+
+  document.getElementById('season-id').value=''
+  document.getElementById('season-name').value=''
+  document.getElementById('season-start').value=''
+  document.getElementById('season-end').value=''
+  document.getElementById('season-active').checked=false
+  loadSeasons()
+}
+
+async function setSeasonActive(id){
+  await client.from('seasons').update({active:false}).neq('id',id)
+  await client.from('seasons').update({active:true}).eq('id',id)
+  loadSeasons()
+  refresh()
+}
+
+async function deleteSeason(id){
+  if(!confirm(`Eliminare la stagione "${id}"?`)) return
+  const {error}=await client.from('seasons').delete().eq('id',id)
+  if(error) return alert(error.message)
+  loadSeasons()
+}
+
+/* ===== SOCIETÀ CRUD ===== */
+async function loadSportsForSelect(selectId){
+  const {data}=await client.from('sports').select('id,name').order('name')
+  const sel=document.getElementById(selectId)
+  sel.innerHTML='<option value="">Seleziona sport</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+}
+
+async function loadSocieties(){
+  const {data, error} = await client.from('societies').select('id,name,sports(name)').order('name')
+  const tbody=document.querySelector('#tbl-society tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tbody.innerHTML = data.length
+? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td>${s.sports?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteSociety('${s.id}')">Elimina</button></td></tr>`).join('')
+    : `<tr><td colspan="4">Nessuna società presente</td></tr>`
+}
+
+async function createSociety(){
+  const id=document.getElementById('society-id').value.trim()
+  const name=document.getElementById('society-name').value.trim()
+  const sport_id=document.getElementById('society-sport').value
+  if(!id ||!name ||!sport_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('societies').insert({id,name,sport_id})
+  if(error) return alert(error.message)
+  document.getElementById('society-id').value=''
+  document.getElementById('society-name').value=''
+  document.getElementById('society-sport').value=''
+  loadSocieties()
+}
+
+async function deleteSociety(id){
+  if(!confirm(`Eliminare la società "${id}"?`)) return
+  const {error}=await client.from('societies').delete().eq('id',id)
+  if(error) return alert(error.message)
+  loadSocieties()
+}
+
 /* ===== CATEGORIA CRUD ===== */
 async function loadSocietiesForSelect(selectId){
   const {data}=await client.from('societies').select('id,name').order('name')
@@ -415,7 +551,7 @@ async function loadCategories(){
     return
   }
   tbody.innerHTML = data.length
-  ? data.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteCategory('${c.id}')">Elimina</button></td></tr>`).join('')
+? data.map(c=>`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteCategory('${c.id}')">Elimina</button></td></tr>`).join('')
     : `<tr><td colspan="4">Nessuna categoria presente</td></tr>`
 }
 
@@ -448,7 +584,7 @@ async function loadTeams(){
     return
   }
   tbody.innerHTML = data.length
-  ? data.map(t=>`<tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteTeam('${t.id}')">Elimina</button></td></tr>`).join('')
+? data.map(t=>`<tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td class="actions"><button class="danger" onclick="deleteTeam('${t.id}')">Elimina</button></td></tr>`).join('')
     : `<tr><td colspan="4">Nessuna squadra presente</td></tr>`
 }
 
