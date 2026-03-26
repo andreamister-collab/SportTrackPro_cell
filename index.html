@@ -100,7 +100,7 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
   }
 })
 
-/* ---------- LOGIN (USERNAME → EMAIL IN auth.users) ---------- */
+/* ---------- LOGIN CORRETTA ---------- */
 async function login(e){
   e.preventDefault()
   const err=document.getElementById('login-err')
@@ -109,15 +109,16 @@ async function login(e){
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
 
-  // 1) Prendi l'email dalla TUA tabella users (che ha username + email)
+  // 1) PRENDO LA MAIL DA PUBLIC.USERS
   const {data:userRow, error:userErr}=await client
     .from('users')
     .select('email')
-    .eq('username',username)
+    .eq('username', username)
     .maybeSingle()
 
   if(userErr){
     err.textContent='Errore DB: '+userErr.message
+    console.error(userErr)
     return
   }
   if(!userRow){
@@ -125,7 +126,7 @@ async function login(e){
     return
   }
 
-  // 2) Fai il login VERO su auth.users
+  // 2) MI AUTENTICO SU AUTH.USERS CON QUELLA MAIL
   const {data,error}=await client.auth.signInWithPassword({
     email:userRow.email,
     password
@@ -133,6 +134,7 @@ async function login(e){
 
   if(error){
     err.textContent='Password errata'
+    console.error(error)
     return
   }
 
