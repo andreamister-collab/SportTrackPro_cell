@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SportTrack Pro – Admin</title>
+
+<!-- IMPORTANTE: config.js PRIMA di supabase -->
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 :root{
   --bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
@@ -70,19 +73,19 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 
 <div class="main"><div class="container">
 
-  <!-- AUTH -->
+  <!-- LOGIN -->
   <div id="auth-section">
     <h1>Accedi</h1>
     <form onsubmit="login(event)" class="toolbar">
       <input id="username" placeholder="Username" autocomplete="username" required>
       <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
       <button class="primary" type="submit">Entra</button>
-      <span class="small">* login via username→email (tabella users)</span>
+      <span class="small">* login via username → email in public.users</span>
     </form>
     <hr>
   </div>
 
-  <!-- APP --->
+  <!-- APP -->
   <div id="app" style="display:none">
 
     <!-- DASHBOARD -->
@@ -198,7 +201,7 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-utenti"><thead><tr><th>Username</th><th>Email</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- RUOLI / ASSEGNAZIONI -->
+    <!-- RUOLI -->
     <section id="sec-ruoli" class="section">
       <h1>Assegnazioni Ruoli (per Categoria/Team/Stagione)</h1>
       <div class="toolbar">
@@ -284,7 +287,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
 let CACHE={sports:[], seasons:[], societies:[], categories:[], teams:[], users:[], athletes:[]}
 
-/* ========= NAV ========= */
+/* NAV */
 document.querySelectorAll('.nav button').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'))
@@ -306,12 +309,12 @@ document.querySelectorAll('.nav button').forEach(b=>{
   }
 })
 
-/* ========= AUTH ========= */
+/* LOGIN */
 async function login(e){
   e.preventDefault()
   const username = document.getElementById('username').value.trim()
   const password = document.getElementById('password').value
-  const { data: userRow, error: userErr } = await client.from('users').select('email,id').eq('username', username).single()
+  const { data: userRow, error: userErr } = await client.from('users').select('email,id,name').eq('username', username).single()
   if(userErr ||!userRow ||!userRow.email) return alert('Username non trovato o email mancante')
   const { data, error } = await client.auth.signInWithPassword({email: userRow.email, password})
   if(error) return alert(error.message)
@@ -322,20 +325,27 @@ async function login(e){
 }
 
 async function boot(){
-  await Promise.all([loadSports(), loadSeasons(true), loadSocieties(), loadCategories(), loadTeams(), loadUsers(), loadAthletes()])
+  await Promise.all([loadSports(), loadSeasons(true), loadSocieties(), loadCategories(), loadTeams(), loadUsers(), loadAthletes(), loadAthleteSeasons()])
   await refreshDashboard()
 }
 
-/* ========= HELPERS ========= */
+/* HELPERS */
 function opt(el, arr, val, label){
   const s=document.getElementById(el); if(!s) return
   s.innerHTML='<option value="">—</option>'+(arr||[]).map(x=>`<option value="${x[val]}">${typeof label==='function'?label(x):x[label]}</option>`).join('')
 }
 function tbody(id){ return document.querySelector('#'+id+' tbody') }
+async function delRow(table,col,val){
+  if(!confirm('Eliminare?')) return
+  const {error}=await client.from(table).delete().eq(col,val)
+  if(error) return alert(error.message)
+  boot()
+}
 
-/* ========= SPORT ========= */
+/* SPORT */
 async function loadSports(){
-  const {data}=await client.from('sports').select('*').order('name')
+  const {data,error}=await client.from('sports').select('*').order('name')
+  if(error){ console.error('[sports]',error); return }
   CACHE.sports=data||[]
   opt('soc-sport', CACHE.sports,'id','name')
   opt('team-sport', CACHE.sports,'id','name')
@@ -346,16 +356,17 @@ async function loadSports(){
 async function createSport(){
   const id=document.getElementById('sport-id').value.trim()
   const name=document.getElementById('sport-nome').value.trim()
-  if(!id||!name) return
+  if(!id||!name) return alert('ID e Nome obbligatori')
   const {error}=await client.from('sports').insert({id,name})
   if(error) return alert(error.message)
   document.getElementById('sport-id').value=''; document.getElementById('sport-nome').value=''
   loadSports()
 }
 
-/* ========= SEASONS ========= */
+/* STAGIONI */
 async function loadSeasons(setDefault){
-  const {data}=await client.from('seasons').select('*').order('start_date',{ascending:false})
+  const {data,error}=await client.from('seasons').select('*').order('start_date',{ascending:false})
+  if(error){ console.error('[seasons]',error); return }
   CACHE.seasons=data||[]
   const tb=tbody('tbl-stagioni'); tb.innerHTML=''
   CACHE.seasons.forEach(s=>{
@@ -398,9 +409,10 @@ async function activateSeason(){
 }
 async function activateSeasonId(id){ document.getElementById('stag-attiva').value=id; activateSeason() }
 
-/* ========= SOCIETIES ========= */
+/* SOCIETÀ */
 async function loadSocieties(){
-  const {data}=await client.from('societies').select('*, sports(name)').order('name')
+  const {data,error}=await client.from('societies').select('*, sports(name)').order('name')
+  if(error){ console.error('[societies]',error); return }
   CACHE.societies=data||[]
   const tb=tbody('tbl-societa'); tb.innerHTML=''
   CACHE.societies.forEach(s=>{
@@ -417,16 +429,17 @@ async function createSociety(){
   const city=document.getElementById('soc-city').value.trim()
   const email=document.getElementById('soc-email').value.trim()
   const sport_id=document.getElementById('soc-sport').value||null
-  if(!name) return
+  if(!name) return alert('Nome obbligatorio')
   const {error}=await client.from('societies').insert({name,city,email,sport_id})
   if(error) return alert(error.message)
   document.getElementById('soc-nome').value=''; document.getElementById('soc-city').value=''; document.getElementById('soc-email').value=''; document.getElementById('soc-sport').value=''
   loadSocieties()
 }
 
-/* ========= CATEGORIES ========= */
+/* CATEGORIE */
 async function loadCategories(){
-  const {data}=await client.from('categories').select('*, societies(name)').order('name')
+  const {data,error}=await client.from('categories').select('*, societies(name)').order('name')
+  if(error){ console.error('[categories]',error); return }
   CACHE.categories=data||[]
   const tb=tbody('tbl-categorie'); tb.innerHTML=''
   CACHE.categories.forEach(c=>{
@@ -442,16 +455,17 @@ async function loadCategories(){
 async function createCategory(){
   const society_id=document.getElementById('cat-society').value
   const name=document.getElementById('cat-nome').value.trim()
-  if(!society_id||!name) return
+  if(!society_id||!name) return alert('Società e nome obbligatori')
   const {error}=await client.from('categories').insert({society_id,name})
   if(error) return alert(error.message)
   document.getElementById('cat-nome').value=''
   loadCategories()
 }
 
-/* ========= TEAMS ========= */
+/* SQUADRE */
 async function loadTeams(){
-  const {data}=await client.from('teams').select('*, societies(name), sports(name)').order('name')
+  const {data,error}=await client.from('teams').select('*, societies(name), sports(name)').order('name')
+  if(error){ console.error('[teams]',error); return }
   CACHE.teams=data||[]
   const tb=tbody('tbl-squadre'); tb.innerHTML=''
   CACHE.teams.forEach(t=>{
@@ -468,5 +482,361 @@ async function createTeam(){
   const society_id=document.getElementById('team-society').value
   const sport_id=document.getElementById('team-sport').value||null
   const name=document.getElementById('team-nome').value.trim()
-  if(!society_id||!name) return
-  const {error}=await client
+  if(!society_id||!name) return alert('Società e nome obbligatori')
+  const {error}=await client.from('teams').insert({society_id,sport_id,name})
+  if(error) return alert(error.message)
+  document.getElementById('team-nome').value=''
+  loadTeams()
+}
+
+/* RELAZIONI */
+async function loadRel(){
+  const {data,error}=await client.from('team_category_season').select('*, teams(name), categories(name), seasons(name)').order('id')
+  if(error){ console.error('[team_category_season]',error); return }
+  const tb=tbody('tbl-rel'); tb.innerHTML=''
+  ;(data||[]).forEach(r=>{
+    tb.innerHTML+=`<tr><td>${r.teams?.name||'—'}</td><td>${r.categories?.name||'—'}</td><td>${r.seasons?.name||'—'}</td>
+    <td><button onclick="delRow('team_category_season','id','${r.id}')">Elimina</button></td></tr>`
+  })
+}
+async function linkTCS(){
+  const team_id=document.getElementById('rel-team').value
+  const category_id=document.getElementById('rel-category').value
+  const season_id=document.getElementById('rel-season').value
+  if(!team_id||!category_id||!season_id) return alert('Scegli squadra, categoria e stagione')
+  const {error}=await client.from('team_category_season').insert({team_id,category_id,season_id})
+  if(error) return alert(error.message)
+  loadRel()
+}
+
+/* UTENTI */
+async function loadUsers(){
+  const {data,error}=await client.from('users').select('*').order('name')
+  if(error){ console.error('[users]',error); return }
+  CACHE.users=data||[]
+  const tb=tbody('tbl-utenti'); tb.innerHTML=''
+  CACHE.users.forEach(u=>{
+    tb.innerHTML+=`<tr><td>${u.username}</td><td>${u.email}</td><td>${u.name||''}</td>
+    <td><button onclick="delRow('users','id','${u.id}')">Elimina</button></td></tr>`
+  })
+  opt('as-user', CACHE.users,'id','name')
+}
+async function createUser(){
+  const username=document.getElementById('u-username').value.trim()
+  const email=document.getElementById('u-email').value.trim()
+  const name=document.getElementById('u-name').value.trim()
+  if(!username||!email) return alert('Username ed email obbligatori')
+  const {error}=await client.from('users').insert({username,email,name})
+  if(error) return alert(error.message)
+  document.getElementById('u-username').value=''; document.getElementById('u-email').value=''; document.getElementById('u-name').value=''
+  loadUsers()
+}
+
+/* RUOLI */
+async function loadAssign(){
+  const {data,error}=await client.from('user_category_seasons').select('*, users(name), categories(name), teams(name), seasons(name)').order('id')
+  if(error){ console.error('[user_category_seasons]',error); return }
+  const tb=tbody('tbl-assign'); tb.innerHTML=''
+  ;(data||[]).forEach(r=>{
+    tb.innerHTML+=`<tr><td>${r.users?.name||'—'}</td><td>${r.categories?.name||'—'}</td><td>${r.teams?.name||'—'}</td><td>${r.seasons?.name||'—'}</td><td>${r.role}</td>
+    <td><button onclick="delRow('user_category_seasons','id','${r.id}')">Elimina</button></td></tr>`
+  })
+}
+async function assignRole(){
+  const user_id=document.getElementById('as-user').value
+  const category_id=document.getElementById('as-category').value
+  const team_id=document.getElementById('as-team').value
+  const season_id=document.getElementById('as-season').value
+  const role=document.getElementById('as-role').value
+  if(!user_id||!category_id||!team_id||!season_id||!role) return alert('Compila tutti i campi')
+  const {error}=await client.from('user_category_seasons').insert({user_id,category_id,team_id,season_id,role})
+  if(error) return alert(error.message)
+  loadAssign()
+}
+
+/* ATLETI */
+async function loadAthletes(){
+  const {data,error}=await client.from('athletes').select('*, societies(name)').order('name')
+  if(error){ console.error('[athletes]',error); return }
+  CACHE.athletes=data||[]
+  const tb=tbody('tbl-atleti'); tb.innerHTML=''
+  CACHE.athletes.forEach(a=>{
+    tb.innerHTML+=`<tr><td>${a.name}</td><td>${a.societies?.name||'—'}</td><td>${a.birthdate||''}</td>
+    <td><button onclick="delRow('athletes','id','${a.id}')">Elimina</button></td></tr>`
+  })
+  opt('as-athlete', CACHE.athletes,'id','name')
+}
+async function createAthlete(){
+  const society_id=document.getElementById('ath-society').value||null
+  const name=document.getElementById('ath-name').value.trim()
+  const birthdate=document.getElementById('ath-bd').value||null
+  if(!name) return alert('Nome obbligatorio')
+  const {error}=await client.from('athletes').  document.getElementById('ath-name').value=''; document.getElementById('ath-bd').value=''
+  loadAthletes()
+}
+async function assignAthlete(){
+  const athlete_id=document.getElementById('as-athlete').value
+  const category_id=document.getElementById('as-ath-cat').value
+  const team_id=document.getElementById('as-ath-team').value
+  const season_id=document.getElementById('as-ath-season').value
+  if(!athlete_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('athlete_seasons').insert({athlete_id,category_id,team_id,season_id})
+  if(error) return alert(error.message)
+  loadAthleteSeasons()
+}
+async function loadAthleteSeasons(){
+  const {data,error}=await client.from('athlete_seasons').select('*, athletes(name), categories(name), teams(name), seasons(name)').order('id')
+  if(error){ console.error('[athlete_seasons]',error); return }
+  const tb=tbody('tbl-ath-seasons'); tb.innerHTML=''
+  ;(data||[]).forEach(r=>{
+    tb.innerHTML+=`<tr><td>${r.athletes?.name||'—'}</td><td>${r.categories?.name||'—'}</td><td>${r.teams?.name||'—'}</td><td>${r.seasons?.name||'—'}</td>
+    <td><button onclick="delRow('athlete_seasons','id','${r.id}')">Elimina</button></td></tr>`
+  })
+}
+
+/* SESSIONI */
+async function loadSessions(){
+  const {data,error}=await client.from('sessions').select('*, categories(name), teams(name), seasons(name)').order('date',{ascending:false})
+  if(error){ console.error('[sessions]',error); return }
+  const tb=tbody('tbl-sessions'); tb.innerHTML=''
+  ;(data||[]).forEach(s=>{
+    tb.innerHTML+=`<tr><td>${s.date}</td><td>${s.categories?.name||'—'}</td><td>${s.teams?.name||'—'}</td><td>${s.seasons?.name||'—'}</td><td>${s.notes||''}</td>
+    <td><button onclick="openAttendances('${s.id}','${s.date}')">Presenze</button>
+        <button onclick="delRow('sessions','id','${s.id}')">Elimina</button></td></tr>`
+  })
+}
+async function createSession(){
+  const category_id=document.getElementById('ses-cat').value
+  const team_id=document.getElementById('ses-team').value
+  const season_id=document.getElementById('ses-season').value
+  const date=document.getElementById('ses-date').value
+  const notes=document.getElementById('ses-notes').value.trim()
+  if(!category_id||!team_id||!season_id||!date) return alert('Compila categoria, squadra, stagione e data')
+  const {error}=await client.from('sessions').insert({category_id,team_id,season_id,date,notes})
+  if(error) return alert(error.message)
+  document.getElementById('ses-date').value=''; document.getElementById('ses-notes').value=''
+  loadSessions()
+}
+async function openAttendances(sessionId,date){
+  document.getElementById('att-panel').style.display='block'
+  document.getElementById('att-date').textContent=date
+  document.getElementById('att-panel').dataset.sessionId=sessionId
+
+  const {data:ath}=await client.from('athlete_seasons').select('athlete_id, athletes(name)').eq('session_id',sessionId)
+  const {data:att}=await client.from('attendances').select('athlete_id,status').eq('session_id',sessionId)
+
+  const statusMap = Object.fromEntries((att||[]).map(a=>[a.athlete_id,a.status]))
+  const tb=tbody('tbl-att'); tb.innerHTML=''
+
+  (ath||[]).forEach(a=>{
+    const st=statusMap[a.athlete_id]||'A'
+    tb.innerHTML+=`<tr>
+      <td>${a.athletes?.name||'—'}</td>
+      <td>
+        <select data-athlete="${a.athlete_id}">
+          <option value="P" ${st==='P'?'selected':''}>Presente</option>
+          <option value="A" ${st==='A'?'selected':''}>Assente</option>
+          <option value="G" ${st==='G'?'selected':''}>Giustificato</option>
+        </select>
+      </td>
+    </tr>`
+  })
+}
+async function saveAttendances(){
+  const sessionId=document.getElementById('att-panel').dataset.sessionId
+  const rows=[...document.querySelectorAll('#tbl-att select')]
+  const payload=rows.map(sel=>({session_id:sessionId, athlete_id:sel.dataset.athlete, status:sel.value}))
+
+  await client.from('attendances').delete().eq('session_id',sessionId)
+  if(payload.length){
+    const {error}=await client.from('attendances').insert(payload)
+    if(error) return alert(error.message)
+  }
+  alert('Presenze salvate')
+  refreshDashboard()
+}
+
+/* DASHBOARD */
+async function refreshDashboard(){
+  const s=STATE.seasonId
+  if(!s) return
+
+  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s)
+  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true})
+  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true})
+  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s)
+  const {count:utenti}=await client.from('users').select('id',{count:'exact',head:true})
+
+  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','responsabile')
+  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','allenatore')
+  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','professionista')
+
+  const {data:att}=await client.from('attendances').select('status')
+  const pres=att?.filter(a=>a.status==='P').length||0
+  const tot=att?.length||0
+  const pct=tot?Math.round(pres/tot*100):0
+
+  document.getElementById('c-atleti').textContent=atleti||0
+  document.getElementById('c-atleti-sub').textContent=`in ${categorie||0} categorie`
+  document.getElementById('c-sessioni').textContent=sessioni||0
+  document.getElementById('c-pres').textContent=pct+'%'
+  document.getElementById('c-pres-sub').textContent=`${pres}/${tot} totali`
+  document.getElementById('c-societa').textContent=societa||0
+  document.getElementById('c-societa-sub').textContent=`${societa||0} sport`
+  document.getElementById('c-categorie').textContent=categorie||0
+  document.getElementById('c-staff').textContent=utenti||0
+  document.getElementById('c-responsabili').textContent=responsabili||0
+  document.getElementById('c-allenatori').textContent=allenatori||0
+  document.getElementById('c-prof').textContent=prof||0
+
+  let q=client.from('team_category_season')
+   .select(`team_id,category_id,season_id,teams!tcs_team_id_fkey(id,name,society_id,societies(id,name,sports(name))),categories!tcs_category_id_fkey(id,name)`)
+   .eq('season_id',s)
+
+  if(STATE.societyId) q=q.eq('teams.society_id',STATE.societyId)
+  if(STATE.categoryId) q=q.eq('category_id',STATE.categoryId)
+  if(STATE.teamId) q=q.eq('team_id',STATE.teamId)
+
+  const {data:rows,error}=await q
+  const tb=tbody('tbl'); tb.innerHTML=''
+
+  if(error){ console.error(error); tb.innerHTML='<tr><td colspan="9">Errore caricamento dati</td></tr>'; return }
+
+  for(const r of rows||[]){
+    const c=r.categories, t=r.teams, soc=t?.societies, sportName=soc?.sports?.name||'—'
+
+    let sessCnt=0, athCnt=0, presPct=0, staffHtml='<span class="badge bad">Nessuno</span>'
+
+    if(c?.id && t?.id){
+      const {count:sessCntTmp}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      sessCnt=sessCntTmp||0
+
+      const {count:athCntTmp}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      athCnt=athCntTmp||0
+
+      const {data:sidData}=await client.from('sessions').select('id').eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      const sessionIds=sidData?.map(x=>x.id)||[]
+      if(sessionIds.length){
+        const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
+        presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
+      }
+
+      const {data:staffData}=await client.from('user_category_seasons').select('users(name),role').eq('category_id',c.id).eq('season_id',s).eq('team_id',t.id)
+      const staff=staffData||[]
+      staffHtml=staff.length? staff.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
+    }
+
+    const presClass=presPct>=80?'ok':presPct>=50?'warn':'bad'
+
+    tb.innerHTML+=`<tr>
+      <td>${soc?.name||'—'}</td>
+      <td><b>${c.name}</b></td>
+      <td>${t.name}</td>
+      <td>${sportName}</td>
+      <td>${staffHtml}</td>
+      <td>${athCnt}</td>
+      <td>${sessCnt}</td>
+      <td><span class="badge ${presClass}">${presPct}%</span></td>
+      <td class="actions"><button onclick="alert('Dettaglio ${c.name} - ${t.name}')">Gestisci</button></td>
+    </tr>`
+  }
+
+  if((rows||[]).length===0){
+    tb.innerHTML='<tr><td colspan="9">Nessuna squadra associata a una categoria nella stagione selezionata</td></tr>'
+  }
+}
+
+/* IMPORT DA ALTRO PROGETTO */
+async function importAll(){
+  const url=document.getElementById('src-url').value.trim()
+  const key=document.getElementById('src-key').value.trim()
+  const log=document.getElementById('import-log')
+  if(!url||!key) return alert('Inserisci URL e KEY')
+
+  const src=supabase.createClient(url,key)
+  const logLine=(t)=>log.textContent+=t+'\n'
+
+  try{
+    log.textContent=''
+
+    logLine('Import sport...')
+    const {data:sports}=await src.from('sports').select('*')
+    if(sports?.length) await client.from('sports').upsert(sports,{onConflict:'id'})
+
+    logLine('Import seasons...')
+    const {data:seasons}=await src.from('seasons').select('*')
+    if(seasons?.length) await client.from('seasons').upsert(seasons,{onConflict:'id'})
+
+    logLine('Import societies...')
+    const {data:societies}=await src.from('societies').select('*')
+    if(societies?.length) await client.from('societies').upsert(societies,{onConflict:'id'})
+
+    logLine('Import categories...')
+    const {data:categories}=await src.from('categories').select('*')
+    if(categories?.length) await client.from('categories').upsert(categories,{onConflict:'id'})
+
+    logLine('Import teams...')
+    const {data:teams}=await src.from('teams').select('*')
+    if(teams?.length) await client.from('teams').upsert(teams,{onConflict:'id'})
+
+    logLine('Import team_category_season...')
+    const {data:tcs}=await src.from('team_category_season').select('*')
+    if(tcs?.length) await client.from('team_category_season').upsert(tcs,{onConflict:'id'})
+
+    logLine('Import users...')
+    const {data:users}=await src.from('users').select('*')
+    if(users?.length) await client.from('users').upsert(users,{onConflict:'id'})
+
+    logLine('Import user_category_seasons...')
+    const {data:ucs}=await src.from('user_category_seasons').select('*')
+    if(ucs?.length) await client.from('user_category_seasons').upsert(ucs,{onConflict:'id'})
+
+    logLine('Import athletes...')
+    const {data:athletes}=await src.from('athletes').select('*')
+    if(athletes?.length) await client.from('athletes').upsert(athletes,{onConflict:'id'})
+
+    logLine('Import athlete_seasons...')
+    const {data:athSeas}=await src.from('athlete_seasons').select('*')
+    if(athSeas?.length) await client.from('athlete_seasons').upsert(athSeas,{onConflict:'id'})
+
+    logLine('Import sessions...')
+    const {data:sessions}=await src.from('sessions').select('*')
+    if(sessions?.length) await client.from('sessions').upsert(sessions,{onConflict:'id'})
+
+    logLine('Import attendances...')
+    const {data:attendances}=await src.from('attendances').select('*')
+    if(attendances?.length) await client.from('attendances').upsert(attendances,{onConflict:'id'})
+
+    logLine('✓ IMPORT COMPLETATO')
+    boot()
+  }catch(err){
+    logLine('ERRORE: '+err.message)
+  }
+}
+
+/* FILTRI A CASCATA */
+document.getElementById('f-season').onchange=e=>{STATE.seasonId=e.target.value;refreshDashboard()}
+document.getElementById('f-society').onchange=async e=>{
+  STATE.societyId=e.target.value
+  STATE.categoryId=''; STATE.teamId=''
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',STATE.societyId)
+  opt('f-category',cats,'id','name')
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',STATE.societyId)
+  opt('f-team',teams,'id','name')
+  refreshDashboard()
+}
+document.getElementById('f-category').onchange=async e=>{
+  STATE.categoryId=e.target.value
+  STATE.teamId=''
+  const {data:tcs}=await client.from('team_category_season')
+   .select('team_id,teams(id,name)')
+   .eq('category_id',STATE.categoryId)
+   .eq('season_id',STATE.seasonId)
+  const teams=(tcs||[]).map(t=>t.teams).filter(Boolean)
+  opt('f-team',teams,'id','name')
+  refreshDashboard()
+}
+document.getElementById('f-team').onchange=e=>{STATE.teamId=e.target.value;refreshDashboard()}
+</script>
+</body>
+</html>
