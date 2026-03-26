@@ -85,8 +85,21 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
 </div>
 
 <script>
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+})
 let USER=null
+
+/* ---------- AUTO-RESTORE SESSIONE ---------- */
+window.addEventListener('DOMContentLoaded', async ()=>{
+  const { data:{session} } = await client.auth.getSession()
+  if(session){
+    USER=session.user
+    document.getElementById('login').classList.add('hidden')
+    document.getElementById('app').classList.remove('hidden')
+    loadDashboard()
+  }
+})
 
 /* ---------- NAV ---------- */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
@@ -100,49 +113,38 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
   }
 })
 
-/* ---------- LOGIN CORRETTA (QUELLA CHE DEVI USARE) ---------- */
+/* ---------- LOGIN CORRETTA ---------- */
 async function login(e){
   e.preventDefault()
   const err=document.getElementById('login-err')
   err.textContent=''
 
-  const username=document.getElementById('username').value.trim()
+  const username=document.getElementById('username').value.trim().toLowerCase() // ← NORMALIZZA
   const password=document.getElementById('password').value
 
   console.log('STEP 1 - Cerco username:', username)
 
-  // 1) PRENDO LA MAIL DA PUBLIC.USERS
-const {data:userRow, error:userErr}=await client
-  .from('users')
-  .select('*')                 // ← prendi TUTTE le colonne, non solo email
-  .ilike('username', username.trim())
-  .maybeSingle()
+  // 1) PRENDO LA MAIL DA PUBLIC.USERS (email salvata in minuscolo)
+  const {data:userRow, error:userErr}=await client
+    .from('users')
+    .select('email')
+    .ilike('username', username)   // ← case-insensitive
+    .maybeSingle()
 
-console.log('STEP 2 - Risultato public.users:', userRow, userErr)
+  console.log('STEP 2 - Risultato public.users:', userRow, userErr)
 
-  if(userErr){
-    err.textContent='ERRORE DB: '+userErr.message
-    return
-  }
-  if(!userRow){
-    err.textContent='Username non trovato in public.users'
-    return
-  }
+  if(userErr){ err.textContent='ERRORE DB: '+userErr.message; return }
+  if(!userRow){ err.textContent='Username non trovato'; return }
 
-  console.log('STEP 3 - Faccio login su auth.users con email:', userRow.email)
+  const email=userRow.email.trim().toLowerCase() // ← NORMALIZZA ANCHE L'EMAIL
+  console.log('STEP 3 - Faccio login su auth.users con email:', email)
 
   // 2) MI AUTENTICO SU AUTH.USERS
-  const {data, error}=await client.auth.signInWithPassword({
-    email:userRow.email,
-    password
-  })
+  const {data, error}=await client.auth.signInWithPassword({ email, password })
 
   console.log('STEP 4 - Risultato auth.signInWithPassword:', data, error)
 
-  if(error){
-    err.textContent='Password errata: '+error.message
-    return
-  }
+  if(error){ err.textContent='Password errata: '+error.message; return }
 
   USER=data.user
   document.getElementById('login').classList.add('hidden')
@@ -171,11 +173,9 @@ async function loadDashboard(){
     document.getElementById('k-atleti').textContent=atleti||0
   }catch(e){
     console.error('DASHBOARD ERROR:', e)
-    document.getElementById('k-sport').textContent='?'
-    document.getElementById('k-societa').textContent='?'
-    document.getElementById('k-atleti').textContent='?'
   }
 }
+
 /* ---------- SPORT ---------- */
 async function loadSports(){
   const {data,error}=await client.from('sports').select('*').order('name')
@@ -191,7 +191,7 @@ async function loadSports(){
 }
 
 async function createSport(){
-  const id=document.getElementById('sport-id').value.trim()
+  const id=document.getElementById('sport-id').value.trim().toLowerCase()
   const name=document.getElementById('sport-nome').value.trim()
   if(!id || !name) return alert('Compila ID e Nome')
 
