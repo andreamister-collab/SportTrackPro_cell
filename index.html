@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SportTrack Pro</title>
@@ -16,16 +13,12 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text);height:100vh}
 .hidden{display:none}
-
-/* LOGIN */
 .login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
 .login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:340px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
 .login-card h1{margin:0 0 16px;font-size:22px}
 .login-card input{width:100%;margin-bottom:10px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 .login-card button{width:100%;padding:10px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer}
 .login-card .err{color:#b91c1c;font-size:13px;margin-top:8px}
-
-/* APP */
 .app{display:flex;height:100vh}
 .sidebar{width:220px;background:var(--sidebar);color:#fff;padding:20px}
 .sidebar h2{margin:0 0 20px;font-size:18px}
@@ -46,7 +39,7 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
 </head>
 <body>
 
-<!-- ===== LOGIN ===== -->
+<!-- LOGIN -->
 <div id="login" class="login-wrap">
   <form class="login-card" onsubmit="login(event)">
     <h1>Accedi</h1>
@@ -54,11 +47,10 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
     <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
     <button type="submit">Entra</button>
     <div id="login-err" class="err"></div>
-    <p class="muted" style="font-size:12px;color:var(--muted);margin:10px 0 0">Il login usa la tabella <b>users</b> (username → email)</p>
   </form>
 </div>
 
-<!-- ===== APP ===== --->
+<!-- APP -->
 <div id="app" class="app hidden">
   <div class="sidebar">
     <h2>SportTrack</h2>
@@ -68,7 +60,6 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
   </div>
 
   <div class="main">
-    <!-- DASHBOARD -->
     <section id="sec-dashboard" class="card">
       <h1>Dashboard</h1>
       <div class="cards">
@@ -76,19 +67,15 @@ th{background:#f9fafb;font-size:13px;color:var(--muted)}
         <div class="stat"><h3>SOCIETÀ</h3><div class="val" id="k-societa">0</div></div>
         <div class="stat"><h3>ATLETI</h3><div class="val" id="k-atleti">0</div></div>
       </div>
-      <p style="color:var(--muted);margin-top:12px">Qui aggiungeremo i KPI veri (presenze, squadre, ecc.)</p>
     </section>
 
-    <!-- SPORT -->
     <section id="sec-sport" class="card hidden">
       <h1>Sport</h1>
-
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <input id="sport-id" placeholder="id (es. calcio)">
         <input id="sport-nome" placeholder="Nome (es. Calcio)">
         <button class="primary" onclick="createSport()">Aggiungi</button>
       </div>
-
       <table id="tbl-sport">
         <thead><tr><th>ID</th><th>Nome</th><th>Azioni</th></tr></thead>
         <tbody><tr><td colspan="3">Caricamento...</td></tr></tbody>
@@ -113,36 +100,44 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
   }
 })
 
-/* ---------- LOGIN ---------- */
+/* ---------- LOGIN (USERNAME + PASSWORD) ---------- */
 async function login(e){
   e.preventDefault()
   const err=document.getElementById('login-err')
   err.textContent=''
+
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
 
-  // 1) trova l'email dal tuo username
-  const {data:userRow,error:userErr}=await client.from('users').select('email').eq('username',username).single()
-  if(userErr||!userRow?.email){ err.textContent='Username non trovato'; return }
+  // CERCA l'utente nella TUA tabella users
+  const {data,error}=await client
+    .from('users')
+    .select('*')
+    .eq('username',username)
+    .eq('password',password)   // <-- CONFRONTO DIRETTO
+    .single()
 
-  // 2) login Supabase Auth
-  const {data,error}=await client.auth.signInWithPassword({email:userRow.email,password})
-  if(error){ err.textContent=error.message; return }
+  if(error || !data){
+    err.textContent='Username o password errati'
+    return
+  }
 
-  USER=data.user
+  USER=data
   document.getElementById('login').classList.add('hidden')
   document.getElementById('app').classList.remove('hidden')
   loadDashboard()
 }
 
 function logout(){
-  client.auth.signOut()
-  location.reload()
+  USER=null
+  document.getElementById('app').classList.add('hidden')
+  document.getElementById('login').classList.remove('hidden')
+  document.getElementById('username').value=''
+  document.getElementById('password').value=''
 }
 
 /* ---------- DASHBOARD ---------- */
 async function loadDashboard(){
-  // KPI semplici, li espanderemo
   const [{count:sport},{count:societa},{count:atleti}]=await Promise.all([
     client.from('sports').select('id',{count:'exact',head:true}),
     client.from('societies').select('id',{count:'exact',head:true}),
