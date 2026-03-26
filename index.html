@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SportTrack Pro – Admin</title>
 
-<!-- IMPORTANTE: config.js PRIMA di supabase -->
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -73,7 +72,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 
 <div class="main"><div class="container">
 
-  <!-- LOGIN -->
   <div id="auth-section">
     <h1>Accedi</h1>
     <form onsubmit="login(event)" class="toolbar">
@@ -85,10 +83,8 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
     <hr>
   </div>
 
-  <!-- APP --->
   <div id="app" style="display:none">
 
-    <!-- DASHBOARD -->
     <section id="sec-dashboard" class="section active">
       <h1>Dashboard</h1>
       <div class="cards">
@@ -116,7 +112,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       </table>
     </section>
 
-    <!-- STAGIONI -->
     <section id="sec-stagioni" class="section">
       <h1>Stagioni</h1>
       <div class="toolbar">
@@ -130,7 +125,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-stagioni"><thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Attiva</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- SOCIETA -->
     <section id="sec-societa" class="section">
       <h1>Società</h1>
       <div class="toolbar">
@@ -143,7 +137,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-societa"><thead><tr><th>Nome</th><th>Città</th><th>Email</th><th>Sport</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- SPORT -->
     <section id="sec-sport" class="section">
       <h1>Sport</h1>
       <div class="toolbar">
@@ -154,7 +147,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-sport"><thead><tr><th>ID</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- CATEGORIE -->
     <section id="sec-categorie" class="section">
       <h1>Categorie</h1>
       <div class="toolbar">
@@ -165,7 +157,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-categorie"><thead><tr><th>Società</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- SQUADRE -->
     <section id="sec-squadre" class="section">
       <h1>Squadre</h1>
       <div class="toolbar">
@@ -177,7 +168,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-squadre"><thead><tr><th>Società</th><th>Sport</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- RELAZIONI -->
     <section id="sec-relazioni" class="section">
       <h1>Relazioni Team–Categoria–Stagione</h1>
       <div class="toolbar">
@@ -189,7 +179,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-rel"><thead><tr><th>Squadra</th><th>Categoria</th><th>Stagione</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- UTENTI -->
     <section id="sec-utenti" class="section">
       <h1>Utenti</h1>
       <div class="toolbar">
@@ -201,7 +190,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-utenti"><thead><tr><th>Username</th><th>Email</th><th>Nome</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- RUOLI -->
     <section id="sec-ruoli" class="section">
       <h1>Assegnazioni Ruoli (per Categoria/Team/Stagione)</h1>
       <div class="toolbar">
@@ -219,7 +207,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       <table id="tbl-assign"><thead><tr><th>Utente</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th>Ruolo</th><th>Azioni</th></tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ATLETI -->
     <section id="sec-atleti" class="section">
       <h1>Atleti & Assegnazioni</h1>
       <div class="grid2">
@@ -247,7 +234,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       </div>
     </section>
 
-    <!-- SESSIONI -->
     <section id="sec-sessioni" class="section">
       <h1>Sessioni & Presenze</h1>
       <div class="toolbar">
@@ -267,7 +253,6 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
       </div>
     </section>
 
-    <!-- IMPORT -->
     <section id="sec-import" class="section">
       <h1>Importa da altro progetto Supabase</h1>
       <p class="small">Incolla URL e ANON KEY del progetto sorgente. Importa le tabelle nell'ordine corretto.</p>
@@ -287,7 +272,6 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
 let CACHE={sports:[], seasons:[], societies:[], categories:[], teams:[], users:[], athletes:[]}
 
-/* NAV */
 document.querySelectorAll('.nav button').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'))
@@ -309,7 +293,6 @@ document.querySelectorAll('.nav button').forEach(b=>{
   }
 })
 
-/* LOGIN */
 async function login(e){
   e.preventDefault()
   const username = document.getElementById('username').value.trim()
@@ -329,7 +312,6 @@ async function boot(){
   await refreshDashboard()
 }
 
-/* HELPERS */
 function opt(el, arr, val, label){
   const s=document.getElementById(el); if(!s) return
   s.innerHTML='<option value="">—</option>'+(arr||[]).map(x=>`<option value="${x[val]}">${typeof label==='function'?label(x):x[label]}</option>`).join('')
@@ -571,12 +553,13 @@ async function createAthlete(){
   const name=document.getElementById('ath-name').value.trim()
   const birthdate=document.getElementById('ath-bd').value||null
   if(!name) return alert('Nome obbligatorio')
-  const {error}=await client.from('athletes').  document.getElementById('ath-name').value=''; document.getElementById('ath-bd').value=''
+  const {error}=await client.from('athletes').insert({society_id,name,birthdate})
+  if(error) return alert(error.message)
+  document.getElementById('ath-name').value=''; document.getElementById('ath-bd').value=''
   loadAthletes()
 }
 async function assignAthlete(){
-  const athlete_id=document.getElementById('as-athlete').value
-  const category_id=document.getElementById('as-ath-cat').value
+  const athlete_id=document.getElementById('as-athlete').value  const category_id=document.getElementById('as-ath-cat').value
   const team_id=document.getElementById('as-ath-team').value
   const season_id=document.getElementById('as-ath-season').value
   if(!athlete_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
@@ -690,8 +673,8 @@ async function refreshDashboard(){
   document.getElementById('c-prof').textContent=prof||0
 
   let q=client.from('team_category_season')
-   .select(`team_id,category_id,season_id,teams!tcs_team_id_fkey(id,name,society_id,societies(id,name,sports(name))),categories!tcs_category_id_fkey(id,name)`)
-   .eq('season_id',s)
+  .select(`team_id,category_id,season_id,teams!tcs_team_id_fkey(id,name,society_id,societies(id,name,sports(name))),categories!tcs_category_id_fkey(id,name)`)
+  .eq('season_id',s)
 
   if(STATE.societyId) q=q.eq('teams.society_id',STATE.societyId)
   if(STATE.categoryId) q=q.eq('category_id',STATE.categoryId)
@@ -829,9 +812,9 @@ document.getElementById('f-category').onchange=async e=>{
   STATE.categoryId=e.target.value
   STATE.teamId=''
   const {data:tcs}=await client.from('team_category_season')
-   .select('team_id,teams(id,name)')
-   .eq('category_id',STATE.categoryId)
-   .eq('season_id',STATE.seasonId)
+  .select('team_id,teams(id,name)')
+  .eq('category_id',STATE.categoryId)
+  .eq('season_id',STATE.seasonId)
   const teams=(tcs||[]).map(t=>t.teams).filter(Boolean)
   opt('f-team',teams,'id','name')
   refreshDashboard()
