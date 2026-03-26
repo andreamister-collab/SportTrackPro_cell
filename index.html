@@ -18,7 +18,7 @@ body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text)
 .login-card h1{margin:0 0 16px;font-size:22px}
 .login-card input{width:100%;margin-bottom:10px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 .login-card button{width:100%;padding:10px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer}
-.login-card .err{color:#b91c1c;font-size:13px;margin-top:8px}
+.login-card.err{color:#b91c1c;font-size:13px;margin-top:8px}
 .app{display:flex;height:100vh}
 .sidebar{width:220px;background:var(--sidebar);color:#fff;padding:20px}
 .sidebar h2{margin:0 0 20px;font-size:18px}
@@ -29,7 +29,7 @@ body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text)
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
 .stat h3{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.stat .val{margin:6px 0 0;font-size:32px;font-weight:800}
+.stat.val{margin:6px 0 0;font-size:32px;font-weight:800}
 input,button{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 button.primary{background:var(--sidebar-active);color:#fff;border-color:var(--sidebar-active);cursor:pointer}
 table{width:100%;border-collapse:collapse;margin-top:16px}
@@ -123,8 +123,8 @@ function showLogin(msg) {
 /* ---------- LOGIN ---------- */
 async function login(e){
   e.preventDefault()
-  const errEl  = document.getElementById('login-err')
-  const btn    = document.querySelector('.login-card button[type="submit"]')
+  const errEl = document.getElementById('login-err')
+  const btn = document.querySelector('.login-card button[type="submit"]')
   errEl.textContent = ''
   btn.disabled = true
   btn.textContent = 'Accesso in corso...'
@@ -135,10 +135,10 @@ async function login(e){
   try {
     // STEP 1 — recupera email da public.users tramite username
     const { data: userRow, error: userErr } = await client
-      .from('users')
-      .select('id, email, username, name')  // solo colonne esistenti
-      .ilike('username', username)
-      .maybeSingle()
+     .from('users')
+     .select('id, email, username, name')
+     .ilike('username', username)
+     .maybeSingle()
 
     if (userErr) { errEl.textContent = 'Errore database: ' + userErr.message; return }
     if (!userRow) { errEl.textContent = 'Username non trovato'; return }
@@ -146,21 +146,21 @@ async function login(e){
 
     // STEP 2 — autentica con Supabase Auth
     const { data: authData, error: authErr } = await client.auth.signInWithPassword({
-      email:    userRow.email,
+      email: userRow.email,
       password: password
     })
 
     if (authErr) {
       let msg = authErr.message
-      if (msg.toLowerCase().includes('invalid login'))       msg = 'Password errata'
+      if (msg.toLowerCase().includes('invalid login')) msg = 'Password errata'
       if (msg.toLowerCase().includes('email not confirmed')) msg = 'Email non confermata'
-      if (msg.toLowerCase().includes('too many requests'))   msg = 'Troppi tentativi — riprova tra qualche minuto'
+      if (msg.toLowerCase().includes('too many requests')) msg = 'Troppi tentativi — riprova tra qualche minuto'
       errEl.textContent = msg
       return
     }
 
     // STEP 3 — login riuscito
-    USER = { ...authData.user, ...userRow }
+    USER = {...authData.user,...userRow }
     showApp()
 
   } catch(err) {
@@ -184,24 +184,23 @@ async function logout(){
   try {
     const { data: { session }, error } = await client.auth.getSession()
     if (error) {
-      // Token scaduto/invalido — pulisci localStorage senza chiamate di rete
       try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
       return
     }
-    if (!session) return  // nessuna sessione salvata
+    if (!session) return
 
     const { data: userRow, error: profileErr } = await client
-      .from('users')
-      .select('id, email, username, name')
-      .eq('id', session.user.id)
-      .maybeSingle()
+     .from('users')
+     .select('id, email, username, name')
+     .eq('id', session.user.id)
+     .maybeSingle()
 
-    if (profileErr || !userRow) {
+    if (profileErr ||!userRow) {
       try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
       return
     }
 
-    USER = { ...session.user, ...userRow }
+    USER = {...session.user,...userRow }
     showApp()
 
   } catch(err) {
@@ -213,14 +212,20 @@ async function logout(){
 /* ---------- DASHBOARD ---------- */
 async function loadDashboard(){
   try{
-    const [{count:sport},{count:societa},{count:atleti}]=await Promise.all([
+    const [{count:sport, error:sportErr},
+           {count:societa, error:socErr},
+           {count:atleti, error:atlErr}] = await Promise.all([
       client.from('sports').select('id',{count:'exact',head:true}),
       client.from('societies').select('id',{count:'exact',head:true}),
       client.from('athletes').select('id',{count:'exact',head:true})
     ])
+
+    console.log('DASHBOARD COUNTS:', {sport, societa, atleti, sportErr, socErr, atlErr})
+
     document.getElementById('k-sport').textContent=sport||0
     document.getElementById('k-societa').textContent=societa||0
     document.getElementById('k-atleti').textContent=atleti||0
+
   }catch(e){
     console.error('DASHBOARD ERROR:', e)
     document.getElementById('k-sport').textContent='?'
@@ -228,24 +233,25 @@ async function loadDashboard(){
     document.getElementById('k-atleti').textContent='?'
   }
 }
+
 /* ---------- SPORT ---------- */
 async function loadSports(){
-  const {data,error}=await client.from('sports').select('*').order('name')
+  const {data, error} = await client.from('sports').select('*').order('name')
+  console.log('SPORTS:', data, error) // ← controlla qui se error è "policy violation"
   const tb=document.querySelector('#tbl-sport tbody')
-  if(error){ tb.innerHTML=`<tr><td colspan="3" style="color:red">ERRORE: ${error.message}</td></tr>`; return }
-  tb.innerHTML=data.length? data.map(s=>`
-    <tr>
-      <td>${s.id}</td>
-      <td>${s.name}</td>
-      <td><button onclick="deleteSport('${s.id}')">Elimina</button></td>
-    </tr>`).join('')
-  : `<tr><td colspan="3">Nessuno sport presente</td></tr>`
+  if(error){
+    tb.innerHTML = `<tr><td colspan="3" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tb.innerHTML = data.length
+   ? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td><button onclick="deleteSport('${s.id}')">Elimina</button></td></tr>`).join('')
+    : `<tr><td colspan="3">Nessuno sport presente</td></tr>`
 }
 
 async function createSport(){
   const id=document.getElementById('sport-id').value.trim()
   const name=document.getElementById('sport-nome').value.trim()
-  if(!id || !name) return alert('Compila ID e Nome')
+  if(!id ||!name) return alert('Compila ID e Nome')
 
   const {error}=await client.from('sports').insert({id,name})
   if(error) return alert(error.message)
@@ -257,7 +263,7 @@ async function createSport(){
 }
 
 async function deleteSport(id){
-  if(!confirm('Eliminare lo sport '+id+' ?')) return
+  if(!confirm('Eliminare lo sport '+id+'?')) return
   const {error}=await client.from('sports').delete().eq('id',id)
   if(error) return alert(error.message)
   loadSports()
