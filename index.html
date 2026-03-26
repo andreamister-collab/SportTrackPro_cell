@@ -160,16 +160,22 @@ function logout(){
 
 /* ---------- DASHBOARD ---------- */
 async function loadDashboard(){
-  const [{count:sport},{count:societa},{count:atleti}]=await Promise.all([
-    client.from('sports').select('id',{count:'exact',head:true}),
-    client.from('societies').select('id',{count:'exact',head:true}),
-    client.from('athletes').select('id',{count:'exact',head:true})
-  ])
-  document.getElementById('k-sport').textContent=sport||0
-  document.getElementById('k-societa').textContent=societa||0
-  document.getElementById('k-atleti').textContent=atleti||0
+  try{
+    const [{count:sport},{count:societa},{count:atleti}]=await Promise.all([
+      client.from('sports').select('id',{count:'exact',head:true}),
+      client.from('societies').select('id',{count:'exact',head:true}),
+      client.from('athletes').select('id',{count:'exact',head:true})
+    ])
+    document.getElementById('k-sport').textContent=sport||0
+    document.getElementById('k-societa').textContent=societa||0
+    document.getElementById('k-atleti').textContent=atleti||0
+  }catch(e){
+    console.error('DASHBOARD ERROR:', e)
+    document.getElementById('k-sport').textContent='?'
+    document.getElementById('k-societa').textContent='?'
+    document.getElementById('k-atleti').textContent='?'
+  }
 }
-
 /* ---------- SPORT ---------- */
 async function loadSports(){
   const {data,error}=await client.from('sports').select('*').order('name')
