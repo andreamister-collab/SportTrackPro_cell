@@ -3,271 +3,381 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SportTrack Pro</title>
+<title>SportTrack Pro – Admin</title>
 
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-:root{--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;--sidebar:#1f2937;--sidebar-active:#2563eb}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text);height:100vh}
-.hidden{display:none}
-.login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
-.login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:340px;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-.login-card h1{margin:0 0 16px;font-size:22px}
-.login-card input{width:100%;margin-bottom:10px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
-.login-card button{width:100%;padding:10px;background:var(--sidebar-active);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer}
-.login-card.err{color:#b91c1c;font-size:13px;margin-top:8px}
-.app{display:flex;height:100vh}
-.sidebar{width:220px;background:var(--sidebar);color:#fff;padding:20px}
-.sidebar h2{margin:0 0 20px;font-size:18px}
-.sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:10px 12px;width:100%;cursor:pointer;border-radius:8px;font-size:15px}
+  :root{
+    --bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
+    --c1:#3b82f6; --c2:#10b981; --c3:#f59e0b; --c4:#06b6d4; --c5:#8b5cf6; --c6:#ec4899; --c7:#f97316; --c8:#14b8a6;
+    --sidebar:#1f2937; --sidebar-active:#2563eb;
+  }
+  body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
+.sidebar{width:240px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+.sidebar h2{font-size:18px;padding:0 16px 16px;border-bottom:1px solid #374151;margin:0}
+.sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%}
 .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
-.main{flex:1;padding:24px;overflow:auto}
-.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:900px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
-.stat h3{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.stat.val{margin:6px 0 0;font-size:32px;font-weight:800}
-input,button{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
-button.primary{background:var(--sidebar-active);color:#fff;border-color:var(--sidebar-active);cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:16px}
-th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
-th{background:#f9fafb;font-size:13px;color:var(--muted)}
+.main{flex:1;overflow:auto;padding:20px}
+.container{max-width:1400px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--c1)}
+.card.c2::before{background:var(--c2)}
+.card.c3::before{background:var(--c3)}
+.card.c4::before{background:var(--c4)}
+.card.c5::before{background:var(--c5)}
+.card.c6::before{background:var(--c6)}
+.card.c7::before{background:var(--c7)}
+.card.c8::before{background:var(--c8)}
+.card h3{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.card.val{margin:6px 0 0;font-size:32px;font-weight:800}
+.card.sub{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+  select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+  button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
+  button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
+  th{background:#f9fafb;font-size:13px;color:var(--muted)}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0}
+.badge.staff{background:#dbeafe;color:#1e40af}
+.badge.bad{background:#fee2e2;color:#991b1b}
+.badge.ok{background:#dcfce7;color:#166534}
+.badge.warn{background:#fef9c3;color:#854d0e}
+.actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
+.actions button:hover{background:#e5e7eb}
+.form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 </style>
 </head>
 <body>
-
-<!-- LOGIN -->
-<div id="login" class="login-wrap">
-  <form class="login-card" onsubmit="login(event)">
-    <h1>Accedi</h1>
-    <input id="username" placeholder="Username" autocomplete="username" required>
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button type="submit">Entra</button>
-    <div id="login-err" class="err"></div>
-  </form>
+<div class="sidebar">
+  <h2>SportTrack</h2>
+  <button class="active" data-sec="dashboard">Dashboard</button>
+  <button data-sec="sport">Sport</button>
+  <button onclick="logout()" style="margin-top:auto;color:#fca5a5">Esci</button>
 </div>
 
-<!-- APP -->
-<div id="app" class="app hidden">
-  <div class="sidebar">
-    <h2>SportTrack</h2>
-    <button data-sec="dashboard" class="active">Dashboard</button>
-    <button data-sec="sport">Sport</button>
-    <button onclick="logout()" style="margin-top:20px;color:#fca5a5">Esci</button>
-  </div>
+<div class="main">
+  <div class="container">
+    <div id="auth-section">
+      <h2>Accedi</h2>
+      <form onsubmit="login(event)">
+        <input id="username" type="text" placeholder="Username" autocomplete="username" required>
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        <button type="submit">Entra</button>
+      </form>
+    </div>
 
-  <div class="main">
-    <section id="sec-dashboard" class="card">
-      <h1>Dashboard</h1>
-      <div class="cards">
-        <div class="stat"><h3>SPORT</h3><div class="val" id="k-sport">0</div></div>
-        <div class="stat"><h3>SOCIETÀ</h3><div class="val" id="k-societa">0</div></div>
-        <div class="stat"><h3>ATLETI</h3><div class="val" id="k-atleti">0</div></div>
-      </div>
-    </section>
+    <div id="app" style="display:none">
+      <!-- DASHBOARD -->
+      <section id="sec-dashboard">
+        <h1>Dashboard Amministratore</h1>
 
-    <section id="sec-sport" class="card hidden">
-      <h1>Sport</h1>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input id="sport-id" placeholder="id (es. calcio)">
-        <input id="sport-nome" placeholder="Nome (es. Calcio)">
-        <button class="primary" onclick="createSport()">Aggiungi</button>
-      </div>
-      <table id="tbl-sport">
-        <thead><tr><th>ID</th><th>Nome</th><th>Azioni</th></tr></thead>
-        <tbody><tr><td colspan="3">Caricamento...</td></tr></tbody>
-      </table>
-    </section>
+        <section class="cards">
+          <div class="card c1"><h3>ATLETI TOTALI</h3><div class="val" id="c-atleti">0</div><div class="sub" id="c-atleti-sub">in 0 categorie</div></div>
+          <div class="card c2"><h3>SESSIONI REGI...</h3><div class="val" id="c-sessioni">0</div><div class="sub">tutte le categorie</div></div>
+          <div class="card c3"><h3>% PRESENZE G...</h3><div class="val" id="c-pres">0%</div><div class="sub" id="c-pres-sub">0/0 totali</div></div>
+          <div class="card c4"><h3>SOCIETÀ</h3><div class="val" id="c-societa">0</div><div class="sub" id="c-societa-sub">0 sport</div></div>
+          <div class="card c5"><h3>CATEGORIE</h3><div class="val" id="c-categorie">0</div><div class="sub">attive</div></div>
+          <div class="card c6"><h3>STAFF TOTALE</h3><div class="val" id="c-staff">0</div><div class="sub">utenti registrati</div></div>
+          <div class="card c7"><h3>RESPONSABILI</h3><div class="val" id="c-responsabili">0</div><div class="sub">registrati</div></div>
+          <div class="card c8"><h3>ALLENATORI</h3><div class="val" id="c-allenatori">0</div><div class="sub">registrati</div></div>
+          <div class="card c4"><h3>PROFESSIONIS...</h3><div class="val" id="c-prof">0</div><div class="sub">registrati</div></div>
+        </section>
+
+        <div class="filters">
+          <select id="f-society"><option value="">Tutte le società</option></select>
+          <select id="f-category"><option value="">Tutte le categorie</option></select>
+          <select id="f-team"><option value="">Tutte le squadre</option></select>
+          <select id="f-season"><option value="">Tutte le stagioni</option></select>
+        </div>
+
+        <table id="tbl">
+          <thead><tr><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>SPORT</th><th>STAFF ASSEGNATO</th><th>ATLETI</th><th>SESSIONI</th><th>% PRESENZE</th><th>AZIONI</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- SPORT -->
+      <section id="sec-sport" style="display:none">
+        <h1>Gestione Sport</h1>
+
+        <div class="form-row">
+          <input id="sport-id" placeholder="ID (es. calcio)">
+          <input id="sport-name" placeholder="Nome (es. Calcio)">
+          <input id="sport-icon" placeholder="Icona (es. 🏅)">
+          <button class="primary" onclick="createSport()">Aggiungi Sport</button>
+        </div>
+
+        <table id="tbl-sport">
+          <thead><tr><th>ID</th><th>Nome</th><th>Icona</th><th>Azioni</th></tr></thead>
+          <tbody><tr><td colspan="4">Caricamento...</td></tr></tbody>
+        </table>
+      </section>
+    </div>
   </div>
 </div>
 
 <script>
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false
-  }
-})
-let USER = null
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
 
-/* ---------- NAV ---------- */
-document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>{
-  b.onclick=()=>{
-    document.querySelectorAll('.sidebar button[data-sec]').forEach(x=>x.classList.remove('active'))
-    b.classList.add('active')
-    document.querySelectorAll('.main section').forEach(s=>s.classList.add('hidden'))
-    document.getElementById('sec-'+b.dataset.sec).classList.remove('hidden')
-    if(b.dataset.sec==='dashboard') loadDashboard()
-    if(b.dataset.sec==='sport') loadSports()
+/* ===== NAVIGAZIONE ===== */
+document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>b.classList.remove('active'))
+    btn.classList.add('active')
+    document.querySelectorAll('.main section').forEach(s=>s.style.display='none')
+    document.getElementById('sec-'+btn.dataset.sec).style.display='block'
+    if(btn.dataset.sec==='dashboard') refresh()
+    if(btn.dataset.sec==='sport') loadSports()
   }
 })
 
-/* ---------- HELPERS UI ---------- */
-function showApp() {
-  document.getElementById('login').classList.add('hidden')
-  document.getElementById('app').classList.remove('hidden')
-  loadDashboard()
-}
-function showLogin(msg) {
-  document.getElementById('app').classList.add('hidden')
-  document.getElementById('login').classList.remove('hidden')
-  document.getElementById('username').value = ''
-  document.getElementById('password').value = ''
-  if (msg) document.getElementById('login-err').textContent = msg
-}
-
-/* ---------- LOGIN ---------- */
+/* ===== LOGIN ===== */
 async function login(e){
   e.preventDefault()
-  const errEl = document.getElementById('login-err')
-  const btn = document.querySelector('.login-card button[type="submit"]')
-  errEl.textContent = ''
-  btn.disabled = true
-  btn.textContent = 'Accesso in corso...'
-
   const username = document.getElementById('username').value.trim()
   const password = document.getElementById('password').value
-
-  try {
-    // STEP 1 — recupera email da public.users tramite username
-    const { data: userRow, error: userErr } = await client
-     .from('users')
-     .select('id, email, username, name')
-     .ilike('username', username)
-     .maybeSingle()
-
-    if (userErr) { errEl.textContent = 'Errore database: ' + userErr.message; return }
-    if (!userRow) { errEl.textContent = 'Username non trovato'; return }
-    if (!userRow.email) { errEl.textContent = 'Email non configurata per questo account'; return }
-
-    // STEP 2 — autentica con Supabase Auth
-    const { data: authData, error: authErr } = await client.auth.signInWithPassword({
-      email: userRow.email,
-      password: password
-    })
-
-    if (authErr) {
-      let msg = authErr.message
-      if (msg.toLowerCase().includes('invalid login')) msg = 'Password errata'
-      if (msg.toLowerCase().includes('email not confirmed')) msg = 'Email non confermata'
-      if (msg.toLowerCase().includes('too many requests')) msg = 'Troppi tentativi — riprova tra qualche minuto'
-      errEl.textContent = msg
-      return
-    }
-
-    // STEP 3 — login riuscito
-    USER = {...authData.user,...userRow }
-    showApp()
-
-  } catch(err) {
-    errEl.textContent = 'Errore imprevisto: ' + err.message
-    console.error('[login]', err)
-  } finally {
-    btn.disabled = false
-    btn.textContent = 'Entra'
-  }
+  const { data: userRow, error: userErr } = await client.from('users').select('email,id').eq('username', username).single()
+  if(userErr ||!userRow ||!userRow.email) return alert('Username non trovato o email mancante')
+  const { data, error } = await client.auth.signInWithPassword({email: userRow.email, password})
+  if(error) return alert(error.message)
+  USER = data.user
+  initApp()
 }
 
-/* ---------- LOGOUT ---------- */
-async function logout(){
-  try { await client.auth.signOut() } catch(_) {}
-  USER = null
-  showLogin()
+function logout(){
+  client.auth.signOut()
+  USER=null
+  document.getElementById('app').style.display='none'
+  document.getElementById('auth-section').style.display='block'
 }
 
-/* ---------- AUTO-RESTORE SESSIONE ---------- */
-;(async () => {
-  try {
-    const { data: { session }, error } = await client.auth.getSession()
-    if (error) {
-      try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
-      return
-    }
-    if (!session) return
+/* ===== INIT ===== */
+async function initApp(){
+  document.getElementById('auth-section').style.display='none'
+  document.getElementById('app').style.display='block'
 
-    const { data: userRow, error: profileErr } = await client
-     .from('users')
-     .select('id, email, username, name')
-     .eq('id', session.user.id)
-     .maybeSingle()
+  let {data:seasons} = await client.from('seasons')
+.select('id,name,start_date,active')
+.eq('active', true)
+.order('start_date',{ascending:false})
 
-    if (profileErr ||!userRow) {
-      try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
-      return
-    }
-
-    USER = {...session.user,...userRow }
-    showApp()
-
-  } catch(err) {
-    console.warn('[AutoRestore]', err.message)
-    try { await client.auth.signOut({ scope: 'local' }) } catch(_) {}
+  if(!seasons || seasons.length===0){
+    const {data:allSeasons} = await client.from('seasons')
+.select('id,name,start_date,active')
+.order('start_date',{ascending:false})
+    seasons = allSeasons
   }
-})()
+  STATE.seasonId = seasons?.[0]?.id || ''
+  populate('f-season', seasons, 'id', 'name')
 
-/* ---------- DASHBOARD ---------- */
-async function loadDashboard(){
-  try{
-    const [{count:sport, error:sportErr},
-           {count:societa, error:socErr},
-           {count:atleti, error:atlErr}] = await Promise.all([
-      client.from('sports').select('id',{count:'exact',head:true}),
-      client.from('societies').select('id',{count:'exact',head:true}),
-      client.from('athletes').select('id',{count:'exact',head:true})
-    ])
+  const {data:socs} = await client.from('societies').select('id,name')
+  populate('f-society', socs, 'id', 'name')
 
-    console.log('DASHBOARD COUNTS:', {sport, societa, atleti, sportErr, socErr, atlErr})
+  const {data:cats} = await client.from('categories').select('id,name')
+  populate('f-category', cats, 'id', 'name')
 
-    document.getElementById('k-sport').textContent=sport||0
-    document.getElementById('k-societa').textContent=societa||0
-    document.getElementById('k-atleti').textContent=atleti||0
+  const {data:teams} = await client.from('teams').select('id,name')
+  populate('f-team', teams, 'id', 'name')
 
-  }catch(e){
-    console.error('DASHBOARD ERROR:', e)
-    document.getElementById('k-sport').textContent='?'
-    document.getElementById('k-societa').textContent='?'
-    document.getElementById('k-atleti').textContent='?'
-  }
+  await refresh()
 }
 
-/* ---------- SPORT ---------- */
-async function loadSports(){
-  const {data, error} = await client.from('sports').select('*').order('name')
-  console.log('SPORTS:', data, error) // ← controlla qui se error è "policy violation"
-  const tb=document.querySelector('#tbl-sport tbody')
+function populate(id,data,val,label){
+  const sel=document.getElementById(id)
+  if(!sel) return
+  sel.innerHTML='<option value="">Tutte</option>'+(data||[]).map(d=>`<option value="${d[val]}">${typeof label==='function'?label(d):d[label]}</option>`).join('')
+}
+
+/* ===== REFRESH DASHBOARD ===== */
+async function refresh(){
+  const s=STATE.seasonId
+  if(!s) return
+
+  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s)
+  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true})
+  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true})
+  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s)
+  const {count:utenti}=await client.from('users').select('id',{count:'exact',head:true})
+
+  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
+.eq('season_id',s).eq('role','responsabile')
+  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
+.eq('season_id',s).eq('role','allenatore')
+  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
+.eq('season_id',s).eq('role','professionista')
+
+  const {data:att} = await client.from('attendances').select('status')
+  const pres=att?.filter(a=>a.status==='P').length||0
+  const tot=att?.length||0
+  const pct=tot?Math.round(pres/tot*100):0
+
+  document.getElementById('c-atleti').textContent=atleti||0
+  document.getElementById('c-atleti-sub').textContent=`in ${categorie||0} categorie`
+  document.getElementById('c-sessioni').textContent=sessioni||0
+  document.getElementById('c-pres').textContent=pct+'%'
+  document.getElementById('c-pres-sub').textContent=`${pres}/${tot} totali`
+  document.getElementById('c-societa').textContent=societa||0
+  document.getElementById('c-societa-sub').textContent=`${societa||0} sport`
+  document.getElementById('c-categorie').textContent=categorie||0
+  document.getElementById('c-staff').textContent=utenti||0
+  document.getElementById('c-responsabili').textContent=responsabili||0
+  document.getElementById('c-allenatori').textContent=allenatori||0
+  document.getElementById('c-prof').textContent=prof||0
+
+  /* ---- TABELLA ---- */
+  let q = client.from('team_category_season')
+.select(`
+    team_id,
+    category_id,
+    season_id,
+    teams!tcs_team_id_fkey(id,name,society_id,societies(id,name,sports(name))),
+    categories!tcs_category_id_fkey(id,name)
+  `)
+.eq('season_id', s)
+
+  if(STATE.societyId) q = q.eq('teams.society_id', STATE.societyId)
+  if(STATE.categoryId) q = q.eq('category_id', STATE.categoryId)
+  if(STATE.teamId) q = q.eq('team_id', STATE.teamId)
+
+  const {data:rows,error} = await q
+  const tbody=document.querySelector('#tbl tbody')
+  tbody.innerHTML=''
+
   if(error){
-    tb.innerHTML = `<tr><td colspan="3" style="color:red">ERRORE: ${error.message}</td></tr>`
+    console.error(error)
+    tbody.innerHTML='<tr><td colspan="9">Errore caricamento dati</td></tr>'
     return
   }
-  tb.innerHTML = data.length
-   ? data.map(s=>`<tr><td>${s.id}</td><td>${s.name}</td><td><button onclick="deleteSport('${s.id}')">Elimina</button></td></tr>`).join('')
-    : `<tr><td colspan="3">Nessuno sport presente</td></tr>`
+
+  for(const r of rows||[]){
+    const c = r.categories
+    const t = r.teams
+    const soc = t?.societies
+    const sportName = soc?.sports?.name || '—'
+
+    let sessCnt=0, athCnt=0, presPct=0, staffHtml='<span class="badge bad">Nessuno</span>'
+
+    if(c?.id && t?.id){
+      const {count:sessCntTmp}=await client.from('sessions').select('id',{count:'exact',head:true})
+.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      sessCnt=sessCntTmp||0
+
+      const {count:athCntTmp}=await client.from('athlete_seasons').select('id',{count:'exact',head:true})
+.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      athCnt=athCntTmp||0
+
+      const {data:sidData}=await client.from('sessions').select('id')
+.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      const sessionIds = sidData?.map(x=>x.id) || []
+      if(sessionIds.length){
+        const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
+        presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
+      }
+
+      const {data:staffData}=await client.from('user_category_seasons')
+.select('users(name),role')
+.eq('category_id',c.id)
+.eq('season_id',s)
+.eq('team_id',t.id)
+
+      const staff = staffData || []
+      staffHtml = staff.length? staff.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
+    }
+
+    const presClass = presPct>=80?'ok':presPct>=50?'warn':'bad'
+
+    tbody.innerHTML+=`
+      <tr>
+        <td>${soc?.name||'—'}</td>
+        <td><b>${c.name}</b></td>
+        <td>${t.name}</td>
+        <td>${sportName}</td>
+        <td>${staffHtml}</td>
+        <td>${athCnt}</td>
+        <td>${sessCnt}</td>
+        <td><span class="badge ${presClass}">${presPct}%</span></td>
+        <td class="actions"><button onclick="alert('Dettaglio ${c.name} - ${t.name}')">Gestisci</button></td>
+      </tr>`
+  }
+
+  if((rows||[]).length===0){
+    tbody.innerHTML='<tr><td colspan="9">Nessuna squadra associata a una categoria nella stagione selezionata</td></tr>'
+  }
+}
+
+/* ===== FILTRI A CASCATA ===== */
+document.getElementById('f-season').onchange=e=>{STATE.seasonId=e.target.value;refresh()}
+document.getElementById('f-society').onchange=async e=>{
+  STATE.societyId=e.target.value
+  STATE.categoryId=''; STATE.teamId=''
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',STATE.societyId)
+  populate('f-category',cats,'id','name')
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',STATE.societyId)
+  populate('f-team',teams,'id','name')
+  refresh()
+}
+document.getElementById('f-category').onchange=async e=>{
+  STATE.categoryId=e.target.value
+  STATE.teamId=''
+  const {data:tcs}=await client.from('team_category_season')
+.select('team_id,teams(id,name)')
+.eq('category_id',STATE.categoryId)
+.eq('season_id',STATE.seasonId)
+  const teams = (tcs||[]).map(t=>t.teams).filter(Boolean)
+  populate('f-team', teams, 'id', 'name')
+  refresh()
+}
+document.getElementById('f-team').onchange=e=>{STATE.teamId=e.target.value;refresh()}
+
+/* ===== SPORT CRUD ===== */
+async function loadSports(){
+  const {data, error} = await client.from('sports').select('*').order('name')
+  console.log('SPORTS:', data, error)
+  const tbody=document.querySelector('#tbl-sport tbody')
+  if(error){
+    tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
+    return
+  }
+  tbody.innerHTML = data.length
+   ? data.map(s=>`
+        <tr>
+          <td>${s.id}</td>
+          <td>${s.name}</td>
+          <td>${s.icon||''}</td>
+          <td class="actions">
+            <button class="danger" onclick="deleteSport('${s.id}')">Elimina</button>
+          </td>
+        </tr>`).join('')
+    : `<tr><td colspan="4">Nessuno sport presente</td></tr>`
 }
 
 async function createSport(){
   const id=document.getElementById('sport-id').value.trim()
-  const name=document.getElementById('sport-nome').value.trim()
-  if(!id ||!name) return alert('Compila ID e Nome')
+  const name=document.getElementById('sport-name').value.trim()
+  const icon=document.getElementById('sport-icon').value.trim()
 
-  const {error}=await client.from('sports').insert({id,name})
+  if(!id ||!name) return alert('ID e Nome sono obbligatori')
+
+  const {error}=await client.from('sports').insert({id,name,icon})
   if(error) return alert(error.message)
 
   document.getElementById('sport-id').value=''
-  document.getElementById('sport-nome').value=''
+  document.getElementById('sport-name').value=''
+  document.getElementById('sport-icon').value=''
   loadSports()
-  loadDashboard()
 }
 
 async function deleteSport(id){
-  if(!confirm('Eliminare lo sport '+id+'?')) return
+  if(!confirm(`Eliminare lo sport "${id}"?`)) return
   const {error}=await client.from('sports').delete().eq('id',id)
   if(error) return alert(error.message)
   loadSports()
-  loadDashboard()
 }
 </script>
 </body>
