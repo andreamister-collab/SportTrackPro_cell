@@ -155,6 +155,10 @@
                  content.innerHTML = templateCategoria(); 
                  initCategoria(); 
                  break;
+		    case 'squadra': 
+                 content.innerHTML = templateSquadra(); 
+                 initSquadra(); 
+                 break;
             /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
             default: 
@@ -581,6 +585,108 @@ async function handleCategoriaDelete(id) {
     if (confirm("Eliminando la categoria potresti perdere i dati delle squadre collegate. Confermi?")) {
         await client.from('categories').delete().eq('id', id);
         initCategoria();
+    }
+}
+/* ============================================================
+   SEZIONE: SQUADRA (L'unione di Categoria + Stagione)
+   ============================================================ */
+
+function templateSquadra() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SQUADRE</h2>
+            <button class="btn" id="btn-add-squadra">+ Nuova Squadra</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Squadra</th>
+                    <th>Categoria (Società)</th>
+                    <th>Stagione</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-squadra"></tbody>
+        </table>
+    </div>`;
+}
+
+async function initSquadra() {
+    // Carichiamo le squadre con i dati di categorie (e società collegate) e stagioni
+    const { data, error } = await client
+        .from('teams')
+        .select(`
+            *,
+            categories (name, societies (name)),
+            seasons (name)
+        `)
+        .order('created_at', { ascending: false });
+
+    const tbody = document.getElementById('list-squadra');
+    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
+
+    tbody.innerHTML = data?.map(t => `
+        <tr>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.categories?.name} <br><small>${t.categories?.societies?.name}</small></td>
+            <td><span class="badge badge-inactive">${t.seasons?.name}</span></td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-team-delete" data-id="${t.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4">Nessuna squadra creata per questa stagione.</td></tr>';
+
+    // Listener Elimina
+    tbody.querySelectorAll('.btn-team-delete').forEach(btn => {
+        btn.onclick = () => handleSquadraDelete(btn.dataset.id);
+    });
+
+    // Bottone Nuova Squadra
+    document.getElementById('btn-add-squadra').onclick = async () => {
+        // Carichiamo Categorie e Stagioni per le tendine
+        const [resCat, resSeas] = await Promise.all([
+            client.from('categories').select('*, societies(name)').order('name'),
+            client.from('seasons').select('*').order('start_date', {ascending: false})
+        ]);
+
+        const catOptions = resCat.data?.map(c => 
+            `<option value="${c.id}">${c.name} (${c.societies?.name})</option>`
+        ).join('');
+        
+        const seasOptions = resSeas.data?.map(s => 
+            `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name} ${s.is_active ? '(Attiva)' : ''}</option>`
+        ).join('');
+
+        modal.open('Crea Nuova Squadra', `
+            <label>Nome Squadra (es. Under 15 Regionale)</label>
+            <input type="text" id="team-name" placeholder="Inserisci nome...">
+            
+            <label>Associa a Categoria</label>
+            <select id="team-cat-id">${catOptions}</select>
+            
+            <label>Stagione Riferimento</label>
+            <select id="team-sea-id">${seasOptions}</select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('team-name').value;
+            const category_id = document.getElementById('team-cat-id').value;
+            const season_id = document.getElementById('team-sea-id').value;
+
+            if(!name) return alert("Inserisci un nome per la squadra");
+
+            await client.from('teams').insert({ name, category_id, season_id });
+            modal.close();
+            initSquadra();
+        };
+    };
+}
+
+async function handleSquadraDelete(id) {
+    if (confirm("Se elimini la squadra, perderai i dati dei campionati e delle sessioni collegate. Confermi?")) {
+        await client.from('teams').delete().eq('id', id);
+        initSquadra();
     }
 }
 </script>
