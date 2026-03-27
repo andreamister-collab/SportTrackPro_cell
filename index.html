@@ -9,7 +9,7 @@
 <style>
   :root{
     --bg:#f6f7fb;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
-    --primary:#2563eb;--danger:#ef4444;--ok:#10b981;--warn:#f59e0b;
+    --primary:#2563eb;--danger:#ef4444;--ok:#10b981;
     --sidebar:#1e2a44; --sidebar-active:#2d3e66;
   }
   *{box-sizing:border-box}
@@ -17,13 +17,12 @@
   .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
   .sidebar .brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
   .sidebar .brand img{width:32px;height:32px;border-radius:8px}
-  .sidebar .user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
-  .sidebar .user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
-  .sidebar .user div{font-weight:600;margin-top:8px;font-size:14px}
   .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
   .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
   .main{flex:1;overflow:auto;padding:24px}
   .container{max-width:1200px;margin:0 auto}
+
+  /* CARD */
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);overflow:hidden;margin-bottom:24px}
   .card-header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border)}
   .card-header img{width:28px;height:28px}
@@ -34,41 +33,51 @@
   .badge{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
   .badge.active{background:#dcfce7;color:#166534}
   .badge.archived{background:#f3f4f6;color:#4b5563}
-  .badge.role{background:#e0e7ff;color:#3730a3}
   .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
   .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
   .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
-  .btn.success{background:var(--ok);color:#fff;border-color:var(--ok)}
   .form{padding:20px;border-top:1px solid var(--border)}
   .form h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:16px}
   .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
   .form-group{display:flex;flex-direction:column;gap:6px}
   .form-group label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
   .form-group input,.form-group select{padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff}
-  .actions{display:flex;gap:8px}
+
+  /* LOGIN */
+  #login-wrap{position:fixed;inset:0;background:linear-gradient(180deg,#0f1e3d,#1b2f5a);display:flex;align-items:center;justify-content:center}
+  #login-card{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:100%;max-width:420px;padding:32px}
+  #login-card .brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  #login-card .brand img{width:48px;height:48px;border-radius:12px}
+  #login-card h2{margin:0;font-size:22px}
+  #login-card .sub{margin:4px 0 24px;color:var(--muted);font-size:14px}
+  #login-card label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
+  #login-card input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin:8px 0 16px}
+  #login-card .btn{width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-weight:600;font-size:15px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="sidebar">
-  <div class="brand">
-    <img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png" alt="">
-    <strong>SportTrack</strong>
+
+<!-- LOGIN -->
+<div id="login-wrap">
+  <div id="login-card">
+    <div class="brand">
+      <img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png" alt="">
+      <div><strong>SportTrack</strong><span style="color:var(--primary)">Pro</span><div class="sub" style="margin:0;font-size:12px">Gestione Società Sportiva</div></div>
+    </div>
+    <h2>Accedi alla piattaforma</h2>
+    <div class="sub">Inserisci le credenziali per continuare</div>
+    <form onsubmit="login(event)">
+      <label>USERNAME</label>
+      <input id="username" type="text" placeholder="es. admin" autocomplete="username" required>
+      <label>PASSWORD</label>
+      <input id="password" type="password" placeholder="********" autocomplete="current-password" required>
+      <button class="btn" type="submit">Accedi →</button>
+    </form>
   </div>
-  <div class="user">
-    <img src="https://i.pravatar.cc/80" alt="">
-    <div>Amministratore</div>
-  </div>
-  <button class="active" data-sec="season">Stagioni</button>
-  <button data-sec="sport">Sport</button>
-  <button data-sec="society">Società</button>
-  <button data-sec="category">Categorie</button>
-  <button data-sec="team">Squadre</button>
-  <button data-sec="link">Associazioni</button>
-  <button data-sec="staff">Staff</button>
-  <button onclick="logout()" style="margin-top:auto;color:#fca5a5">Esci</button>
 </div>
 
-<div class="main">
+<!-- APP -->
+<div class="main" id="app" style="display:none">
 <div class="container">
 
   <!-- STAGIONI -->
@@ -191,17 +200,31 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
     loadSection(btn.dataset.sec)
   }
 })
+
+/* LOGIN */
+async function login(e){
+  e.preventDefault()
+  const username=document.getElementById('username').value.trim()
+  const password=document.getElementById('password').value
+  const { data:userRow, error:userErr } = await client.from('users').select('email,id').eq('username',username).single()
+  if(userErr || !userRow?.email) return alert('Username non trovato')
+  const { error } = await client.auth.signInWithPassword({email:userRow.email,password})
+  if(error) return alert(error.message)
+  document.getElementById('login-wrap').style.display='none'
+  document.getElementById('app').style.display='block'
+  loadSection('season')
+}
 function logout(){ client.auth.signOut(); location.reload() }
 
 /* UTIL */
-function fillSelect(id,data,label){
+function fillSelect(id,data,labelFn){
   const sel=document.getElementById(id)
-  sel.innerHTML='<option value="">Seleziona '+label+'</option>'+(data||[]).map(d=>`<option value="${d.id}">${d.name||d.start_year+'/'+d.end_year}</option>`).join('')
+  sel.innerHTML='<option value="">Seleziona</option>'+(data||[]).map(d=>`<option value="${d.id}">${labelFn?labelFn(d):d.name}</option>`).join('')
 }
 
 /* ===== STAGIONI ===== */
 async function loadSeason(){
-  const {data,error}=await client.from('seasons').select('*').order('start_year',{ascending:false})
+  const {data,error}=await client.from('seasons').select('*').order('start_date',{ascending:false})
   if(error){ alert(error.message); return }
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
@@ -211,8 +234,8 @@ async function loadSeason(){
     tbody.innerHTML+=`
       <tr>
         <td><b>${s.start_year}/${s.end_year}</b></td>
-        <td>${s.start_year}</td>
-        <td>${s.end_year}</td>
+        <td>${s.start_date}</td>
+        <td>${s.end_date}</td>
         <td>${s.is_active?'<span class="badge active">★ Attiva</span>':'<span class="badge archived">Archivio</span>'}</td>
         <td>${atleti||0}</td>
         <td>${sess||0}</td>
@@ -227,7 +250,11 @@ async function createSeason(){
   const start_year=parseInt(document.getElementById('season-start').value)
   const end_year=parseInt(document.getElementById('season-end').value)
   if(!start_year||!end_year||end_year<=start_year) return alert('Anni non validi')
-  const {error}=await client.from('seasons').insert({start_year,end_year,is_active:false})
+
+  const start_date=`${start_year}-08-01`
+  const end_date=`${end_year}-07-31`
+
+  const {error}=await client.from('seasons').insert({start_year,end_year,start_date,end_date,is_active:false})
   if(error) return alert(error.message)
   document.getElementById('season-start').value=''
   document.getElementById('season-end').value=''
@@ -248,8 +275,7 @@ async function deleteSeason(id){
 async function loadSport(){
   const {data,error}=await client.from('sports').select('*').order('name')
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-sport tbody')
-  tbody.innerHTML=data.map(s=>`
+  document.querySelector('#tbl-sport tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td>
     <td class="actions"><button class="btn danger" onclick="deleteSport(${s.id})">🗑️</button></td></tr>`).join('')
 }
@@ -273,8 +299,7 @@ async function deleteSport(id){
 async function loadSociety(){
   const {data,error}=await client.from('societies').select('id,name,sports(name)').order('name')
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-society tbody')
-  tbody.innerHTML=data.map(s=>`
+  document.querySelector('#tbl-society tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.name}</td><td>${s.sports?.name||'—'}</td>
     <td class="actions"><button class="btn danger" onclick="deleteSociety(${s.id})">🗑️</button></td></tr>`).join('')
 }
@@ -298,8 +323,7 @@ async function deleteSociety(id){
 async function loadCategory(){
   const {data,error}=await client.from('categories').select('id,name,societies(name)').order('name')
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-category tbody')
-  tbody.innerHTML=data.map(c=>`
+  document.querySelector('#tbl-category tbody').innerHTML=data.map(c=>`
     <tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td>
     <td class="actions"><button class="btn danger" onclick="deleteCategory(${c.id})">🗑️</button></td></tr>`).join('')
 }
@@ -323,8 +347,7 @@ async function deleteCategory(id){
 async function loadTeam(){
   const {data,error}=await client.from('teams').select('id,name,societies(name)').order('name')
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-team tbody')
-  tbody.innerHTML=data.map(t=>`
+  document.querySelector('#tbl-team tbody').innerHTML=data.map(t=>`
     <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td>
     <td class="actions"><button class="btn danger" onclick="deleteTeam(${t.id})">🗑️</button></td></tr>`).join('')
 }
@@ -348,8 +371,7 @@ async function deleteTeam(id){
 async function loadLink(){
   const {data,error}=await client.from('team_category_season').select('id,season_id,society_id,category_id,team_id,seasons(start_year,end_year),societies(name),categories(name),teams(name)').order('id',{ascending:false})
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-link tbody')
-  tbody.innerHTML=data.map(l=>`
+  document.querySelector('#tbl-link tbody').innerHTML=data.map(l=>`
     <tr><td>${l.id}</td><td>${l.seasons?.start_year}/${l.seasons?.end_year}</td><td>${l.societies?.name}</td><td>${l.categories?.name}</td><td>${l.teams?.name}</td>
     <td class="actions"><button class="btn danger" onclick="deleteLink(${l.id})">🗑️</button></td></tr>`).join('')
 }
@@ -374,8 +396,7 @@ async function deleteLink(id){
 async function loadStaff(){
   const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name),seasons(start_year,end_year),societies(name),categories(name),teams(name)').order('id',{ascending:false})
   if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-staff tbody')
-  tbody.innerHTML=data.map(s=>`
+  document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.users?.name}</td><td>${s.seasons?.start_year}/${s.seasons?.end_year}</td><td>${s.societies?.name}</td><td>${s.categories?.name}</td><td>${s.teams?.name}</td><td><span class="badge role">${s.role}</span></td>
     <td class="actions"><button class="btn danger" onclick="deleteStaff(${s.id})">🗑️</button></td></tr>`).join('')
 }
@@ -401,39 +422,41 @@ async function deleteStaff(id){
 /* POPOLA SELECT DIPENDENTI */
 document.getElementById('link-society').onchange=async e=>{
   const {data}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('link-category',data,'categoria')
+  fillSelect('link-category',data,d=>d.name)
   const {data:t}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('link-team',t,'squadra')
+  fillSelect('link-team',t,d=>d.name)
 }
 document.getElementById('staff-society').onchange=async e=>{
   const {data}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-category',data,'categoria')
+  fillSelect('staff-category',data,d=>d.name)
   const {data:t}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-team',t,'squadra')
+  fillSelect('staff-team',t,d=>d.name)
 }
 
 /* CARICAMENTO INIZIALE */
 async function loadSection(sec){
   if(sec==='season') loadSeason()
   if(sec==='sport') loadSport()
-  if(sec==='society'){ const {data}=await client.from('sports').select('id,name'); fillSelect('society-sport',data,'sport'); loadSociety() }
-  if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,'società'); loadCategory() }
-  if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,'società'); loadTeam() }
+  if(sec==='society'){ const {data}=await client.from('sports').select('id,name'); fillSelect('society-sport',data,d=>d.name); loadSociety() }
+  if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,d=>d.name); loadCategory() }
+  if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
   if(sec==='link'){
     const {data:seas}=await client.from('seasons').select('id,start_year,end_year').order('start_year',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
-    fillSelect('link-season',seas,'stagione'); fillSelect('link-society',socs,'società')
+    fillSelect('link-season',seas,d=>`${d.start_year}/${d.end_year}`)
+    fillSelect('link-society',socs,d=>d.name)
     loadLink()
   }
   if(sec==='staff'){
     const {data:users}=await client.from('users').select('id,name')
     const {data:seas}=await client.from('seasons').select('id,start_year,end_year').order('start_year',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
-    fillSelect('staff-user',users,'utente'); fillSelect('staff-season',seas,'stagione'); fillSelect('staff-society',socs,'società')
+    fillSelect('staff-user',users,d=>d.name)
+    fillSelect('staff-season',seas,d=>`${d.start_year}/${d.end_year}`)
+    fillSelect('staff-society',socs,d=>d.name)
     loadStaff()
   }
 }
-loadSection('season')
 </script>
 </body>
 </html>
