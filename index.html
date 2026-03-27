@@ -193,28 +193,14 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
   // funzione di login
 async function login(e){
   e.preventDefault()
-  const username=document.getElementById('username').value.trim()
-  const password=document.getElementById('password').value
-  const email = username + '@sporttrackpro.it'
-
-  const { error: authError } = await client.auth.signInWithPassword({email,password})
-  if(authError) return alert('Credenziali errate: ' + authError.message)
-
-  const { data:userRow, error:userErr } = await client
-    .from('users')
-    .select('id,username,name,role')
-    .eq('username',username)
-    .single()
-
-  if(userErr || !userRow) return alert('Profilo non trovato')
-
-  CURRENT_USER = userRow
-  document.getElementById('login-wrap').style.display='none'
-  document.getElementById('app').style.display='block'
-
-  // aspetta che il token sia attivo
-  await client.auth.getSession()
-  loadSection('dashboard')
+  const username = document.getElementById('username').value.trim()
+  const password = document.getElementById('password').value
+  const { data: userRow, error: userErr } = await client.from('users').select('email,id').eq('username', username).single()
+  if(userErr ||!userRow ||!userRow.email) return alert('Username non trovato o email mancante')
+  const { data, error } = await client.auth.signInWithPassword({email: userRow.email, password})
+  if(error) return alert(error.message)
+  USER = data.user
+  initApp()
 }
 function logout(){ client.auth.signOut(); location.reload() }
 
