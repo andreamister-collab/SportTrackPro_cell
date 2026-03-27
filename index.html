@@ -153,52 +153,74 @@
         a.onclick = () => loadPage(a.dataset.section);
     });
 
-    /* ============================================================
-       PAGINA: STAGIONI (Esempio già integrato)
-       ============================================================ */
-    function templateStagioni() {
-        return `
-        <div class="card">
-            <div class="header">
-                <h2>GESTIONE STAGIONI</h2>
-                <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
-            </div>
-            <table>
-                <thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Stato</th></tr></thead>
-                <tbody id="list-stagioni"></tbody>
-            </table>
-        </div>`;
-    }
+/* ============================================================
+   PAGINA: STAGIONI (Versione Aggiornata)
+   ============================================================ */
+function templateStagioni() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE STAGIONI</h2>
+            <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Periodo</th>
+                    <th>Stato</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-stagioni"></tbody>
+        </table>
+    </div>`;
+}
 
-    async function initStagioni() {
-        const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
-        const tbody = document.getElementById('list-stagioni');
-        tbody.innerHTML = data?.map(s => `
-            <tr>
-                <td><strong>${s.name}</strong></td>
-                <td>${s.start_date}</td>
-                <td>${s.end_date}</td>
-                <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
-            </tr>
-        `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
+async function initStagioni() {
+    const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+    const tbody = document.getElementById('list-stagioni');
+    
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.start_date} → ${s.end_date}</td>
+            <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+            <td style="text-align:right">
+                <button class="btn-sm" style="background:#16a34a" onclick="toggleStagioneState('${s.id}', ${s.is_active})">
+                    ${s.is_active ? 'Spegni' : 'Attiva'}
+                </button>
+                <button class="btn-sm" style="background:var(--primary)" onclick="editStagione('${s.id}', '${s.name}')">M</button>
+                <button class="btn-sm" style="background:var(--danger)" onclick="deleteStagione('${s.id}')">X</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
 
-        // Bottone aggiunta
-        document.getElementById('btn-add-stagione').onclick = () => {
-            modal.open('Nuova Stagione', `
-                <label>Nome (es. 2025/2026)</label><input type="text" id="s-name">
-                <label>Data Inizio</label><input type="date" id="s-start">
-                <label>Data Fine</label><input type="date" id="s-end">
-            `);
-            document.getElementById('btn-modal-save').onclick = async () => {
-                const name = document.getElementById('s-name').value;
-                const start = document.getElementById('s-start').value;
-                const end = document.getElementById('s-end').value;
-                await client.from('seasons').insert({ name, start_date: start, end_date: end });
-                modal.close();
-                initStagioni();
+    // --- LOGICA AGGIUNTA (Solo Anni) ---
+    document.getElementById('btn-add-stagione').onclick = () => {
+        modal.open('Nuova Stagione', `
+            <p style="font-size:0.9rem; color:#64748b">Inserisci gli anni. Le date verranno impostate al 01/08 e 31/07.</p>
+            <label>Anno Inizio</label><input type="number" id="year-start" placeholder="es. 2025">
+            <label>Anno Fine</label><input type="number" id="year-end" placeholder="es. 2026">
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const y1 = document.getElementById('year-start').value;
+            const y2 = document.getElementById('year-end').value;
+            if(!y1 || !y2) return alert("Inserisci entrambi gli anni");
+
+            const payload = {
+                name: `${y1}/${y2}`,
+                start_date: `${y1}-08-01`,
+                end_date: `${y2}-07-31`,
+                is_active: false
             };
+
+            const { error } = await client.from('seasons').insert(payload);
+            if(!error) { modal.close(); initStagioni(); } else { alert(error.message); }
         };
-    }
+    };
+}
 
     /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
