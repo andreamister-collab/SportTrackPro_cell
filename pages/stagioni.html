@@ -6,31 +6,22 @@
     <title>SportTrackPro - Gestione Stagioni</title>
     <style>
         :root { --primary: #2563eb; --success: #16a34a; --warning: #f59e0b; --danger: #ef4444; --bg: #f8fafc; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: #1e293b; padding: 20px; }
-        
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 1.5rem; max-width: 1000px; margin: 0 auto; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); padding: 20px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 1.5rem; max-width: 1000px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 1rem; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; font-size: 0.85rem; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
-        
-        .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; color: white; background: var(--primary); }
-        .btn:hover { opacity: 0.9; }
-        .btn-action { font-size: 0.8rem; margin-right: 4px; padding: 0.4rem 0.8rem; }
-        
-        .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; color: white; background: var(--primary); }
+        .btn-action { font-size: 0.8rem; margin-right: 4px; }
+        .badge { padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
         .badge-active { background: #dcfce7; color: #166534; }
         .badge-inactive { background: #f1f5f9; color: #475569; }
-
-        #error-log { display: none; background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="error-log"></div>
-    
     <div class="header">
         <h2 style="margin:0">STAGIONI</h2>
         <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
@@ -46,57 +37,36 @@
             </tr>
         </thead>
         <tbody id="list-stagioni">
-            <tr><td colspan="4" style="text-align:center">Caricamento in corso...</td></tr>
+            <tr><td colspan="4">Caricamento in corso...</td></tr>
         </tbody>
     </table>
 </div>
 
 <script type="module">
-    // Importiamo il client dal tuo file di configurazione
     import { client } from '../db.js';
 
-    /* ---------- FUNZIONI DI SUPPORTO ---------- */
-    
-    // Converte da "01/08/2025" a "2025-08-01" per Postgres
-    function convertITDate(itDate) {
-        const parts = itDate.split('/');
-        if (parts.length !== 3) return itDate;
-        const [d, m, y] = parts;
+    /* --- UTILS --- */
+    const convertITDate = (itDate) => {
+        const [d, m, y] = itDate.split('/');
         return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    }
+    };
 
-    // Converte da "2025-08-01" a "01/08/2025" per la tabella
-    function formatDate(sqlDate) {
+    const formatDate = (sqlDate) => {
         if (!sqlDate) return 'N.D.';
-        const parts = sqlDate.split('-');
-        if (parts.length !== 3) return sqlDate;
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
+        const [y, m, d] = sqlDate.split('-');
+        return `${d}/${m}/${y}`;
+    };
 
-    function showError(msg) {
-        const log = document.getElementById('error-log');
-        log.innerText = msg;
-        log.style.display = 'block';
-        setTimeout(() => log.style.display = 'none', 5000);
-    }
-
-    /* ---------- LOGICA DATABASE ---------- */
-
+    /* --- LOGICA DB --- */
     async function initStagioni() {
-        const tbody = document.getElementById('list-stagioni');
-        
         const { data, error } = await client
             .from('seasons')
-            .select('id, name, start_date, end_date, is_active')
+            .select('*')
             .order('start_date', { ascending: false });
 
+        const tbody = document.getElementById('list-stagioni');
         if (error) {
-            tbody.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Errore: ${error.message}</td></tr>`;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">Nessuna stagione trovata.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="color:red">${error.message}</td></tr>`;
             return;
         }
 
@@ -104,105 +74,69 @@
             <tr>
                 <td><strong>${s.name}</strong></td>
                 <td>${formatDate(s.start_date)} → ${formatDate(s.end_date)}</td>
+                <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'ATTIVA' : 'INATTIVA'}</span></td>
                 <td>
-                    <span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">
-                        ${s.is_active ? 'ATTIVA' : 'INATTIVA'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-action" 
-                            style="background: ${s.is_active ? '#64748b' : '#16a34a'}" 
-                            data-action="activate" data-id="${s.id}" data-active="${s.is_active}">
+                    <button class="btn btn-action btn-toggle" data-id="${s.id}" data-active="${s.is_active}" style="background:#64748b">
                         ${s.is_active ? 'Disattiva' : 'Attiva'}
                     </button>
-                    <button class="btn btn-action" style="background:var(--warning)" 
-                            data-action="edit" data-id="${s.id}" data-name="${s.name}">
-                        Modifica
-                    </button>
-                    <button class="btn btn-action" style="background:var(--danger)" 
-                            data-action="delete" data-id="${s.id}">
-                        Elimina
-                    </button>
+                    <button class="btn btn-action btn-edit" data-id="${s.id}" data-name="${s.name}" style="background:var(--warning)">Modifica</button>
+                    <button class="btn btn-action btn-delete" data-id="${s.id}" style="background:var(--danger)">Elimina</button>
                 </td>
             </tr>
         `).join('');
 
-        // Colleghiamo i listener ai nuovi bottoni generati
-        attachActionListeners();
+        attachListeners();
     }
 
-    function attachActionListeners() {
-        document.querySelectorAll('.btn-action').forEach(btn => {
-            btn.onclick = () => {
-                const { action, id, name, active } = btn.dataset;
-                if (action === 'activate') toggleStagione(id, active === 'true');
-                if (action === 'edit') editStagione(id, name);
-                if (action === 'delete') deleteStagione(id);
-            };
-        });
+    // Colleghiamo gli eventi ai bottoni creati dinamicamente
+    function attachListeners() {
+        document.querySelectorAll('.btn-toggle').forEach(btn => btn.onclick = () => toggleStagione(btn.dataset.id, btn.dataset.active === 'true'));
+        document.querySelectorAll('.btn-edit').forEach(btn => btn.onclick = () => editStagione(btn.dataset.id, btn.dataset.name));
+        document.querySelectorAll('.btn-delete').forEach(btn => btn.onclick = () => deleteStagione(btn.dataset.id));
     }
 
     async function addStagione() {
-        const annoInizio = prompt('Anno inizio stagione (es. 2025):');
-        if (!annoInizio) return;
-        const annoFine = prompt('Anno fine stagione (es. 2026):');
-        if (!annoFine) return;
+        const annoInizio = prompt('Anno inizio (es. 2025)');
+        const annoFine = prompt('Anno fine (es. 2026)');
+        if (!annoInizio || !annoFine) return;
 
-        const name = `${annoInizio}/${annoFine}`;
-        
         const { error } = await client.from('seasons').insert([{
-            name: name,
+            name: `${annoInizio}/${annoFine}`,
             start_date: convertITDate(`01/08/${annoInizio}`),
             end_date: convertITDate(`31/07/${annoFine}`),
             is_active: false
         }]);
 
-        if (error) showError(error.message);
-        else initStagioni();
+        if (error) alert(error.message); else initStagioni();
     }
 
-    async function toggleStagione(id, isCurrentlyActive) {
-        try {
-            if (!isCurrentlyActive) {
-                // Se vogliamo attivare questa, prima spegniamo TUTTE le altre attive
-                await client.from('seasons').update({ is_active: false }).eq('is_active', true);
-                await client.from('seasons').update({ is_active: true }).eq('id', id);
-            } else {
-                // Se è già attiva, la spegniamo semplicemente
-                await client.from('seasons').update({ is_active: false }).eq('id', id);
-            }
-            initStagioni();
-        } catch (err) {
-            showError("Errore durante il cambio stato.");
+    async function toggleStagione(id, isActive) {
+        if (!isActive) {
+            // Spegniamo le altre se attiviamo questa
+            await client.from('seasons').update({ is_active: false }).eq('is_active', true);
+            await client.from('seasons').update({ is_active: true }).eq('id', id);
+        } else {
+            await client.from('seasons').update({ is_active: false }).eq('id', id);
         }
+        initStagioni();
     }
 
-    async function editStagione(id, currentName) {
-        const newName = prompt('Nuovo nome stagione (es. 2025/2026):', currentName);
-        if (!newName || newName === currentName) return;
-
-        const { error } = await client.from('seasons')
-            .update({ name: newName })
-            .eq('id', id);
-
-        if (error) showError(error.message);
-        else initStagioni();
+    async function editStagione(id, oldName) {
+        const newName = prompt('Nuovo nome stagione:', oldName);
+        if (!newName || newName === oldName) return;
+        const { error } = await client.from('seasons').update({ name: newName }).eq('id', id);
+        if (error) alert(error.message); else initStagioni();
     }
 
     async function deleteStagione(id) {
-        if (!confirm('Eliminare definitivamente questa stagione?')) return;
-
+        if (!confirm('Eliminare la stagione?')) return;
         const { error } = await client.from('seasons').delete().eq('id', id);
-        if (error) showError(error.message);
-        else initStagioni();
+        if (error) alert(error.message); else initStagioni();
     }
 
-    /* ---------- AVVIO ---------- */
+    /* --- AVVIO --- */
     document.getElementById('btn-add-stagione').addEventListener('click', addStagione);
-    
-    // Caricamento iniziale
     initStagioni();
-
 </script>
 
 </body>
