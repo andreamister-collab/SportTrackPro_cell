@@ -121,7 +121,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
         async function loadData() {
             const [resSeasons, resSocieta] = await Promise.all([
                 client.from('seasons').select('*').order('name', { ascending: false }),
-                client.from('societa').select('*').order('name')
+                client.from('societies').select('*').order('name')
             ]);
 
             const listSeasons = document.getElementById('list-seasons');
