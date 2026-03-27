@@ -193,23 +193,20 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
 
 async function login(e){
   e.preventDefault()
-  const username = document.getElementById('username').value.trim()
-  const password = document.getElementById('password').value
+  const username=document.getElementById('username').value.trim()
+  const password=document.getElementById('password').value
   const email = username + '@sporttrackpro.it'
 
-  // 1. AUTENTICA PRIMA
-  const { error: authError } = await client.auth.signInWithPassword({ email, password })
+  const { error: authError } = await client.auth.signInWithPassword({email,password})
   if(authError) return alert(authError.message)
 
-  // 2. SOLO DOPO recupera il profilo
-  const { data: userRow, error: userErr } = await client
+  const { data:userRow, error:userErr } = await client
     .from('users')
     .select('id,username,name,role')
-    .eq('username', username)
+    .eq('username',username)
     .single()
 
   if(userErr || !userRow) return alert('Profilo non trovato')
-
   CURRENT_USER = userRow
   document.getElementById('login-wrap').style.display='none'
   document.getElementById('app').style.display='block'
