@@ -30,6 +30,9 @@ th, td { padding:0.7rem; border-bottom:1px solid #e2e8f0; text-align:left; }
 th { background:#f8fafc; font-weight:600; }
 .error { color:#b91c1c; background:#fee2e2; padding:0.75rem; border-radius:6px; margin-top:1rem; display:none; border:1px solid #fecaca; }
 .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+.badge { display:inline-block; padding:0.25rem 0.5rem; border-radius:999px; font-size:0.75rem; font-weight:600; }
+.badge-active { background:#dcfce7; color:#166534; }
+.badge-inactive { background:#f1f5f9; color:#475569; }
 </style>
 </head>
 <body>
@@ -51,10 +54,13 @@ th { background:#f8fafc; font-weight:600; }
 <div id="app">
     <nav id="sidebar">
         <h3>SportTrackPro</h3>
+
+        <a data-section="dashboard" onclick="loadPage('dashboard')">DASHBOARD</a>
+        <a data-section="stagioni" onclick="loadPage('stagioni')">STAGIONI</a>
+        <a data-section="sport" onclick="loadPage('sport')">SPORT</a>
         <a data-section="societa" onclick="loadPage('societa')">SOCIETÀ</a>
         <a data-section="categoria" onclick="loadPage('categoria')">CATEGORIA</a>
         <a data-section="squadra" onclick="loadPage('squadra')">SQUADRA</a>
-        <a data-section="sport" onclick="loadPage('sport')">SPORT</a>
         <a data-section="staff" onclick="loadPage('staff')">STAFF ASSEGNATO</a>
         <a data-section="atleti" onclick="loadPage('atleti')">ATLETI</a>
         <a data-section="sessioni" onclick="loadPage('sessioni')">SESSIONI E PARTITE</a>
@@ -74,7 +80,7 @@ th { background:#f8fafc; font-weight:600; }
 import { client } from './db.js';
 
 let CURRENT_USER = null;
-let USER_ASSIGNMENT = null; // contiene society_id, category_id, team_id, season_id
+let USER_ASSIGNMENT = null;
 
 /* ---------- LOGIN ---------- */
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -86,7 +92,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
 
     try {
-        // 1) Recupera l'utente dalla tabella users
         const { data: userRow, error: userErr } = await client
             .from('users')
             .select('id, username, email, name, role')
@@ -96,7 +101,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if (userErr) throw new Error("Errore Database: " + userErr.message);
         if (!userRow) throw new Error("Utente non trovato.");
 
-        // 2) Autenticazione Supabase
         const { data: authData, error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
@@ -104,14 +108,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (authError) throw new Error("Password errata.");
 
-        // 3) Recupera l'assegnazione (society_id, category_id, team_id, season_id)
-        const { data: assignRow, error: assignErr } = await client
+        const { data: assignRow } = await client
             .from('user_category_seasons')
             .select('society_id, category_id, team_id, season_id, role')
             .eq('user_id', userRow.id)
             .maybeSingle();
-
-        if (assignErr) throw new Error("Errore assegnazione: " + assignErr.message);
 
         CURRENT_USER = { ...authData.user, ...userRow };
         USER_ASSIGNMENT = assignRow || {};
@@ -133,7 +134,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 function initDashboard() {
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    loadPage('societa');
+    loadPage('dashboard'); // pagina iniziale
 }
 
 window.loadPage = function(section) {
@@ -144,10 +145,12 @@ window.loadPage = function(section) {
     const content = document.getElementById('content');
 
     switch(section) {
+        case 'dashboard': content.innerHTML = templateDashboard(); initDashboardPage(); break;
+        case 'stagioni': content.innerHTML = templateStagioni(); initStagioni(); break;
+        case 'sport': content.innerHTML = templateSport(); initSport(); break;
         case 'societa': content.innerHTML = templateSocieta(); initSocieta(); break;
         case 'categoria': content.innerHTML = templateCategoria(); initCategoria(); break;
         case 'squadra': content.innerHTML = templateSquadra(); initSquadra(); break;
-        case 'sport': content.innerHTML = templateSport(); initSport(); break;
         case 'staff': content.innerHTML = templateStaff(); initStaff(); break;
         case 'atleti': content.innerHTML = templateAtleti(); initAtleti(); break;
         case 'sessioni': content.innerHTML = templateSessioni(); initSessioni(); break;
@@ -160,6 +163,37 @@ window.loadPage = function(section) {
 };
 
 /* ---------- TEMPLATE PAGINE ---------- */
+function templateDashboard() {
+    return `
+    <div class="card">
+        <div class="header"><h2>DASHBOARD</h2></div>
+        <p>Benvenuto, ${CURRENT_USER?.name || ''} (${CURRENT_USER?.role || ''})</p>
+        <p>Usa il menu a sinistra per gestire società, categorie, squadre, atleti e sessioni.</p>
+    </div>`;
+}
+
+function templateStagioni() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>STAGIONI</h2>
+            <button class="btn" onclick="addStagione()">+ Nuova Stagione</button>
+        </div>
+        <ul id="list-stagioni"><li>Caricamento...</li></ul>
+    </div>`;
+}
+
+function templateSport() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>SPORT</h2>
+            <button class="btn" onclick="addSport()">+ Nuovo Sport</button>
+        </div>
+        <ul id="list-sport"><li>Caricamento...</li></ul>
+    </div>`;
+}
+
 function templateSocieta() {
     return `
     <div class="card">
@@ -190,17 +224,6 @@ function templateSquadra() {
             <button class="btn" onclick="addSquadra()">+ Nuova Squadra</button>
         </div>
         <ul id="list-squadre"><li>Caricamento...</li></ul>
-    </div>`;
-}
-
-function templateSport() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>SPORT</h2>
-            <button class="btn" onclick="addSport()">+ Nuovo Sport</button>
-        </div>
-        <ul id="list-sport"><li>Caricamento...</li></ul>
     </div>`;
 }
 
@@ -244,11 +267,29 @@ function templateSessioni() {
 }
 
 /* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI I TUOI NUOVI TEMPLATE) === */
-// function templateGare() {
-//     return `<div class="card"><div class="header"><h2>GARE</h2><button class="btn" onclick="addGara()">+ Nuova Gara</button></div><ul id="list-gare"><li>Caricamento...</li></ul></div>`;
-// }
+// function templateGare() { return `<div class="card"><div class="header"><h2>GARE</h2><button class="btn" onclick="addGara()">+ Nuova Gara</button></div><ul id="list-gare"><li>Caricamento...</li></ul></div>`; }
 
 /* ---------- INIT PAGINE (QUERY SUPABASE) ---------- */
+async function initDashboardPage() {
+    // Potresti mettere qui riepiloghi rapidi
+}
+
+async function initStagioni() {
+    const { data, error } = await client.from('seasons').select('id,name,start_date,end_date,is_active').order('start_date', {ascending:false});
+    if (error) return showError('list-stagioni', error.message);
+    document.getElementById('list-stagioni').innerHTML = data?.length
+        ? data.map(s => `<li>${s.name} <span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span> (${s.start_date} → ${s.end_date})</li>`).join('')
+        : '<li>Nessun dato.</li>';
+}
+
+async function initSport() {
+    const { data, error } = await client.from('sports').select('id,name,icon').order('name');
+    if (error) return showError('list-sport', error.message);
+    document.getElementById('list-sport').innerHTML = data?.length
+        ? data.map(s => `<li>${s.icon} ${s.name}</li>`).join('')
+        : '<li>Nessun dato.</li>';
+}
+
 async function initSocieta() {
     const { data, error } = await client.from('societies').select('id,name,sport_id').order('name');
     if (error) return showError('list-societa', error.message);
@@ -270,14 +311,6 @@ async function initSquadra() {
     if (error) return showError('list-squadre', error.message);
     document.getElementById('list-squadre').innerHTML = data?.length
         ? data.map(t => `<li>${t.name}</li>`).join('')
-        : '<li>Nessun dato.</li>';
-}
-
-async function initSport() {
-    const { data, error } = await client.from('sports').select('id,name,icon').order('name');
-    if (error) return showError('list-sport', error.message);
-    document.getElementById('list-sport').innerHTML = data?.length
-        ? data.map(s => `<li>${s.icon} ${s.name}</li>`).join('')
         : '<li>Nessun dato.</li>';
 }
 
@@ -308,13 +341,16 @@ async function initSessioni() {
 }
 
 /* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI LE TUE NUOVE INIT) === */
-// async function initGare() {
-//     const { data, error } = await client.from('gare').select('*').order('id');
-//     if (error) return showError('list-gare', error.message);
-//     document.getElementById('list-gare').innerHTML = data?.length ? data.map(g => `<li>${g.name}</li>`).join('') : '<li>Nessun dato.</li>';
-// }
+// async function initGare() { const { data } = await client.from('gare').select('*').order('id'); }
 
 /* ---------- AZIONI ESEMPIO ---------- */
+async function addStagione() {
+    const name = prompt('Nome stagione');
+    const start = prompt('Data inizio (YYYY-MM-DD)');
+    const end = prompt('Data fine (YYYY-MM-DD)');
+    if(name && start && end) { await client.from('seasons').insert({name,start_date:start,end_date:end,is_active:false}); initStagioni(); }
+}
+
 async function addSocieta() {
     const name = prompt('Nome società');
     if(name) { await client.from('societies').insert({name, sport_id: null}); initSocieta(); }
