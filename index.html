@@ -1,38 +1,44 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SportTrackPro - Gestione</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportTrackPro - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
+        * { box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
+        
+        /* LOGIN */
+        #login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
+        
+        /* APP LAYOUT */
+        #app { display:none; flex-direction:row; min-height:100vh; }
+        #sidebar { width:260px; background:var(--sidebar); color:#cbd5e1; padding:1rem; display:flex; flex-direction:column; position:fixed; height:100vh; }
+        #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
+        #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
+        #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
+        #content { flex:1; margin-left:260px; padding:2rem; overflow-x:auto; }
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-:root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; }
-* { box-sizing:border-box; }
-body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
-#login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
-#app { display:none; flex-direction:row; min-height:100vh; }
-#sidebar { width:260px; background:var(--sidebar); color:#cbd5e1; padding:1rem; display:flex; flex-direction:column; }
-#sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
-#sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
-#sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
-#content { flex:1; padding:2rem; overflow:auto; }
-.card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
-.btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
-.btn:hover { background:#1d4ed8; }
-.btn-logout { background:#ef4444; margin-top:auto; border:none; padding:0.75rem; color:white; border-radius:6px; cursor:pointer; font-weight:600; }
-.btn-logout:hover { background:#dc2626; }
-input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:0.8rem; }
-table { width:100%; border-collapse:collapse; margin-top:1rem; }
-th, td { padding:0.7rem; border-bottom:1px solid #e2e8f0; text-align:left; }
-th { background:#f8fafc; font-weight:600; }
-.error { color:#b91c1c; background:#fee2e2; padding:0.75rem; border-radius:6px; margin-top:1rem; display:none; border:1px solid #fecaca; }
-.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
-.badge { display:inline-block; padding:0.25rem 0.5rem; border-radius:999px; font-size:0.75rem; font-weight:600; }
-.badge-active { background:#dcfce7; color:#166534; }
-.badge-inactive { background:#f1f5f9; color:#475569; }
-</style>
+        /* COMPONENTS */
+        .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #eee; padding-bottom:10px; }
+        .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-logout { background:var(--danger); margin-top:auto; padding:0.7rem; border-radius:6px; border:none; color:white; cursor:pointer; }
+        
+        /* TABLE & MODAL */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:0.8rem; border-bottom:1px solid #e2e8f0; text-align:left; }
+        th { background:#f8fafc; font-size:0.85rem; color:#64748b; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:white; padding:2rem; border-radius:12px; width:90%; max-width:450px; }
+        .modal-active { display:flex; }
+        input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:1rem; margin-top:0.3rem; }
+        .badge { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; }
+        .badge-active { background:#dcfce7; color:#166534; }
+        .badge-inactive { background:#f1f5f9; color:#475569; }
+    </style>
 </head>
 <body>
 
@@ -44,7 +50,7 @@ th { background:#f8fafc; font-weight:600; }
         <label>Password</label>
         <input type="password" id="password" placeholder="••••••••" required>
         <button type="submit" class="btn" style="width:100%">Accedi</button>
-        <div id="error-msg" class="error"></div>
+        <div id="error-msg" style="color:red; margin-top:10px; display:none; font-size:0.9rem;"></div>
     </form>
 </div>
 
@@ -60,168 +66,142 @@ th { background:#f8fafc; font-weight:600; }
         <a data-section="staff">STAFF ASSEGNATO</a>
         <a data-section="atleti">ATLETI</a>
         <a data-section="sessioni">SESSIONI E PARTITE</a>
-
-        <button class="btn-logout" id="btn-logout">Logout</button>
+        <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
 
     <main id="content">
-        <div class="card"><p>Seleziona una sezione dal menu.</p></div>
-    </main>
+        </main>
+</div>
+
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" style="margin-top:0">Titolo Modal</h3>
+        <div id="modal-body"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+            <button class="btn" id="btn-modal-save">Salva</button>
+            <button class="btn" id="btn-modal-close" style="background:#64748b">Annulla</button>
+        </div>
+    </div>
 </div>
 
 <script type="module">
-import { client } from './db.js';
+    import { client } from './db.js';
 
-let CURRENT_USER = null;
-let USER_ASSIGNMENT = null;
+    let CURRENT_USER = null;
 
-/* ---------- LOGIN ---------- */
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errDiv = document.getElementById('error-msg');
-    errDiv.style.display = 'none';
+    /* --- LOGICA MODAL --- */
+    const modal = {
+        el: document.getElementById('modal-overlay'),
+        title: document.getElementById('modal-title'),
+        body: document.getElementById('modal-body'),
+        open(title, html) {
+            this.title.innerText = title;
+            this.body.innerHTML = html;
+            this.el.classList.add('modal-active');
+        },
+        close() { this.el.classList.remove('modal-active'); }
+    };
+    document.getElementById('btn-modal-close').onclick = () => modal.close();
 
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
+    /* --- GESTIONE LOGIN / LOGOUT --- */
+    document.getElementById('login-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const errDiv = document.getElementById('error-msg');
 
-    try {
-        const { data: userRow, error: userErr } = await client
-            .from('users')
-            .select('id, username, email, name, role')
-            .eq('username', username)
-            .maybeSingle();
+        const { data: userRow, error: userErr } = await client.from('users').select('*').eq('username', username).maybeSingle();
+        if (userErr || !userRow) { errDiv.innerText = "Utente non trovato"; errDiv.style.display="block"; return; }
 
-        if (userErr) throw new Error("Errore Database: " + userErr.message);
-        if (!userRow) throw new Error("Utente non trovato.");
+        const { data: auth, error: authErr } = await client.auth.signInWithPassword({ email: userRow.email, password });
+        if (authErr) { errDiv.innerText = "Password errata"; errDiv.style.display="block"; return; }
 
-        const { data: authData, error: authError } = await client.auth.signInWithPassword({
-            email: userRow.email,
-            password: password
-        });
+        CURRENT_USER = userRow;
+        document.getElementById('login-wrap').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        loadPage('dashboard');
+    };
 
-        if (authError) throw new Error("Password errata.");
+    document.getElementById('btn-logout').onclick = () => location.reload();
 
-        const { data: assignRow } = await client
-            .from('user_category_seasons')
-            .select('society_id, category_id, team_id, season_id, role')
-            .eq('user_id', userRow.id)
-            .maybeSingle();
+    /* --- NAVIGAZIONE (LOADER PAGINE) --- */
+    const loadPage = (section) => {
+        document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+        const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
+        if (link) link.classList.add('active');
 
-        CURRENT_USER = { ...authData.user, ...userRow };
-        USER_ASSIGNMENT = assignRow || {};
+        const content = document.getElementById('content');
 
-        initDashboard();
+        switch(section) {
+            case 'dashboard': 
+                content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
+                break;
+            
+            case 'stagioni': 
+                content.innerHTML = templateStagioni(); 
+                initStagioni(); 
+                break;
 
-    } catch (err) {
-        errDiv.innerText = err.message;
-        errDiv.style.display = 'block';
-    }
-});
+            /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
-document.getElementById('btn-logout').addEventListener('click', async () => {
-    await client.auth.signOut();
-    location.reload();
-});
+            default: 
+                content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>In fase di sviluppo...</p></div>`;
+        }
+    };
 
-/* ---------- NAVIGAZIONE ---------- */
-function initDashboard() {
-    document.getElementById('login-wrap').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    loadPage('dashboard');
-}
-
-// Spostato all'interno del modulo per sicurezza
-const loadPage = async (section) => {
-    document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
-    const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
-    if (link) link.classList.add('active');
-
-    const content = document.getElementById('content');
-
-    switch(section) {
-        case 'dashboard': content.innerHTML = templateDashboard(); break;
-        case 'stagioni': content.innerHTML = templateStagioni(); initStagioni(); break;
-        case 'sport': content.innerHTML = templateSport(); initSport(); break;
-        case 'societa': content.innerHTML = templateSocieta(); initSocieta(); break;
-        case 'categoria': content.innerHTML = templateCategoria(); initCategoria(); break;
-        case 'squadra': content.innerHTML = templateSquadra(); initSquadra(); break;
-        case 'staff': content.innerHTML = templateStaff(); initStaff(); break;
-        case 'atleti': content.innerHTML = templateAtleti(); initAtleti(); break;
-        case 'sessioni': content.innerHTML = templateSessioni(); initSessioni(); break;
-        default: content.innerHTML = '<div class="card"><p>Sezione non trovata</p></div>';
-    }
-};
-
-// Colleghiamo i click del menu in modo "Module-safe"
-document.querySelectorAll('#sidebar a').forEach(link => {
-    link.addEventListener('click', () => {
-        const section = link.getAttribute('data-section');
-        loadPage(section);
+    document.querySelectorAll('#sidebar a').forEach(a => {
+        a.onclick = () => loadPage(a.dataset.section);
     });
-});
 
-/* ---------- TEMPLATE PAGINE (Senza Bottoni) ---------- */
-function templateDashboard() {
-    return `<div class="card"><div class="header"><h2>DASHBOARD</h2></div><p>Benvenuto, ${CURRENT_USER?.name || ''}</p></div>`;
-}
-function templateStagioni() {
-    return `<div class="card"><div class="header"><h2>STAGIONI</h2></div><ul id="list-stagioni"><li>Caricamento...</li></ul></div>`;
-}
-function templateSport() {
-    return `<div class="card"><div class="header"><h2>SPORT</h2></div><ul id="list-sport"><li>Caricamento...</li></ul></div>`;
-}
-function templateSocieta() {
-    return `<div class="card"><div class="header"><h2>SOCIETÀ</h2></div><ul id="list-societa"><li>Caricamento...</li></ul></div>`;
-}
-function templateCategoria() {
-    return `<div class="card"><div class="header"><h2>CATEGORIA</h2></div><ul id="list-categorie"><li>Caricamento...</li></ul></div>`;
-}
-function templateSquadra() {
-    return `<div class="card"><div class="header"><h2>SQUADRA</h2></div><ul id="list-squadre"><li>Caricamento...</li></ul></div>`;
-}
-function templateStaff() {
-    return `<div class="card"><div class="header"><h2>STAFF ASSEGNATO</h2></div><table><thead><tr><th>Ruolo</th><th>Utente</th></tr></thead><tbody id="list-staff"></tbody></table></div>`;
-}
-function templateAtleti() {
-    return `<div class="card"><div class="header"><h2>ATLETI</h2></div><table><thead><tr><th>Nome</th><th>Cognome</th></tr></thead><tbody id="list-atleti"></tbody></table></div>`;
-}
-function templateSessioni() {
-    return `<div class="card"><div class="header"><h2>SESSIONI E PARTITE</h2></div><ul id="list-sessioni"><li>Caricamento...</li></ul></div>`;
-}
+    /* ============================================================
+       PAGINA: STAGIONI (Esempio già integrato)
+       ============================================================ */
+    function templateStagioni() {
+        return `
+        <div class="card">
+            <div class="header">
+                <h2>GESTIONE STAGIONI</h2>
+                <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
+            </div>
+            <table>
+                <thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Stato</th></tr></thead>
+                <tbody id="list-stagioni"></tbody>
+            </table>
+        </div>`;
+    }
 
-/* ---------- INIT PAGINE ---------- */
-async function initStagioni() {
-    const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
-    document.getElementById('list-stagioni').innerHTML = data?.map(s => `<li>${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
-}
-async function initSport() {
-    const { data } = await client.from('sports').select('*').order('name');
-    document.getElementById('list-sport').innerHTML = data?.map(s => `<li>${s.icon} ${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
-}
-async function initSocieta() {
-    const { data } = await client.from('societies').select('*').order('name');
-    document.getElementById('list-societa').innerHTML = data?.map(s => `<li>${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
-}
-async function initCategoria() {
-    const { data } = await client.from('categories').select('*').order('name');
-    document.getElementById('list-categorie').innerHTML = data?.map(c => `<li>${c.name}</li>`).join('') || '<li>Nessun dato.</li>';
-}
-async function initSquadra() {
-    const { data } = await client.from('teams').select('*').order('name');
-    document.getElementById('list-squadre').innerHTML = data?.map(t => `<li>${t.name}</li>`).join('') || '<li>Nessun dato.</li>';
-}
-async function initStaff() {
-    const { data } = await client.from('user_category_seasons').select('role, users(name)').order('role');
-    document.getElementById('list-staff').innerHTML = data?.map(st => `<tr><td>${st.role}</td><td>${st.users?.name || 'N/A'}</td></tr>`).join('') || '<tr><td>Nessun dato</td></tr>';
-}
-async function initAtleti() {
-    const { data } = await client.from('athletes').select('name, surname').order('surname');
-    document.getElementById('list-atleti').innerHTML = data?.map(a => `<tr><td>${a.name}</td><td>${a.surname}</td></tr>`).join('') || '<tr><td>Nessun dato</td></tr>';
-}
-async function initSessioni() {
-    const { data } = await client.from('sessions').select('*').order('session_date', {ascending:false});
-    document.getElementById('list-sessioni').innerHTML = data?.map(s => `<li>${s.session_date} - ${s.title}</li>`).join('') || '<li>Nessun dato.</li>';
-}
+    async function initStagioni() {
+        const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+        const tbody = document.getElementById('list-stagioni');
+        tbody.innerHTML = data?.map(s => `
+            <tr>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.start_date}</td>
+                <td>${s.end_date}</td>
+                <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+            </tr>
+        `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
+
+        // Bottone aggiunta
+        document.getElementById('btn-add-stagione').onclick = () => {
+            modal.open('Nuova Stagione', `
+                <label>Nome (es. 2025/2026)</label><input type="text" id="s-name">
+                <label>Data Inizio</label><input type="date" id="s-start">
+                <label>Data Fine</label><input type="date" id="s-end">
+            `);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                const name = document.getElementById('s-name').value;
+                const start = document.getElementById('s-start').value;
+                const end = document.getElementById('s-end').value;
+                await client.from('seasons').insert({ name, start_date: start, end_date: end });
+                modal.close();
+                initStagioni();
+            };
+        };
+    }
+
+    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+
 </script>
 </body>
 </html>
