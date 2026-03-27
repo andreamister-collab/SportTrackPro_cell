@@ -23,33 +23,33 @@
   }
   *{box-sizing:border-box}
   body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
- .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
- .sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
- .sidebar.brand img{width:36px;height:36px;border-radius:8px}
- .sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
- .sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
- .sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
- .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
- .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
- .main{flex:1;overflow:auto}
- .topbar{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
- .topbar select{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-width:180px}
- .container{max-width:1400px;margin:0 auto;padding:20px}
+.sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+.sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
+.sidebar.brand img{width:36px;height:36px;border-radius:8px}
+.sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
+.sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
+.sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
+.sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
+.sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
+.main{flex:1;overflow:auto}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.topbar select{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-width:180px}
+.container{max-width:1400px;margin:0 auto;padding:20px}
   h1{font-size:22px;margin:0 0 16px}
- .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
- .card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
- .card.c1{background:var(--c1)}
- .card.c2{background:var(--c2)}
- .card.c3{background:var(--c3)}
- .card.c4{background:var(--c4)}
- .card.c5{background:var(--c5)}
- .card.c6{background:var(--c6)}
- .card.c7{background:var(--c7)}
- .card.c8{background:var(--c8)}
- .card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
- .card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
- .card.val{margin:4px 0 0;font-size:32px;font-weight:800}
- .filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+.card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.card.c1{background:var(--c1)}
+.card.c2{background:var(--c2)}
+.card.c3{background:var(--c3)}
+.card.c4{background:var(--c4)}
+.card.c5{background:var(--c5)}
+.card.c6{background:var(--c6)}
+.card.c7{background:var(--c7)}
+.card.c8{background:var(--c8)}
+.card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
+.card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
+.card.val{margin:4px 0 0;font-size:32px;font-weight:800}
+.filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
   select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
   button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
   button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
@@ -58,14 +58,14 @@
   table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:12px}
   th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;font-size:13px;color:var(--muted)}
- .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
- .badge.bad{background:#fee2e2;color:#991b1b}
- .badge.ok{background:#dcfce7;color:#166534}
- .badge.warn{background:#fef9c3;color:#854d0e}
- .actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
- .actions button:hover{background:#e5e7eb}
- .form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
- .edit-row td{background:#fefce8}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
+.badge.bad{background:#fee2e2;color:#991b1b}
+.badge.ok{background:#dcfce7;color:#166534}
+.badge.warn{background:#fef9c3;color:#854d0e}
+.actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
+.actions button:hover{background:#e5e7eb}
+.form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.edit-row td{background:#fefce8}
 </style>
 </head>
 <body>
@@ -310,7 +310,6 @@ async function initApp(){
     STATE.seasonId = seasons.find(s=>s.active)?.id || seasons[0].id
   }
 
-  // popola i 4 filtri (presenti in tutte le videate)
   populate('f-season', seasons, 'id', 'name')
   document.getElementById('f-season').value=STATE.seasonId
 
@@ -494,15 +493,17 @@ async function loadSports(){
     <td id="sport-name-${s.id}">${s.name}</td>
     <td id="sport-icon-${s.id}">${s.icon||''}</td>
     <td class="actions">
-      <button class="warning" onclick="editSport('${s.id}','${s.name}','${s.icon||''}')">Modifica</button>
+      <button class="warning" onclick="editSport('${s.id}')">Modifica</button>
       <button class="danger" onclick="deleteSport('${s.id}')">Elimina</button>
     </td>
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuno sport presente</td></tr>`
 }
 
-function editSport(id,name,icon){
+function editSport(id){
   const row=document.getElementById(`row-sport-${id}`)
+  const name=document.getElementById(`sport-name-${id}`).textContent
+  const icon=document.getElementById(`sport-icon-${id}`).textContent
   row.classList.add('edit-row')
   row.innerHTML=`
     <td>${id}</td>
@@ -556,29 +557,28 @@ async function loadSeasons(){
     <td>${s.id}</td>
     <td id="season-name-${s.id}">${s.name}</td>
     <td id="season-period-${s.id}">${s.start_date} → ${s.end_date||'—'}</td>
-    <td>${s.active?'✅':'—'}</td>
+    <td id="season-active-${s.id}">${s.active?'✅':'—'}</td>
     <td class="actions">
       ${!s.active?`<button class="success" onclick="setSeasonActive('${s.id}')">Attiva</button>`:''}
-      <button class="warning" onclick="editSeason('${s.id}','${s.name}','${s.start_date}','${s.end_date||''}',${s.active})">Modifica</button>
+      <button class="warning" onclick="editSeason('${s.id}')">Modifica</button>
       <button class="danger" onclick="deleteSeason('${s.id}')">Elimina</button>
     </td>
   </tr>`).join('')
     : `<tr><td colspan="5">Nessuna stagione presente</td></tr>`
 }
 
-function editSeason(id,name,start_date,end_date,active){
+function editSeason(id){
   const row=document.getElementById(`row-season-${id}`)
+  const name=document.getElementById(`season-name-${id}`).textContent
+  const period=document.getElementById(`season-period-${id}`).textContent.split('→')
+  const active=document.getElementById(`season-active-${id}`).textContent==='✅'
   row.classList.add('edit-row')
   row.innerHTML=`
-    <td>${s.id}</td>
-    <td><input id="edit-season-name-${id}" value="${name}"></td>
-    <td><input id="edit-season-start-${id}" type="date" value="${start_date}">
-        <input id="edit-season-end-${id}" type="date" value="${end_date}"></td>
-    <td><input id="edit-season-active-${id}" type="checkbox" ${active?'checked':''}></td>
-    <td class="actions">
-      <button class="success" onclick="saveSeason('${id}')">Salva</button>
-      <button onclick="loadSeasons()">Annulla</button>
-}
+    <td>${id}</td>
+    <td><input id="edit-season-name-${id}" value="${name.trim()}"></td>
+    <td><input id="edit-season-start-${id}" type="date" value="${period[0].trim()}">
+        <input id="edit-season-end-${id}" type="date" value="${period[1]?period[1].trim():''}"></td>
+    <td><input id="edit-season-active-${id}" type="checkbox" ${active?'}
 
 async function saveSeason(id){
   const name=document.getElementById(`edit-season-name-${id}`).value.trim()
@@ -638,7 +638,7 @@ async function loadSportsForSelect(selectId){
 
 async function loadSocieties(){
   const filter=document.getElementById('f-society').value
-  let query=client.from('societies').select('id,name,sports(name)').order('name')
+  let query=client.from('societies').select('id,name,sports(id,name)').order('name')
   if(filter) query=query.eq('sport_id',filter)
 
   const {data, error}=await query
@@ -652,17 +652,19 @@ async function loadSocieties(){
   <tr id="row-society-${s.id}">
     <td>${s.id}</td>
     <td id="society-name-${s.id}">${s.name}</td>
-    <td id="society-sport-${s.id}">${s.sports?.name||'—'}</td>
+    <td id="society-sport-${s.id}" data-sport-id="${s.sports?.id||''}">${s.sports?.name||'—'}</td>
     <td class="actions">
-      <button class="warning" onclick="editSociety('${s.id}','${s.name}','${s.sports?.id||''}')">Modifica</button>
+      <button class="warning" onclick="editSociety('${s.id}')">Modifica</button>
       <button class="danger" onclick="deleteSociety('${s.id}')">Elimina</button>
     </td>
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna società presente</td></tr>`
 }
 
-function editSociety(id,name,sport_id){
+function editSociety(id){
   const row=document.getElementById(`row-society-${id}`)
+  const name=document.getElementById(`society-name-${id}`).textContent
+  const sportId=document.getElementById(`society-sport-${id}`).dataset.sportId
   row.classList.add('edit-row')
   row.innerHTML=`
     <td>${id}</td>
@@ -673,7 +675,7 @@ function editSociety(id,name,sport_id){
       <button onclick="loadSocieties()">Annulla</button>
     </td>`
   loadSportsForSelect(`edit-society-sport-${id}`)
-  document.getElementById(`edit-society-sport-${id}`).value=sport_id
+  document.getElementById(`edit-society-sport-${id}`).value=sportId
 }
 
 async function saveSociety(id){
@@ -728,17 +730,19 @@ async function loadCategories(){
   <tr id="row-category-${c.id}">
     <td>${c.id}</td>
     <td id="category-name-${c.id}">${c.name}</td>
-    <td id="category-society-${c.id}">${c.societies?.name||'—'}</td>
+    <td id="category-society-${c.id}" data-society-id="${c.societies?.id||''}">${c.societies?.name||'—'}</td>
     <td class="actions">
-      <button class="warning" onclick="editCategory('${c.id}','${c.name}','${c.societies?.id||''}')">Modifica</button>
+      <button class="warning" onclick="editCategory('${c.id}')">Modifica</button>
       <button class="danger" onclick="deleteCategory('${c.id}')">Elimina</button>
     </td>
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna categoria presente</td></tr>`
 }
 
-function editCategory(id,name,society_id){
+function editCategory(id){
   const row=document.getElementById(`row-category-${id}`)
+  const name=document.getElementById(`category-name-${id}`).textContent
+  const societyId=document.getElementById(`category-society-${id}`).dataset.societyId
   row.classList.add('edit-row')
   row.innerHTML=`
     <td>${id}</td>
@@ -749,7 +753,7 @@ function editCategory(id,name,society_id){
       <button onclick="loadCategories()">Annulla</button>
     </td>`
   loadSocietiesForSelect(`edit-category-society-${id}`)
-  document.getElementById(`edit-category-society-${id}`).value=society_id
+  document.getElementById(`edit-category-society-${id}`).value=societyId
 }
 
 async function saveCategory(id){
@@ -798,17 +802,19 @@ async function loadTeams(){
   <tr id="row-team-${t.id}">
     <td>${t.id}</td>
     <td id="team-name-${t.id}">${t.name}</td>
-    <td id="team-society-${t.id}">${t.societies?.name||'—'}</td>
+    <td id="team-society-${t.id}" data-society-id="${t.societies?.id||''}">${t.societies?.name||'—'}</td>
     <td class="actions">
-      <button class="warning" onclick="editTeam('${t.id}','${t.name}','${t.societies?.id||''}')">Modifica</button>
+      <button class="warning" onclick="editTeam('${t.id}')">Modifica</button>
       <button class="danger" onclick="deleteTeam('${t.id}')">Elimina</button>
     </td>
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna squadra presente</td></tr>`
 }
 
-function editTeam(id,name,society_id){
+function editTeam(id){
   const row=document.getElementById(`row-team-${id}`)
+  const name=document.getElementById(`team-name-${id}`).textContent
+  const societyId=document.getElementById(`team-society-${id}`).dataset.societyId
   row.classList.add('edit-row')
   row.innerHTML=`
     <td>${id}</td>
@@ -819,7 +825,7 @@ function editTeam(id,name,society_id){
       <button onclick="loadTeams()">Annulla</button>
     </td>`
   loadSocietiesForSelect(`edit-team-society-${id}`)
-  document.getElementById(`edit-team-society-${id}`).value=society_id
+  document.getElementById(`edit-team-society-${id}`).value=societyId
 }
 
 async function saveTeam(id){
@@ -1001,12 +1007,12 @@ async function loadStaff(){
   tbody.innerHTML = data.length
    ? data.map(s=>`
    <tr id="row-staff-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}">
-        <td>${s.users?.name||'—'}</td>
-        <td>${s.seasons?.name||'—'}</td>
-        <td>${s.teams?.societies?.name||'—'}</td>
-        <td>${s.categories?.name||'—'}</td>
-        <td>${s.teams?.name||'—'}</td>
-        <td><span class="badge staff">${s.role}</span></td>
+        <td id="staff-user-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}">${s.users?.name||'—'}</td>
+        <td id="staff-season-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}">${s.seasons?.name||'—'}</td>
+        <td id="staff-society-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}" data-society-id="${s.teams?.societies?.id||''}">${s.teams?.societies?.name||'—'}</td>
+        <td id="staff-category-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}" data-category-id="${s.categories?.id||''}">${s.categories?.name||'—'}</td>
+        <td id="staff-team-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}" data-team-id="${s.teams?.id||''}">${s.teams?.name||'—'}</td>
+        <td id="staff-role-${s.user_id}-${s.season_id}-${s.category_id}-${s.team_id}-${s.role}"><span class="badge staff">${s.role}</span></td>
         <td class="actions">
           <button class="warning" onclick="editStaff('${s.user_id}','${s.season_id}','${s.category_id}','${s.team_id}','${s.role}')">Modifica</button>
           <button class="danger" onclick="deleteStaff('${s.user_id}','${s.season_id}','${s.category_id}','${s.team_id}','${s.role}')">Rimuovi</button>
@@ -1017,6 +1023,12 @@ async function loadStaff(){
 
 function editStaff(user_id,season_id,category_id,team_id,role){
   const row=document.getElementById(`row-staff-${user_id}-${season_id}-${category_id}-${team_id}-${role}`)
+  const userName=document.getElementById(`staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).textContent
+  const seasonName=document.getElementById(`staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).textContent
+  const societyId=document.getElementById(`staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.societyId
+  const categoryId=document.getElementById(`staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.categoryId
+  const teamId=document.getElementById(`staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.teamId
+  
   row.classList.add('edit-row')
   row.innerHTML=`
     <td><select id="edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
@@ -1036,16 +1048,15 @@ function editStaff(user_id,season_id,category_id,team_id,role){
       <button class="success" onclick="saveStaff('${user_id}','${season_id}','${category_id}','${team_id}','${role}')">Salva</button>
       <button onclick="loadStaff()">Annulla</button>
     </td>`
-  loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role)
+  loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role,societyId)
 }
 
-async function loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role){
+async function loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role,societyId){
   const {data:users}=await client.from('users').select('id,name').order('name')
   const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
   const {data:socs}=await client.from('societies').select('id,name').order('name')
-  const curSoc=document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value||''
-  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',curSoc)
-  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',curSoc)
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',societyId)
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',societyId)
 
   populate(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, users, 'id', 'name')
   populate(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, seasons, 'id', 'name')
@@ -1055,8 +1066,8 @@ async function loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role){
 
   document.getElementById(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=user_id
   document.getElementById(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=season_id
-  document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=curSoc
-  document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=category_id
+  document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=societyId
+  document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=categoryId
   document.getElementById(`edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=team_id
   document.getElementById(`edit-staff-role-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=role
 }
