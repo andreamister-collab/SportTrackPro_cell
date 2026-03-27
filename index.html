@@ -183,7 +183,7 @@
 
 <script>
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-let CURRENT_USER = null // {id,username,name,role,society_id}
+let CURRENT_USER = null // {id,username,name,role}
 
 /* NAVIGAZIONE */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
@@ -201,10 +201,14 @@ async function login(e){
   e.preventDefault()
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
-  const { data:userRow, error:userErr } = await client.from('users').select('id,username,name,role,society_id').eq('username',username).single()
+  const email = username + '@sporttrackpro.it'
+
+  const { data:userRow, error:userErr } = await client.from('users').select('id,username,name,role').eq('username',username).single()
   if(userErr || !userRow) return alert('Username non trovato')
-  const { error } = await client.auth.signInWithPassword({email:username+'@sporttrackpro.it',password})
+
+  const { error } = await client.auth.signInWithPassword({email,password})
   if(error) return alert(error.message)
+
   CURRENT_USER = userRow
   document.getElementById('login-wrap').style.display='none'
   document.getElementById('app').style.display='block'
@@ -216,17 +220,9 @@ function logout(){ client.auth.signOut(); location.reload() }
 /* VISIBILITÀ PER RUOLO */
 function applyVisibility(){
   const role = CURRENT_USER?.role
-  // Admin vede tutto
-  if(role==='admin') return
-  // Nascondi creazione sport/società a chi non è admin
   if(role!=='admin'){
     document.getElementById('form-sport').style.display='none'
     document.getElementById('form-society').style.display='none'
-  }
-  // Responsabile può creare categorie/squadre/staff solo della sua società
-  if(role==='responsabile'){
-    document.getElementById('staff-society').value = CURRENT_USER.society_id
-    document.getElementById('staff-society').disabled = true
   }
 }
 
@@ -236,31 +232,10 @@ function fillSelect(id,data,labelFn){
   sel.innerHTML='<option value="">Seleziona</option>'+(data||[]).map(d=>`<option value="${d.id}">${labelFn?labelFn(d):d.name}</option>`).join('')
 }
 
-/* FILTRO CONI DI VISIBILITÀ */
-async function visibleRows(table,extraFilter=null){
-  let q = client.from(table).select('*')
-  if(CURRENT_USER.role!=='admin'){
-    if(table==='societies'){
-      q = q.eq('id',CURRENT_USER.society_id)
-    }else if(table==='categories'){
-      q = q.eq('society_id',CURRENT_USER.society_id)
-    }else if(table==='teams'){
-      q = q.eq('society_id',CURRENT_USER.society_id)
-    }else if(table==='user_category_seasons'){
-      q = q.eq('society_id',CURRENT_USER.society_id)
-    }else if(table==='seasons'){
-      // tutti vedono le stagioni
-    }
-  }
-  if(extraFilter) q = extraFilter(q)
-  const {data,error}=await q
-  if(error){ alert(error.message); return [] }
-  return data
-}
-
 /* ===== STAGIONI ===== */
 async function loadSeason(){
-  const data=await visibleRows('seasons')
+  const {data,error}=await client.from('seasons').select('id,start_date,end_date,is_active').order('start_date',{ascending:false})
+  if(error){ alert(error.message); return }
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
   for(const s of data){
@@ -309,7 +284,8 @@ async function deleteSeason(id){
 
 /* ===== SPORT ===== */
 async function loadSport(){
-  const data=await visibleRows('sports')
+  const {data,error}=await client.from('sports').select('id,name,icon').order('name')
+  if(error){ alert(error.message); return }
   document.querySelector('#tbl-sport tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td>
     <td class="actions">${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSport(${s.id})">🗑️</button>`:''}</td></tr>`).join('')
@@ -333,11 +309,10 @@ async function deleteSport(id){
 
 /* ===== SOCIETÀ ===== */
 async function loadSociety(){
-  const data=await visibleRows('societies')
-  const sports=await client.from('sports').select('id,name')
-  const sportMap=Object.fromEntries((sports.data||[]).map(s=>[s.id,s.name]))
+  const {data,error}=await client.from('societies').select('id,name,sport_id,sports(name)').order('name')
+  if(error){ alert(error.message); return }
   document.querySelector('#tbl-society tbody').innerHTML=data.map(s=>`
-    <tr><td>${s.id}</td><td>${s.name}</td><td>${sportMap[s.sport_id]||'—'}</td>
+    <tr><td>${s.id}</td><td>${s.name}</td><td>${s.sports?.name||'—'}</td>
     <td class="actions">${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSociety(${s.id})">🗑️</button>`:''}</td></tr>`).join('')
 }
 async function createSociety(){
@@ -359,16 +334,15 @@ async function deleteSociety(id){
 
 /* ===== CATEGORIE ===== */
 async function loadCategory(){
-  const data=await visibleRows('categories')
-  const societies=await client.from('societies').select('id,name')
-  const socMap=Object.fromEntries((societies.data||[]).map(s=>[s.id,s.name]))
+  const {data,error}=await client.from('categories').select('id,name,society_id,societies(name)').order('name')
+  if(error){ alert(error.message); return }
   document.querySelector('#tbl-category tbody').innerHTML=data.map(c=>`
-    <tr><td>${c.id}</td><td>${c.name}</td><td>${socMap[c.society_id]||'—'}</td>
+    <tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteCategory(${c.id})">🗑️</button>`:''}</td></tr>`).join('')
 }
 async function createCategory(){
   const name=document.getElementById('category-name').value.trim()
-  const society_id=document.getElementById('category-society').value || CURRENT_USER.society_id
+  const society_id=document.getElementById('category-society').value
   if(!name||!society_id) return alert('Compila tutti i campi')
   const {error}=await client.from('categories').insert({name,society_id})
   if(error) return alert(error.message)
@@ -385,16 +359,15 @@ async function deleteCategory(id){
 
 /* ===== SQUADRE ===== */
 async function loadTeam(){
-  const data=await visibleRows('teams')
-  const societies=await client.from('societies').select('id,name')
-  const socMap=Object.fromEntries((societies.data||[]).map(s=>[s.id,s.name]))
+  const {data,error}=await client.from('teams').select('id,name,society_id,societies(name)').order('name')
+  if(error){ alert(error.message); return }
   document.querySelector('#tbl-team tbody').innerHTML=data.map(t=>`
-    <tr><td>${t.id}</td><td>${t.name}</td><td>${socMap[t.society_id]||'—'}</td>
+    <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteTeam(${t.id})">🗑️</button>`:''}</td></tr>`).join('')
 }
 async function createTeam(){
   const name=document.getElementById('team-name').value.trim()
-  const society_id=document.getElementById('team-society').value || CURRENT_USER.society_id
+  const society_id=document.getElementById('team-society').value
   if(!name||!society_id) return alert('Compila tutti i campi')
   const {error}=await client.from('teams').insert({name,society_id})
   if(error) return alert(error.message)
@@ -411,25 +384,20 @@ async function deleteTeam(id){
 
 /* ===== STAFF ===== */
 async function loadStaff(){
-  const data=await visibleRows('user_category_seasons')
-  const users=await client.from('users').select('id,name,role')
-  const societies=await client.from('societies').select('id,name')
-  const categories=await client.from('categories').select('id,name')
-  const teams=await client.from('teams').select('id,name')
-  const uMap=Object.fromEntries(users.data.map(u=>[u.id,u.name]))
-  const sMap=Object.fromEntries(societies.data.map(s=>[s.id,s.name]))
-  const cMap=Object.fromEntries(categories.data.map(c=>[c.id,c.name]))
-  const tMap=Object.fromEntries(teams.data.map(t=>[t.id,t.name]))
+  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(start_date,end_date),societies(name),categories(name),teams(name)').order('id',{ascending:false})
+  if(error){ alert(error.message); return }
   document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>{
+    const startYear = new Date(s.seasons.start_date).getFullYear()
+    const endYear = new Date(s.seasons.end_date).getFullYear()
     const roleBadge = {responsabile:'badge-purple',dirigente:'badge-green',allenatore:'badge-gold',professionista:'badge-teal'}[s.role]||'badge'
-    return `<tr><td>${s.id}</td><td>${uMap[s.user_id]||s.user_id}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${sMap[s.society_id]||''}</td><td>${cMap[s.category_id]||''}</td><td>${tMap[s.team_id]||''}</td>
+    return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${s.societies?.name||''}</td><td>${s.categories?.name||''}</td><td>${s.teams?.name||''}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteStaff(${s.id})">🗑️</button>`:''}</td></tr>`
   }).join('')
 }
 async function createStaff(){
   const user_id=document.getElementById('staff-user').value
   const role=document.getElementById('staff-role').value
-  const society_id=document.getElementById('staff-society').value || CURRENT_USER.society_id
+  const society_id=document.getElementById('staff-society').value
   const category_id=document.getElementById('staff-category').value
   const team_id=document.getElementById('staff-team').value
   if(!user_id||!role||!society_id||!category_id||!team_id) return alert('Compila tutti i campi')
@@ -458,12 +426,12 @@ async function loadSection(sec){
   if(sec==='season') loadSeason()
   if(sec==='sport') loadSport()
   if(sec==='society'){ const {data}=await client.from('sports').select('id,name'); fillSelect('society-sport',data,d=>d.name); loadSociety() }
-  if(sec==='category'){ const {data}=await visibleRows('societies'); fillSelect('category-society',data,d=>d.name); loadCategory() }
-  if(sec==='team'){ const {data}=await visibleRows('societies'); fillSelect('team-society',data,d=>d.name); loadTeam() }
+  if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,d=>d.name); loadCategory() }
+  if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
   if(sec==='staff'){
-    const {data:users}=await client.from('users').select('id,name')
+    const {data:users}=await client.from('users').select('id,name,role')
     const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
-    const {data:socs}=await visibleRows('societies')
+    const {data:socs}=await client.from('societies').select('id,name')
     fillSelect('staff-user',users,d=>d.name)
     fillSelect('staff-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
     fillSelect('staff-society',socs,d=>d.name)
