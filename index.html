@@ -6,7 +6,6 @@
 <title>SportTrackPro - Gestione</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module" src="db.js"></script>
 
 <style>
 :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; }
@@ -22,7 +21,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin
 .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
 .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
 .btn:hover { background:#1d4ed8; }
-.btn-logout { background:#ef4444; margin-top:auto; }
+.btn-logout { background:#ef4444; margin-top:auto; border:none; padding:0.75rem; color:white; border-radius:6px; cursor:pointer; font-weight:600; }
 .btn-logout:hover { background:#dc2626; }
 input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:0.8rem; }
 table { width:100%; border-collapse:collapse; margin-top:1rem; }
@@ -37,7 +36,6 @@ th { background:#f8fafc; font-weight:600; }
 </head>
 <body>
 
-<!-- ===== LOGIN ===== -->
 <div id="login-wrap">
     <h2 style="text-align:center; margin-bottom:1.5rem;">SportTrackPro</h2>
     <form id="login-form">
@@ -45,28 +43,23 @@ th { background:#f8fafc; font-weight:600; }
         <input type="text" id="username" placeholder="Inserisci username" required>
         <label>Password</label>
         <input type="password" id="password" placeholder="••••••••" required>
-        <button type="submit" class="btn">Accedi</button>
+        <button type="submit" class="btn" style="width:100%">Accedi</button>
         <div id="error-msg" class="error"></div>
     </form>
 </div>
 
-<!-- ===== APP ===== -->
 <div id="app">
     <nav id="sidebar">
         <h3>SportTrackPro</h3>
-
-        <a data-section="dashboard" onclick="loadPage('dashboard')">DASHBOARD</a>
-        <a data-section="stagioni" onclick="loadPage('stagioni')">STAGIONI</a>
-        <a data-section="sport" onclick="loadPage('sport')">SPORT</a>
-        <a data-section="societa" onclick="loadPage('societa')">SOCIETÀ</a>
-        <a data-section="categoria" onclick="loadPage('categoria')">CATEGORIA</a>
-        <a data-section="squadra" onclick="loadPage('squadra')">SQUADRA</a>
-        <a data-section="staff" onclick="loadPage('staff')">STAFF ASSEGNATO</a>
-        <a data-section="atleti" onclick="loadPage('atleti')">ATLETI</a>
-        <a data-section="sessioni" onclick="loadPage('sessioni')">SESSIONI E PARTITE</a>
-
-        <!-- === SEZIONE AGGIUNTIVA (AGGIUNGI QUI NUOVI LINK) === -->
-        <!-- <a data-section="gare" onclick="loadPage('gare')">GARE</a> -->
+        <a data-section="dashboard">DASHBOARD</a>
+        <a data-section="stagioni">STAGIONI</a>
+        <a data-section="sport">SPORT</a>
+        <a data-section="societa">SOCIETÀ</a>
+        <a data-section="categoria">CATEGORIA</a>
+        <a data-section="squadra">SQUADRA</a>
+        <a data-section="staff">STAFF ASSEGNATO</a>
+        <a data-section="atleti">ATLETI</a>
+        <a data-section="sessioni">SESSIONI E PARTITE</a>
 
         <button class="btn-logout" id="btn-logout">Logout</button>
     </nav>
@@ -134,10 +127,11 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 function initDashboard() {
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    loadPage('dashboard'); // pagina iniziale
+    loadPage('dashboard');
 }
 
-window.loadPage = function(section) {
+// Spostato all'interno del modulo per sicurezza
+const loadPage = async (section) => {
     document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
     const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
     if (link) link.classList.add('active');
@@ -145,7 +139,7 @@ window.loadPage = function(section) {
     const content = document.getElementById('content');
 
     switch(section) {
-        case 'dashboard': content.innerHTML = templateDashboard(); initDashboardPage(); break;
+        case 'dashboard': content.innerHTML = templateDashboard(); break;
         case 'stagioni': content.innerHTML = templateStagioni(); initStagioni(); break;
         case 'sport': content.innerHTML = templateSport(); initSport(); break;
         case 'societa': content.innerHTML = templateSocieta(); initSocieta(); break;
@@ -154,226 +148,79 @@ window.loadPage = function(section) {
         case 'staff': content.innerHTML = templateStaff(); initStaff(); break;
         case 'atleti': content.innerHTML = templateAtleti(); initAtleti(); break;
         case 'sessioni': content.innerHTML = templateSessioni(); initSessioni(); break;
-
-        /* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI NUOVE CASE) === */
-        // case 'gare': content.innerHTML = templateGare(); initGare(); break;
-
         default: content.innerHTML = '<div class="card"><p>Sezione non trovata</p></div>';
     }
 };
 
-/* ---------- TEMPLATE PAGINE ---------- */
+// Colleghiamo i click del menu in modo "Module-safe"
+document.querySelectorAll('#sidebar a').forEach(link => {
+    link.addEventListener('click', () => {
+        const section = link.getAttribute('data-section');
+        loadPage(section);
+    });
+});
+
+/* ---------- TEMPLATE PAGINE (Senza Bottoni) ---------- */
 function templateDashboard() {
-    return `
-    <div class="card">
-        <div class="header"><h2>DASHBOARD</h2></div>
-        <p>Benvenuto, ${CURRENT_USER?.name || ''} (${CURRENT_USER?.role || ''})</p>
-        <p>Usa il menu a sinistra per gestire società, categorie, squadre, atleti e sessioni.</p>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>DASHBOARD</h2></div><p>Benvenuto, ${CURRENT_USER?.name || ''}</p></div>`;
 }
-
 function templateStagioni() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>STAGIONI</h2>
-            <button class="btn" onclick="addStagione()">+ Nuova Stagione</button>
-        </div>
-        <ul id="list-stagioni"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>STAGIONI</h2></div><ul id="list-stagioni"><li>Caricamento...</li></ul></div>`;
 }
-
 function templateSport() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>SPORT</h2>
-            <button class="btn" onclick="addSport()">+ Nuovo Sport</button>
-        </div>
-        <ul id="list-sport"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>SPORT</h2></div><ul id="list-sport"><li>Caricamento...</li></ul></div>`;
 }
-
 function templateSocieta() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>SOCIETÀ</h2>
-            <button class="btn" onclick="addSocieta()">+ Nuova Società</button>
-        </div>
-        <ul id="list-societa"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>SOCIETÀ</h2></div><ul id="list-societa"><li>Caricamento...</li></ul></div>`;
 }
-
 function templateCategoria() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>CATEGORIA</h2>
-            <button class="btn" onclick="addCategoria()">+ Nuova Categoria</button>
-        </div>
-        <ul id="list-categorie"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>CATEGORIA</h2></div><ul id="list-categorie"><li>Caricamento...</li></ul></div>`;
 }
-
 function templateSquadra() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>SQUADRA</h2>
-            <button class="btn" onclick="addSquadra()">+ Nuova Squadra</button>
-        </div>
-        <ul id="list-squadre"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>SQUADRA</h2></div><ul id="list-squadre"><li>Caricamento...</li></ul></div>`;
 }
-
 function templateStaff() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>STAFF ASSEGNATO</h2>
-            <button class="btn" onclick="addStaff()">+ Assegna Staff</button>
-        </div>
-        <table>
-            <thead><tr><th>Ruolo</th><th>Utente ID</th><th>Società ID</th></tr></thead>
-            <tbody id="list-staff"><tr><td colspan="3">Caricamento...</td></tr></tbody>
-        </table>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>STAFF ASSEGNATO</h2></div><table><thead><tr><th>Ruolo</th><th>Utente</th></tr></thead><tbody id="list-staff"></tbody></table></div>`;
 }
-
 function templateAtleti() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>ATLETI</h2>
-            <button class="btn" onclick="addAtleta()">+ Nuovo Atleta</button>
-        </div>
-        <table>
-            <thead><tr><th>Nome</th><th>Cognome</th><th>Data di nascita</th></tr></thead>
-            <tbody id="list-atleti"><tr><td colspan="3">Caricamento...</td></tr></tbody>
-        </table>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>ATLETI</h2></div><table><thead><tr><th>Nome</th><th>Cognome</th></tr></thead><tbody id="list-atleti"></tbody></table></div>`;
 }
-
 function templateSessioni() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>SESSIONI E PARTITE</h2>
-            <button class="btn" onclick="addSessione()">+ Nuova Sessione</button>
-        </div>
-        <ul id="list-sessioni"><li>Caricamento...</li></ul>
-    </div>`;
+    return `<div class="card"><div class="header"><h2>SESSIONI E PARTITE</h2></div><ul id="list-sessioni"><li>Caricamento...</li></ul></div>`;
 }
 
-/* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI I TUOI NUOVI TEMPLATE) === */
-// function templateGare() { return `<div class="card"><div class="header"><h2>GARE</h2><button class="btn" onclick="addGara()">+ Nuova Gara</button></div><ul id="list-gare"><li>Caricamento...</li></ul></div>`; }
-
-/* ---------- INIT PAGINE (QUERY SUPABASE) ---------- */
-async function initDashboardPage() {
-    // Potresti mettere qui riepiloghi rapidi
-}
-
+/* ---------- INIT PAGINE ---------- */
 async function initStagioni() {
-    const { data, error } = await client.from('seasons').select('id,name,start_date,end_date,is_active').order('start_date', {ascending:false});
-    if (error) return showError('list-stagioni', error.message);
-    document.getElementById('list-stagioni').innerHTML = data?.length
-        ? data.map(s => `<li>${s.name} <span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span> (${s.start_date} → ${s.end_date})</li>`).join('')
-        : '<li>Nessun dato.</li>';
+    const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+    document.getElementById('list-stagioni').innerHTML = data?.map(s => `<li>${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
 }
-
 async function initSport() {
-    const { data, error } = await client.from('sports').select('id,name,icon').order('name');
-    if (error) return showError('list-sport', error.message);
-    document.getElementById('list-sport').innerHTML = data?.length
-        ? data.map(s => `<li>${s.icon} ${s.name}</li>`).join('')
-        : '<li>Nessun dato.</li>';
+    const { data } = await client.from('sports').select('*').order('name');
+    document.getElementById('list-sport').innerHTML = data?.map(s => `<li>${s.icon} ${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
 }
-
 async function initSocieta() {
-    const { data, error } = await client.from('societies').select('id,name,sport_id').order('name');
-    if (error) return showError('list-societa', error.message);
-    document.getElementById('list-societa').innerHTML = data?.length
-        ? data.map(s => `<li>${s.name}</li>`).join('')
-        : '<li>Nessun dato.</li>';
+    const { data } = await client.from('societies').select('*').order('name');
+    document.getElementById('list-societa').innerHTML = data?.map(s => `<li>${s.name}</li>`).join('') || '<li>Nessun dato.</li>';
 }
-
 async function initCategoria() {
-    const { data, error } = await client.from('categories').select('id,name,society_id').order('name');
-    if (error) return showError('list-categorie', error.message);
-    document.getElementById('list-categorie').innerHTML = data?.length
-        ? data.map(c => `<li>${c.name}</li>`).join('')
-        : '<li>Nessun dato.</li>';
+    const { data } = await client.from('categories').select('*').order('name');
+    document.getElementById('list-categorie').innerHTML = data?.map(c => `<li>${c.name}</li>`).join('') || '<li>Nessun dato.</li>';
 }
-
 async function initSquadra() {
-    const { data, error } = await client.from('teams').select('id,name,society_id,category_id').order('name');
-    if (error) return showError('list-squadre', error.message);
-    document.getElementById('list-squadre').innerHTML = data?.length
-        ? data.map(t => `<li>${t.name}</li>`).join('')
-        : '<li>Nessun dato.</li>';
+    const { data } = await client.from('teams').select('*').order('name');
+    document.getElementById('list-squadre').innerHTML = data?.map(t => `<li>${t.name}</li>`).join('') || '<li>Nessun dato.</li>';
 }
-
 async function initStaff() {
-    const { data, error } = await client.from('user_category_seasons')
-        .select('id,role,user_id,society_id,team_id,category_id,season_id')
-        .order('role');
-    if (error) return showError('list-staff', error.message);
-    document.getElementById('list-staff').innerHTML = data?.length
-        ? data.map(st => `<tr><td>${st.role}</td><td>${st.user_id}</td><td>${st.society_id}</td></tr>`).join('')
-        : '<tr><td colspan="3">Nessun dato.</td></tr>';
+    const { data } = await client.from('user_category_seasons').select('role, users(name)').order('role');
+    document.getElementById('list-staff').innerHTML = data?.map(st => `<tr><td>${st.role}</td><td>${st.users?.name || 'N/A'}</td></tr>`).join('') || '<tr><td>Nessun dato</td></tr>';
 }
-
 async function initAtleti() {
-    const { data, error } = await client.from('athletes').select('id,name,surname,born_date').order('surname');
-    if (error) return showError('list-atleti', error.message);
-    document.getElementById('list-atleti').innerHTML = data?.length
-        ? data.map(a => `<tr><td>${a.name}</td><td>${a.surname}</td><td>${a.born_date || '-'}</td></tr>`).join('')
-        : '<tr><td colspan="3">Nessun dato.</td></tr>';
+    const { data } = await client.from('athletes').select('name, surname').order('surname');
+    document.getElementById('list-atleti').innerHTML = data?.map(a => `<tr><td>${a.name}</td><td>${a.surname}</td></tr>`).join('') || '<tr><td>Nessun dato</td></tr>';
 }
-
 async function initSessioni() {
-    const { data, error } = await client.from('sessions').select('id,title,session_date,category_id,team_id').order('session_date',{ascending:false});
-    if (error) return showError('list-sessioni', error.message);
-    document.getElementById('list-sessioni').innerHTML = data?.length
-        ? data.map(s => `<li>${s.session_date} - ${s.title}</li>`).join('')
-        : '<li>Nessun dato.</li>';
-}
-
-/* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI LE TUE NUOVE INIT) === */
-// async function initGare() { const { data } = await client.from('gare').select('*').order('id'); }
-
-/* ---------- AZIONI ESEMPIO ---------- */
-async function addStagione() {
-    const name = prompt('Nome stagione');
-    const start = prompt('Data inizio (YYYY-MM-DD)');
-    const end = prompt('Data fine (YYYY-MM-DD)');
-    if(name && start && end) { await client.from('seasons').insert({name,start_date:start,end_date:end,is_active:false}); initStagioni(); }
-}
-
-async function addSocieta() {
-    const name = prompt('Nome società');
-    if(name) { await client.from('societies').insert({name, sport_id: null}); initSocieta(); }
-}
-
-async function addAtleta() {
-    const name = prompt('Nome atleta');
-    const surname = prompt('Cognome atleta');
-    if(name && surname) {
-        await client.from('athletes').insert({
-            name,
-            surname,
-            society_id: USER_ASSIGNMENT.society_id,
-            category_id: USER_ASSIGNMENT.category_id,
-            team_id: USER_ASSIGNMENT.team_id,
-            season_id: USER_ASSIGNMENT.season_id
-        });
-        initAtleti();
-    }
-}
-
-function showError(elementId, message) {
-    document.getElementById(elementId).innerHTML = `<li style="color:#b91c1c">${message}</li>`;
+    const { data } = await client.from('sessions').select('*').order('session_date', {ascending:false});
+    document.getElementById('list-sessioni').innerHTML = data?.map(s => `<li>${s.session_date} - ${s.title}</li>`).join('') || '<li>Nessun dato.</li>';
 }
 </script>
 </body>
