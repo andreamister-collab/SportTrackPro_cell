@@ -72,55 +72,43 @@
         const errorMsg = document.getElementById('error-msg');
 
         // Funzione di Login
-        async function login(e) {
-            e.preventDefault();
-            errorMsg.style.display = 'none';
-            
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
+async function login(e) {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
 
-            try {
-                // 1. Recupero email dalla tabella 'users' usando lo username
-                const { data: userRow, error: userErr } = await client
-                    .from('users')
-                    .select('email, id, name, role')
-                    .eq('username', username)
-                    .single();
+  console.log("Tentativo di recupero email per:", username);
 
-                if (userErr || !userRow || !userRow.email) {
-                    throw new Error('Username non trovato o profilo incompleto');
-                }
+  // 1. Recupero dati dalla tabella pubblica
+  const { data: userRow, error: userErr } = await client
+    .from('users')
+    .select('id, username, email, name, role') // Ora email esiste!
+    .eq('username', username)
+    .maybeSingle();
 
-                // 2. Autenticazione con email e password
-                const { data, error: authError } = await client.auth.signInWithPassword({
-                    email: userRow.email,
-                    password: password
-                });
+  if (userErr) {
+    console.error("Errore Database:", userErr);
+    return alert("Errore tecnico: " + userErr.message);
+  }
 
-                if (authError) throw authError;
+  if (!userRow) {
+    return alert("Username non trovato nel database.");
+  }
 
-                // 3. Successo: Imposta utente e cambia schermata
-                USER = { ...data.user, ...userRow };
-                showApp();
+  // 2. Login con le credenziali ottenute
+  const { data, error: authError } = await client.auth.signInWithPassword({
+    email: userRow.email,
+    password: password
+  });
 
-            } catch (err) {
-                errorMsg.innerText = err.message;
-                errorMsg.style.display = 'block';
-                console.error("Errore Login:", err);
-            }
-        }
+  if (authError) {
+    return alert("Password errata o errore auth: " + authError.message);
+  }
 
-        function showApp() {
-            loginWrap.style.display = 'none';
-            appDiv.style.display = 'block';
-            document.getElementById('welcome-msg').innerText = `Ciao, ${USER.name || 'Utente'}`;
-            initApp();
-        }
-
-        function initApp() {
-            console.log("App Inizializzata per:", USER.username);
-            // Qui richiamerai loadSection('dashboard') o simili
-        }
+  // Successo!
+  USER = { ...data.user, ...userRow };
+  showApp();
+}
 
         async function logout() {
             await client.auth.signOut();
