@@ -9,8 +9,7 @@
 <style>
   :root{
     --bg:#f6f7fb;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
-    --primary:#2563eb;--danger:#ef4444;--ok:#10b981;
-    --sidebar:#1e2a44; --sidebar-active:#2d3e66;
+    --primary:#2563eb;--danger:#ef4444;--ok:#10b981;--sidebar:#1e2a44; --sidebar-active:#2d3e66;
   }
   *{box-sizing:border-box}
   body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
@@ -21,8 +20,6 @@
   .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
   .main{flex:1;overflow:auto;padding:24px}
   .container{max-width:1200px;margin:0 auto}
-
-  /* CARD */
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);overflow:hidden;margin-bottom:24px}
   .card-header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border)}
   .card-header img{width:28px;height:28px}
@@ -43,8 +40,6 @@
   .form-group{display:flex;flex-direction:column;gap:6px}
   .form-group label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
   .form-group input,.form-group select{padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff}
-
-  /* LOGIN */
   #login-wrap{position:fixed;inset:0;background:linear-gradient(180deg,#0f1e3d,#1b2f5a);display:flex;align-items:center;justify-content:center}
   #login-card{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:100%;max-width:420px;padding:32px}
   #login-card .brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}
@@ -217,7 +212,6 @@ async function login(e){
 }
 function logout(){ client.auth.signOut(); location.reload() }
 
-/* UTIL */
 function fillSelect(id,data,labelFn){
   const sel=document.getElementById(id)
   sel.innerHTML='<option value="">Seleziona</option>'+(data||[]).map(d=>`<option value="${d.id}">${labelFn?labelFn(d):d.name}</option>`).join('')
@@ -225,7 +219,7 @@ function fillSelect(id,data,labelFn){
 
 /* ===== STAGIONI ===== */
 async function loadSeason(){
-  const {data,error}=await client.from('seasons').select('*').order('start_date',{ascending:false})
+  const {data,error}=await client.from('seasons').select('id,start_date,end_date,is_active').order('start_date',{ascending:false})
   if(error){ alert(error.message); return }
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
@@ -453,7 +447,7 @@ async function loadSection(sec){
   if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,d=>d.name); loadCategory() }
   if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
   if(sec==='link'){
-    const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
+    const {data:seas}=await client.from('seasons').select('id,start_date,end_date,is_active').order('start_date',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
     fillSelect('link-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
     fillSelect('link-society',socs,d=>d.name)
@@ -461,7 +455,7 @@ async function loadSection(sec){
   }
   if(sec==='staff'){
     const {data:users}=await client.from('users').select('id,name')
-    const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
+    const {data:seas}=await client.from('seasons').select('id,start_date,end_date,is_active').order('start_date',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
     fillSelect('staff-user',users,d=>d.name)
     fillSelect('staff-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
