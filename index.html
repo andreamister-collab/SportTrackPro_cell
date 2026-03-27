@@ -576,26 +576,16 @@ function editSeason(id){
   row.innerHTML=`
     <td>${id}</td>
     <td><input id="edit-season-name-${id}" value="${name.trim()}"></td>
-    <td><input id="edit-season-start-${id}" type="date" value="${period[0].trim()}">
-        <input id="edit-season-end-${id}" type="date" value="${period[1]?period[1].trim():''}"></td>
-    <td><input id="edit-season-active-${id}" type="checkbox" ${active?'}
-
-async function saveSeason(id){
-  const name=document.getElementById(`edit-season-name-${id}`).value.trim()
-  const start_date=document.getElementById(`edit-season-start-${id}`).value
-  const end_date=document.getElementById(`edit-season-end-${id}`).value
-  const active=document.getElementById(`edit-season-active-${id}`).checked
-
-  if(active){
-    await client.from('seasons').update({active:false}).neq('id',id)
-  }
-
-  const {error}=await client.from('seasons').update({name,start_date,end_date,active}).eq('id',id)
-  if(error) return alert(error.message)
-  loadSeasons()
-  refresh()
+    <td>
+      <input id="edit-season-start-${id}" type="date" value="${period[0].trim()}">
+      <input id="edit-season-end-${id}" type="date" value="${period[1]?period[1].trim():''}">
+    </td>
+    <td><input id="edit-season-active-${id}" type="checkbox" ${active ? 'checked' : ''}></td>
+    <td class="actions">
+      <button class="success" onclick="saveSeason('${id}')">Salva</button>
+      <button onclick="loadSeasons()">Annulla</button>
+    </td>`
 }
-
 async function createSeason(){
   const id=document.getElementById('season-id').value.trim()
   const name=document.getElementById('season-name').value.trim()
