@@ -238,7 +238,6 @@
 <script>
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
-let EDIT={} // tiene traccia della riga in modifica
 
 /* ===== NAVIGAZIONE ===== */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
@@ -319,27 +318,23 @@ async function refresh(){
     return
   }
 
-  /* CARD — sempre visibili */
+  /* CARD — conteggi diretti */
   const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s)
   const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true})
   const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true})
   const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s)
   const {count:utenti}=await client.from('users').select('id',{count:'exact',head:true})
 
-  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','responsabile')
-  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','allenatore')
-  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','presidente')
-  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','dirigente')
-  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','segretario')
-  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true})
-.eq('season_id',s).eq('role','professionista')
+  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','responsabile')
+  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','allenatore')
+  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','presidente')
+  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','dirigente')
+  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','segretario')
+  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','professionista')
 
-  const {data:att} = await client.from('attendances').select('status').eq('season_id',s)
+  const {data:sessIdsAtt}=await client.from('sessions').select('id').eq('season_id',s)
+  const sessionIds = sessIdsAtt?.map(x=>x.id) || []
+  const {data:att}=await client.from('attendances').select('status').in('session_id',sessionIds)
   const pres=att?.filter(a=>a.status==='P').length||0
   const tot=att?.length||0
   const pct=tot?Math.round(pres/tot*100):0
@@ -401,26 +396,26 @@ async function refresh(){
 
     if(c?.id && t?.id){
       const {count:sessCntTmp}=await client.from('sessions').select('id',{count:'exact',head:true})
-  .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+ .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
       sessCnt=sessCntTmp||0
 
       const {count:athCntTmp}=await client.from('athlete_seasons').select('id',{count:'exact',head:true})
-  .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+ .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
       athCnt=athCntTmp||0
 
       const {data:sidData}=await client.from('sessions').select('id')
-  .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
-      const sessionIds = sidData?.map(x=>x.id) || []
-      if(sessionIds.length){
-        const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
+ .eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
+      const sessionIds2 = sidData?.map(x=>x.id) || []
+      if(sessionIds2.length){
+        const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds2)
         presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
       }
 
       const {data:staffData}=await client.from('user_category_seasons')
-  .select('users(name),role')
-  .eq('category_id',c.id)
-  .eq('season_id',s)
-  .eq('team_id',t.id)
+ .select('users(name),role')
+ .eq('category_id',c.id)
+ .eq('season_id',s)
+ .eq('team_id',t.id)
 
       const staff = staffData || []
       staffHtml = staff.length? staff.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
@@ -594,7 +589,7 @@ async function createSeason(){
 
   if(!id ||!name ||!start_date) return alert('ID, Nome e Data inizio sono obbligatori')
 
-if(active){
+  if(active){
     await client.from('seasons').update({active:false}).neq('id',id)
   }
 
@@ -604,7 +599,7 @@ if(active){
   document.getElementById('season-id').value=''
   document.getElementById('season-name').value=''
   document.getElementById('season-start').value=''
-  document.getElementById('season-end').value=''
+    document.getElementById('season-end').value=''
   document.getElementById('season-active').checked=false
   loadSeasons()
   refresh()
@@ -658,7 +653,7 @@ function editSociety(id,name,sportName){
     <td><input id="edit-society-name-${id}" value="${name}"></td>
     <td><select id="edit-society-sport-${id}"></select></td>
     <td class="actions">
-      <button class="success" onclick="saveSociety('${id}')">Salva</button>
+      <button class="success" onclick="saveSociety('${s.id}')">Salva</button>
       <button onclick="loadSocieties()">Annulla</button>
     </td>`
   loadSportsForSelect(`edit-society-sport-${id}`)
@@ -839,7 +834,7 @@ async function deleteTeam(id){
   loadTeams()
 }
 
-/* ===== ASSOCIAZIONI TEAM-CATEGORY-SEASON + EDIT + FILTRO ===== */
+/* ===== ASSOCIAZIONI TEAM-CATEGORY-SEASON + FILTRO ===== */
 async function loadLinkSelects(){
   const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
   const {data:socs}=await client.from('societies').select('id,name').order('name')
@@ -994,10 +989,83 @@ async function loadStaff(){
         <td>${s.teams?.name||'—'}</td>
         <td><span class="badge staff">${s.role}</span></td>
         <td class="actions">
+          <button class="warning" onclick="editStaff('${s.user_id}','${s.season_id}','${s.category_id}','${s.team_id}','${s.role}')">Modifica</button>
           <button class="danger" onclick="deleteStaff('${s.user_id}','${s.season_id}','${s.category_id}','${s.team_id}','${s.role}')">Rimuovi</button>
         </td>
       </tr>`).join('')
     : `<tr><td colspan="7">Nessun membro staff assegnato</td></tr>`
+}
+
+function editStaff(user_id,season_id,category_id,team_id,role){
+  const row=document.getElementById(`row-staff-${user_id}-${season_id}-${category_id}-${team_id}-${role}`)
+  row.classList.add('edit-row')
+  row.innerHTML=`
+    <td><select id="edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
+    <td><select id="edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
+    <td><select id="edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
+    <td><select id="edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
+    <td><select id="edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}"></select></td>
+    <td><select id="edit-staff-role-${user_id}-${season_id}-${category_id}-${team_id}-${role}">
+      <option value="allenatore">Allenatore</option>
+      <option value="responsabile">Responsabile</option>
+      <option value="presidente">Presidente</option>
+      <option value="dirigente">Dirigente</option>
+      <option value="segretario">Segretario</option>
+      <option value="professionista">Professionista</option>
+    </select></td>
+    <td class="actions">
+      <button class="success" onclick="saveStaff('${user_id}','${season_id}','${category_id}','${team_id}','${role}')">Salva</button>
+      <button onclick="loadStaff()">Annulla</button>
+    </td>`
+  loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role)
+}
+
+async function loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role){
+  const {data:users}=await client.from('users').select('id,name').order('name')
+  const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
+  const {data:socs}=await client.from('societies').select('id,name').order('name')
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value||'')
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value||'')
+
+  populate(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, users, 'id', 'name')
+  populate(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, seasons, 'id', 'name')
+  populate(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, socs, 'id', 'name')
+  populate(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, cats, 'id', 'name')
+  populate(`edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`, teams, 'id', 'name')
+
+  document.getElementById(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=user_id
+  document.getElementById(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=season_id
+  document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=category_id
+  document.getElementById(`edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=team_id
+  document.getElementById(`edit-staff-role-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=role
+}
+
+async function saveStaff(user_id,season_id,category_id,team_id,role){
+  const new_user_id=document.getElementById(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  const new_season_id=document.getElementById(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  const new_society_id=document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  const new_category_id=document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  const new_team_id=document.getElementById(`edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+  const new_role=document.getElementById(`edit-staff-role-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value
+
+  const {data:cat}=await client.from('categories').select('society_id').eq('id',new_category_id).single()
+  const {data:team}=await client.from('teams').select('society_id').eq('id',new_team_id).single()
+  if(cat?.society_id !== team?.society_id || cat?.society_id !== new_society_id){
+    return alert('Categoria e Squadra devono appartenere alla stessa Società')
+  }
+
+  const {error}=await client.from('user_category_seasons')
+  .update({user_id:new_user_id,season_id:new_season_id,category_id:new_category_id,team_id:new_team_id,role:new_role})
+  .eq('user_id',user_id)
+  .eq('season_id',season_id)
+  .eq('category_id',category_id)
+  .eq('team_id',team_id)
+  .eq('role',role)
+
+  if(error) return alert(error.message)
+  loadStaff()
+  refresh()
 }
 
 async function createStaff(){
@@ -1008,8 +1076,11 @@ async function createStaff(){
   const team_id=document.getElementById('staff-team').value
   const role=document.getElementById('staff-role').value
 
+  const allowedRoles = ['allenatore','responsabile','presidente','dirigente','segretario','professionista']
   if(!user_id ||!season_id ||!society_id ||!category_id ||!team_id ||!role) 
     return alert('Compila tutti i campi')
+  if(!allowedRoles.includes(role))
+    return alert('Ruolo non valido')
 
   const {data:cat}=await client.from('categories').select('society_id').eq('id',category_id).single()
   const {data:team}=await client.from('teams').select('society_id').eq('id',team_id).single()
