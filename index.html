@@ -84,7 +84,7 @@
   <!-- STAGIONI -->
   <section id="sec-season" class="card">
     <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3159/3159310.png"><h2>Stagioni Calcistiche</h2></div>
-    <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>INIZIO</th><th>FINE</th><th>STATO</th><th>ATLETI ISCRITTI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="7">Caricamento...</td></tr></tbody></table>
+    <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>STATO</th><th>ATLETI ISCRITTI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-season">
       <h3>＋ Nuova Stagione</h3>
       <div class="form-grid">
@@ -234,20 +234,16 @@ function fillSelect(id,data,labelFn){
 
 /* ===== STAGIONI ===== */
 async function loadSeason(){
-  const {data,error}=await client.from('seasons').select('id,start_date,end_date,is_active').order('start_date',{ascending:false})
+  const {data,error}=await client.from('seasons').select('id,name,is_active').order('name',{ascending:false})
   if(error){ alert(error.message); return }
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
   for(const s of data){
     const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s.id)
     const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s.id)
-    const startYear = new Date(s.start_date).getFullYear()
-    const endYear = new Date(s.end_date).getFullYear()
     tbody.innerHTML+=`
       <tr>
-        <td><b>${startYear}/${endYear}</b></td>
-        <td>${s.start_date}</td>
-        <td>${s.end_date}</td>
+        <td><b>${s.name}</b></td>
         <td>${s.is_active?'<span class="badge active">★ Attiva</span>':'<span class="badge archived">Archivio</span>'}</td>
         <td>${atleti||0}</td>
         <td>${sess||0}</td>
@@ -262,10 +258,14 @@ async function createSeason(){
   const start_year=parseInt(document.getElementById('season-start').value)
   const end_year=parseInt(document.getElementById('season-end').value)
   if(!start_year||!end_year||end_year<=start_year) return alert('Anno fine deve essere maggiore di anno inizio')
-  const start_date = `${start_year}-08-01`
-  const end_date   = `${end_year}-07-31`
-  const {error}=await client.from('seasons').insert({start_date,end_date,is_active:false})
+
+  const name = `${start_year}/${end_year}`          // ← 2025/2026
+  const start_date = `${start_year}-08-01`         // opzionale
+  const end_date   = `${end_year}-07-31`           // opzionale
+
+  const {error}=await client.from('seasons').insert({name,start_date,end_date,is_active:false})
   if(error) return alert(error.message)
+
   document.getElementById('season-start').value=''
   document.getElementById('season-end').value=''
   loadSeason()
@@ -384,11 +384,9 @@ async function deleteTeam(id){
 
 /* ===== STAFF ===== */
 async function loadStaff(){
-  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(start_date,end_date),societies(name),categories(name),teams(name)').order('id',{ascending:false})
+  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(name),societies(name),categories(name),teams(name)').order('id',{ascending:false})
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>{
-    const startYear = new Date(s.seasons.start_date).getFullYear()
-    const endYear = new Date(s.seasons.end_date).getFullYear()
     const roleBadge = {responsabile:'badge-purple',dirigente:'badge-green',allenatore:'badge-gold',professionista:'badge-teal'}[s.role]||'badge'
     return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${s.societies?.name||''}</td><td>${s.categories?.name||''}</td><td>${s.teams?.name||''}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteStaff(${s.id})">🗑️</button>`:''}</td></tr>`
@@ -430,10 +428,10 @@ async function loadSection(sec){
   if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
   if(sec==='staff'){
     const {data:users}=await client.from('users').select('id,name,role')
-    const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
+    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
     fillSelect('staff-user',users,d=>d.name)
-    fillSelect('staff-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
+    fillSelect('staff-season',seas,d=>d.name)
     fillSelect('staff-society',socs,d=>d.name)
     loadStaff()
   }
