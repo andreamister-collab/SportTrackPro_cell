@@ -50,7 +50,6 @@ async function initStagioni() {
         `).join('')
         : '<tr><td colspan="4">Nessun dato.</td></tr>';
 
-    // Collego i bottoni appena creati
     document.querySelectorAll('#list-stagioni .btn-action').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
@@ -85,12 +84,26 @@ async function addStagione() {
     else initStagioni();
 }
 
+/* ---------- LA TUA VERSIONE OTTIMIZZATA ---------- */
 async function setActiveStagione(id) {
-    // Disattiva tutte le altre
-    await client.from('seasons').update({is_active:false}).neq('id', id);
-    // Attiva questa
-    const { error } = await client.from('seasons').update({is_active:true}).eq('id', id);
-    if(error) alert('Errore: ' + error.message);
+    // 1. Disattiva tutte le stagioni attualmente attive
+    const { error: err1 } = await client
+        .from('seasons')
+        .update({ is_active: false })
+        .eq('is_active', true);
+
+    if (err1) {
+        alert('Errore disattivazione: ' + err1.message);
+        return;
+    }
+
+    // 2. Attiva la stagione selezionata
+    const { error: err2 } = await client
+        .from('seasons')
+        .update({ is_active: true })
+        .eq('id', id);
+
+    if (err2) alert('Errore attivazione: ' + err2.message);
     else initStagioni();
 }
 
