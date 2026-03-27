@@ -33,6 +33,7 @@
   .badge{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
   .badge.active{background:#dcfce7;color:#166534}
   .badge.archived{background:#f3f4f6;color:#4b5563}
+  .badge.role{background:#e0e7ff;color:#3730a3}
   .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
   .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
   .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
@@ -87,8 +88,8 @@
     <div class="form">
       <h3>＋ Nuova Stagione</h3>
       <div class="form-grid">
-        <div class="form-group"><label>ANNO INIZIO</label><input id="season-start" type="number" min="2000" max="2100" placeholder="2026"></div>
-        <div class="form-group"><label>ANNO FINE</label><input id="season-end" type="number" min="2000" max="2100" placeholder="2027"></div>
+        <div class="form-group"><label>ANNO INIZIO</label><input id="season-start" type="number" min="2000" max="2100" placeholder="2025"></div>
+        <div class="form-group"><label>ANNO FINE</label><input id="season-end" type="number" min="2000" max="2100" placeholder="2026"></div>
       </div>
       <button class="btn primary" style="margin-top:16px" onclick="createSeason()">＋ Aggiungi Stagione</button>
     </div>
@@ -231,9 +232,11 @@ async function loadSeason(){
   for(const s of data){
     const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s.id)
     const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s.id)
+    const startYear = new Date(s.start_date).getFullYear()
+    const endYear = new Date(s.end_date).getFullYear()
     tbody.innerHTML+=`
       <tr>
-        <td><b>${s.start_year}/${s.end_year}</b></td>
+        <td><b>${startYear}/${endYear}</b></td>
         <td>${s.start_date}</td>
         <td>${s.end_date}</td>
         <td>${s.is_active?'<span class="badge active">★ Attiva</span>':'<span class="badge archived">Archivio</span>'}</td>
@@ -246,25 +249,28 @@ async function loadSeason(){
       </tr>`
   }
 }
+
 async function createSeason(){
   const start_year=parseInt(document.getElementById('season-start').value)
   const end_year=parseInt(document.getElementById('season-end').value)
-  if(!start_year||!end_year||end_year<=start_year) return alert('Anni non validi')
+  if(!start_year||!end_year||end_year<=start_year) return alert('Anno fine deve essere maggiore di anno inizio')
 
-  const start_date=`${start_year}-08-01`
-  const end_date=`${end_year}-07-31`
+  const start_date = `${start_year}-08-01`
+  const end_date   = `${end_year}-07-31`
 
-  const {error}=await client.from('seasons').insert({start_year,end_year,start_date,end_date,is_active:false})
+  const {error}=await client.from('seasons').insert({start_date,end_date,is_active:false})
   if(error) return alert(error.message)
   document.getElementById('season-start').value=''
   document.getElementById('season-end').value=''
   loadSeason()
 }
+
 async function setSeasonActive(id){
   await client.from('seasons').update({is_active:false}).neq('id',id)
   await client.from('seasons').update({is_active:true}).eq('id',id)
   loadSeason()
 }
+
 async function deleteSeason(id){
   if(!confirm('Eliminare la stagione?')) return
   await client.from('seasons').delete().eq('id',id)
@@ -369,11 +375,14 @@ async function deleteTeam(id){
 
 /* ===== ASSOCIAZIONI ===== */
 async function loadLink(){
-  const {data,error}=await client.from('team_category_season').select('id,season_id,society_id,category_id,team_id,seasons(start_year,end_year),societies(name),categories(name),teams(name)').order('id',{ascending:false})
+  const {data,error}=await client.from('team_category_season').select('id,season_id,society_id,category_id,team_id,seasons(start_date,end_date),societies(name),categories(name),teams(name)').order('id',{ascending:false})
   if(error){ alert(error.message); return }
-  document.querySelector('#tbl-link tbody').innerHTML=data.map(l=>`
-    <tr><td>${l.id}</td><td>${l.seasons?.start_year}/${l.seasons?.end_year}</td><td>${l.societies?.name}</td><td>${l.categories?.name}</td><td>${l.teams?.name}</td>
-    <td class="actions"><button class="btn danger" onclick="deleteLink(${l.id})">🗑️</button></td></tr>`).join('')
+  document.querySelector('#tbl-link tbody').innerHTML=data.map(l=>{
+    const startYear = new Date(l.seasons.start_date).getFullYear()
+    const endYear = new Date(l.seasons.end_date).getFullYear()
+    return `<tr><td>${l.id}</td><td>${startYear}/${endYear}</td><td>${l.societies?.name}</td><td>${l.categories?.name}</td><td>${l.teams?.name}</td>
+    <td class="actions"><button class="btn danger" onclick="deleteLink(${l.id})">🗑️</button></td></tr>`
+  }).join('')
 }
 async function createLink(){
   const season_id=document.getElementById('link-season').value
@@ -394,11 +403,14 @@ async function deleteLink(id){
 
 /* ===== STAFF ===== */
 async function loadStaff(){
-  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name),seasons(start_year,end_year),societies(name),categories(name),teams(name)').order('id',{ascending:false})
+  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name),seasons(start_date,end_date),societies(name),categories(name),teams(name)').order('id',{ascending:false})
   if(error){ alert(error.message); return }
-  document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>`
-    <tr><td>${s.id}</td><td>${s.users?.name}</td><td>${s.seasons?.start_year}/${s.seasons?.end_year}</td><td>${s.societies?.name}</td><td>${s.categories?.name}</td><td>${s.teams?.name}</td><td><span class="badge role">${s.role}</span></td>
-    <td class="actions"><button class="btn danger" onclick="deleteStaff(${s.id})">🗑️</button></td></tr>`).join('')
+  document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>{
+    const startYear = new Date(s.seasons.start_date).getFullYear()
+    const endYear = new Date(s.seasons.end_date).getFullYear()
+    return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td>${startYear}/${endYear}</td><td>${s.societies?.name}</td><td>${s.categories?.name}</td><td>${s.teams?.name}</td><td><span class="badge role">${s.role}</span></td>
+    <td class="actions"><button class="btn danger" onclick="deleteStaff(${s.id})">🗑️</button></td></tr>`
+  }).join('')
 }
 async function createStaff(){
   const user_id=document.getElementById('staff-user').value
@@ -441,18 +453,18 @@ async function loadSection(sec){
   if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,d=>d.name); loadCategory() }
   if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
   if(sec==='link'){
-    const {data:seas}=await client.from('seasons').select('id,start_year,end_year').order('start_year',{ascending:false})
+    const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
-    fillSelect('link-season',seas,d=>`${d.start_year}/${d.end_year}`)
+    fillSelect('link-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
     fillSelect('link-society',socs,d=>d.name)
     loadLink()
   }
   if(sec==='staff'){
     const {data:users}=await client.from('users').select('id,name')
-    const {data:seas}=await client.from('seasons').select('id,start_year,end_year').order('start_year',{ascending:false})
+    const {data:seas}=await client.from('seasons').select('id,start_date,end_date').order('start_date',{ascending:false})
     const {data:socs}=await client.from('societies').select('id,name')
     fillSelect('staff-user',users,d=>d.name)
-    fillSelect('staff-season',seas,d=>`${d.start_year}/${d.end_year}`)
+    fillSelect('staff-season',seas,d=>`${new Date(d.start_date).getFullYear()}/${new Date(d.end_date).getFullYear()}`)
     fillSelect('staff-society',socs,d=>d.name)
     loadStaff()
   }
