@@ -23,34 +23,32 @@
   }
   *{box-sizing:border-box}
   body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
-.sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
-.sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
-.sidebar.brand img{width:36px;height:36px;border-radius:8px}
-.sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
-.sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
-.sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
-.sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
-.sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
-.main{flex:1;overflow:auto}
-.topbar{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-.topbar select{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-width:180px}
-.container{max-width:1400px;margin:0 auto;padding:20px}
+ .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+ .sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
+ .sidebar.brand img{width:36px;height:36px;border-radius:8px}
+ .sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
+ .sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
+ .sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
+ .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
+ .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
+ .main{flex:1;overflow:auto}
+ .container{max-width:1400px;margin:0 auto;padding:20px}
   h1{font-size:22px;margin:0 0 16px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
-.card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
-.card.c1{background:var(--c1)}
-.card.c2{background:var(--c2)}
-.card.c3{background:var(--c3)}
-.card.c4{background:var(--c4)}
-.card.c5{background:var(--c5)}
-.card.c6{background:var(--c6)}
-.card.c7{background:var(--c7)}
-.card.c8{background:var(--c8)}
-.card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
-.card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
-.card.val{margin:4px 0 0;font-size:32px;font-weight:800}
-.filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
-  select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+ .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+ .card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+ .card.c1{background:var(--c1)}
+ .card.c2{background:var(--c2)}
+ .card.c3{background:var(--c3)}
+ .card.c4{background:var(--c4)}
+ .card.c5{background:var(--c5)}
+ .card.c6{background:var(--c6)}
+ .card.c7{background:var(--c7)}
+ .card.c8{background:var(--c8)}
+ .card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
+ .card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
+ .card.val{margin:4px 0 0;font-size:32px;font-weight:800}
+ .filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap;background:var(--card);padding:12px;border:1px solid var(--border);border-radius:12px}
+  select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-width:180px}
   button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
   button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
   button.success{background:var(--c5);color:#fff;border:none;cursor:pointer}
@@ -58,14 +56,14 @@
   table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:12px}
   th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;font-size:13px;color:var(--muted)}
-.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
-.badge.bad{background:#fee2e2;color:#991b1b}
-.badge.ok{background:#dcfce7;color:#166534}
-.badge.warn{background:#fef9c3;color:#854d0e}
-.actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
-.actions button:hover{background:#e5e7eb}
-.form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.edit-row td{background:#fefce8}
+ .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
+ .badge.bad{background:#fee2e2;color:#991b1b}
+ .badge.ok{background:#dcfce7;color:#166534}
+ .badge.warn{background:#fef9c3;color:#854d0e}
+ .actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
+ .actions button:hover{background:#e5e7eb}
+ .form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+ .edit-row td{background:#fefce8}
 </style>
 </head>
 <body>
@@ -90,13 +88,6 @@
 </div>
 
 <div class="main">
-  <div class="topbar">
-    <select id="f-season"><option value="">Seleziona stagione</option></select>
-    <select id="f-society"><option value="">Tutte le società</option></select>
-    <select id="f-category"><option value="">Tutte le categorie</option></select>
-    <select id="f-team"><option value="">Tutte le squadre</option></select>
-  </div>
-
   <div class="container">
     <div id="auth-section">
       <h2>Accedi</h2>
@@ -111,6 +102,14 @@
       <!-- DASHBOARD -->
       <section id="sec-dashboard">
         <h1>Dashboard Amministratore</h1>
+
+        <div class="filters">
+          <select id="f-dash-season"><option value="">Tutte le stagioni</option></select>
+          <select id="f-dash-society"><option value="">Tutte le società</option></select>
+          <select id="f-dash-category"><option value="">Tutte le categorie</option></select>
+          <select id="f-dash-team"><option value="">Tutte le squadre</option></select>
+          <select id="f-dash-sport"><option value="">Tutti gli sport</option></select>
+        </div>
 
         <section class="cards">
           <div class="card c1"><div class="icon">👥</div><h3>ATLETI TOTALI</h3><div class="val" id="c-atleti">0</div></div>
@@ -129,13 +128,17 @@
 
         <table id="tbl">
           <thead><tr><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>SPORT</th><th>STAFF ASSEGNATO</th><th>ATLETI</th><th>SESSIONI</th><th>% PRESENZE</th><th>AZIONI</th></tr></thead>
-          <tbody><tr><td colspan="9">Seleziona una stagione</td></tr></tbody>
+          <tbody><tr><td colspan="9">Nessun dato</td></tr></tbody>
         </table>
       </section>
 
       <!-- SPORT -->
       <section id="sec-sport" style="display:none">
         <h1>Gestione Sport</h1>
+        <div class="filters">
+          <input id="f-sport-id" placeholder="Filtra ID">
+          <input id="f-sport-name" placeholder="Filtra Nome">
+        </div>
         <div class="form-row">
           <input id="sport-id" placeholder="ID (es. calcio)">
           <input id="sport-name" placeholder="Nome (es. Calcio)">
@@ -151,6 +154,12 @@
       <!-- STAGIONI -->
       <section id="sec-season" style="display:none">
         <h1>Gestione Stagioni</h1>
+        <div class="filters">
+          <input id="f-season-id" placeholder="Filtra ID">
+          <input id="f-season-name" placeholder="Filtra Nome">
+          <input id="f-season-period" type="date" placeholder="Periodo">
+          <select id="f-season-active"><option value="">Tutte</option><option value="true">Solo attive</option><option value="false">Solo non attive</option></select>
+        </div>
         <div class="form-row">
           <input id="season-id" placeholder="ID (es. 2025_2026)">
           <input id="season-name" placeholder="Nome (es. 2025/2026)">
@@ -168,6 +177,11 @@
       <!-- SOCIETÀ -->
       <section id="sec-society" style="display:none">
         <h1>Gestione Società</h1>
+        <div class="filters">
+          <input id="f-society-id" placeholder="Filtra ID">
+          <input id="f-society-name" placeholder="Filtra Nome">
+          <select id="f-society-sport"><option value="">Tutti gli sport</option></select>
+        </div>
         <div class="form-row">
           <input id="society-id" placeholder="ID (es. ac_milano)">
           <input id="society-name" placeholder="Nome (es. AC Milano)">
@@ -183,6 +197,11 @@
       <!-- CATEGORIA -->
       <section id="sec-category" style="display:none">
         <h1>Gestione Categorie</h1>
+        <div class="filters">
+          <input id="f-category-id" placeholder="Filtra ID">
+          <input id="f-category-name" placeholder="Filtra Nome">
+          <select id="f-category-society"><option value="">Tutte le società</option></select>
+        </div>
         <div class="form-row">
           <input id="category-id" placeholder="ID (es. under14)">
           <input id="category-name" placeholder="Nome (es. Under 14)">
@@ -198,6 +217,11 @@
       <!-- SQUADRA -->
       <section id="sec-team" style="display:none">
         <h1>Gestione Squadre</h1>
+        <div class="filters">
+          <input id="f-team-id" placeholder="Filtra ID">
+          <input id="f-team-name" placeholder="Filtra Nome">
+          <select id="f-team-society"><option value="">Tutte le società</option></select>
+        </div>
         <div class="form-row">
           <input id="team-id" placeholder="ID (es. under14_a)">
           <input id="team-name" placeholder="Nome (es. Under 14 A)">
@@ -213,6 +237,12 @@
       <!-- ASSOCIAZIONI -->
       <section id="sec-link" style="display:none">
         <h1>Collega Squadra ↔ Categoria ↔ Stagione</h1>
+        <div class="filters">
+          <select id="f-link-season"><option value="">Tutte le stagioni</option></select>
+          <select id="f-link-society"><option value="">Tutte le società</option></select>
+          <select id="f-link-category"><option value="">Tutte le categorie</option></select>
+          <select id="f-link-team"><option value="">Tutte le squadre</option></select>
+        </div>
         <div class="form-row">
           <select id="link-season"><option value="">Seleziona stagione</option></select>
           <select id="link-society"><option value="">Seleziona società</option></select>
@@ -229,6 +259,22 @@
       <!-- STAFF -->
       <section id="sec-staff" style="display:none">
         <h1>Gestione Staff</h1>
+        <div class="filters">
+          <select id="f-staff-user"><option value="">Tutti gli utenti</option></select>
+          <select id="f-staff-season"><option value="">Tutte le stagioni</option></select>
+          <select id="f-staff-society"><option value="">Tutte le società</option></select>
+          <select id="f-staff-category"><option value="">Tutte le categorie</option></select>
+          <select id="f-staff-team"><option value="">Tutte le squadre</option></select>
+          <select id="f-staff-role">
+            <option value="">Tutti i ruoli</option>
+            <option value="allenatore">Allenatore</option>
+            <option value="responsabile">Responsabile</option>
+            <option value="presidente">Presidente</option>
+            <option value="dirigente">Dirigente</option>
+            <option value="segretario">Segretario</option>
+            <option value="professionista">Professionista</option>
+          </select>
+        </div>
         <div class="form-row">
           <select id="staff-user"><option value="">Seleziona utente</option></select>
           <select id="staff-season"><option value="">Seleziona stagione</option></select>
@@ -257,7 +303,7 @@
 
 <script>
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-let USER=null, STATE={seasonId:'',societyId:'',categoryId:'',teamId:''}
+let USER=null
 
 /* ===== NAVIGAZIONE ===== */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
@@ -266,14 +312,14 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
     btn.classList.add('active')
     document.querySelectorAll('.main section').forEach(s=>s.style.display='none')
     document.getElementById('sec-'+btn.dataset.sec).style.display='block'
-    if(btn.dataset.sec==='dashboard') refresh()
+    if(btn.dataset.sec==='dashboard') refreshDashboard()
     if(btn.dataset.sec==='sport') loadSports()
     if(btn.dataset.sec==='season') loadSeasons()
-    if(btn.dataset.sec==='society') { loadSportsForSelect('society-sport'); loadSocieties() }
-    if(btn.dataset.sec==='category') { loadSocietiesForSelect('category-society'); loadCategories() }
-    if(btn.dataset.sec==='team') { loadSocietiesForSelect('team-society'); loadTeams() }
-    if(btn.dataset.sec==='link') { loadLinkSelects(); loadLinks() }
-    if(btn.dataset.sec==='staff') { loadStaffSelects(); loadStaff() }
+    if(btn.dataset.sec==='society') { loadSportsForSelect('society-sport'); loadSportsForSelect('f-society-sport'); loadSocieties() }
+    if(btn.dataset.sec==='category') { loadSocietiesForSelect('category-society'); loadSocietiesForSelect('f-category-society'); loadCategories() }
+    if(btn.dataset.sec==='team') { loadSocietiesForSelect('team-society'); loadSocietiesForSelect('f-team-society'); loadTeams() }
+    if(btn.dataset.sec==='link') { loadAllLinkSelects(); loadLinks() }
+    if(btn.dataset.sec==='staff') { loadAllStaffSelects(); loadStaff() }
   }
 })
 
@@ -297,32 +343,11 @@ function logout(){
   document.getElementById('auth-section').style.display='block'
 }
 
-/* ===== INIT: STAGIONE ATTIVA DI DEFAULT IN TUTTE LE VIDEATE ===== */
+/* ===== INIT ===== */
 async function initApp(){
   document.getElementById('auth-section').style.display='none'
   document.getElementById('app').style.display='block'
-
-  let {data:seasons} = await client.from('seasons')
-.select('id,name,start_date,active')
-.order('start_date',{ascending:false})
-
-  if(seasons && seasons.length){
-    STATE.seasonId = seasons.find(s=>s.active)?.id || seasons[0].id
-  }
-
-  populate('f-season', seasons, 'id', 'name')
-  document.getElementById('f-season').value=STATE.seasonId
-
-  const {data:socs} = await client.from('societies').select('id,name')
-  populate('f-society', socs, 'id', 'name')
-
-  const {data:cats} = await client.from('categories').select('id,name')
-  populate('f-category', cats, 'id', 'name')
-
-  const {data:teams} = await client.from('teams').select('id,name')
-  populate('f-team', teams, 'id', 'name')
-
-  await refresh()
+  await refreshDashboard()
 }
 
 function populate(id,data,val,label){
@@ -331,37 +356,29 @@ function populate(id,data,val,label){
   sel.innerHTML='<option value="">Tutte</option>'+(data||[]).map(d=>`<option value="${d[val]}">${typeof label==='function'?label(d):d[label]}</option>`).join('')
 }
 
-/* ===== REFRESH DASHBOARD ===== */
-async function refresh(){
-  const s=STATE.seasonId
-  if(!s){
-    document.querySelector('#tbl tbody').innerHTML='<tr><td colspan="9">Seleziona una stagione</td></tr>'
-    return
-  }
+/* ===== DASHBOARD ===== */
+async function refreshDashboard(){
+  const s=document.getElementById('f-dash-season').value
+  const soc=document.getElementById('f-dash-society').value
+  const cat=document.getElementById('f-dash-category').value
+  const tm=document.getElementById('f-dash-team').value
+  const sp=document.getElementById('f-dash-sport').value
 
-  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s)
-  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true})
-  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true})
-  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s)
+  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{})
+  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true}).match(soc?{id:soc}:{})
+  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true}).match(cat?{id:cat}:{})
+  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{})
   const {count:utenti}=await client.from('users').select('id',{count:'exact',head:true})
 
-  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','responsabile')
-  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','allenatore')
-  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','presidente')
-  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','dirigente')
-  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','segretario')
-  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).eq('season_id',s).eq('role','professionista')
-
-  const {data:sessIdsAtt}=await client.from('sessions').select('id').eq('season_id',s)
-  const sessionIds = sessIdsAtt?.map(x=>x.id) || []
-  const {data:att}=await client.from('attendances').select('status').in('session_id',sessionIds)
-  const pres=att?.filter(a=>a.status==='P').length||0
-  const tot=att?.length||0
-  const pct=tot?Math.round(pres/tot*100):0
+  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'responsabile'})
+  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'allenatore'})
+  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'presidente'})
+  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'dirigente'})
+  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'segretario'})
+  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'professionista'})
 
   document.getElementById('c-atleti').textContent=atleti||0
   document.getElementById('c-sessioni').textContent=sessioni||0
-  document.getElementById('c-pres').textContent=pct+'%'
   document.getElementById('c-societa').textContent=societa||0
   document.getElementById('c-categorie').textContent=categorie||0
   document.getElementById('c-staff').textContent=utenti||0
@@ -377,66 +394,42 @@ async function refresh(){
       team_id,
       category_id,
       season_id,
-      teams(id,name,society_id,societies(id,name,sports(name))),
+      teams(id,name,society_id,societies(id,name,sports(id,name))),
       categories(id,name),
       seasons(id,name)
     `)
-.eq('season_id', s)
-
-  if(STATE.societyId) q = q.eq('teams.society_id', STATE.societyId)
-  if(STATE.categoryId) q = q.eq('category_id', STATE.categoryId)
-  if(STATE.teamId) q = q.eq('team_id', STATE.teamId)
+  if(s) q=q.eq('season_id',s)
+  if(tm) q=q.eq('team_id',tm)
+  if(cat) q=q.eq('category_id',cat)
 
   const {data:rows,error} = await q
   const tbody=document.querySelector('#tbl tbody')
   tbody.innerHTML=''
 
   if(error){
-    console.error(error)
     tbody.innerHTML=`<tr><td colspan="9">Errore caricamento dati: ${error.message}</td></tr>`
     return
   }
-
-  if((rows||[]).length===0){
-    tbody.innerHTML='<tr><td colspan="9">Nessuna squadra associata a una categoria nella stagione selezionata</td></tr>'
+  if(!rows||rows.length===0){
+    tbody.innerHTML='<tr><td colspan="9">Nessuna associazione trovata</td></tr>'
     return
   }
 
-  for(const r of rows||[]){
+  for(const r of rows){
     const c = r.categories
     const t = r.teams
     const soc = t?.societies
     const sportName = soc?.sports?.name || '—'
+    if(sp && soc?.sports?.id!==sp) continue
 
-    let sessCnt=0, athCnt=0, presPct=0, staffHtml='<span class="badge bad">Nessuno</span>'
-
-    if(c?.id && t?.id){
-      const {count:sessCntTmp}=await client.from('sessions').select('id',{count:'exact',head:true})
-.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
-      sessCnt=sessCntTmp||0
-
-      const {count:athCntTmp}=await client.from('athlete_seasons').select('id',{count:'exact',head:true})
-.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
-      athCnt=athCntTmp||0
-
-      const {data:sidData}=await client.from('sessions').select('id')
-.eq('category_id',c.id).eq('team_id',t.id).eq('season_id',s)
-      const sessionIds2 = sidData?.map(x=>x.id) || []
-      if(sessionIds2.length){
-        const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds2)
-        presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
-      }
-
-      const {data:staffData}=await client.from('user_category_seasons')
-.select('users(name),role')
-.eq('category_id',c.id)
-.eq('season_id',s)
-.eq('team_id',t.id)
-
-      const staff = staffData || []
-      staffHtml = staff.length? staff.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
-    }
-
+    const {count:sessCnt}=await client.from('sessions').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
+    const {count:athCnt}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
+    const {data:sidData}=await client.from('sessions').select('id').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
+    const sessionIds = sidData?.map(x=>x.id) || []
+    const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
+    const presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
+    const {data:staffData}=await client.from('user_category_seasons').select('users(name),role').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
+    const staffHtml = staffData?.length? staffData.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
     const presClass = presPct>=80?'ok':presPct>=50?'warn':'bad'
 
     tbody.innerHTML+=`
@@ -446,46 +439,40 @@ async function refresh(){
         <td>${t.name}</td>
         <td>${sportName}</td>
         <td>${staffHtml}</td>
-        <td>${athCnt}</td>
-        <td>${sessCnt}</td>
+        <td>${athCnt||0}</td>
+        <td>${sessCnt||0}</td>
         <td><span class="badge ${presClass}">${presPct}%</span></td>
         <td class="actions"><button onclick="alert('Dettaglio ${c.name} - ${t.name}')">Gestisci</button></td>
       </tr>`
   }
 }
-
-/* ===== FILTRI A CASCATA (GLOBALI) ===== */
-document.getElementById('f-season').onchange=e=>{STATE.seasonId=e.target.value;refresh()}
-document.getElementById('f-society').onchange=async e=>{
-  STATE.societyId=e.target.value
-  STATE.categoryId=''; STATE.teamId=''
-  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',STATE.societyId)
-  populate('f-category',cats,'id','name')
-  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',STATE.societyId)
-  populate('f-team',teams,'id','name')
-  refresh()
+document.getElementById('f-dash-season').onchange=refreshDashboard
+document.getElementById('f-dash-society').onchange=async e=>{
+  const sid=e.target.value
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',sid)
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',sid)
+  populate('f-dash-category',cats,'id','name')
+  populate('f-dash-team',teams,'id','name')
+  refreshDashboard()
 }
-document.getElementById('f-category').onchange=async e=>{
-  STATE.categoryId=e.target.value
-  STATE.teamId=''
-  const {data:tcs}=await client.from('team_category_season')
-.select('team_id,teams(id,name)')
-.eq('category_id',STATE.categoryId)
-.eq('season_id',STATE.seasonId)
-  const teams = (tcs||[]).map(t=>t.teams).filter(Boolean)
-  populate('f-team', teams, 'id', 'name')
-  refresh()
+document.getElementById('f-dash-category').onchange=async e=>{
+  const cid=e.target.value
+  const {data:tcs}=await client.from('team_category_season').select('team_id,teams(id,name)').eq('category_id',cid).eq('season_id',document.getElementById('f-dash-season').value)
+  populate('f-dash-team',(tcs||[]).map(t=>t.teams),'id','name')
+  refreshDashboard()
 }
-document.getElementById('f-team').onchange=e=>{STATE.teamId=e.target.value;refresh()}
+document.getElementById('f-dash-team').onchange=refreshDashboard
+document.getElementById('f-dash-sport').onchange=refreshDashboard
 
-/* ===== SPORT CRUD + EDIT ===== */
+/* ===== SPORT ===== */
 async function loadSports(){
-  const {data, error} = await client.from('sports').select('*').order('name')
+  const id=document.getElementById('f-sport-id').value
+  const name=document.getElementById('f-sport-name').value
+  let q=client.from('sports').select('*').order('name')
+  if(id) q=q.ilike('id',`%${id}%`)
+  if(name) q=q.ilike('name',`%${name}%`)
+  const {data, error} = await q
   const tbody=document.querySelector('#tbl-sport tbody')
-  if(error){
-    tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
-    return
-  }
   tbody.innerHTML = data.length
 ? data.map(s=>`
   <tr id="row-sport-${s.id}">
@@ -499,22 +486,16 @@ async function loadSports(){
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuno sport presente</td></tr>`
 }
+document.getElementById('f-sport-id').oninput=loadSports
+document.getElementById('f-sport-name').oninput=loadSports
 
 function editSport(id){
   const row=document.getElementById(`row-sport-${id}`)
   const name=document.getElementById(`sport-name-${id}`).textContent
   const icon=document.getElementById(`sport-icon-${id}`).textContent
   row.classList.add('edit-row')
-  row.innerHTML=`
-    <td>${id}</td>
-    <td><input id="edit-sport-name-${id}" value="${name}"></td>
-    <td><input id="edit-sport-icon-${id}" value="${icon}"></td>
-    <td class="actions">
-      <button class="success" onclick="saveSport('${id}')">Salva</button>
-      <button onclick="loadSports()">Annulla</button>
-    </td>`
+  row.innerHTML=`<td>${id}</td><td><input id="edit-sport-name-${id}" value="${name}"></td><td><input id="edit-sport-icon-${id}" value="${icon}"></td><td class="actions"><button class="success" onclick="saveSport('${id}')">Salva</button><button onclick="loadSports()">Annulla</button></td>`
 }
-
 async function saveSport(id){
   const name=document.getElementById(`edit-sport-name-${id}`).value.trim()
   const icon=document.getElementById(`edit-sport-icon-${id}`).value.trim()
@@ -522,7 +503,6 @@ async function saveSport(id){
   if(error) return alert(error.message)
   loadSports()
 }
-
 async function createSport(){
   const id=document.getElementById('sport-id').value.trim()
   const name=document.getElementById('sport-name').value.trim()
@@ -535,7 +515,6 @@ async function createSport(){
   document.getElementById('sport-icon').value=''
   loadSports()
 }
-
 async function deleteSport(id){
   if(!confirm(`Eliminare lo sport "${id}"?`)) return
   const {error}=await client.from('sports').delete().eq('id',id)
@@ -543,9 +522,19 @@ async function deleteSport(id){
   loadSports()
 }
 
-/* ===== STAGIONI CRUD + EDIT ===== */
+/* ===== STAGIONI ===== */
 async function loadSeasons(){
-  const {data, error} = await client.from('seasons').select('*').order('start_date',{ascending:false})
+  const id=document.getElementById('f-season-id').value
+  const name=document.getElementById('f-season-name').value
+  const period=document.getElementById('f-season-period').value
+  const active=document.getElementById('f-season-active').value
+  let q=client.from('seasons').select('*').order('start_date',{ascending:false})
+  if(id) q=q.ilike('id',`%${id}%`)
+  if(name) q=q.ilike('name',`%${name}%`)
+  if(period) q=q.eq
+  if(period) q=q.eq('start_date',period)
+  if(active) q=q.eq('active',active==='true')
+  const {data, error} = await q
   const tbody=document.querySelector('#tbl-season tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="5" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -566,6 +555,10 @@ async function loadSeasons(){
   </tr>`).join('')
     : `<tr><td colspan="5">Nessuna stagione presente</td></tr>`
 }
+document.getElementById('f-season-id').oninput=loadSeasons
+document.getElementById('f-season-name').oninput=loadSeasons
+document.getElementById('f-season-period').onchange=loadSeasons
+document.getElementById('f-season-active').onchange=loadSeasons
 
 function editSeason(id){
   const row=document.getElementById(`row-season-${id}`)
@@ -580,12 +573,29 @@ function editSeason(id){
       <input id="edit-season-start-${id}" type="date" value="${period[0].trim()}">
       <input id="edit-season-end-${id}" type="date" value="${period[1]?period[1].trim():''}">
     </td>
-    <td><input id="edit-season-active-${id}" type="checkbox" ${active ? 'checked' : ''}></td>
+    <td><input id="edit-season-active-${id}" type="checkbox" ${active?'checked':''}></td>
     <td class="actions">
       <button class="success" onclick="saveSeason('${id}')">Salva</button>
       <button onclick="loadSeasons()">Annulla</button>
     </td>`
 }
+
+async function saveSeason(id){
+  const name=document.getElementById(`edit-season-name-${id}`).value.trim()
+  const start_date=document.getElementById(`edit-season-start-${id}`).value
+  const end_date=document.getElementById(`edit-season-end-${id}`).value
+  const active=document.getElementById(`edit-season-active-${id}`).checked
+
+  if(active){
+    await client.from('seasons').update({active:false}).neq('id',id)
+  }
+
+  const {error}=await client.from('seasons').update({name,start_date,end_date,active}).eq('id',id)
+  if(error) return alert(error.message)
+  loadSeasons()
+  refreshDashboard()
+}
+
 async function createSeason(){
   const id=document.getElementById('season-id').value.trim()
   const name=document.getElementById('season-name').value.trim()
@@ -608,7 +618,7 @@ async function createSeason(){
   document.getElementById('season-end').value=''
   document.getElementById('season-active').checked=false
   loadSeasons()
-  refresh()
+  refreshDashboard()
 }
 
 async function deleteSeason(id){
@@ -616,22 +626,33 @@ async function deleteSeason(id){
   const {error}=await client.from('seasons').delete().eq('id',id)
   if(error) return alert(error.message)
   loadSeasons()
-  refresh()
+  refreshDashboard()
 }
 
-/* ===== SOCIETÀ CRUD + EDIT + FILTRO ===== */
+async function setSeasonActive(id){
+  await client.from('seasons').update({active:false}).neq('id',id)
+  await client.from('seasons').update({active:true}).eq('id',id)
+  loadSeasons()
+  refreshDashboard()
+}
+
+/* ===== SOCIETÀ ===== */
 async function loadSportsForSelect(selectId){
   const {data}=await client.from('sports').select('id,name').order('name')
   const sel=document.getElementById(selectId)
-  sel.innerHTML='<option value="">Seleziona sport</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+  sel.innerHTML='<option value="">Tutti gli sport</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
 }
 
 async function loadSocieties(){
-  const filter=document.getElementById('f-society').value
-  let query=client.from('societies').select('id,name,sports(id,name)').order('name')
-  if(filter) query=query.eq('sport_id',filter)
+  const id=document.getElementById('f-society-id').value
+  const name=document.getElementById('f-society-name').value
+  const sport=document.getElementById('f-society-sport').value
+  let q=client.from('societies').select('id,name,sports(id,name)').order('name')
+  if(id) q=q.ilike('id',`%${id}%`)
+  if(name) q=q.ilike('name',`%${name}%`)
+  if(sport) q=q.eq('sport_id',sport)
 
-  const {data, error}=await query
+  const {data, error}=await q
   const tbody=document.querySelector('#tbl-society tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -650,6 +671,9 @@ async function loadSocieties(){
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna società presente</td></tr>`
 }
+document.getElementById('f-society-id').oninput=loadSocieties
+document.getElementById('f-society-name').oninput=loadSocieties
+document.getElementById('f-society-sport').onchange=loadSocieties
 
 function editSociety(id){
   const row=document.getElementById(`row-society-${id}`)
@@ -674,7 +698,7 @@ async function saveSociety(id){
   const {error}=await client.from('societies').update({name,sport_id}).eq('id',id)
   if(error) return alert(error.message)
   loadSocieties()
-  refresh()
+  refreshDashboard()
 }
 
 async function createSociety(){
@@ -697,19 +721,23 @@ async function deleteSociety(id){
   loadSocieties()
 }
 
-/* ===== CATEGORIA CRUD + EDIT + FILTRO ===== */
+/* ===== CATEGORIA ===== */
 async function loadSocietiesForSelect(selectId){
   const {data}=await client.from('societies').select('id,name').order('name')
   const sel=document.getElementById(selectId)
-  sel.innerHTML='<option value="">Seleziona società</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+  sel.innerHTML='<option value="">Tutte le società</option>'+(data||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
 }
 
 async function loadCategories(){
-  const filter=document.getElementById('f-category').value
-  let query=client.from('categories').select('id,name,societies(id,name)').order('name')
-  if(filter) query=query.eq('society_id',filter)
+  const id=document.getElementById('f-category-id').value
+  const name=document.getElementById('f-category-name').value
+  const society=document.getElementById('f-category-society').value
+  let q=client.from('categories').select('id,name,societies(id,name)').order('name')
+  if(id) q=q.ilike('id',`%${id}%`)
+  if(name) q=q.ilike('name',`%${name}%`)
+  if(society) q=q.eq('society_id',society)
 
-  const {data, error}=await query
+  const {data, error}=await q
   const tbody=document.querySelector('#tbl-category tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -728,6 +756,9 @@ async function loadCategories(){
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna categoria presente</td></tr>`
 }
+document.getElementById('f-category-id').oninput=loadCategories
+document.getElementById('f-category-name').oninput=loadCategories
+document.getElementById('f-category-society').onchange=loadCategories
 
 function editCategory(id){
   const row=document.getElementById(`row-category-${id}`)
@@ -752,7 +783,7 @@ async function saveCategory(id){
   const {error}=await client.from('categories').update({name,society_id}).eq('id',id)
   if(error) return alert(error.message)
   loadCategories()
-  refresh()
+  refreshDashboard()
 }
 
 async function createCategory(){
@@ -775,13 +806,17 @@ async function deleteCategory(id){
   loadCategories()
 }
 
-/* ===== SQUADRA CRUD + EDIT + FILTRO ===== */
+/* ===== SQUADRA ===== */
 async function loadTeams(){
-  const filter=document.getElementById('f-team').value
-  let query=client.from('teams').select('id,name,societies(id,name)').order('name')
-  if(filter) query=query.eq('id',filter)
+  const id=document.getElementById('f-team-id').value
+  const name=document.getElementById('f-team-name').value
+  const society=document.getElementById('f-team-society').value
+  let q=client.from('teams').select('id,name,societies(id,name)').order('name')
+  if(id) q=q.ilike('id',`%${id}%`)
+  if(name) q=q.ilike('name',`%${name}%`)
+  if(society) q=q.eq('society_id',society)
 
-  const {data, error}=await query
+  const {data, error}=await q
   const tbody=document.querySelector('#tbl-team tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="4" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -800,6 +835,9 @@ async function loadTeams(){
   </tr>`).join('')
     : `<tr><td colspan="4">Nessuna squadra presente</td></tr>`
 }
+document.getElementById('f-team-id').oninput=loadTeams
+document.getElementById('f-team-name').oninput=loadTeams
+document.getElementById('f-team-society').onchange=loadTeams
 
 function editTeam(id){
   const row=document.getElementById(`row-team-${id}`)
@@ -824,7 +862,7 @@ async function saveTeam(id){
   const {error}=await client.from('teams').update({name,society_id}).eq('id',id)
   if(error) return alert(error.message)
   loadTeams()
-  refresh()
+  refreshDashboard()
 }
 
 async function createTeam(){
@@ -847,16 +885,31 @@ async function deleteTeam(id){
   loadTeams()
 }
 
-/* ===== ASSOCIAZIONI TEAM-CATEGORY-SEASON + FILTRO ===== */
-async function loadLinkSelects(){
+/* ===== ASSOCIAZIONI ===== */
+async function loadAllLinkSelects(){
   const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
   const {data:socs}=await client.from('societies').select('id,name').order('name')
+  populate('f-link-season', seasons, 'id', 'name')
   populate('link-season', seasons, 'id', 'name')
-  document.getElementById('link-season').value=STATE.seasonId
+  populate('f-link-society', socs, 'id', 'name')
   populate('link-society', socs, 'id', 'name')
+  populate('f-link-category', [], 'id', 'name')
   populate('link-category', [], 'id', 'name')
+  populate('f-link-team', [], 'id', 'name')
   populate('link-team', [], 'id', 'name')
 }
+
+document.getElementById('f-link-society').onchange=async e=>{
+  const societyId=e.target.value
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',societyId)
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',societyId)
+  populate('f-link-category', cats, 'id', 'name')
+  populate('f-link-team', teams, 'id', 'name')
+  loadLinks()
+}
+document.getElementById('f-link-season').onchange=loadLinks
+document.getElementById('f-link-category').onchange=loadLinks
+document.getElementById('f-link-team').onchange=loadLinks
 
 document.getElementById('link-society').onchange=async e=>{
   const societyId=e.target.value
@@ -867,20 +920,20 @@ document.getElementById('link-society').onchange=async e=>{
 }
 
 async function loadLinks(){
-  const seasonFilter=document.getElementById('f-season').value
-  let query=client.from('team_category_season')
-  .select(`
-      season_id,
-      team_id,
-      category_id,
-      seasons(id,name),
-      teams(id,name,society_id,societies(id,name)),
-      categories(id,name)
-    `)
-  .order('season_id',{ascending:false})
-  if(seasonFilter) query=query.eq('season_id',seasonFilter)
+  const season=document.getElementById('f-link-season').value
+  const society=document.getElementById('f-link-society').value
+  const category=document.getElementById('f-link-category').value
+  const team=document.getElementById('f-link-team').value
 
-  const {data, error}=await query
+  let q=client.from('team_category_season')
+  .select(`season_id,team_id,category_id,seasons(id,name),teams(id,name,society_id,societies(id,name)),categories(id,name)`)
+  .order('season_id',{ascending:false})
+  if(season) q=q.eq('season_id',season)
+  if(team) q=q.eq('team_id',team)
+  if(category) q=q.eq('category_id',category)
+  if(society) q=q.eq('teams.society_id',society)
+
+  const {data, error}=await q
   const tbody=document.querySelector('#tbl-link tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="5" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -927,12 +980,12 @@ async function createLink(){
     return
   }
 
-  document.getElementById('link-season').value=STATE.seasonId
+  document.getElementById('link-season').value=''
   document.getElementById('link-society').value=''
   document.getElementById('link-category').value=''
   document.getElementById('link-team').value=''
   loadLinks()
-  refresh()
+  refreshDashboard()
 }
 
 async function deleteLink(season_id,team_id,category_id){
@@ -945,22 +998,40 @@ async function deleteLink(season_id,team_id,category_id){
 
   if(error) return alert(error.message)
   loadLinks()
-  refresh()
+  refreshDashboard()
 }
 
-/* ===== STAFF + EDIT + FILTRO ===== */
-async function loadStaffSelects(){
+/* ===== STAFF ===== */
+async function loadAllStaffSelects(){
   const {data:users}=await client.from('users').select('id,name').order('name')
   const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
   const {data:socs}=await client.from('societies').select('id,name').order('name')
   
+  populate('f-staff-user', users, 'id', 'name')
   populate('staff-user', users, 'id', 'name')
+  populate('f-staff-season', seasons, 'id', 'name')
   populate('staff-season', seasons, 'id', 'name')
-  document.getElementById('staff-season').value=STATE.seasonId
+  populate('f-staff-society', socs, 'id', 'name')
   populate('staff-society', socs, 'id', 'name')
+  populate('f-staff-category', [], 'id', 'name')
   populate('staff-category', [], 'id', 'name')
+  populate('f-staff-team', [], 'id', 'name')
   populate('staff-team', [], 'id', 'name')
 }
+
+document.getElementById('f-staff-society').onchange=async e=>{
+  const societyId=e.target.value
+  const {data:cats}=await client.from('categories').select('id,name').eq('society_id',societyId)
+  const {data:teams}=await client.from('teams').select('id,name').eq('society_id',societyId)
+  populate('f-staff-category', cats, 'id', 'name')
+  populate('f-staff-team', teams, 'id', 'name')
+  loadStaff()
+}
+document.getElementById('f-staff-season').onchange=loadStaff
+document.getElementById('f-staff-user').onchange=loadStaff
+document.getElementById('f-staff-category').onchange=loadStaff
+document.getElementById('f-staff-team').onchange=loadStaff
+document.getElementById('f-staff-role').onchange=loadStaff
 
 document.getElementById('staff-society').onchange=async e=>{
   const societyId=e.target.value
@@ -971,23 +1042,24 @@ document.getElementById('staff-society').onchange=async e=>{
 }
 
 async function loadStaff(){
-  const seasonFilter=document.getElementById('f-season').value
-  let query=client.from('user_category_seasons')
-  .select(`
-      user_id,
-      season_id,
-      category_id,
-      team_id,
-      role,
-      users(id,name),
-      seasons(id,name),
-      categories(id,name),
-      teams(id,name,societies(id,name))
-    `)
-  .order('season_id',{ascending:false})
-  if(seasonFilter) query=query.eq('season_id',seasonFilter)
+  const user=document.getElementById('f-staff-user').value
+  const season=document.getElementById('f-staff-season').value
+  const society=document.getElementById('f-staff-society').value
+  const category=document.getElementById('f-staff-category').value
+  const team=document.getElementById('f-staff-team').value
+  const role=document.getElementById('f-staff-role').value
 
-  const {data, error}=await query
+  let q=client.from('user_category_seasons')
+  .select(`user_id,season_id,category_id,team_id,role,users(id,name),seasons(id,name),categories(id,name),teams(id,name,societies(id,name))`)
+  .order('season_id',{ascending:false})
+  if(user) q=q.eq('user_id',user)
+  if(season) q=q.eq('season_id',season)
+  if(team) q=q.eq('team_id',team)
+  if(category) q=q.eq('category_id',category)
+  if(role) q=q.eq('role',role)
+  if(society) q=q.eq('teams.society_id',society)
+
+  const {data, error}=await q
   const tbody=document.querySelector('#tbl-staff tbody')
   if(error){
     tbody.innerHTML=`<tr><td colspan="7" style="color:red">ERRORE: ${error.message}</td></tr>`
@@ -1013,11 +1085,7 @@ async function loadStaff(){
 
 function editStaff(user_id,season_id,category_id,team_id,role){
   const row=document.getElementById(`row-staff-${user_id}-${season_id}-${category_id}-${team_id}-${role}`)
-  const userName=document.getElementById(`staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).textContent
-  const seasonName=document.getElementById(`staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).textContent
   const societyId=document.getElementById(`staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.societyId
-  const categoryId=document.getElementById(`staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.categoryId
-  const teamId=document.getElementById(`staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).dataset.teamId
   
   row.classList.add('edit-row')
   row.innerHTML=`
@@ -1057,7 +1125,7 @@ async function loadStaffSelectsEdit(user_id,season_id,category_id,team_id,role,s
   document.getElementById(`edit-staff-user-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=user_id
   document.getElementById(`edit-staff-season-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=season_id
   document.getElementById(`edit-staff-society-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=societyId
-  document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=categoryId
+  document.getElementById(`edit-staff-category-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=category_id
   document.getElementById(`edit-staff-team-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=team_id
   document.getElementById(`edit-staff-role-${user_id}-${season_id}-${category_id}-${team_id}-${role}`).value=role
 }
@@ -1086,7 +1154,7 @@ async function saveStaff(user_id,season_id,category_id,team_id,role){
 
   if(error) return alert(error.message)
   loadStaff()
-  refresh()
+  refreshDashboard()
 }
 
 async function createStaff(){
@@ -1098,6 +1166,13 @@ async function createStaff(){
   const role=document.getElementById('staff-role').value
 
   const allowedRoles = ['allenatore','responsabile','presidente','dirigente','segretario','professionista']
+  if(!user_id ||!season_id ||!society_id ||!category_id ||!team_id ||!role) 
+    return alert('Compila tutti i campi')
+  if(!allowedRoles.includes(role))
+    return alert('Ruolo non valido')
+
+  const {data:cat}=await client.from('categories').
+    const allowedRoles = ['allenatore','responsabile','presidente','dirigente','segretario','professionista']
   if(!user_id ||!season_id ||!society_id ||!category_id ||!team_id ||!role) 
     return alert('Compila tutti i campi')
   if(!allowedRoles.includes(role))
@@ -1122,13 +1197,13 @@ async function createStaff(){
   }
 
   document.getElementById('staff-user').value=''
-  document.getElementById('staff-season').value=STATE.seasonId
+  document.getElementById('staff-season').value=''
   document.getElementById('staff-society').value=''
   document.getElementById('staff-category').value=''
   document.getElementById('staff-team').value=''
   document.getElementById('staff-role').value=''
   loadStaff()
-  refresh()
+  refreshDashboard()
 }
 
 async function deleteStaff(user_id,season_id,category_id,team_id,role){
@@ -1143,7 +1218,7 @@ async function deleteStaff(user_id,season_id,category_id,team_id,role){
 
   if(error) return alert(error.message)
   loadStaff()
-  refresh()
+  refreshDashboard()
 }
 </script>
 </body>
