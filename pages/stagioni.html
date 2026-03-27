@@ -50,7 +50,7 @@ async function initStagioni() {
         `).join('')
         : '<tr><td colspan="4">Nessun dato.</td></tr>';
 
-    // Aggancio gli eventi ai bottoni generati dinamicamente
+    // Collego i bottoni appena creati
     document.querySelectorAll('#list-stagioni .btn-action').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
@@ -86,8 +86,10 @@ async function addStagione() {
 }
 
 async function setActiveStagione(id) {
-    await client.from('seasons').update({is_active:false}).neq('id','00000000-0000-0000-0000-000000000000');
-    const { error } = await client.from('seasons').update({is_active:true}).eq('id',id);
+    // Disattiva tutte le altre
+    await client.from('seasons').update({is_active:false}).neq('id', id);
+    // Attiva questa
+    const { error } = await client.from('seasons').update({is_active:true}).eq('id', id);
     if(error) alert('Errore: ' + error.message);
     else initStagioni();
 }
@@ -129,7 +131,7 @@ function formatDate(sqlDate) {
     return `${d}/${m}/${y}`;
 }
 
-/* ---------- INIZIO ---------- */
+/* ---------- AVVIO ---------- */
 document.getElementById('btn-add-stagione').addEventListener('click', addStagione);
 initStagioni();
 </script>
