@@ -577,8 +577,8 @@ function editSeason(id,name,start_date,end_date,active){
     <td><input id="edit-season-active-${id}" type="checkbox" ${active?'checked':''}></td>
     <td class="actions">
       <button class="success" onclick="saveSeason('${id}')">Salva</button>
-      <button onclick="loadSeasons()">Annulla</button
-	  }
+      <button onclick="loadSeasons()">Annulla</button>
+}
 
 async function saveSeason(id){
   const name=document.getElementById(`edit-season-name-${id}`).value.trim()
