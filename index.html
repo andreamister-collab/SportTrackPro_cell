@@ -22,9 +22,8 @@
   .main{flex:1;overflow:auto;padding:24px}
   .container{max-width:1200px;margin:0 auto}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);overflow:hidden;margin-bottom:24px}
-  .card-header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border)}
-  .card-header img{width:28px;height:28px}
-  .card-header h2{margin:0;font-size:18px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .card-header h2{margin:0;font-size:18px;display:flex;align-items:center;gap:10px}
   table{width:100%;border-collapse:collapse}
   th,td{padding:14px 20px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
@@ -39,6 +38,7 @@
   .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
   .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
   .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .btn.ghost{background:transparent}
   .form{padding:20px;border-top:1px solid var(--border)}
   .form h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:16px}
   .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
@@ -54,10 +54,12 @@
   #login-card label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
   #login-card input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin:8px 0 16px}
   #login-card .btn{width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-weight:600;font-size:15px;cursor:pointer}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
   .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
   .stat h3{margin:0;color:var(--muted);font-size:13px;text-transform:uppercase}
   .stat .num{font-size:28px;font-weight:700;margin-top:6px}
+  .toolbar{display:flex;gap:10px;align-items:center}
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -65,17 +67,12 @@
 <!-- LOGIN -->
 <div id="login-wrap">
   <div id="login-card">
-    <div class="brand">
-      <img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png" alt="">
-      <div><strong>SportTrack</strong><span style="color:var(--primary)">Pro</span><div class="sub" style="margin:0;font-size:12px">Gestione Società Sportiva</div></div>
-    </div>
+    <div class="brand"><img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png"><div><strong>SportTrack</strong><span style="color:var(--primary)">Pro</span><div class="sub" style="margin:0;font-size:12px">Gestione Società Sportiva</div></div></div>
     <h2>Accedi alla piattaforma</h2>
     <div class="sub">Inserisci le credenziali per continuare</div>
     <form onsubmit="login(event)">
-      <label>USERNAME</label>
-      <input id="username" type="text" placeholder="es. admin" autocomplete="username" required>
-      <label>PASSWORD</label>
-      <input id="password" type="password" placeholder="********" autocomplete="current-password" required>
+      <label>USERNAME</label><input id="username" type="text" placeholder="es. admin" required>
+      <label>PASSWORD</label><input id="password" type="password" placeholder="********" required>
       <button class="btn" type="submit">Accedi →</button>
     </form>
   </div>
@@ -103,19 +100,26 @@
 
   <!-- DASHBOARD -->
   <section id="sec-dashboard" class="card">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/2099/2099058.png"><h2>Dashboard</h2></div>
-    <div class="stats" id="dashboard-stats">
-      <div class="stat"><h3>Stagioni</h3><div class="num" id="stat-seasons">0</div></div>
-      <div class="stat"><h3>Società</h3><div class="num" id="stat-societies">0</div></div>
-      <div class="stat"><h3>Atleti</h3><div class="num" id="stat-athletes">0</div></div>
-      <div class="stat"><h3>Sessioni</h3><div class="num" id="stat-sessions">0</div></div>
+    <div class="card-header"><h2>📊 Dashboard</h2></div>
+    <div class="stats">
+      <div class="stat"><h3>STAGIONI</h3><div class="num" id="stat-seasons">0</div></div>
+      <div class="stat"><h3>SOCIETÀ</h3><div class="num" id="stat-societies">0</div></div>
+      <div class="stat"><h3>ATLETI</h3><div class="num" id="stat-athletes">0</div></div>
+      <div class="stat"><h3>SESSIONI</h3><div class="num" id="stat-sessions">0</div></div>
     </div>
+    <div class="card-header"><h2>Dettaglio rapido</h2></div>
+    <table id="tbl-dashboard"><thead><tr><th>Tipo</th><th>Nome</th><th>Stato</th></tr></thead><tbody><tr><td colspan="3">Caricamento...</td></tr></tbody></table>
   </section>
 
   <!-- STAGIONI -->
   <section id="sec-season" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3159/3159310.png"><h2>Stagioni Calcistiche</h2></div>
-    <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>STATO</th><th>ATLETI ISCRITTI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
+    <div class="card-header">
+      <h2>📅 Stagioni Calcistiche</h2>
+      <div class="toolbar">
+        <select id="season-filter" onchange="loadSeason()"><option value="all">Tutte</option><option value="active">Solo attive</option></select>
+      </div>
+    </div>
+    <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>STATO</th><th>ATLETI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-season">
       <h3>＋ Nuova Stagione</h3>
       <div class="form-grid">
@@ -128,35 +132,39 @@
 
   <!-- SPORT -->
   <section id="sec-sport" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/1041/1041916.png"><h2>Sport</h2></div>
+    <div class="card-header"><h2>🏅 Sport</h2></div>
     <table id="tbl-sport"><thead><tr><th>ID</th><th>NOME</th><th>ICONA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-sport">
-      <h3>＋ Nuovo Sport</h3>
+      <h3 id="sport-form-title">＋ Nuovo Sport</h3>
+      <input type="hidden" id="sport-id">
       <div class="form-grid">
         <div class="form-group"><label>NOME</label><input id="sport-name" placeholder="Calcio"></div>
         <div class="form-group"><label>ICONA (emoji)</label><input id="sport-icon" placeholder="🏅"></div>
       </div>
-      <button class="btn primary" style="margin-top:16px" onclick="createSport()">＋ Aggiungi Sport</button>
+      <button class="btn primary" style="margin-top:16px" onclick="saveSport()">Salva Sport</button>
+      <button class="btn ghost" onclick="resetSportForm()">Annulla</button>
     </div>
   </section>
 
   <!-- SOCIETÀ -->
   <section id="sec-society" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png"><h2>Società</h2></div>
+    <div class="card-header"><h2>🏢 Società</h2></div>
     <table id="tbl-society"><thead><tr><th>ID</th><th>NOME</th><th>SPORT</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-society">
-      <h3>＋ Nuova Società</h3>
+      <h3 id="society-form-title">＋ Nuova Società</h3>
+      <input type="hidden" id="society-id">
       <div class="form-grid">
         <div class="form-group"><label>NOME</label><input id="society-name" placeholder="AC Milano"></div>
         <div class="form-group"><label>SPORT</label><select id="society-sport"><option value="">Seleziona sport</option></select></div>
       </div>
-      <button class="btn primary" style="margin-top:16px" onclick="createSociety()">＋ Aggiungi Società</button>
+      <button class="btn primary" style="margin-top:16px" onclick="saveSociety()">Salva Società</button>
+      <button class="btn ghost" onclick="resetSocietyForm()">Annulla</button>
     </div>
   </section>
 
   <!-- CATEGORIE -->
   <section id="sec-category" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"><h2>Categorie</h2></div>
+    <div class="card-header"><h2>🧩 Categorie</h2></div>
     <table id="tbl-category"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-category">
       <h3>＋ Nuova Categoria</h3>
@@ -170,7 +178,7 @@
 
   <!-- SQUADRE -->
   <section id="sec-team" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/2936/2936886.png"><h2>Squadre</h2></div>
+    <div class="card-header"><h2>👥 Squadre</h2></div>
     <table id="tbl-team"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-team">
       <h3>＋ Nuova Squadra</h3>
@@ -185,7 +193,7 @@
 
   <!-- ATLETI -->
   <section id="sec-athlete" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3048/3048127.png"><h2>Atleti</h2></div>
+    <div class="card-header"><h2>🏃 Atleti</h2></div>
     <table id="tbl-athlete"><thead><tr><th>ID</th><th>NOME</th><th>COGNOME</th><th>NASCITA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="9">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-athlete">
       <h3>＋ Nuovo Atleta</h3>
@@ -204,15 +212,15 @@
 
   <!-- STAFF -->
   <section id="sec-staff" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/1077/1077114.png"><h2>Staff & Utenti del Sistema</h2></div>
+    <div class="card-header"><h2>👨‍🏫 Staff & Utenti del Sistema</h2></div>
     <div class="form" style="border-bottom:1px solid var(--border);margin-bottom:0">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <b>Ruoli e visibilità:</b>
         <span class="badge badge-blue">🔑 Admin — vede tutto</span>
         <span class="badge badge-purple">⭐ Responsabile — tutte le sue squadre</span>
         <span class="badge badge-green">🏛️ Dirigente — le sue categorie</span>
-        <span class="badge badge-gold">⚽ Allenatore — solo le sue categorie (sessioni/presenze)</span>
-        <span class="badge badge-teal">🩺 Professionista — solo lettura delle sue categorie</span>
+        <span class="badge badge-gold">⚽ Allenatore — solo le sue categorie</span>
+        <span class="badge badge-teal">🩺 Professionista — solo lettura</span>
       </div>
     </div>
     <table id="tbl-staff"><thead><tr><th>ID</th><th>UTENTE</th><th>RUOLO</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
@@ -232,7 +240,7 @@
 
   <!-- SESSIONI -->
   <section id="sec-session" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3176/3176360.png"><h2>Sessioni Allenamento</h2></div>
+    <div class="card-header"><h2>📋 Sessioni Allenamento</h2></div>
     <table id="tbl-session"><thead><tr><th>ID</th><th>TITOLO</th><th>DATA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-session">
       <h3>＋ Nuova Sessione</h3>
@@ -250,7 +258,7 @@
 
   <!-- PRESENZE -->
   <section id="sec-attendance" class="card" style="display:none">
-    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/190/190411.png"><h2>Presenze</h2></div>
+    <div class="card-header"><h2>✅ Presenze</h2></div>
     <table id="tbl-attendance"><thead><tr><th>ID</th><th>SESSIONE</th><th>ATLETA</th><th>STATO</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-attendance">
       <h3>＋ Nuova Presenza</h3>
@@ -270,7 +278,6 @@
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 let CURRENT_USER = null
 
-/* NAVIGAZIONE */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>b.classList.remove('active'))
@@ -281,19 +288,15 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
   }
 })
 
-/* LOGIN */
 async function login(e){
   e.preventDefault()
   const username=document.getElementById('username').value.trim()
   const password=document.getElementById('password').value
   const email = username + '@sporttrackpro.it'
-
   const { data:userRow, error:userErr } = await client.from('users').select('id,username,name,role').eq('username',username).single()
   if(userErr || !userRow) return alert('Username non trovato')
-
   const { error } = await client.auth.signInWithPassword({email,password})
   if(error) return alert(error.message)
-
   CURRENT_USER = userRow
   document.getElementById('login-wrap').style.display='none'
   document.getElementById('app').style.display='block'
@@ -301,7 +304,6 @@ async function login(e){
   loadSection('dashboard')
 }
 function logout(){ client.auth.signOut(); location.reload() }
-
 function applyVisibility(){
   if(CURRENT_USER.role!=='admin'){
     document.getElementById('form-sport').style.display='none'
@@ -315,19 +317,26 @@ function fillSelect(id,data,labelFn){
 
 /* ===== DASHBOARD ===== */
 async function loadDashboard(){
-  const [{count:seas}]=await client.from('seasons').select('id',{count:'exact',head:true})
-  const [{count:socs}]=await client.from('societies').select('id',{count:'exact',head:true})
-  const [{count:ath}]=await client.from('athletes').select('id',{count:'exact',head:true})
-  const [{count:sess}]=await client.from('sessions').select('id',{count:'exact',head:true})
+  const {count:seas}=await client.from('seasons').select('id',{count:'exact',head:true})
+  const {count:socs}=await client.from('societies').select('id',{count:'exact',head:true})
+  const {count:ath}=await client.from('athletes').select('id',{count:'exact',head:true})
+  const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true})
   document.getElementById('stat-seasons').textContent=seas||0
   document.getElementById('stat-societies').textContent=socs||0
   document.getElementById('stat-athletes').textContent=ath||0
   document.getElementById('stat-sessions').textContent=sess||0
+
+  const {data}=await client.from('seasons').select('id,name,is_active').order('name',{ascending:false}).limit(5)
+  const rows=data.map(s=>`<tr><td>Stagione</td><td>${s.name}</td><td>${s.is_active?'Attiva':'Archivio'}</td></tr>`).join('')
+  document.querySelector('#tbl-dashboard tbody').innerHTML=rows||'<tr><td colspan="3">Nessun dato</td></tr>'
 }
 
 /* ===== STAGIONI ===== */
 async function loadSeason(){
-  const {data,error}=await client.from('seasons').select('id,name,is_active').order('name',{ascending:false})
+  const filter=document.getElementById('season-filter').value
+  let q=client.from('seasons').select('id,name,is_active').order('name',{ascending:false})
+  if(filter==='active') q=q.eq('is_active',true)
+  const {data,error}=await q
   if(error){ alert(error.message); return }
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
@@ -342,6 +351,7 @@ async function loadSeason(){
         <td>${sess||0}</td>
         <td class="actions">
           ${!s.is_active?`<button class="btn" onclick="setSeasonActive('${s.id}')">Imposta Attiva</button>`:''}
+          <button class="btn ghost" onclick="editSeason('${s.id}','${s.name}')">✏️</button>
           ${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSeason('${s.id}')">🗑️</button>`:''}
         </td>
       </tr>`
@@ -363,6 +373,12 @@ async function setSeasonActive(id){
   await client.from('seasons').update({is_active:true}).eq('id',id)
   loadSeason()
 }
+function editSeason(id,name){
+  const nuovo=prompt('Nuovo nome stagione',name)
+  if(nuovo && nuovo!==name){
+    client.from('seasons').update({name:nuovo}).eq('id',id).then(()=>loadSeason())
+  }
+}
 async function deleteSeason(id){
   if(CURRENT_USER.role!=='admin') return alert('Solo admin può eliminare')
   if(!confirm('Eliminare la stagione?')) return
@@ -370,22 +386,39 @@ async function deleteSeason(id){
   loadSeason()
 }
 
-/* ===== SPORT ===== */
+/* ===== SPORT (CRUD) ===== */
 async function loadSport(){
   const {data,error}=await client.from('sports').select('id,name,icon').order('name')
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-sport tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td>
-    <td class="actions">${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSport('${s.id}')">🗑️</button>`:''}</td></tr>`).join('')
+    <td class="actions">
+      <button class="btn ghost" onclick="editSport('${s.id}','${s.name}','${s.icon||''}')">✏️</button>
+      <button class="btn danger" onclick="deleteSport('${s.id}')">🗑️</button>
+    </td></tr>`).join('')
 }
-async function createSport(){
+function editSport(id,name,icon){
+  document.getElementById('sport-id').value=id
+  document.getElementById('sport-name').value=name
+  document.getElementById('sport-icon').value=icon
+  document.getElementById('sport-form-title').textContent='✏️ Modifica Sport'
+}
+function resetSportForm(){
+  document.getElementById('sport-id').value=''
+  document.getElementById('sport-name').value=''
+  document.getElementById('sport-icon').value=''
+  document.getElementById('sport-form-title').textContent='＋ Nuovo Sport'
+}
+async function saveSport(){
+  const id=document.getElementById('sport-id').value
   const name=document.getElementById('sport-name').value.trim()
   const icon=document.getElementById('sport-icon').value.trim()
   if(!name) return alert('Nome obbligatorio')
-  const {error}=await client.from('sports').insert({name,icon})
+  const {error}= id
+    ? await client.from('sports').update({name,icon}).eq('id',id)
+    : await client.from('sports').insert({name,icon})
   if(error) return alert(error.message)
-  document.getElementById('sport-name').value=''
-  document.getElementById('sport-icon').value=''
+  resetSportForm()
   loadSport()
 }
 async function deleteSport(id){
@@ -395,22 +428,39 @@ async function deleteSport(id){
   loadSport()
 }
 
-/* ===== SOCIETÀ ===== */
+/* ===== SOCIETÀ (CRUD) ===== */
 async function loadSociety(){
   const {data,error}=await client.from('societies').select('id,name,sport_id,sports(name)').order('name')
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-society tbody').innerHTML=data.map(s=>`
     <tr><td>${s.id}</td><td>${s.name}</td><td>${s.sports?.name||'—'}</td>
-    <td class="actions">${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSociety('${s.id}')">🗑️</button>`:''}</td></tr>`).join('')
+    <td class="actions">
+      <button class="btn ghost" onclick="editSociety('${s.id}','${s.name}','${s.sport_id}')">✏️</button>
+      <button class="btn danger" onclick="deleteSociety('${s.id}')">🗑️</button>
+    </td></tr>`).join('')
 }
-async function createSociety(){
+function editSociety(id,name,sport_id){
+  document.getElementById('society-id').value=id
+  document.getElementById('society-name').value=name
+  document.getElementById('society-sport').value=sport_id
+  document.getElementById('society-form-title').textContent='✏️ Modifica Società'
+}
+function resetSocietyForm(){
+  document.getElementById('society-id').value=''
+  document.getElementById('society-name').value=''
+  document.getElementById('society-sport').value=''
+  document.getElementById('society-form-title').textContent='＋ Nuova Società'
+}
+async function saveSociety(){
+  const id=document.getElementById('society-id').value
   const name=document.getElementById('society-name').value.trim()
   const sport_id=document.getElementById('society-sport').value
   if(!name||!sport_id) return alert('Compila tutti i campi')
-  const {error}=await client.from('societies').insert({name,sport_id})
+  const {error}= id
+    ? await client.from('societies').update({name,sport_id}).eq('id',id)
+    : await client.from('societies').insert({name,sport_id})
   if(error) return alert(error.message)
-  document.getElementById('society-name').value=''
-  document.getElementById('society-sport').value=''
+  resetSocietyForm()
   loadSociety()
 }
 async function deleteSociety(id){
@@ -419,21 +469,34 @@ async function deleteSociety(id){
   await client.from('societies').delete().eq('id',id)
   loadSociety()
 }
-
 /* ===== CATEGORIE ===== */
 async function loadCategory(){
   const {data,error}=await client.from('categories').select('id,name,society_id,societies(name)').order('name')
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-category tbody').innerHTML=data.map(c=>`
     <tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td>
-    <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteCategory('${c.id}')">🗑️</button>`:''}</td></tr>`).join('')
+    <td class="actions">
+      <button class="btn ghost" onclick="editCategory('${c.id}','${c.name}','${c.society_id}')">✏️</button>
+      <button class="btn danger" onclick="deleteCategory('${c.id}')">🗑️</button>
+    </td></tr>`).join('')
+}
+function editCategory(id,name,society_id){
+  document.getElementById('category-name').value=name
+  document.getElementById('category-society').value=society_id
+  document.getElementById('form-category').dataset.editId=id
+  document.querySelector('#form-category h3').textContent='✏️ Modifica Categoria'
 }
 async function createCategory(){
+  const id=document.getElementById('form-category').dataset.editId
   const name=document.getElementById('category-name').value.trim()
   const society_id=document.getElementById('category-society').value
   if(!name||!society_id) return alert('Compila tutti i campi')
-  const {error}=await client.from('categories').insert({name,society_id})
+  const {error}= id 
+    ? await client.from('categories').update({name,society_id}).eq('id',id)
+    : await client.from('categories').insert({name,society_id})
   if(error) return alert(error.message)
+  document.getElementById('form-category').dataset.editId=''
+  document.querySelector('#form-category h3').textContent='＋ Nuova Categoria'
   document.getElementById('category-name').value=''
   document.getElementById('category-society').value=''
   loadCategory()
@@ -451,15 +514,32 @@ async function loadTeam(){
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-team tbody').innerHTML=data.map(t=>`
     <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td>${t.categories?.name||'—'}</td>
-    <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteTeam('${t.id}')">🗑️</button>`:''}</td></tr>`).join('')
+    <td class="actions">
+      <button class="btn ghost" onclick="editTeam('${t.id}','${t.name}','${t.society_id}','${t.category_id}')">✏️</button>
+      <button class="btn danger" onclick="deleteTeam('${t.id}')">🗑️</button>
+    </td></tr>`).join('')
+}
+function editTeam(id,name,society_id,category_id){
+  document.getElementById('team-name').value=name
+  document.getElementById('team-society').value=society_id
+  // carica categorie della società
+  client.from('categories').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('team-category',data,d=>d.name))
+  setTimeout(()=>document.getElementById('team-category').value=category_id,200)
+  document.getElementById('form-team').dataset.editId=id
+  document.querySelector('#form-team h3').textContent='✏️ Modifica Squadra'
 }
 async function createTeam(){
+  const id=document.getElementById('form-team').dataset.editId
   const name=document.getElementById('team-name').value.trim()
   const society_id=document.getElementById('team-society').value
   const category_id=document.getElementById('team-category').value
   if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
-  const {error}=await client.from('teams').insert({name,society_id,category_id})
+  const {error}= id
+    ? await client.from('teams').update({name,society_id,category_id}).eq('id',id)
+    : await client.from('teams').insert({name,society_id,category_id})
   if(error) return alert(error.message)
+  document.getElementById('form-team').dataset.editId=''
+  document.querySelector('#form-team h3').textContent='＋ Nuova Squadra'
   document.getElementById('team-name').value=''
   document.getElementById('team-society').value=''
   document.getElementById('team-category').value=''
@@ -479,17 +559,9 @@ async function loadAthlete(){
     .order('surname',{ascending:true})
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-athlete tbody').innerHTML=data.map(a=>`
-    <tr>
-      <td>${a.id}</td>
-      <td>${a.name}</td>
-      <td>${a.surname}</td>
-      <td>${a.born_date||'—'}</td>
-      <td>${a.societies?.name||'—'}</td>
-      <td>${a.categories?.name||'—'}</td>
-      <td>${a.teams?.name||'—'}</td>
-      <td>${a.seasons?.name||'—'}</td>
-      <td class="actions"><button class="btn danger" onclick="deleteAthlete('${a.id}')">🗑️</button></td>
-    </tr>`).join('')
+    <tr><td>${a.id}</td><td>${a.name}</td><td>${a.surname}</td><td>${a.born_date||'—'}</td>
+    <td>${a.societies?.name||'—'}</td><td>${a.categories?.name||'—'}</td><td>${a.teams?.name||'—'}</td><td>${a.seasons?.name||'—'}</td>
+    <td class="actions"><button class="btn danger" onclick="deleteAthlete('${a.id}')">🗑️</button></td></tr>`).join('')
 }
 async function createAthlete(){
   const name=document.getElementById('athlete-name').value.trim()
@@ -604,7 +676,6 @@ document.getElementById('team-society').onchange=async e=>{
   const {data}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
   fillSelect('team-category',data,d=>d.name)
 }
-
 document.getElementById('athlete-society').onchange=async e=>{
   const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
   fillSelect('athlete-category',cat,d=>d.name)
@@ -616,7 +687,6 @@ document.getElementById('athlete-category').onchange=async e=>{
   const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
   fillSelect('athlete-team',team,d=>d.name)
 }
-
 document.getElementById('staff-society').onchange=async e=>{
   const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
   fillSelect('staff-category',cat,d=>d.name)
@@ -628,7 +698,6 @@ document.getElementById('staff-category').onchange=async e=>{
   const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
   fillSelect('staff-team',team,d=>d.name)
 }
-
 document.getElementById('session-society').onchange=async e=>{
   const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
   fillSelect('session-category',cat,d=>d.name)
