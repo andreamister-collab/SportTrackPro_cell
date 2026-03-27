@@ -197,12 +197,16 @@ async function login(e){
   const password=document.getElementById('password').value
   const email = username + '@sporttrackpro.it'
 
-  // 1. Prima autentica
+  // 1. AUTENTICA PRIMA DI TUTTO
   const { error: authError } = await client.auth.signInWithPassword({email,password})
   if(authError) return alert(authError.message)
 
-  // 2. POI recupera il profilo
-  const { data:userRow, error:userErr } = await client.from('users').select('id,username,name,role').eq('username',username).single()
+  // 2. SOLO DOPO puoi leggere la tabella users
+  const { data:userRow, error:userErr } = await client.from('users')
+      .select('id,username,name,role')
+      .eq('username',username)
+      .single()
+
   if(userErr || !userRow) return alert('Profilo non trovato')
 
   CURRENT_USER = userRow
