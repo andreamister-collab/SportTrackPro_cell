@@ -23,31 +23,31 @@
   }
   *{box-sizing:border-box}
   body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
- .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
- .sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
- .sidebar.brand img{width:36px;height:36px;border-radius:8px}
- .sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
- .sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
- .sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
- .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
- .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
- .main{flex:1;overflow:auto}
- .container{max-width:1400px;margin:0 auto;padding:20px}
+  .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+  .sidebar.brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
+  .sidebar.brand img{width:36px;height:36px;border-radius:8px}
+  .sidebar.user{padding:16px;text-align:center;border-bottom:1px solid #2d3e66}
+  .sidebar.user img{width:64px;height:64px;border-radius:50%;border:3px solid #3b82f6}
+  .sidebar.user div{font-weight:600;margin-top:8px;font-size:14px}
+  .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
+  .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
+  .main{flex:1;overflow:auto}
+  .container{max-width:1400px;margin:0 auto;padding:20px}
   h1{font-size:22px;margin:0 0 16px}
- .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
- .card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
- .card.c1{background:var(--c1)}
- .card.c2{background:var(--c2)}
- .card.c3{background:var(--c3)}
- .card.c4{background:var(--c4)}
- .card.c5{background:var(--c5)}
- .card.c6{background:var(--c6)}
- .card.c7{background:var(--c7)}
- .card.c8{background:var(--c8)}
- .card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
- .card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
- .card.val{margin:4px 0 0;font-size:32px;font-weight:800}
- .filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap;background:var(--card);padding:12px;border:1px solid var(--border);border-radius:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+  .card{color:#fff;border-radius:20px;padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .card.c1{background:var(--c1)}
+  .card.c2{background:var(--c2)}
+  .card.c3{background:var(--c3)}
+  .card.c4{background:var(--c4)}
+  .card.c5{background:var(--c5)}
+  .card.c6{background:var(--c6)}
+  .card.c7{background:var(--c7)}
+  .card.c8{background:var(--c8)}
+  .card.icon{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
+  .card h3{margin:0;font-size:13px;font-weight:500;opacity:.9}
+  .card.val{margin:4px 0 0;font-size:32px;font-weight:800}
+  .filters{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap;background:var(--card);padding:12px;border:1px solid var(--border);border-radius:12px}
   select,input{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-width:180px}
   button.primary{background:var(--c1);color:#fff;border:none;cursor:pointer}
   button.danger{background:#ef4444;color:#fff;border:none;cursor:pointer}
@@ -56,14 +56,14 @@
   table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:12px}
   th,td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
   th{background:#f9fafb;font-size:13px;color:var(--muted)}
- .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
- .badge.bad{background:#fee2e2;color:#991b1b}
- .badge.ok{background:#dcfce7;color:#166534}
- .badge.warn{background:#fef9c3;color:#854d0e}
- .actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
- .actions button:hover{background:#e5e7eb}
- .form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
- .edit-row td{background:#fefce8}
+  .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;margin:2px 4px 2px 0;background:rgba(255,255,255,.25)}
+  .badge.bad{background:#fee2e2;color:#991b1b}
+  .badge.ok{background:#dcfce7;color:#166534}
+  .badge.warn{background:#fef9c3;color:#854d0e}
+  .actions button{margin-right:6px;background:#f3f4f6;color:#111;border:1px solid var(--border);padding:6px 10px;border-radius:8px;cursor:pointer}
+  .actions button:hover{background:#e5e7eb}
+  .form-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .edit-row td{background:#fefce8}
 </style>
 </head>
 <body>
@@ -113,8 +113,8 @@
 
         <section class="cards">
           <div class="card c1"><div class="icon">👥</div><h3>ATLETI TOTALI</h3><div class="val" id="c-atleti">0</div></div>
-          <div class="card c2"><div class="icon">⏱️</div><h3>SESSIONI REGI...</h3><div class="val" id="c-sessioni">0</div></div>
-          <div class="card c3"><div class="icon">🛒</div><h3>% PRESENZE G...</h3><div class="val" id="c-pres">0%</div></div>
+          <div class="card c2"><div class="icon">⏱️</div><h3>SESSIONI REGISTRATE</h3><div class="val" id="c-sessioni">0</div></div>
+          <div class="card c3"><div class="icon">🛒</div><h3>% PRESENZE GLOBALI</h3><div class="val" id="c-pres">0%</div></div>
           <div class="card c4"><div class="icon">🏢</div><h3>SOCIETÀ</h3><div class="val" id="c-societa">0</div></div>
           <div class="card c5"><div class="icon">🏷️</div><h3>CATEGORIE</h3><div class="val" id="c-categorie">0</div></div>
           <div class="card c6"><div class="icon">👤</div><h3>STAFF TOTALE</h3><div class="val" id="c-staff">0</div></div>
@@ -347,6 +347,12 @@ function logout(){
 async function initApp(){
   document.getElementById('auth-section').style.display='none'
   document.getElementById('app').style.display='block'
+  const {data:seasons}=await client.from('seasons').select('id,name').order('start_date',{ascending:false})
+  const {data:socs}=await client.from('societies').select('id,name').order('name')
+  const {data:sports}=await client.from('sports').select('id,name').order('name')
+  populate('f-dash-season', seasons, 'id', 'name')
+  populate('f-dash-society', socs, 'id', 'name')
+  populate('f-dash-sport', sports, 'id', 'name')
   await refreshDashboard()
 }
 
@@ -364,18 +370,18 @@ async function refreshDashboard(){
   const tm=document.getElementById('f-dash-team').value
   const sp=document.getElementById('f-dash-sport').value
 
-  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{})
-  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true}).match(soc?{id:soc}:{})
-  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true}).match(cat?{id:cat}:{})
-  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{})
+  const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{ })
+  const {count:societa}=await client.from('societies').select('id',{count:'exact',head:true}).match(soc?{id:soc}:{ })
+  const {count:categorie}=await client.from('categories').select('id',{count:'exact',head:true}).match(cat?{id:cat}:{ })
+  const {count:sessioni}=await client.from('sessions').select('id',{count:'exact',head:true}).match(s?{season_id:s}:{ })
   const {count:utenti}=await client.from('users').select('id',{count:'exact',head:true})
 
-  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'responsabile'})
-  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'allenatore'})
-  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'presidente'})
-  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'dirigente'})
-  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'segretario'})
-  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({... (s?{season_id:s}:{}), role:'professionista'})
+  const {count:responsabili}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'responsabile'})
+  const {count:allenatori}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'allenatore'})
+  const {count:presidente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'presidente'})
+  const {count:dirigente}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'dirigente'})
+  const {count:segretario}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'segretario'})
+  const {count:prof}=await client.from('user_category_seasons').select('id',{count:'exact',head:true}).match({...(s?{season_id:s}:{}), role:'professionista'})
 
   document.getElementById('c-atleti').textContent=atleti||0
   document.getElementById('c-sessioni').textContent=sessioni||0
@@ -422,14 +428,14 @@ async function refreshDashboard(){
     const sportName = soc?.sports?.name || '—'
     if(sp && soc?.sports?.id!==sp) continue
 
-    const {count:sessCnt}=await client.from('sessions').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
-    const {count:athCnt}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
-    const {data:sidData}=await client.from('sessions').select('id').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
+    const {count:sessCnt}=await client.from('sessions').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{ })})
+    const {count:athCnt}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{ })})
+    const {data:sidData}=await client.from('sessions').select('id').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{ })})
     const sessionIds = sidData?.map(x=>x.id) || []
     const {data:attRows}=await client.from('attendances').select('status').in('session_id',sessionIds)
     const presPct=attRows?.length?Math.round(attRows.filter(a=>a.status==='P').length/attRows.length*100):0
-    const {data:staffData}=await client.from('user_category_seasons').select('users(name),role').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{}})
-    const staffHtml = staffData?.length? staffData.map(s=>`<span class="badge staff">${s.users.name} (${s.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
+    const {data:staffData}=await client.from('user_category_seasons').select('users(name),role').match({category_id:c.id,team_id:t.id,...(s?{season_id:s}:{ })})
+    const staffHtml = staffData?.length? staffData.map(st=>`<span class="badge staff">${st.users.name} (${st.role})</span>`).join('') : '<span class="badge bad">Nessuno</span>'
     const presClass = presPct>=80?'ok':presPct>=50?'warn':'bad'
 
     tbody.innerHTML+=`
@@ -531,8 +537,7 @@ async function loadSeasons(){
   let q=client.from('seasons').select('*').order('start_date',{ascending:false})
   if(id) q=q.ilike('id',`%${id}%`)
   if(name) q=q.ilike('name',`%${name}%`)
-  if(period) q=q.eq
-  if(period) q=q.eq('start_date',period)
+   if(period) q=q.eq('start_date',period)
   if(active) q=q.eq('active',active==='true')
   const {data, error} = await q
   const tbody=document.querySelector('#tbl-season tbody')
@@ -1171,15 +1176,8 @@ async function createStaff(){
   if(!allowedRoles.includes(role))
     return alert('Ruolo non valido')
 
-  const {data:cat}=await client.from('categories').
-    const allowedRoles = ['allenatore','responsabile','presidente','dirigente','segretario','professionista']
-  if(!user_id ||!season_id ||!society_id ||!category_id ||!team_id ||!role) 
-    return alert('Compila tutti i campi')
-  if(!allowedRoles.includes(role))
-    return alert('Ruolo non valido')
-
   const {data:cat}=await client.from('categories').select('society_id').eq('id',category_id).single()
-  const {data:team}=await client.from('teams').select('society_id').eq('id',team_id).single()
+    const {data:team}=await client.from('teams').select('society_id').eq('id',team_id).single()
   if(cat?.society_id !== team?.society_id || cat?.society_id !== society_id){
     return alert('Categoria e Squadra devono appartenere alla stessa Società')
   }
