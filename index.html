@@ -10,11 +10,11 @@
   :root{
     --bg:#f6f7fb;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
     --primary:#2563eb;--danger:#ef4444;--ok:#10b981;--sidebar:#1e2a44; --sidebar-active:#2d3e66;
-    --purple:#8b5cf6;--green:#10b981;--gold:#f59e0b;--teal:#14b8a6;
+    --purple:#8b5cf6;--green:#10b981;--gold:#f59e0b;--teal:#14b8a6;--blue:#3b82f6;
   }
   *{box-sizing:border-box}
   body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
-  .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0}
+  .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0;flex-shrink:0}
   .sidebar .brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
   .sidebar .brand img{width:32px;height:32px;border-radius:8px}
   .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
@@ -31,11 +31,11 @@
   .badge{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
   .badge.active{background:#dcfce7;color:#166534}
   .badge.archived{background:#f3f4f6;color:#4b5563}
-  .badge.role{background:#e0e7ff;color:#3730a3}
   .badge-purple{background:#f3e8ff;color:#6b21a8}
   .badge-green{background:#d1fae5;color:#065f46}
   .badge-gold{background:#fef3c7;color:#92400e}
   .badge-teal{background:#ccfbf1;color:#115e59}
+  .badge-blue{background:#dbeafe;color:#1e40af}
   .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
   .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
   .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
@@ -54,6 +54,10 @@
   #login-card label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
   #login-card input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin:8px 0 16px}
   #login-card .btn{width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-weight:600;font-size:15px;cursor:pointer}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
+  .stat h3{margin:0;color:var(--muted);font-size:13px;text-transform:uppercase}
+  .stat .num{font-size:28px;font-weight:700;margin-top:6px}
 </style>
 </head>
 <body>
@@ -81,8 +85,35 @@
 <div class="main" id="app" style="display:none">
 <div class="container">
 
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand"><img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png"><strong>SportTrack<span style="color:var(--primary)">Pro</span></strong></div>
+    <button data-sec="dashboard" class="active">📊 Dashboard</button>
+    <button data-sec="season">📅 Stagioni</button>
+    <button data-sec="sport">🏅 Sport</button>
+    <button data-sec="society">🏢 Società</button>
+    <button data-sec="category">🧩 Categorie</button>
+    <button data-sec="team">👥 Squadre</button>
+    <button data-sec="athlete">🏃 Atleti</button>
+    <button data-sec="staff">👨‍🏫 Staff</button>
+    <button data-sec="session">📋 Sessioni</button>
+    <button data-sec="attendance">✅ Presenze</button>
+    <button onclick="logout()">🚪 Esci</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <section id="sec-dashboard" class="card">
+    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/2099/2099058.png"><h2>Dashboard</h2></div>
+    <div class="stats" id="dashboard-stats">
+      <div class="stat"><h3>Stagioni</h3><div class="num" id="stat-seasons">0</div></div>
+      <div class="stat"><h3>Società</h3><div class="num" id="stat-societies">0</div></div>
+      <div class="stat"><h3>Atleti</h3><div class="num" id="stat-athletes">0</div></div>
+      <div class="stat"><h3>Sessioni</h3><div class="num" id="stat-sessions">0</div></div>
+    </div>
+  </section>
+
   <!-- STAGIONI -->
-  <section id="sec-season" class="card">
+  <section id="sec-season" class="card" style="display:none">
     <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3159/3159310.png"><h2>Stagioni Calcistiche</h2></div>
     <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>STATO</th><th>ATLETI ISCRITTI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-season">
@@ -140,14 +171,34 @@
   <!-- SQUADRE -->
   <section id="sec-team" class="card" style="display:none">
     <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/2936/2936886.png"><h2>Squadre</h2></div>
-    <table id="tbl-team"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
+    <table id="tbl-team"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-team">
       <h3>＋ Nuova Squadra</h3>
       <div class="form-grid">
         <div class="form-group"><label>NOME</label><input id="team-name" placeholder="Under 14 A"></div>
         <div class="form-group"><label>SOCIETÀ</label><select id="team-society"><option value="">Seleziona società</option></select></div>
+        <div class="form-group"><label>CATEGORIA</label><select id="team-category"><option value="">Seleziona categoria</option></select></div>
       </div>
       <button class="btn primary" style="margin-top:16px" onclick="createTeam()">＋ Aggiungi Squadra</button>
+    </div>
+  </section>
+
+  <!-- ATLETI -->
+  <section id="sec-athlete" class="card" style="display:none">
+    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3048/3048127.png"><h2>Atleti</h2></div>
+    <table id="tbl-athlete"><thead><tr><th>ID</th><th>NOME</th><th>COGNOME</th><th>NASCITA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="9">Caricamento...</td></tr></tbody></table>
+    <div class="form" id="form-athlete">
+      <h3>＋ Nuovo Atleta</h3>
+      <div class="form-grid">
+        <div class="form-group"><label>NOME</label><input id="athlete-name" placeholder="Mario"></div>
+        <div class="form-group"><label>COGNOME</label><input id="athlete-surname" placeholder="Rossi"></div>
+        <div class="form-group"><label>DATA NASCITA</label><input id="athlete-born" type="date"></div>
+        <div class="form-group"><label>SOCIETÀ</label><select id="athlete-society"><option value="">Seleziona società</option></select></div>
+        <div class="form-group"><label>CATEGORIA</label><select id="athlete-category"><option value="">Seleziona categoria</option></select></div>
+        <div class="form-group"><label>SQUADRA</label><select id="athlete-team"><option value="">Seleziona squadra</option></select></div>
+        <div class="form-group"><label>STAGIONE</label><select id="athlete-season"><option value="">Seleziona stagione</option></select></div>
+      </div>
+      <button class="btn primary" style="margin-top:16px" onclick="createAthlete()">＋ Aggiungi Atleta</button>
     </div>
   </section>
 
@@ -164,7 +215,7 @@
         <span class="badge badge-teal">🩺 Professionista — solo lettura delle sue categorie</span>
       </div>
     </div>
-    <table id="tbl-staff"><thead><tr><th>ID</th><th>UTENTE</th><th>RUOLO</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="7">Caricamento...</td></tr></tbody></table>
+    <table id="tbl-staff"><thead><tr><th>ID</th><th>UTENTE</th><th>RUOLO</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
     <div class="form" id="form-staff">
       <h3>＋ Assegna Ruolo</h3>
       <div class="form-grid">
@@ -173,8 +224,42 @@
         <div class="form-group"><label>SOCIETÀ</label><select id="staff-society"><option value="">Seleziona società</option></select></div>
         <div class="form-group"><label>CATEGORIA</label><select id="staff-category"><option value="">Seleziona categoria</option></select></div>
         <div class="form-group"><label>SQUADRA</label><select id="staff-team"><option value="">Seleziona squadra</option></select></div>
+        <div class="form-group"><label>STAGIONE</label><select id="staff-season"><option value="">Seleziona stagione</option></select></div>
       </div>
       <button class="btn primary" style="margin-top:16px" onclick="createStaff()">＋ Assegna Ruolo</button>
+    </div>
+  </section>
+
+  <!-- SESSIONI -->
+  <section id="sec-session" class="card" style="display:none">
+    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/3176/3176360.png"><h2>Sessioni Allenamento</h2></div>
+    <table id="tbl-session"><thead><tr><th>ID</th><th>TITOLO</th><th>DATA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
+    <div class="form" id="form-session">
+      <h3>＋ Nuova Sessione</h3>
+      <div class="form-grid">
+        <div class="form-group"><label>TITOLO</label><input id="session-title" placeholder="Allenamento tecnico"></div>
+        <div class="form-group"><label>DATA</label><input id="session-date" type="date"></div>
+        <div class="form-group"><label>SOCIETÀ</label><select id="session-society"><option value="">Seleziona società</option></select></div>
+        <div class="form-group"><label>CATEGORIA</label><select id="session-category"><option value="">Seleziona categoria</option></select></div>
+        <div class="form-group"><label>SQUADRA</label><select id="session-team"><option value="">Seleziona squadra</option></select></div>
+        <div class="form-group"><label>STAGIONE</label><select id="session-season"><option value="">Seleziona stagione</option></select></div>
+      </div>
+      <button class="btn primary" style="margin-top:16px" onclick="createSession()">＋ Aggiungi Sessione</button>
+    </div>
+  </section>
+
+  <!-- PRESENZE -->
+  <section id="sec-attendance" class="card" style="display:none">
+    <div class="card-header"><img src="https://cdn-icons-png.flaticon.com/512/190/190411.png"><h2>Presenze</h2></div>
+    <table id="tbl-attendance"><thead><tr><th>ID</th><th>SESSIONE</th><th>ATLETA</th><th>STATO</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
+    <div class="form" id="form-attendance">
+      <h3>＋ Nuova Presenza</h3>
+      <div class="form-grid">
+        <div class="form-group"><label>SESSIONE</label><select id="attendance-session"><option value="">Seleziona sessione</option></select></div>
+        <div class="form-group"><label>ATLETA</label><select id="attendance-athlete"><option value="">Seleziona atleta</option></select></div>
+        <div class="form-group"><label>STATO</label><select id="attendance-status"><option value="presente">Presente</option><option value="assente">Assente</option><option value="infortunato">Infortunato</option></select></div>
+      </div>
+      <button class="btn primary" style="margin-top:16px" onclick="createAttendance()">＋ Aggiungi Presenza</button>
     </div>
   </section>
 
@@ -183,7 +268,7 @@
 
 <script>
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-let CURRENT_USER = null // {id,username,name,role}
+let CURRENT_USER = null
 
 /* NAVIGAZIONE */
 document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
@@ -213,23 +298,31 @@ async function login(e){
   document.getElementById('login-wrap').style.display='none'
   document.getElementById('app').style.display='block'
   applyVisibility()
-  loadSection('season')
+  loadSection('dashboard')
 }
 function logout(){ client.auth.signOut(); location.reload() }
 
-/* VISIBILITÀ PER RUOLO */
 function applyVisibility(){
-  const role = CURRENT_USER?.role
-  if(role!=='admin'){
+  if(CURRENT_USER.role!=='admin'){
     document.getElementById('form-sport').style.display='none'
     document.getElementById('form-society').style.display='none'
   }
 }
-
-/* UTIL */
 function fillSelect(id,data,labelFn){
   const sel=document.getElementById(id)
   sel.innerHTML='<option value="">Seleziona</option>'+(data||[]).map(d=>`<option value="${d.id}">${labelFn?labelFn(d):d.name}</option>`).join('')
+}
+
+/* ===== DASHBOARD ===== */
+async function loadDashboard(){
+  const [{count:seas}]=await client.from('seasons').select('id',{count:'exact',head:true})
+  const [{count:socs}]=await client.from('societies').select('id',{count:'exact',head:true})
+  const [{count:ath}]=await client.from('athletes').select('id',{count:'exact',head:true})
+  const [{count:sess}]=await client.from('sessions').select('id',{count:'exact',head:true})
+  document.getElementById('stat-seasons').textContent=seas||0
+  document.getElementById('stat-societies').textContent=socs||0
+  document.getElementById('stat-athletes').textContent=ath||0
+  document.getElementById('stat-sessions').textContent=sess||0
 }
 
 /* ===== STAGIONI ===== */
@@ -239,7 +332,7 @@ async function loadSeason(){
   const tbody=document.querySelector('#tbl-season tbody')
   tbody.innerHTML=''
   for(const s of data){
-    const {count:atleti}=await client.from('athlete_seasons').select('id',{count:'exact',head:true}).eq('season_id',s.id)
+    const {count:atleti}=await client.from('athletes').select('id',{count:'exact',head:true}).eq('season_id',s.id)
     const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s.id)
     tbody.innerHTML+=`
       <tr>
@@ -258,30 +351,22 @@ async function createSeason(){
   const start_year=parseInt(document.getElementById('season-start').value)
   const end_year=parseInt(document.getElementById('season-end').value)
   if(!start_year||!end_year||end_year<=start_year) return alert('Anno fine deve essere maggiore di anno inizio')
-
-  const name = `${start_year}/${end_year}`          // 2025/2026
-  const start_date = `${start_year}-08-01`
-  const end_date   = `${end_year}-07-31`
-
-  const {error}=await client.from('seasons').insert({name,start_date,end_date,is_active:false})
+  const name = `${start_year}/${end_year}`
+  const {error}=await client.from('seasons').insert({name,start_date:`${start_year}-08-01`,end_date:`${end_year}-07-31`,is_active:false})
   if(error) return alert(error.message)
-
   document.getElementById('season-start').value=''
   document.getElementById('season-end').value=''
   loadSeason()
 }
 async function setSeasonActive(id){
-  // disattiva tutte, poi attiva quella scelta
-  const {error:err1}=await client.from('seasons').update({is_active:false}).neq('id',id)
-  const {error:err2}=await client.from('seasons').update({is_active:true}).eq('id',id)
-  if(err1||err2) return alert(err1?.message||err2?.message)
+  await client.from('seasons').update({is_active:false}).neq('id',id)
+  await client.from('seasons').update({is_active:true}).eq('id',id)
   loadSeason()
 }
 async function deleteSeason(id){
   if(CURRENT_USER.role!=='admin') return alert('Solo admin può eliminare')
   if(!confirm('Eliminare la stagione?')) return
-  const {error}=await client.from('seasons').delete().eq('id',id)
-  if(error) return alert(error.message)
+  await client.from('seasons').delete().eq('id',id)
   loadSeason()
 }
 
@@ -362,20 +447,23 @@ async function deleteCategory(id){
 
 /* ===== SQUADRE ===== */
 async function loadTeam(){
-  const {data,error}=await client.from('teams').select('id,name,society_id,societies(name)').order('name')
+  const {data,error}=await client.from('teams').select('id,name,society_id,category_id,societies(name),categories(name)').order('name')
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-team tbody').innerHTML=data.map(t=>`
-    <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td>
+    <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td>${t.categories?.name||'—'}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteTeam('${t.id}')">🗑️</button>`:''}</td></tr>`).join('')
 }
 async function createTeam(){
   const name=document.getElementById('team-name').value.trim()
   const society_id=document.getElementById('team-society').value
-  if(!name||!society_id) return alert('Compila tutti i campi')
-  const {error}=await client.from('teams').insert({name,society_id})
+  const category_id=document.getElementById('team-category').value
+  if(!name||!society_id||!category_id
+    if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('teams').insert({name,society_id,category_id})
   if(error) return alert(error.message)
   document.getElementById('team-name').value=''
   document.getElementById('team-society').value=''
+  document.getElementById('team-category').value=''
   loadTeam()
 }
 async function deleteTeam(id){
@@ -385,13 +473,54 @@ async function deleteTeam(id){
   loadTeam()
 }
 
+/* ===== ATLETI ===== */
+async function loadAthlete(){
+  const {data,error}=await client.from('athletes')
+    .select('id,name,surname,born_date,society_id,category_id,team_id,season_id,societies(name),categories(name),teams(name),seasons(name)')
+    .order('surname',{ascending:true})
+  if(error){ alert(error.message); return }
+  document.querySelector('#tbl-athlete tbody').innerHTML=data.map(a=>`
+    <tr>
+      <td>${a.id}</td>
+      <td>${a.name}</td>
+      <td>${a.surname}</td>
+      <td>${a.born_date||'—'}</td>
+      <td>${a.societies?.name||'—'}</td>
+      <td>${a.categories?.name||'—'}</td>
+      <td>${a.teams?.name||'—'}</td>
+      <td>${a.seasons?.name||'—'}</td>
+      <td class="actions"><button class="btn danger" onclick="deleteAthlete('${a.id}')">🗑️</button></td>
+    </tr>`).join('')
+}
+async function createAthlete(){
+  const name=document.getElementById('athlete-name').value.trim()
+  const surname=document.getElementById('athlete-surname').value.trim()
+  const born_date=document.getElementById('athlete-born').value
+  const society_id=document.getElementById('athlete-society').value
+  const category_id=document.getElementById('athlete-category').value
+  const team_id=document.getElementById('athlete-team').value
+  const season_id=document.getElementById('athlete-season').value
+  if(!name||!surname||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('athletes').insert({name,surname,born_date,society_id,category_id,team_id,season_id})
+  if(error) return alert(error.message)
+  ['athlete-name','athlete-surname','athlete-born','athlete-society','athlete-category','athlete-team','athlete-season'].forEach(id=>document.getElementById(id).value='')
+  loadAthlete()
+}
+async function deleteAthlete(id){
+  if(!confirm('Eliminare l\'atleta?')) return
+  await client.from('athletes').delete().eq('id',id)
+  loadAthlete()
+}
+
 /* ===== STAFF ===== */
 async function loadStaff(){
-  const {data,error}=await client.from('user_category_seasons').select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(name),societies(name),categories(name),teams(name)').order('id',{ascending:false})
+  const {data,error}=await client.from('user_category_seasons')
+    .select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(name),societies(name),categories(name),teams(name)')
+    .order('id',{ascending:false})
   if(error){ alert(error.message); return }
   document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>{
     const roleBadge = {responsabile:'badge-purple',dirigente:'badge-green',allenatore:'badge-gold',professionista:'badge-teal'}[s.role]||'badge'
-    return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${s.societies?.name||''}</td><td>${s.categories?.name||''}</td><td>${s.teams?.name||''}</td>
+    return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${s.societies?.name||''}</td><td>${s.categories?.name||''}</td><td>${s.teams?.name||''}</td><td>${s.seasons?.name||''}</td>
     <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteStaff('${s.id}')">🗑️</button>`:''}</td></tr>`
   }).join('')
 }
@@ -401,10 +530,11 @@ async function createStaff(){
   const society_id=document.getElementById('staff-society').value
   const category_id=document.getElementById('staff-category').value
   const team_id=document.getElementById('staff-team').value
-  if(!user_id||!role||!society_id||!category_id||!team_id) return alert('Compila tutti i campi')
-  const {error}=await client.from('user_category_seasons').insert({user_id,role,society_id,category_id,team_id})
+  const season_id=document.getElementById('staff-season').value
+  if(!user_id||!role||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('user_category_seasons').insert({user_id,role,society_id,category_id,team_id,season_id})
   if(error) return alert(error.message)
-  ['staff-user','staff-role','staff-society','staff-category','staff-team'].forEach(id=>document.getElementById(id).value='')
+  ['staff-user','staff-role','staff-society','staff-category','staff-team','staff-season'].forEach(id=>document.getElementById(id).value='')
   loadStaff()
 }
 async function deleteStaff(id){
@@ -414,21 +544,131 @@ async function deleteStaff(id){
   loadStaff()
 }
 
+/* ===== SESSIONI ===== */
+async function loadSession(){
+  const {data,error}=await client.from('sessions')
+    .select('id,title,session_date,season_id,society_id,category_id,team_id,seasons(name),societies(name),categories(name),teams(name)')
+    .order('session_date',{ascending:false})
+  if(error){ alert(error.message); return }
+  document.querySelector('#tbl-session tbody').innerHTML=data.map(s=>`
+    <tr><td>${s.id}</td><td>${s.title}</td><td>${s.session_date}</td><td>${s.societies?.name||'—'}</td><td>${s.categories?.name||'—'}</td><td>${s.teams?.name||'—'}</td><td>${s.seasons?.name||'—'}</td>
+    <td class="actions"><button class="btn danger" onclick="deleteSession('${s.id}')">🗑️</button></td></tr>`).join('')
+}
+async function createSession(){
+  const title=document.getElementById('session-title').value.trim()
+  const session_date=document.getElementById('session-date').value
+  const society_id=document.getElementById('session-society').value
+  const category_id=document.getElementById('session-category').value
+  const team_id=document.getElementById('session-team').value
+  const season_id=document.getElementById('session-season').value
+  if(!title||!session_date||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('sessions').insert({title,session_date,society_id,category_id,team_id,season_id})
+  if(error) return alert(error.message)
+  ['session-title','session-date','session-society','session-category','session-team','session-season'].forEach(id=>document.getElementById(id).value='')
+  loadSession()
+}
+async function deleteSession(id){
+  if(!confirm('Eliminare la sessione?')) return
+  await client.from('sessions').delete().eq('id',id)
+  loadSession()
+}
+
+/* ===== PRESENZE ===== */
+async function loadAttendance(){
+  const {data,error}=await client.from('attendances')
+    .select('id,session_id,athlete_id,status,sessions(title),athletes(name,surname)')
+    .order('id',{ascending:false})
+  if(error){ alert(error.message); return }
+  document.querySelector('#tbl-attendance tbody').innerHTML=data.map(a=>`
+    <tr><td>${a.id}</td><td>${a.sessions?.title||'—'}</td><td>${a.athletes?.surname} ${a.athletes?.name}</td><td>${a.status}</td>
+    <td class="actions"><button class="btn danger" onclick="deleteAttendance('${a.id}')">🗑️</button></td></tr>`).join('')
+}
+async function createAttendance(){
+  const session_id=document.getElementById('attendance-session').value
+  const athlete_id=document.getElementById('attendance-athlete').value
+  const status=document.getElementById('attendance-status').value
+  if(!session_id||!athlete_id) return alert('Compila tutti i campi')
+  const {error}=await client.from('attendances').insert({session_id,athlete_id,status})
+  if(error) return alert(error.message)
+  document.getElementById('attendance-session').value=''
+  document.getElementById('attendance-athlete').value=''
+  loadAttendance()
+}
+async function deleteAttendance(id){
+  if(!confirm('Eliminare la presenza?')) return
+  await client.from('attendances').delete().eq('id',id)
+  loadAttendance()
+}
+
 /* POPOLA SELECT DIPENDENTI */
-document.getElementById('staff-society').onchange=async e=>{
+document.getElementById('team-society').onchange=async e=>{
   const {data}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-category',data,d=>d.name)
-  const {data:t}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-team',t,d=>d.name)
+  fillSelect('team-category',data,d=>d.name)
+}
+
+document.getElementById('athlete-society').onchange=async e=>{
+  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
+  fillSelect('athlete-category',cat,d=>d.name)
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
+  fillSelect('athlete-team',team,d=>d.name)
+}
+document.getElementById('athlete-category').onchange=async e=>{
+  const society_id=document.getElementById('athlete-society').value
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
+  fillSelect('athlete-team',team,d=>d.name)
+}
+
+document.getElementById('staff-society').onchange=async e=>{
+  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
+  fillSelect('staff-category',cat,d=>d.name)
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
+  fillSelect('staff-team',team,d=>d.name)
+}
+document.getElementById('staff-category').onchange=async e=>{
+  const society_id=document.getElementById('staff-society').value
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
+  fillSelect('staff-team',team,d=>d.name)
+}
+
+document.getElementById('session-society').onchange=async e=>{
+  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
+  fillSelect('session-category',cat,d=>d.name)
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
+  fillSelect('session-team',team,d=>d.name)
+}
+document.getElementById('session-category').onchange=async e=>{
+  const society_id=document.getElementById('session-society').value
+  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
+  fillSelect('session-team',team,d=>d.name)
 }
 
 /* CARICAMENTO INIZIALE */
 async function loadSection(sec){
+  if(sec==='dashboard') loadDashboard()
   if(sec==='season') loadSeason()
   if(sec==='sport') loadSport()
-  if(sec==='society'){ const {data}=await client.from('sports').select('id,name'); fillSelect('society-sport',data,d=>d.name); loadSociety() }
-  if(sec==='category'){ const {data}=await client.from('societies').select('id,name'); fillSelect('category-society',data,d=>d.name); loadCategory() }
-  if(sec==='team'){ const {data}=await client.from('societies').select('id,name'); fillSelect('team-society',data,d=>d.name); loadTeam() }
+  if(sec==='society'){
+    const {data}=await client.from('sports').select('id,name')
+    fillSelect('society-sport',data,d=>d.name)
+    loadSociety()
+  }
+  if(sec==='category'){
+    const {data}=await client.from('societies').select('id,name')
+    fillSelect('category-society',data,d=>d.name)
+    loadCategory()
+  }
+  if(sec==='team'){
+    const {data:socs}=await client.from('societies').select('id,name')
+    fillSelect('team-society',socs,d=>d.name)
+    loadTeam()
+  }
+  if(sec==='athlete'){
+    const {data:socs}=await client.from('societies').select('id,name')
+    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
+    fillSelect('athlete-society',socs,d=>d.name)
+    fillSelect('athlete-season',seas,d=>d.name)
+    loadAthlete()
+  }
   if(sec==='staff'){
     const {data:users}=await client.from('users').select('id,name,role')
     const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
@@ -437,6 +677,20 @@ async function loadSection(sec){
     fillSelect('staff-season',seas,d=>d.name)
     fillSelect('staff-society',socs,d=>d.name)
     loadStaff()
+  }
+  if(sec==='session'){
+    const {data:socs}=await client.from('societies').select('id,name')
+    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
+    fillSelect('session-society',socs,d=>d.name)
+    fillSelect('session-season',seas,d=>d.name)
+    loadSession()
+  }
+  if(sec==='attendance'){
+    const {data:sess}=await client.from('sessions').select('id,title')
+    const {data:ath}=await client.from('athletes').select('id,name,surname')
+    fillSelect('attendance-session',sess,d=>d.title)
+    fillSelect('attendance-athlete',ath,d=>d.surname+' '+d.name)
+    loadAttendance()
   }
 }
 </script>
