@@ -191,30 +191,48 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
   }
 })
   // funzione di login
-async function login(e){
-  e.preventDefault()
-  const username = document.getElementById('username').value.trim()
-  const password = document.getElementById('password').value
-  const email = username + '@sporttrackpro.it'
+async function login(e) {
+  e.preventDefault();
+  
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  // Costruzione email fittizia (assicurati che esistano nel database Auth)
+  const email = `${username}@sporttrackpro.it`;
 
-  const { error: authError } = await client.auth.signInWithPassword({ email, password })
-  if(authError) return alert('Credenziali errate: ' + authError.message)
+  // 1. Autenticazione
+  const { data: authData, error: authError } = await client.auth.signInWithPassword({ 
+    email, 
+    password 
+  });
 
+  if (authError) {
+    return alert('Credenziali errate: ' + authError.message);
+  }
+
+  // 2. Recupero profilo utente dalla tabella personalizzata 'users'
+  // Nota: authData.user.id contiene l'UUID di Supabase Auth
   const { data: userRow, error: userErr } = await client
     .from('users')
-    .select('id,username,name,role')
+    .select('id, username, name, role')
     .eq('username', username)
-    .single()
+    .single();
 
-  if(userErr || !userRow) return alert('Profilo non trovato')
+  if (userErr || !userRow) {
+    // Se l'autenticazione è avvenuta ma il profilo manca, 
+    // forse è meglio fare il logout per sicurezza
+    await client.auth.signOut();
+    return alert('Profilo utente non trovato nel database.');
+  }
 
-  CURRENT_USER = userRow
-  document.getElementById('login-wrap').style.display='none'
-  document.getElementById('app').style.display='block'
+  // 3. Stato Globale e UI
+  CURRENT_USER = userRow;
+  
+  document.getElementById('login-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
 
-  // Attendi che il token sia pronto, poi carica la dashboard
-  await client.auth.getSession()
-  loadSection('dashboard')
+  // 4. Caricamento sezione
+  // Ora che siamo loggati, le query dentro loadSection useranno il JWT dell'utente
+  loadSection('dashboard');
 }
 function logout(){ client.auth.signOut(); location.reload() }
 
