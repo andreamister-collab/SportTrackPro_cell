@@ -193,20 +193,21 @@ document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
 
 async function login(e){
   e.preventDefault()
-  const username=document.getElementById('username').value.trim()
-  const password=document.getElementById('password').value
+  const username = document.getElementById('username').value.trim()
+  const password = document.getElementById('password').value
   const email = username + '@sporttrackpro.it'
 
-  const { error: authError } = await client.auth.signInWithPassword({email,password})
-  if(authError) return alert(authError.message)
+  const { error: authError } = await client.auth.signInWithPassword({ email, password })
+  if(authError) return alert('Credenziali errate: ' + authError.message)
 
   const { data:userRow, error:userErr } = await client
     .from('users')
     .select('id,username,name,role')
-    .eq('username',username)
+    .eq('username', username)
     .single()
 
-  if(userErr || !userRow) return alert('Profilo non trovato')
+  if(userErr || !userRow) return alert('Profilo non trovato. Controlla che l’utente esista in tabella users e che l’id coincida con quello in Authentication.')
+
   CURRENT_USER = userRow
   document.getElementById('login-wrap').style.display='none'
   document.getElementById('app').style.display='block'
