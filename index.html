@@ -150,6 +150,11 @@
                 content.innerHTML = templateSocieta(); 
                 initSocieta(); 
                 break;
+				
+			case 'categoria': 
+                 content.innerHTML = templateCategoria(); 
+                 initCategoria(); 
+                 break;
             /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
             default: 
@@ -468,6 +473,114 @@ async function handleSocietaDelete(id) {
     if (confirm("Attenzione: eliminando la società perderai tutti i collegamenti a categorie e squadre. Procedere?")) {
         const { error } = await client.from('societies').delete().eq('id', id);
         if(!error) initSocieta(); else alert(error.message);
+    }
+}
+/* ============================================================
+   SEZIONE: CATEGORIA
+   ============================================================ */
+
+function templateCategoria() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE CATEGORIE</h2>
+            <button class="btn" id="btn-add-categoria">+ Nuova Categoria</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Categoria</th>
+                    <th>Società di Riferimento</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-categoria"></tbody>
+        </table>
+    </div>`;
+}
+
+async function initCategoria() {
+    // Recuperiamo categorie e la società a cui appartengono
+    const { data, error } = await client
+        .from('categories')
+        .select('*, societies(name)')
+        .order('name');
+
+    const tbody = document.getElementById('list-categoria');
+    if (error) { tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; return; }
+
+    tbody.innerHTML = data?.map(c => `
+        <tr>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.societies ? c.societies.name : 'Indipendente'}</td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-cat-edit" data-id="${c.id}" data-name="${c.name}" data-soc="${c.society_id}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-cat-delete" data-id="${c.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessuna categoria trovata.</td></tr>';
+
+    // Listener bottoni tabella
+    tbody.querySelectorAll('.btn-cat-edit').forEach(btn => {
+        btn.onclick = () => handleCategoriaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.soc);
+    });
+    tbody.querySelectorAll('.btn-cat-delete').forEach(btn => {
+        btn.onclick = () => handleCategoriaDelete(btn.dataset.id);
+    });
+
+    // Bottone Nuova Categoria
+    document.getElementById('btn-add-categoria').onclick = async () => {
+        // Carichiamo le società per la tendina
+        const { data: socList } = await client.from('societies').select('id, name').order('name');
+        const options = socList?.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '';
+
+        modal.open('Nuova Categoria', `
+            <label>Nome Categoria (es. Under 17)</label>
+            <input type="text" id="cat-name" placeholder="Inserisci nome...">
+            <label>Associa a Società</label>
+            <select id="cat-soc-id">
+                <option value="">-- Seleziona Società --</option>
+                ${options}
+            </select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('cat-name').value;
+            const society_id = document.getElementById('cat-soc-id').value;
+            if(!name || !society_id) return alert("Compila tutti i campi!");
+
+            await client.from('categories').insert({ name, society_id });
+            modal.close();
+            initCategoria();
+        };
+    };
+}
+async function handleCategoriaEdit(id, oldName, oldSocId) {
+    const { data: socList } = await client.from('societies').select('id, name').order('name');
+    const options = socList?.map(s => 
+        `<option value="${s.id}" ${s.id == oldSocId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+
+    modal.open('Modifica Categoria', `
+        <label>Nome Categoria</label>
+        <input type="text" id="up-cat-name" value="${oldName}">
+        <label>Società</label>
+        <select id="up-cat-soc-id">${options}</select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('up-cat-name').value;
+        const society_id = document.getElementById('up-cat-soc-id').value;
+        await client.from('categories').update({ name, society_id }).eq('id', id);
+        modal.close();
+        initCategoria();
+    };
+}
+
+async function handleCategoriaDelete(id) {
+    if (confirm("Eliminando la categoria potresti perdere i dati delle squadre collegate. Confermi?")) {
+        await client.from('categories').delete().eq('id', id);
+        initCategoria();
     }
 }
 </script>
