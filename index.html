@@ -3,868 +3,1395 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SportTrack Pro – Admin</title>
+<title>SportTrack Pro</title>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{
-    --bg:#f6f7fb;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;
-    --primary:#2563eb;--danger:#ef4444;--ok:#10b981;--sidebar:#1e2a44; --sidebar-active:#2d3e66;
-    --purple:#8b5cf6;--green:#10b981;--gold:#f59e0b;--teal:#14b8a6;--blue:#3b82f6;
-  }
-  *{box-sizing:border-box}
-  body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:var(--text);display:flex;height:100vh}
-  .sidebar{width:260px;background:var(--sidebar);color:#fff;display:flex;flex-direction:column;padding:16px 0;flex-shrink:0}
-  .sidebar .brand{display:flex;align-items:center;gap:10px;padding:0 16px 16px;border-bottom:1px solid #2d3e66}
-  .sidebar .brand img{width:32px;height:32px;border-radius:8px}
-  .sidebar button{background:none;border:none;color:#d1d5db;text-align:left;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
-  .sidebar button.active,.sidebar button:hover{background:var(--sidebar-active);color:#fff}
-  .main{flex:1;overflow:auto;padding:24px}
-  .container{max-width:1200px;margin:0 auto}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);overflow:hidden;margin-bottom:24px}
-  .card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
-  .card-header h2{margin:0;font-size:18px;display:flex;align-items:center;gap:10px}
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:14px 20px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
-  th{background:#f9fafb;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-  .badge{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
-  .badge.active{background:#dcfce7;color:#166534}
-  .badge.archived{background:#f3f4f6;color:#4b5563}
-  .badge-purple{background:#f3e8ff;color:#6b21a8}
-  .badge-green{background:#d1fae5;color:#065f46}
-  .badge-gold{background:#fef3c7;color:#92400e}
-  .badge-teal{background:#ccfbf1;color:#115e59}
-  .badge-blue{background:#dbeafe;color:#1e40af}
-  .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
-  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
-  .btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
-  .btn.ghost{background:transparent}
-  .form{padding:20px;border-top:1px solid var(--border)}
-  .form h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:16px}
-  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-  .form-group{display:flex;flex-direction:column;gap:6px}
-  .form-group label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
-  .form-group input,.form-group select{padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff}
-  #login-wrap{position:fixed;inset:0;background:linear-gradient(180deg,#0f1e3d,#1b2f5a);display:flex;align-items:center;justify-content:center}
-  #login-card{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:100%;max-width:420px;padding:32px}
-  #login-card .brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}
-  #login-card .brand img{width:48px;height:48px;border-radius:12px}
-  #login-card h2{margin:0;font-size:22px}
-  #login-card .sub{margin:4px 0 24px;color:var(--muted);font-size:14px}
-  #login-card label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase}
-  #login-card input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin:8px 0 16px}
-  #login-card .btn{width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-weight:600;font-size:15px;cursor:pointer}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-  .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-  .stat h3{margin:0;color:var(--muted);font-size:13px;text-transform:uppercase}
-  .stat .num{font-size:28px;font-weight:700;margin-top:6px}
-  .toolbar{display:flex;gap:10px;align-items:center}
-  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+/* ── TOKENS ─────────────────────────────────────────── */
+:root {
+  --bg:#f1f5f9; --card:#fff; --border:#e2e8f0;
+  --text:#0f172a; --muted:#64748b;
+  --sidebar:#1e293b; --sidebar-t:#94a3b8;
+  --accent:#2563eb; --accent-l:#eff6ff;
+  --green:#059669; --green-l:#d1fae5;
+  --gold:#d97706;  --gold-l:#fef3c7;
+  --red:#dc2626;   --red-l:#fee2e2;
+  --purple:#7c3aed;--purple-l:#ede9fe;
+  --radius:10px; --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.hidden{display:none!important}
+
+/* ── LOGIN ──────────────────────────────────────────── */
+.login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e293b,#0f172a)}
+.login-card{background:var(--card);border-radius:20px;padding:36px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{font-size:28px;font-weight:800;color:var(--accent);margin-bottom:8px}
+.login-sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+.login-card label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.login-card input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;margin-bottom:14px;outline:none;transition:border .2s}
+.login-card input:focus{border-color:var(--accent)}
+.btn-login{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.btn-login:disabled{opacity:.6;cursor:not-allowed}
+.login-err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+
+/* ── APP SHELL ──────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ────────────────────────────────────────── */
+.sidebar{width:240px;background:var(--sidebar);display:flex;flex-direction:column;padding:0;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{padding:22px 20px 14px;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;border-bottom:1px solid rgba(255,255,255,.07)}
+.sidebar-logo span{color:var(--accent)}
+.sidebar-user{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sidebar-user .uname{font-size:14px;font-weight:600;color:#fff}
+.sidebar-user .urole{font-size:12px;color:var(--sidebar-t);margin-top:2px;text-transform:capitalize}
+.nav-section{padding:10px 12px 4px;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.08em}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:var(--sidebar-t);text-align:left;cursor:pointer;border-radius:8px;font-size:14px;font-weight:500;transition:all .15s;margin:1px 0}
+.nav-btn:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-btn.active{background:var(--accent);color:#fff}
+.nav-btn .icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:12px}
+.btn-logout{width:100%;padding:10px 16px;background:none;border:1px solid rgba(255,255,255,.1);color:#fca5a5;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s}
+.btn-logout:hover{background:rgba(220,38,38,.15);border-color:#fca5a5}
+
+/* ── MAIN ───────────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;padding:28px;display:flex;flex-direction:column;gap:24px}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.page-sub{font-size:14px;color:var(--muted);margin-top:4px}
+
+/* ── STATS GRID ─────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.stat-card .s-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat-card .s-val{font-size:34px;font-weight:800;margin-top:6px;line-height:1}
+.stat-card .s-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-blue .s-val{color:var(--accent)}
+.stat-green .s-val{color:var(--green)}
+.stat-gold .s-val{color:var(--gold)}
+.stat-red .s-val{color:var(--red)}
+.stat-purple .s-val{color:var(--purple)}
+
+/* ── CARD ───────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.card-title{font-size:15px;font-weight:700}
+.card-body{padding:20px}
+
+/* ── TABLE ──────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:10px 14px;text-align:left;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;border-bottom:2px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+
+/* ── BADGES ─────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.badge-blue{background:var(--accent-l);color:var(--accent)}
+.badge-green{background:var(--green-l);color:var(--green)}
+.badge-gold{background:var(--gold-l);color:var(--gold)}
+.badge-red{background:var(--red-l);color:var(--red)}
+.badge-purple{background:var(--purple-l);color:var(--purple)}
+.badge-gray{background:#f1f5f9;color:#475569}
+
+/* ── BUTTONS ────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border)}
+.btn-ghost:hover{background:#f1f5f9;color:var(--text)}
+.btn-danger{background:var(--red-l);color:var(--red);border:1.5px solid #fecaca}
+.btn-danger:hover{background:#fecaca}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* ── FORMS ──────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.form-field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.form-field input,.form-field select,.form-field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;transition:border .2s;background:#fff}
+.form-field input:focus,.form-field select:focus{border-color:var(--accent)}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── MODAL ──────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;backdrop-filter:blur(2px)}
+.modal{background:#fff;border-radius:16px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:20px}
+.modal-actions{display:flex;gap:8px;margin-top:20px}
+
+/* ── HIERARCHY TREE ─────────────────────────────────── */
+.tree-node{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.tree-row{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s}
+.tree-row:hover{background:#f8fafc}
+.tree-icon{font-size:18px;width:28px;text-align:center;flex-shrink:0}
+.tree-name{font-weight:600;font-size:15px;flex:1}
+.tree-meta{font-size:12px;color:var(--muted)}
+.tree-children{padding:0 0 8px 44px;border-top:1px solid var(--border);background:#fafafa}
+.tree-child{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 0;border-bottom:1px dashed var(--border)}
+.tree-child:last-child{border-bottom:none}
+
+/* ── EMPTY STATE ────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty .e-icon{font-size:40px;margin-bottom:12px}
+.empty .e-text{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.empty .e-sub{font-size:13px}
+
+/* ── TOAST ──────────────────────────────────────────── */
+#toast-wrap{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{padding:12px 18px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:slideIn .25s ease}
+.toast-ok{background:var(--green)}
+.toast-err{background:var(--red)}
+.toast-warn{background:var(--gold)}
+@keyframes slideIn{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
+
+/* ── RESPONSIVE ─────────────────────────────────────── */
+@media(max-width:768px){
+  .sidebar{width:200px}
+  .main{padding:16px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="login-wrap">
-  <div id="login-card">
-    <div class="brand"><img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png"><div><strong>SportTrack</strong><span style="color:var(--primary)">Pro</span><div class="sub" style="margin:0;font-size:12px">Gestione Società Sportiva</div></div></div>
-    <h2>Accedi alla piattaforma</h2>
-    <div class="sub">Inserisci le credenziali per continuare</div>
-    <form onsubmit="login(event)">
-      <label>USERNAME</label><input id="username" type="text" placeholder="es. admin" required>
-      <label>PASSWORD</label><input id="password" type="password" placeholder="********" required>
-      <button class="btn" type="submit">Accedi →</button>
-    </form>
-  </div>
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login" class="login-wrap">
+  <form class="login-card" onsubmit="doLogin(event)">
+    <div class="login-logo">⚽ SportTrack</div>
+    <div class="login-sub">Gestione Società Sportiva</div>
+    <label>Username</label>
+    <input id="inp-user" placeholder="es. mario.rossi" autocomplete="username" required>
+    <label>Password</label>
+    <input id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" required>
+    <button type="submit" class="btn-login" id="btn-login">Entra</button>
+    <div class="login-err" id="login-err"></div>
+  </form>
 </div>
 
-<!-- APP -->
-<div class="main" id="app" style="display:none">
-<div class="container">
+<!-- ═══════════════ APP ═══════════════ -->
+<div id="app" class="app hidden">
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="brand"><img src="https://cdn-icons-png.flaticon.com/512/2702/2702131.png"><strong>SportTrack<span style="color:var(--primary)">Pro</span></strong></div>
-    <button data-sec="dashboard" class="active">📊 Dashboard</button>
-    <button data-sec="season">📅 Stagioni</button>
-    <button data-sec="sport">🏅 Sport</button>
-    <button data-sec="society">🏢 Società</button>
-    <button data-sec="category">🧩 Categorie</button>
-    <button data-sec="team">👥 Squadre</button>
-    <button data-sec="athlete">🏃 Atleti</button>
-    <button data-sec="staff">👨‍🏫 Staff</button>
-    <button data-sec="session">📋 Sessioni</button>
-    <button data-sec="attendance">✅ Presenze</button>
-    <button onclick="logout()">🚪 Esci</button>
-  </div>
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Sport<span>Track</span></div>
+    <div class="sidebar-user">
+      <div class="uname" id="sb-name">—</div>
+      <div class="urole" id="sb-role">—</div>
+    </div>
+    <div id="nav-items"></div>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">↩ Esci</button>
+    </div>
+  </nav>
 
-  <!-- DASHBOARD -->
-  <section id="sec-dashboard" class="card">
-    <div class="card-header"><h2>📊 Dashboard</h2></div>
-    <div class="stats">
-      <div class="stat"><h3>STAGIONI</h3><div class="num" id="stat-seasons">0</div></div>
-      <div class="stat"><h3>SOCIETÀ</h3><div class="num" id="stat-societies">0</div></div>
-      <div class="stat"><h3>ATLETI</h3><div class="num" id="stat-athletes">0</div></div>
-      <div class="stat"><h3>SESSIONI</h3><div class="num" id="stat-sessions">0</div></div>
-    </div>
-    <div class="card-header"><h2>Dettaglio rapido</h2></div>
-    <table id="tbl-dashboard"><thead><tr><th>Tipo</th><th>Nome</th><th>Stato</th></tr></thead><tbody><tr><td colspan="3">Caricamento...</td></tr></tbody></table>
-  </section>
-
-  <!-- STAGIONI -->
-  <section id="sec-season" class="card" style="display:none">
-    <div class="card-header">
-      <h2>📅 Stagioni Calcistiche</h2>
-      <div class="toolbar">
-        <select id="season-filter" onchange="loadSeason()"><option value="all">Tutte</option><option value="active">Solo attive</option></select>
-      </div>
-    </div>
-    <table id="tbl-season"><thead><tr><th>STAGIONE</th><th>STATO</th><th>ATLETI</th><th>SESSIONI</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-season">
-      <h3 id="season-form-title">＋ Nuova Stagione</h3>
-      <input type="hidden" id="season-id">
-      <div class="form-grid">
-        <div class="form-group"><label>ANNO INIZIO</label><input id="season-start" type="number" min="2000" max="2100" placeholder="2025"></div>
-        <div class="form-group"><label>ANNO FINE</label><input id="season-end" type="number" min="2000" max="2100" placeholder="2026"></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveSeason()">Salva Stagione</button>
-      <button class="btn ghost" onclick="resetSeasonForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- SPORT -->
-  <section id="sec-sport" class="card" style="display:none">
-    <div class="card-header"><h2>🏅 Sport</h2></div>
-    <table id="tbl-sport"><thead><tr><th>ID</th><th>NOME</th><th>ICONA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-sport">
-      <h3 id="sport-form-title">＋ Nuovo Sport</h3>
-      <input type="hidden" id="sport-id">
-      <div class="form-grid">
-        <div class="form-group"><label>NOME</label><input id="sport-name" placeholder="Calcio"></div>
-        <div class="form-group"><label>ICONA (emoji)</label><input id="sport-icon" placeholder="🏅"></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveSport()">Salva Sport</button>
-      <button class="btn ghost" onclick="resetSportForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- SOCIETÀ -->
-  <section id="sec-society" class="card" style="display:none">
-    <div class="card-header"><h2>🏢 Società</h2></div>
-    <table id="tbl-society"><thead><tr><th>ID</th><th>NOME</th><th>SPORT</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-society">
-      <h3 id="society-form-title">＋ Nuova Società</h3>
-      <input type="hidden" id="society-id">
-      <div class="form-grid">
-        <div class="form-group"><label>NOME</label><input id="society-name" placeholder="AC Milano"></div>
-        <div class="form-group"><label>SPORT</label><select id="society-sport"><option value="">Seleziona sport</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveSociety()">Salva Società</button>
-      <button class="btn ghost" onclick="resetSocietyForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- CATEGORIE -->
-  <section id="sec-category" class="card" style="display:none">
-    <div class="card-header"><h2>🧩 Categorie</h2></div>
-    <table id="tbl-category"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="4">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-category">
-      <h3 id="category-form-title">＋ Nuova Categoria</h3>
-      <input type="hidden" id="category-id">
-      <div class="form-grid">
-        <div class="form-group"><label>NOME</label><input id="category-name" placeholder="Under 14"></div>
-        <div class="form-group"><label>SOCIETÀ</label><select id="category-society"><option value="">Seleziona società</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveCategory()">Salva Categoria</button>
-      <button class="btn ghost" onclick="resetCategoryForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- SQUADRE -->
-  <section id="sec-team" class="card" style="display:none">
-    <div class="card-header"><h2>👥 Squadre</h2></div>
-    <table id="tbl-team"><thead><tr><th>ID</th><th>NOME</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-team">
-      <h3 id="team-form-title">＋ Nuova Squadra</h3>
-      <input type="hidden" id="team-id">
-      <div class="form-grid">
-        <div class="form-group"><label>NOME</label><input id="team-name" placeholder="Under 14 A"></div>
-        <div class="form-group"><label>SOCIETÀ</label><select id="team-society"><option value="">Seleziona società</option></select></div>
-        <div class="form-group"><label>CATEGORIA</label><select id="team-category"><option value="">Seleziona categoria</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveTeam()">Salva Squadra</button>
-      <button class="btn ghost" onclick="resetTeamForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- ATLETI -->
-  <section id="sec-athlete" class="card" style="display:none">
-    <div class="card-header"><h2>🏃 Atleti</h2></div>
-    <table id="tbl-athlete"><thead><tr><th>ID</th><th>NOME</th><th>COGNOME</th><th>NASCITA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="9">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-athlete">
-      <h3 id="athlete-form-title">＋ Nuovo Atleta</h3>
-      <input type="hidden" id="athlete-id">
-      <div class="form-grid">
-        <div class="form-group"><label>NOME</label><input id="athlete-name" placeholder="Mario"></div>
-        <div class="form-group"><label>COGNOME</label><input id="athlete-surname" placeholder="Rossi"></div>
-        <div class="form-group"><label>DATA NASCITA</label><input id="athlete-born" type="date"></div>
-        <div class="form-group"><label>SOCIETÀ</label><select id="athlete-society"><option value="">Seleziona società</option></select></div>
-        <div class="form-group"><label>CATEGORIA</label><select id="athlete-category"><option value="">Seleziona categoria</option></select></div>
-        <div class="form-group"><label>SQUADRA</label><select id="athlete-team"><option value="">Seleziona squadra</option></select></div>
-        <div class="form-group"><label>STAGIONE</label><select id="athlete-season"><option value="">Seleziona stagione</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveAthlete()">Salva Atleta</button>
-      <button class="btn ghost" onclick="resetAthleteForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- STAFF -->
-  <section id="sec-staff" class="card" style="display:none">
-    <div class="card-header"><h2>👨‍🏫 Staff & Utenti del Sistema</h2></div>
-    <div class="form" style="border-bottom:1px solid var(--border);margin-bottom:0">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <b>Ruoli e visibilità:</b>
-        <span class="badge badge-blue">🔑 Admin — vede tutto</span>
-        <span class="badge badge-purple">⭐ Responsabile — tutte le sue squadre</span>
-        <span class="badge badge-green">🏛️ Dirigente — le sue categorie</span>
-        <span class="badge badge-gold">⚽ Allenatore — solo le sue categorie</span>
-        <span class="badge badge-teal">🩺 Professionista — solo lettura</span>
-      </div>
-    </div>
-    <table id="tbl-staff"><thead><tr><th>ID</th><th>UTENTE</th><th>RUOLO</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-staff">
-      <h3 id="staff-form-title">＋ Assegna Ruolo</h3>
-      <input type="hidden" id="staff-id">
-      <div class="form-grid">
-        <div class="form-group"><label>UTENTE</label><select id="staff-user"><option value="">Seleziona utente</option></select></div>
-        <div class="form-group"><label>RUOLO</label><select id="staff-role"><option value="">Seleziona ruolo</option><option value="allenatore">Allenatore</option><option value="responsabile">Responsabile</option><option value="presidente">Presidente</option><option value="dirigente">Dirigente</option><option value="segretario">Segretario</option><option value="professionista">Professionista</option></select></div>
-        <div class="form-group"><label>SOCIETÀ</label><select id="staff-society"><option value="">Seleziona società</option></select></div>
-        <div class="form-group"><label>CATEGORIA</label><select id="staff-category"><option value="">Seleziona categoria</option></select></div>
-        <div class="form-group"><label>SQUADRA</label><select id="staff-team"><option value="">Seleziona squadra</option></select></div>
-        <div class="form-group"><label>STAGIONE</label><select id="staff-season"><option value="">Seleziona stagione</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveStaff()">Salva Ruolo</button>
-      <button class="btn ghost" onclick="resetStaffForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- SESSIONI -->
-  <section id="sec-session" class="card" style="display:none">
-    <div class="card-header"><h2>📋 Sessioni Allenamento</h2></div>
-    <table id="tbl-session"><thead><tr><th>ID</th><th>TITOLO</th><th>DATA</th><th>SOCIETÀ</th><th>CATEGORIA</th><th>SQUADRA</th><th>STAGIONE</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="8">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-session">
-      <h3 id="session-form-title">＋ Nuova Sessione</h3>
-      <input type="hidden" id="session-id">
-      <div class="form-grid">
-        <div class="form-group"><label>TITOLO</label><input id="session-title" placeholder="Allenamento tecnico"></div>
-        <div class="form-group"><label>DATA</label><input id="session-date" type="date"></div>
-        <div class="form-group"><label>SOCIETÀ</label><select id="session-society"><option value="">Seleziona società</option></select></div>
-        <div class="form-group"><label>CATEGORIA</label><select id="session-category"><option value="">Seleziona categoria</option></select></div>
-        <div class="form-group"><label>SQUADRA</label><select id="session-team"><option value="">Seleziona squadra</option></select></div>
-        <div class="form-group"><label>STAGIONE</label><select id="session-season"><option value="">Seleziona stagione</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveSession()">Salva Sessione</button>
-      <button class="btn ghost" onclick="resetSessionForm()">Annulla</button>
-    </div>
-  </section>
-
-  <!-- PRESENZE -->
-  <section id="sec-attendance" class="card" style="display:none">
-    <div class="card-header"><h2>✅ Presenze</h2></div>
-    <table id="tbl-attendance"><thead><tr><th>ID</th><th>SESSIONE</th><th>ATLETA</th><th>STATO</th><th>AZIONI</th></tr></thead><tbody><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
-    <div class="form" id="form-attendance">
-      <h3 id="attendance-form-title">＋ Nuova Presenza</h3>
-      <input type="hidden" id="attendance-id">
-      <div class="form-grid">
-        <div class="form-group"><label>SESSIONE</label><select id="attendance-session"><option value="">Seleziona sessione</option></select></div>
-        <div class="form-group"><label>ATLETA</label><select id="attendance-athlete"><option value="">Seleziona atleta</option></select></div>
-        <div class="form-group"><label>STATO</label><select id="attendance-status"><option value="presente">Presente</option><option value="assente">Assente</option><option value="infortunato">Infortunato</option></select></div>
-      </div>
-      <button class="btn primary" style="margin-top:16px" onclick="saveAttendance()">Salva Presenza</button>
-      <button class="btn ghost" onclick="resetAttendanceForm()">Annulla</button>
-    </div>
-  </section>
-
+  <!-- MAIN CONTENT -->
+  <main class="main" id="main-content">
+    <!-- rendered dynamically -->
+  </main>
 </div>
-</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-wrap"></div>
+<!-- TOAST CONTAINER -->
+<div id="toast-wrap"></div>
 
 <script>
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-let CURRENT_USER = null
+'use strict'
 
-/* NAVIGAZIONE */
-document.querySelectorAll('.sidebar button[data-sec]').forEach(btn=>{
-  btn.onclick=()=>{
-    document.querySelectorAll('.sidebar button[data-sec]').forEach(b=>b.classList.remove('active'))
-    btn.classList.add('active')
-    document.querySelectorAll('.main section').forEach(s=>s.style.display='none')
-    document.getElementById('sec-'+btn.dataset.sec).style.display='block'
-    loadSection(btn.dataset.sec)
-  }
+/* ═══════════════════════════════════════════════════════
+   SUPABASE CLIENT
+═══════════════════════════════════════════════════════ */
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 })
 
-/* LOGIN */
-async function login(e){
+/* ═══════════════════════════════════════════════════════
+   RUOLI — permessi per ogni sezione
+   admin     → tutto
+   manager   → vede tutto, modifica la propria società
+   coach     → vede le proprie categorie/squadre/sessioni
+   user      → sola lettura sulle proprie strutture
+═══════════════════════════════════════════════════════ */
+const ROLES = {
+  admin:   { label:'Amministratore', color:'badge-purple', canAdmin:true,  canEdit:true,  canView:true  },
+  manager: { label:'Manager',        color:'badge-blue',   canAdmin:false, canEdit:true,  canView:true  },
+  coach:   { label:'Allenatore',     color:'badge-green',  canAdmin:false, canEdit:false, canView:true  },
+  user:    { label:'Utente',         color:'badge-gray',   canAdmin:false, canEdit:false, canView:true  },
+}
+const roleInfo = (r) => ROLES[r] || ROLES.user
+
+/* ═══════════════════════════════════════════════════════
+   STATO GLOBALE
+═══════════════════════════════════════════════════════ */
+let USER     = null   // profilo utente corrente
+let UCS      = []     // user_category_seasons dell'utente
+let currentSection = ''
+
+/* ═══════════════════════════════════════════════════════
+   INIT — auto-restore sessione al caricamento pagina
+═══════════════════════════════════════════════════════ */
+;(async () => {
+  try {
+    const { data: { session }, error } = await db.auth.getSession()
+    if (error || !session) {
+      if (error) {
+        try { await db.auth.signOut({ scope:'local' }) } catch(_) {}
+      }
+      return
+    }
+    await _loadProfile(session.user.id)
+  } catch(e) {
+    console.warn('[AutoRestore]', e.message)
+    try { await db.auth.signOut({ scope:'local' }) } catch(_) {}
+  }
+})()
+
+async function _loadProfile(uid) {
+  const { data, error } = await db
+    .from('users')
+    .select('id, email, username, name, role')
+    .eq('id', uid)
+    .maybeSingle()
+  if (error || !data) return
+  USER = data
+  // Carica assegnazioni categoria/stagione dell'utente
+  const { data: ucs } = await db
+    .from('user_category_seasons')
+    .select('*')
+    .eq('user_id', uid)
+  UCS = ucs || []
+  showApp()
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════ */
+async function doLogin(e) {
   e.preventDefault()
-  const username=document.getElementById('username').value.trim()
-  const password=document.getElementById('password').value
-  const email = username + '@sporttrackpro.it'
+  const errEl = document.getElementById('login-err')
+  const btn   = document.getElementById('btn-login')
+  errEl.textContent = ''
+  btn.disabled = true
+  btn.textContent = 'Accesso in corso...'
 
-  const { data:userRow, error:userErr } = await client.from('users').select('id,username,name,role').eq('username',username).single()
-  if(userErr || !userRow) return alert('Username non trovato')
+  const username = document.getElementById('inp-user').value.trim()
+  const password = document.getElementById('inp-pass').value
 
-  const { error } = await client.auth.signInWithPassword({email,password})
-  if(error) return alert(error.message)
+  try {
+    // 1 — trova email da username
+    const { data: row, error: rowErr } = await db
+      .from('users')
+      .select('id, email, username, name, role')
+      .ilike('username', username)
+      .maybeSingle()
 
-  CURRENT_USER = userRow
-  document.getElementById('login-wrap').style.display='none'
-  document.getElementById('app').style.display='block'
-  loadSection('dashboard')
-}
+    if (rowErr)  { errEl.textContent = 'Errore database: ' + rowErr.message; return }
+    if (!row)    { errEl.textContent = 'Username non trovato'; return }
+    if (!row.email) { errEl.textContent = 'Email non configurata per questo account'; return }
 
-function logout(){ client.auth.signOut(); location.reload() }
+    // 2 — autentica
+    const { data: auth, error: authErr } = await db.auth.signInWithPassword({
+      email: row.email, password
+    })
+    if (authErr) {
+      let msg = authErr.message
+      if (msg.includes('Invalid login'))       msg = 'Password errata'
+      if (msg.includes('Email not confirmed')) msg = 'Email non confermata'
+      if (msg.includes('Too many requests'))   msg = 'Troppi tentativi — riprova tra qualche minuto'
+      errEl.textContent = msg
+      return
+    }
 
-/* UTIL */
-function fillSelect(id,data,labelFn){
-  const sel=document.getElementById(id)
-  sel.innerHTML='<option value="">Seleziona</option>'+(data||[]).map(d=>`<option value="${d.id}">${labelFn?labelFn(d):d.name}</option>`).join('')
-}
+    USER = row
+    // Carica UCS
+    const { data: ucs } = await db.from('user_category_seasons').select('*').eq('user_id', row.id)
+    UCS = ucs || []
+    showApp()
 
-/* ===== DASHBOARD ===== */
-async function loadDashboard(){
-  const {count:seas}=await client.from('seasons').select('id',{count:'exact',head:true})
-  const {count:socs}=await client.from('societies').select('id',{count:'exact',head:true})
-  const {count:ath}=await client.from('athletes').select('id',{count:'exact',head:true})
-  const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true})
-  document.getElementById('stat-seasons').textContent=seas||0
-  document.getElementById('stat-societies').textContent=socs||0
-  document.getElementById('stat-athletes').textContent=ath||0
-  document.getElementById('stat-sessions').textContent=sess||0
-
-  const {data}=await client.from('seasons').select('id,name,is_active').order('name',{ascending:false}).limit(5)
-  document.querySelector('#tbl-dashboard tbody').innerHTML=(data||[]).map(s=>`<tr><td>Stagione</td><td>${s.name}</td><td>${s.is_active?'Attiva':'Archivio'}</td></tr>`).join('')||'<tr><td colspan="3">Nessun dato</td></tr>'
-}
-
-/* ===== STAGIONI ===== */
-async function loadSeason(){
-  const filter=document.getElementById('season-filter').value
-  let q=client.from('seasons').select('id,name,is_active,start_date,end_date').order('name',{ascending:false})
-  if(filter==='active') q=q.eq('is_active',true)
-  const {data,error}=await q
-  if(error){ alert(error.message); return }
-  const tbody=document.querySelector('#tbl-season tbody')
-  tbody.innerHTML=''
-  for(const s of data){
-    const {count:atleti}=await client.from('athletes').select('id',{count:'exact',head:true}).eq('season_id',s.id)
-    const {count:sess}=await client.from('sessions').select('id',{count:'exact',head:true}).eq('season_id',s.id)
-    tbody.innerHTML+=`
-      <tr>
-        <td><b>${s.name}</b></td>
-        <td>${s.is_active?'<span class="badge active">★ Attiva</span>':'<span class="badge archived">Archivio</span>'}</td>
-        <td>${atleti||0}</td>
-        <td>${sess||0}</td>
-        <td class="actions">
-          ${!s.is_active?`<button class="btn" onclick="setSeasonActive('${s.id}')">Imposta Attiva</button>`:''}
-          <button class="btn ghost" onclick="editSeason('${s.id}',${s.start_date?.slice(0,4)},${s.end_date?.slice(0,4)})">✏️</button>
-          ${CURRENT_USER.role==='admin'?`<button class="btn danger" onclick="deleteSeason('${s.id}')">🗑️</button>`:''}
-        </td>
-      </tr>`
-  }
-}
-function editSeason(id,start,end){
-  document.getElementById('season-id').value=id
-  document.getElementById('season-start').value=start
-  document.getElementById('season-end').value=end
-  document.getElementById('season-form-title').textContent='✏️ Modifica Stagione'
-}
-function resetSeasonForm(){
-  document.getElementById('season-id').value=''
-  document.getElementById('season-start').value=''
-  document.getElementById('season-end').value=''
-  document.getElementById('season-form-title').textContent='＋ Nuova Stagione'
-}
-async function saveSeason(){
-  const id=document.getElementById('season-id').value
-  const start_year=parseInt(document.getElementById('season-start').value)
-  const end_year=parseInt(document.getElementById('season-end').value)
-  if(!start_year||!end_year||end_year<=start_year) return alert('Anno fine deve essere maggiore di anno inizio')
-  const name = `${start_year}/${end_year}`
-  const {error}= id
-    ? await client.from('seasons').update({name,start_date:`${start_year}-08-01`,end_date:`${end_year}-07-31`}).eq('id',id)
-    : await client.from('seasons').insert({name,start_date:`${start_year}-08-01`,end_date:`${end_year}-07-31`,is_active:false})
-  if(error) return alert(error.message)
-  resetSeasonForm()
-  loadSeason()
-}
-async function setSeasonActive(id){
-  await client.from('seasons').update({is_active:false}).neq('id',id)
-  await client.from('seasons').update({is_active:true}).eq('id',id)
-  loadSeason()
-}
-async function deleteSeason(id){
-  if(CURRENT_USER.role!=='admin') return alert('Solo admin può eliminare')
-  if(!confirm('Eliminare la stagione?')) return
-  await client.from('seasons').delete().eq('id',id)
-  loadSeason()
-}
-
-/* ===== SPORT (CRUD) ===== */
-async function loadSport(){
-  const {data,error}=await client.from('sports').select('id,name,icon').order('name')
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-sport tbody').innerHTML=data.map(s=>`
-    <tr><td>${s.id}</td><td>${s.name}</td><td>${s.icon||''}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editSport('${s.id}','${s.name}','${s.icon||''}')">✏️</button>
-      <button class="btn danger" onclick="deleteSport('${s.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editSport(id,name,icon){
-  document.getElementById('sport-id').value=id
-  document.getElementById('sport-name').value=name
-  document.getElementById('sport-icon').value=icon
-  document.getElementById('sport-form-title').textContent='✏️ Modifica Sport'
-}
-function resetSportForm(){
-  document.getElementById('sport-id').value=''
-  document.getElementById('sport-name').value=''
-  document.getElementById('sport-icon').value=''
-  document.getElementById('sport-form-title').textContent='＋ Nuovo Sport'
-}
-async function saveSport(){
-  const id=document.getElementById('sport-id').value
-  const name=document.getElementById('sport-name').value.trim()
-  const icon=document.getElementById('sport-icon').value.trim()
-  if(!name) return alert('Nome obbligatorio')
-  const {error}= id
-    ? await client.from('sports').update({name,icon}).eq('id',id)
-    : await client.from('sports').insert({name,icon})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetSportForm()
-  loadSport()
-}
-async function deleteSport(id){
-  if(!confirm('Eliminare lo sport?')) return
-  const {error}=await client.from('sports').delete().eq('id',id)
-  if(error) return alert(error.message)
-  loadSport()
-}
-
-/* ===== SOCIETÀ (CRUD) ===== */
-async function loadSociety(){
-  const {data,error}=await client.from('societies').select('id,name,sport_id,sports(name)').order('name')
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-society tbody').innerHTML=data.map(s=>`
-    <tr><td>${s.id}</td><td>${s.name}</td><td>${s.sports?.name||'—'}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editSociety('${s.id}','${s.name}','${s.sport_id}')">✏️</button>
-      <button class="btn danger" onclick="deleteSociety('${s.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editSociety(id,name,sport_id){
-  document.getElementById('society-id').value=id
-  document.getElementById('society-name').value=name
-  document.getElementById('society-sport').value=sport_id
-  document.getElementById('society-form-title').textContent='✏️ Modifica Società'
-}
-function resetSocietyForm(){
-  document.getElementById('society-id').value=''
-  document.getElementById('society-name').value=''
-  document.getElementById('society-sport').value=''
-  document.getElementById('society-form-title').textContent='＋ Nuova Società'
-}
-async function saveSociety(){
-  const id=document.getElementById('society-id').value
-  const name=document.getElementById('society-name').value.trim()
-  const sport_id=document.getElementById('society-sport').value
-  if(!name||!sport_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('societies').update({name,sport_id}).eq('id',id)
-    : await client.from('societies').insert({name,sport_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetSocietyForm()
-  loadSociety()
-}
-async function deleteSociety(id){
-  if(!confirm('Eliminare la società?')) return
-  const {error}=await client.from('societies').delete().eq('id',id)
-  if(error) return alert(error.message)
-  loadSociety()
-}
-
-/* ===== CATEGORIE (CRUD) ===== */
-async function loadCategory(){
-  const {data,error}=await client.from('categories').select('id,name,society_id,societies(name)').order('name')
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-category tbody').innerHTML=data.map(c=>`
-    <tr><td>${c.id}</td><td>${c.name}</td><td>${c.societies?.name||'—'}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editCategory('${c.id}','${c.name}','${c.society_id}')">✏️</button>
-      <button class="btn danger" onclick="deleteCategory('${c.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editCategory(id,name,society_id){
-  document.getElementById('category-id').value=id
-  document.getElementById('category-name').value=name
-  document.getElementById('category-society').value=society_id
-  document.getElementById('category-form-title').textContent='✏️ Modifica Categoria'
-}
-function resetCategoryForm(){
-  document.getElementById('category-id').value=''
-  document.getElementById('category-name').value=''
-  document.getElementById('category-society').value=''
-  document.getElementById('category-form-title').textContent='＋ Nuova Categoria'
-}
-async function saveCategory(){
-  const id=document.getElementById('category-id').value
-  const name=document.getElementById('category-name').value.trim()
-  const society_id=document.getElementById('category-society').value
-  if(!name||!society_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('categories').update({name,society_id}).eq('id',id)
-    : await client.from('categories').insert({name,society_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetCategoryForm()
-  loadCategory()
-}
-async function deleteCategory(id){
-  if(!['admin','responsabile'].includes(CURRENT_USER.role)) return alert('Non autorizzato')
-  if(!confirm('Eliminare la categoria?')) return
-  await client.from('categories').delete().eq('id',id)
-  loadCategory()
-}
-
-/* ===== SQUADRE (CRUD) ===== */
-async function loadTeam(){
-  const {data,error}=await client.from('teams').select('id,name,society_id,category_id,societies(name),categories(name)').order('name')
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-team tbody').innerHTML=data.map(t=>`
-    <tr><td>${t.id}</td><td>${t.name}</td><td>${t.societies?.name||'—'}</td><td>${t.categories?.name||'—'}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editTeam('${t.id}','${t.name}','${t.society_id}','${t.category_id}')">✏️</button>
-      <button class="btn danger" onclick="deleteTeam('${t.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editTeam(id,name,society_id,category_id){
-  document.getElementById('team-id').value=id
-  document.getElementById('team-name').value=name
-  document.getElementById('team-society').value=society_id
-  client.from('categories').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('team-category',data,d=>d.name))
-  setTimeout(()=>document.getElementById('team-category').value=category_id,200)
-  document.getElementById('team-form-title').textContent='✏️ Modifica Squadra'
-}
-function resetTeamForm(){
-  document.getElementById('team-id').value=''
-  document.getElementById('team-name').value=''
-  document.getElementById('team-society').value=''
-  document.getElementById('team-category').value=''
-  document.getElementById('team-form-title').textContent='＋ Nuova Squadra'
-}
-async function saveTeam(){
-  const id=document.getElementById('team-id').value
-  const name=document.getElementById('team-name').value.trim()
-  const society_id=document.getElementById('team-society').value
-  const category_id=document.getElementById('team-category').value
-  if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('teams').update({name,society_id,category_id}).eq('id',id)
-    : await client.from('teams').insert({name,society_id,category_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetTeamForm()
-  loadTeam()
-}
-async function deleteTeam(id){
-  if(!['admin','responsabile'].includes(CURRENT_USER.role)) return alert('Non autorizzato')
-  if(!confirm('Eliminare la squadra?')) return
-  await client.from('teams').delete().eq('id',id)
-  loadTeam()
-}
-
-/* ===== ATLETI (CRUD) ===== */
-async function loadAthlete(){
-  const {data,error}=await client.from('athletes')
-    .select('id,name,surname,born_date,society_id,category_id,team_id,season_id,societies(name),categories(name),teams(name),seasons(name)')
-    .order('surname',{ascending:true})
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-athlete tbody').innerHTML=data.map(a=>`
-    <tr><td>${a.id}</td><td>${a.name}</td><td>${a.surname}</td><td>${a.born_date||'—'}</td>
-    <td>${a.societies?.name||'—'}</td><td>${a.categories?.name||'—'}</td><td>${a.teams?.name||'—'}</td><td>${a.seasons?.name||'—'}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editAthlete('${a.id}','${a.name}','${a.surname}','${a.born_date||''}','${a.society_id}','${a.category_id}','${a.team_id}','${a.season_id}')">✏️</button>
-      <button class="btn danger" onclick="deleteAthlete('${a.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editAthlete(id,name,surname,born_date,society_id,category_id,team_id,season_id){
-  document.getElementById('athlete-id').value=id
-  document.getElementById('athlete-name').value=name
-  document.getElementById('athlete-surname').value=surname
-  document.getElementById('athlete-born').value=born_date
-  document.getElementById('athlete-society').value=society_id
-  client.from('categories').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('athlete-category',data,d=>d.name))
-  client.from('teams').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('athlete-team',data,d=>d.name))
-  setTimeout(()=>{
-    document.getElementById('athlete-category').value=category_id
-    document.getElementById('athlete-team').value=team_id
-    document.getElementById('athlete-season').value=season_id
-  },200)
-  document.getElementById('athlete-form-title').textContent='✏️ Modifica Atleta'
-}
-function resetAthleteForm(){
-  document.getElementById('athlete-id').value=''
-  ['athlete-name','athlete-surname','athlete-born','athlete-society','athlete-category','athlete-team','athlete-season'].forEach(id=>document.getElementById(id).value='')
-  document.getElementById('athlete-form-title').textContent='＋ Nuovo Atleta'
-}
-async function saveAthlete(){
-  const id=document.getElementById('athlete-id').value
-  const name=document.getElementById('athlete-name').value.trim()
-  const surname=document.getElementById('athlete-surname').value.trim()
-  const born_date=document.getElementById('athlete-born').value
-  const society_id=document.getElementById('athlete-society').value
-  const category_id=document.getElementById('athlete-category').value
-  const team_id=document.getElementById('athlete-team').value
-  const season_id=document.getElementById('athlete-season').value
-  if(!name||!surname||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('athletes').update({name,surname,born_date,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('athletes').insert({name,surname,born_date,society_id,category_id,team_id,season_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetAthleteForm()
-  loadAthlete()
-}
-async function deleteAthlete(id){
-  if(!confirm('Eliminare l\'atleta?')) return
-  await client.from('athletes').delete().eq('id',id)
-  loadAthlete()
-}
-
-/* ===== STAFF (CRUD) ===== */
-async function loadStaff(){
-  const {data,error}=await client.from('user_category_seasons')
-    .select('id,user_id,season_id,society_id,category_id,team_id,role,users(name,role),seasons(name),societies(name),categories(name),teams(name)')
-    .order('id',{ascending:false})
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-staff tbody').innerHTML=data.map(s=>{
-    const roleBadge = {responsabile:'badge-purple',dirigente:'badge-green',allenatore:'badge-gold',professionista:'badge-teal'}[s.role]||'badge'
-    return `<tr><td>${s.id}</td><td>${s.users?.name}</td><td><span class="badge ${roleBadge}">${s.role}</span></td><td>${s.societies?.name||''}</td><td>${s.categories?.name||''}</td><td>${s.teams?.name||''}</td><td>${s.seasons?.name||''}</td>
-    <td class="actions">${(CURRENT_USER.role==='admin'||CURRENT_USER.role==='responsabile')?`<button class="btn danger" onclick="deleteStaff('${s.id}')">🗑️</button>`:''}</td></tr>`
-  }).join('')
-}
-function resetStaffForm(){
-  document.getElementById('staff-id').value=''
-  ['staff-user','staff-role','staff-society','staff-category','staff-team','staff-season'].forEach(id=>document.getElementById(id).value='')
-  document.getElementById('staff-form-title').textContent='＋ Assegna Ruolo'
-}
-async function saveStaff(){
-  const id=document.getElementById('staff-id').value
-  const user_id=document.getElementById('staff-user').value
-  const role=document.getElementById('staff-role').value
-  const society_id=document.getElementById('staff-society').value
-  const category_id=document.getElementById('staff-category').value
-  const team_id=document.getElementById('staff-team').value
-  const season_id=document.getElementById('staff-season').value
-  if(!user_id||!role||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('user_category_seasons').update({user_id,role,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('user_category_seasons').insert({user_id,role,society_id,category_id,team_id,season_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetStaffForm()
-  loadStaff()
-}
-async function deleteStaff(id){
-  if(!['admin','responsabile'].includes(CURRENT_USER.role)) return alert('Non autorizzato')
-  if(!confirm('Rimuovere il membro staff?')) return
-  await client.from('user_category_seasons').delete().eq('id',id)
-  loadStaff()
-}
-
-/* ===== SESSIONI (CRUD) ===== */
-async function loadSession(){
-  const {data,error}=await client.from('sessions')
-    .select('id,title,session_date,season_id,society_id,category_id,team_id,seasons(name),societies(name),categories(name),teams(name)')
-    .order('session_date',{ascending:false})
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-session tbody').innerHTML=data.map(s=>`
-    <tr><td>${s.id}</td><td>${s.title}</td><td>${s.session_date}</td><td>${s.societies?.name||'—'}</td><td>${s.categories?.name||'—'}</td><td>${s.teams?.name||'—'}</td><td>${s.seasons?.name||'—'}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editSession('${s.id}','${s.title}','${s.session_date}','${s.society_id}','${s.category_id}','${s.team_id}','${s.season_id}')">✏️</button>
-      <button class="btn danger" onclick="deleteSession('${s.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editSession(id,title,session_date,society_id,category_id,team_id,season_id){
-  document.getElementById('session-id').value=id
-  document.getElementById('session-title').value=title
-  document.getElementById('session-date').value=session_date
-  document.getElementById('session-society').value=society_id
-  client.from('categories').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('session-category',data,d=>d.name))
-  client.from('teams').select('id,name').eq('society_id',society_id).then(({data})=>fillSelect('session-team',data,d=>d.name))
-  setTimeout(()=>{
-    document.getElementById('session-category').value=category_id
-    document.getElementById('session-team').value=team_id
-    document.getElementById('session-season').value=season_id
-  },200)
-  document.getElementById('session-form-title').textContent='✏️ Modifica Sessione'
-}
-function resetSessionForm(){
-  document.getElementById('session-id').value=''
-  ['session-title','session-date','session-society','session-category','session-team','session-season'].forEach(id=>document.getElementById(id).value='')
-  document.getElementById('session-form-title').textContent='＋ Nuova Sessione'
-}
-async function saveSession(){
-  const id=document.getElementById('session-id').value
-  const title=document.getElementById('session-title').value.trim()
-  const session_date=document.getElementById('session-date').value
-  const society_id=document.getElementById('session-society').value
-  const category_id=document.getElementById('session-category').value
-  const team_id=document.getElementById('session-team').value
-  const season_id=document.getElementById('session-season').value
-  if(!title||!session_date||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('sessions').update({title,session_date,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('sessions').insert({title,session_date,society_id,category_id,team_id,season_id})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetSessionForm()
-  loadSession()
-}
-async function deleteSession(id){
-  if(!confirm('Eliminare la sessione?')) return
-  await client.from('sessions').delete().eq('id',id)
-  loadSession()
-}
-
-/* ===== PRESENZE (CRUD) ===== */
-async function loadAttendance(){
-  const {data,error}=await client.from('attendances')
-    .select('id,session_id,athlete_id,status,sessions(title),athletes(name,surname)')
-    .order('id',{ascending:false})
-  if(error){ alert(error.message); return }
-  document.querySelector('#tbl-attendance tbody').innerHTML=data.map(a=>`
-    <tr><td>${a.id}</td><td>${a.sessions?.title||'—'}</td><td>${a.athletes?.surname} ${a.athletes?.name}</td><td>${a.status}</td>
-    <td class="actions">
-      <button class="btn ghost" onclick="editAttendance('${a.id}','${a.session_id}','${a.athlete_id}','${a.status}')">✏️</button>
-      <button class="btn danger" onclick="deleteAttendance('${a.id}')">🗑️</button>
-    </td></tr>`).join('')
-}
-function editAttendance(id,session_id,athlete_id,status){
-  document.getElementById('attendance-id').value=id
-  document.getElementById('attendance-session').value=session_id
-  document.getElementById('attendance-athlete').value=athlete_id
-  document.getElementById('attendance-status').value=status
-  document.getElementById('attendance-form-title').textContent='✏️ Modifica Presenza'
-}
-function resetAttendanceForm(){
-  document.getElementById('attendance-id').value=''
-  document.getElementById('attendance-session').value=''
-  document.getElementById('attendance-athlete').value=''
-  document.getElementById('attendance-status').value='presente'
-  document.getElementById('attendance-form-title').textContent='＋ Nuova Presenza'
-}
-async function saveAttendance(){
-  const id=document.getElementById('attendance-id').value
-  const session_id=document.getElementById('attendance-session').value
-  const athlete_id=document.getElementById('attendance-athlete').value
-  const status=document.getElementById('attendance-status').value
-  if(!session_id||!athlete_id) return alert('Compila tutti i campi')
-  const {error}= id
-    ? await client.from('attendances').update({session_id,athlete_id,status}).eq('id',id)
-    : await client.from('attendances').insert({session_id,athlete_id,status})   // <-- NIENTE id
-  if(error) return alert(error.message)
-  resetAttendanceForm()
-  loadAttendance()
-}
-
-/* POPOLA SELECT DIPENDENTI */
-document.getElementById('team-society').onchange=async e=>{
-  const {data}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('team-category',data,d=>d.name)
-}
-document.getElementById('athlete-society').onchange=async e=>{
-  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('athlete-category',cat,d=>d.name)
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('athlete-team',team,d=>d.name)
-}
-document.getElementById('athlete-category').onchange=async e=>{
-  const society_id=document.getElementById('athlete-society').value
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
-  fillSelect('athlete-team',team,d=>d.name)
-}
-document.getElementById('staff-society').onchange=async e=>{
-  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-category',cat,d=>d.name)
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('staff-team',team,d=>d.name)
-}
-document.getElementById('staff-category').onchange=async e=>{
-  const society_id=document.getElementById('staff-society').value
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
-  fillSelect('staff-team',team,d=>d.name)
-}
-document.getElementById('session-society').onchange=async e=>{
-  const {data:cat}=await client.from('categories').select('id,name').eq('society_id',e.target.value)
-  fillSelect('session-category',cat,d=>d.name)
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',e.target.value)
-  fillSelect('session-team',team,d=>d.name)
-}
-document.getElementById('session-category').onchange=async e=>{
-  const society_id=document.getElementById('session-society').value
-  const {data:team}=await client.from('teams').select('id,name').eq('society_id',society_id).eq('category_id',e.target.value)
-  fillSelect('session-team',team,d=>d.name)
-}
-
-/* CARICAMENTO INIZIALE */
-async function loadSection(sec){
-  if(sec==='dashboard') loadDashboard()
-  if(sec==='season') loadSeason()
-  if(sec==='sport') loadSport()
-  if(sec==='society'){
-    const {data}=await client.from('sports').select('id,name')
-    fillSelect('society-sport',data,d=>d.name)
-    loadSociety()
-  }
-  if(sec==='category'){
-    const {data}=await client.from('societies').select('id,name')
-    fillSelect('category-society',data,d=>d.name)
-    loadCategory()
-  }
-  if(sec==='team'){
-    const {data:socs}=await client.from('societies').select('id,name')
-    fillSelect('team-society',socs,d=>d.name)
-    loadTeam()
-  }
-  if(sec==='athlete'){
-    const {data:socs}=await client.from('societies').select('id,name')
-    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
-    fillSelect('athlete-society',socs,d=>d.name)
-    fillSelect('athlete-season',seas,d=>d.name)
-    loadAthlete()
-  }
-  if(sec==='staff'){
-    const {data:users}=await client.from('users').select('id,name,role')
-    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
-    const {data:socs}=await client.from('societies').select('id,name')
-    fillSelect('staff-user',users,d=>d.name)
-    fillSelect('staff-season',seas,d=>d.name)
-    fillSelect('staff-society',socs,d=>d.name)
-    loadStaff()
-  }
-  if(sec==='session'){
-    const {data:socs}=await client.from('societies').select('id,name')
-    const {data:seas}=await client.from('seasons').select('id,name').order('name',{ascending:false})
-    fillSelect('session-society',socs,d=>d.name)
-    fillSelect('session-season',seas,d=>d.name)
-    loadSession()
-  }
-  if(sec==='attendance'){
-    const {data:sess}=await client.from('sessions').select('id,title')
-    const {data:ath}=await client.from('athletes').select('id,name,surname')
-    fillSelect('attendance-session',sess,d=>d.title)
-    fillSelect('attendance-athlete',ath,d=>d.surname+' '+d.name)
-    loadAttendance()
+  } catch(err) {
+    errEl.textContent = 'Errore imprevisto: ' + err.message
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Entra'
   }
 }
 
-/* Avvio di default */
-loadSection('dashboard')
+/* ═══════════════════════════════════════════════════════
+   LOGOUT
+═══════════════════════════════════════════════════════ */
+async function doLogout() {
+  try { await db.auth.signOut() } catch(_) {}
+  USER = null; UCS = []
+  document.getElementById('app').classList.add('hidden')
+  document.getElementById('login').classList.remove('hidden')
+  document.getElementById('inp-user').value = ''
+  document.getElementById('inp-pass').value = ''
+  document.getElementById('login-err').textContent = ''
+}
+
+/* ═══════════════════════════════════════════════════════
+   SHOW APP — costruisce nav e va alla home
+═══════════════════════════════════════════════════════ */
+function showApp() {
+  document.getElementById('login').classList.add('hidden')
+  document.getElementById('app').classList.remove('hidden')
+  document.getElementById('sb-name').textContent = USER.name || USER.username || '—'
+  const ri = roleInfo(USER.role)
+  document.getElementById('sb-role').textContent = ri.label
+
+  buildNav()
+  navigate('dashboard')
+}
+
+/* ═══════════════════════════════════════════════════════
+   NAV — costruisce la sidebar in base al ruolo
+═══════════════════════════════════════════════════════ */
+function buildNav() {
+  const ri = roleInfo(USER.role)
+  const sections = [
+    { id:'dashboard', icon:'📊', label:'Dashboard',    always:true },
+    { id:'struttura', icon:'🏗️', label:'Struttura',    always:true },
+    { id:'sessioni',  icon:'📅', label:'Sessioni',      always:true },
+    { id:'atleti',    icon:'👥', label:'Atleti',        always:true },
+    { id:'presenze',  icon:'✅', label:'Presenze',      always:true },
+    { id:'utenti',    icon:'👤', label:'Utenti',        admin:true  },
+  ]
+  const items = sections.filter(s => s.always || (s.admin && ri.canAdmin))
+  document.getElementById('nav-items').innerHTML = items.map(s => `
+    <button class="nav-btn" data-sec="${s.id}" onclick="navigate('${s.id}')">
+      <span class="icon">${s.icon}</span> ${s.label}
+    </button>`).join('')
+}
+
+function navigate(sec) {
+  currentSection = sec
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.sec === sec))
+  const renders = {
+    dashboard: renderDashboard,
+    struttura: renderStruttura,
+    sessioni:  renderSessioni,
+    atleti:    renderAtleti,
+    presenze:  renderPresenze,
+    utenti:    renderUtenti,
+  }
+  if (renders[sec]) renders[sec]()
+}
+
+/* ═══════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════ */
+function esc(s) {
+  const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML
+}
+function fmt(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('it-IT')
+}
+function toast(msg, type='ok') {
+  const w = document.getElementById('toast-wrap')
+  const t = document.createElement('div')
+  t.className = `toast toast-${type}`
+  t.textContent = msg
+  w.appendChild(t)
+  setTimeout(() => t.remove(), 3200)
+}
+function setMain(html) {
+  document.getElementById('main-content').innerHTML = html
+}
+function openModal(html) {
+  document.getElementById('modal-wrap').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">${html}</div>
+    </div>`
+}
+function closeModal() {
+  document.getElementById('modal-wrap').innerHTML = ''
+}
+
+// Controlla se l'utente può modificare una categoria specifica
+function canEditCat(categoryId, seasonId) {
+  const ri = roleInfo(USER.role)
+  if (ri.canAdmin) return true
+  if (!ri.canEdit) return false
+  // manager può modificare solo le categorie a cui è assegnato
+  return UCS.some(u => u.category_id === categoryId && u.season_id === seasonId)
+}
+function canEdit() { return roleInfo(USER.role).canAdmin || roleInfo(USER.role).canEdit }
+function isAdmin()  { return roleInfo(USER.role).canAdmin }
+
+// Filtro categorie visibili all'utente
+function visibleCategoryIds() {
+  if (isAdmin()) return null // null = tutte
+  return [...new Set(UCS.map(u => u.category_id))]
+}
+
+/* ═══════════════════════════════════════════════════════
+   1. DASHBOARD
+═══════════════════════════════════════════════════════ */
+async function renderDashboard() {
+  setMain(`<div class="page-title">Dashboard</div>
+    <div class="page-sub">Benvenuto, ${esc(USER.name || USER.username)}</div>
+    <div class="stats-grid" id="dash-stats">
+      ${[1,2,3,4,5].map(()=>`<div class="stat-card"><div class="s-label">—</div><div class="s-val" style="color:#e2e8f0">···</div></div>`).join('')}
+    </div>
+    <div id="dash-extra"></div>`)
+
+  try {
+    const catFilter = visibleCategoryIds()
+
+    const [sports, societies, categories, teams, athletes, sessions] = await Promise.all([
+      db.from('sports').select('id', { count:'exact', head:true }),
+      db.from('societies').select('id', { count:'exact', head:true }),
+      catFilter
+        ? db.from('categories').select('id', { count:'exact', head:true }).in('id', catFilter.length ? catFilter : ['__none__'])
+        : db.from('categories').select('id', { count:'exact', head:true }),
+      db.from('teams').select('id', { count:'exact', head:true }),
+      db.from('athletes').select('id', { count:'exact', head:true }),
+      db.from('sessions').select('id', { count:'exact', head:true }),
+    ])
+
+    document.getElementById('dash-stats').innerHTML = `
+      <div class="stat-card stat-blue">
+        <div class="s-label">Sport</div>
+        <div class="s-val">${sports.count ?? 0}</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="s-label">Società</div>
+        <div class="s-val">${societies.count ?? 0}</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="s-label">Categorie</div>
+        <div class="s-val">${categories.count ?? 0}</div>
+      </div>
+      <div class="stat-card stat-gold">
+        <div class="s-label">Squadre</div>
+        <div class="s-val">${teams.count ?? 0}</div>
+      </div>
+      <div class="stat-card stat-purple">
+        <div class="s-label">Atleti</div>
+        <div class="s-val">${athletes.count ?? 0}</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="s-label">Sessioni</div>
+        <div class="s-val">${sessions.count ?? 0}</div>
+      </div>`
+
+    // Stagione attiva
+    const { data: activeSeas } = await db.from('seasons').select('*').eq('is_active', true).maybeSingle()
+    if (activeSeas) {
+      document.getElementById('dash-extra').innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🗓️ Stagione Attiva</div>
+          </div>
+          <div class="card-body" style="display:flex;gap:24px;flex-wrap:wrap">
+            <div><div style="font-size:22px;font-weight:800">${esc(activeSeas.name)}</div>
+              <div style="color:var(--muted);font-size:13px;margin-top:4px">${fmt(activeSeas.start_date)} → ${fmt(activeSeas.end_date)}</div>
+            </div>
+            <span class="badge badge-green" style="align-self:center">✓ Attiva</span>
+          </div>
+        </div>`
+    }
+  } catch(e) {
+    toast('Errore caricamento dashboard', 'err')
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   2. STRUTTURA — Sport → Società → Categoria → Squadra
+═══════════════════════════════════════════════════════ */
+async function renderStruttura() {
+  setMain(`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Struttura</div>
+        <div class="page-sub">Sport → Società → Categorie → Squadre</div>
+      </div>
+      ${isAdmin() ? `
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="openSportModal()">+ Sport</button>
+        <button class="btn btn-ghost" onclick="openSocietaModal()">+ Società</button>
+        <button class="btn btn-ghost" onclick="openCategoriaModal()">+ Categoria</button>
+        <button class="btn btn-primary" onclick="openSquadraModal()">+ Squadra</button>
+      </div>` : ''}
+    </div>
+    <div id="struttura-tree">
+      <div class="empty"><div class="e-icon">⏳</div><div class="e-text">Caricamento...</div></div>
+    </div>`)
+
+  try {
+    const [sportsR, socR, catR, teamR, tcsR] = await Promise.all([
+      db.from('sports').select('*').order('name'),
+      db.from('societies').select('*').order('name'),
+      db.from('categories').select('*').order('name'),
+      db.from('teams').select('*').order('name'),
+      db.from('team_category_season').select('*'),
+    ])
+    const sports  = sportsR.data  || []
+    const socs    = socR.data     || []
+    const cats    = catR.data     || []
+    const teams   = teamR.data    || []
+    const tcs     = tcsR.data     || []
+
+    const catFilter = visibleCategoryIds()
+
+    if (!sports.length) {
+      document.getElementById('struttura-tree').innerHTML =
+        `<div class="empty"><div class="e-icon">🏅</div>
+        <div class="e-text">Nessuno sport ancora</div>
+        <div class="e-sub">Comincia aggiungendo uno sport</div>
+        ${isAdmin() ? `<br><button class="btn btn-primary" onclick="openSportModal()">+ Aggiungi Sport</button>` : ''}
+        </div>`
+      return
+    }
+
+    let html = ''
+    for (const sport of sports) {
+      const sportSocs = socs.filter(s => s.sport_id === sport.id)
+      html += `<div class="tree-node">
+        <div class="tree-row" onclick="this.nextElementSibling.classList.toggle('hidden')">
+          <span class="tree-icon">${sport.icon || '🏅'}</span>
+          <div>
+            <div class="tree-name">${esc(sport.name)}</div>
+            <div class="tree-meta">${sportSocs.length} società</div>
+          </div>
+          ${isAdmin() ? `
+          <div style="margin-left:auto;display:flex;gap:6px" onclick="event.stopPropagation()">
+            <button class="btn btn-ghost btn-sm" onclick="openSportModal('${sport.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSport('${sport.id}')">🗑️</button>
+          </div>` : ''}
+        </div>
+        <div class="tree-children">`
+
+      for (const soc of sportSocs) {
+        const socCats = cats.filter(c => c.society_id === soc.id)
+          .filter(c => !catFilter || catFilter.includes(c.id))
+        html += `<div style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0 6px">
+            <span style="font-size:20px">🏛️</span>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:14px">${esc(soc.name)}</div>
+              <div style="font-size:12px;color:var(--muted)">${esc(soc.city||'')}${soc.email ? ' · '+esc(soc.email) : ''}</div>
+            </div>
+            ${canEdit() ? `
+            <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+              <button class="btn btn-ghost btn-sm" onclick="openSocietaModal('${soc.id}')">✏️</button>
+              ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="deleteSocieta('${soc.id}')">🗑️</button>` : ''}
+            </div>` : ''}
+          </div>`
+
+        for (const cat of socCats) {
+          const catTeamIds = tcs.filter(t => t.category_id === cat.id).map(t => t.team_id)
+          const catTeams = teams.filter(t => catTeamIds.includes(t.id))
+          html += `<div style="margin-left:20px;border-left:2px solid var(--border);padding-left:14px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 0 4px">
+              <span style="font-size:16px">🏷️</span>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:13px">${esc(cat.name)}</div>
+              </div>
+              ${canEdit() ? `
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" onclick="openCategoriaModal('${cat.id}')">✏️</button>
+                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="deleteCategoria('${cat.id}')">🗑️</button>` : ''}
+              </div>` : ''}
+            </div>
+            ${catTeams.map(t => `
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 0 5px 20px;border-bottom:1px dashed var(--border)">
+              <span>👕</span>
+              <div style="flex:1;font-size:13px">${esc(t.name)}</div>
+              ${canEdit() ? `
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" onclick="openSquadraModal('${t.id}')">✏️</button>
+                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="deleteSquadra('${t.id}')">🗑️</button>` : ''}
+              </div>` : ''}
+            </div>`).join('')}
+            ${canEdit() ? `<div style="padding:4px 0 4px 20px">
+              <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="openSquadraModal(null,'${cat.id}')">+ Squadra</button>
+            </div>` : ''}
+          </div>`
+        }
+        html += `</div>`
+      }
+
+      // Società senza sport assegnato
+      if (!sportSocs.length) {
+        html += `<div style="padding:10px 0;color:var(--muted);font-size:13px">Nessuna società per questo sport</div>`
+      }
+      html += `</div></div>`
+    }
+    document.getElementById('struttura-tree').innerHTML = html
+
+  } catch(e) {
+    console.error(e)
+    toast('Errore caricamento struttura', 'err')
+  }
+}
+
+/* ── CRUD SPORT ─────────────────────────────────────── */
+async function openSportModal(id) {
+  let sport = null
+  if (id) {
+    const { data } = await db.from('sports').select('*').eq('id', id).single()
+    sport = data
+  }
+  openModal(`
+    <h3>${sport ? 'Modifica Sport' : 'Nuovo Sport'}</h3>
+    <div class="form-grid" style="grid-template-columns:1fr 80px">
+      <div class="form-field">
+        <label>Nome Sport *</label>
+        <input id="m-sport-name" value="${esc(sport?.name||'')}" placeholder="es. Calcio">
+      </div>
+      <div class="form-field">
+        <label>Icona</label>
+        <input id="m-sport-icon" value="${esc(sport?.icon||'🏅')}" placeholder="🏅" style="text-align:center;font-size:20px">
+      </div>
+    </div>
+    ${!sport ? `<div class="form-field">
+      <label>ID (opzionale, auto se vuoto)</label>
+      <input id="m-sport-id" placeholder="es. calcio">
+    </div>` : ''}
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSport('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveSport(id) {
+  const name = document.getElementById('m-sport-name').value.trim()
+  const icon = document.getElementById('m-sport-icon').value.trim() || '🏅'
+  if (!name) { toast('Nome obbligatorio', 'err'); return }
+  const payload = { name, icon }
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('sports').update(payload).eq('id', id))
+  } else {
+    const sid = document.getElementById('m-sport-id')?.value.trim() || crypto.randomUUID().slice(0,8)
+    ;({ error: err } = await db.from('sports').insert({ id: sid, ...payload }))
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+  toast(id ? 'Sport aggiornato' : 'Sport creato ✓', 'ok')
+  closeModal(); renderStruttura()
+}
+async function deleteSport(id) {
+  if (!confirm('Eliminare questo sport?')) return
+  const { error } = await db.from('sports').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Sport eliminato', 'ok'); renderStruttura()
+}
+
+/* ── CRUD SOCIETÀ ────────────────────────────────────── */
+async function openSocietaModal(id) {
+  const { data: sports } = await db.from('sports').select('id,name,icon').order('name')
+  let soc = null
+  if (id) {
+    const { data } = await db.from('societies').select('*').eq('id', id).single()
+    soc = data
+  }
+  const opts = (sports||[]).map(s =>
+    `<option value="${s.id}" ${soc?.sport_id===s.id?'selected':''}>${s.icon||''} ${esc(s.name)}</option>`).join('')
+  openModal(`
+    <h3>${soc ? 'Modifica Società' : 'Nuova Società'}</h3>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Nome Società *</label>
+        <input id="m-soc-name" value="${esc(soc?.name||'')}" placeholder="es. ASD Olimpia">
+      </div>
+      <div class="form-field">
+        <label>Sport</label>
+        <select id="m-soc-sport">
+          <option value="">— Seleziona —</option>${opts}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Città</label>
+        <input id="m-soc-city" value="${esc(soc?.city||'')}" placeholder="es. Milano">
+      </div>
+      <div class="form-field">
+        <label>Email</label>
+        <input id="m-soc-email" type="email" value="${esc(soc?.email||'')}" placeholder="info@società.it">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSocieta('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveSocieta(id) {
+  const name     = document.getElementById('m-soc-name').value.trim()
+  const sport_id = document.getElementById('m-soc-sport').value || null
+  const city     = document.getElementById('m-soc-city').value.trim()
+  const email    = document.getElementById('m-soc-email').value.trim()
+  if (!name) { toast('Nome obbligatorio', 'err'); return }
+  const payload = { name, sport_id, city, email }
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('societies').update(payload).eq('id', id))
+  } else {
+    ;({ error: err } = await db.from('societies').insert(payload))
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+  toast(id ? 'Società aggiornata' : 'Società creata ✓', 'ok')
+  closeModal(); renderStruttura()
+}
+async function deleteSocieta(id) {
+  if (!confirm('Eliminare questa società?')) return
+  const { error } = await db.from('societies').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Società eliminata', 'ok'); renderStruttura()
+}
+
+/* ── CRUD CATEGORIA ─────────────────────────────────── */
+async function openCategoriaModal(id) {
+  const { data: socs } = await db.from('societies').select('id,name').order('name')
+  let cat = null
+  if (id) {
+    const { data } = await db.from('categories').select('*').eq('id', id).single()
+    cat = data
+  }
+  const opts = (socs||[]).map(s =>
+    `<option value="${s.id}" ${cat?.society_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('')
+  openModal(`
+    <h3>${cat ? 'Modifica Categoria' : 'Nuova Categoria'}</h3>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Nome Categoria *</label>
+        <input id="m-cat-name" value="${esc(cat?.name||'')}" placeholder="es. Under 14">
+      </div>
+      <div class="form-field">
+        <label>Società</label>
+        <select id="m-cat-soc">
+          <option value="">— Seleziona —</option>${opts}
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveCategoria('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveCategoria(id) {
+  const name       = document.getElementById('m-cat-name').value.trim()
+  const society_id = document.getElementById('m-cat-soc').value || null
+  if (!name) { toast('Nome obbligatorio', 'err'); return }
+  const payload = { name, society_id }
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('categories').update(payload).eq('id', id))
+  } else {
+    ;({ error: err } = await db.from('categories').insert(payload))
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+  toast(id ? 'Categoria aggiornata' : 'Categoria creata ✓', 'ok')
+  closeModal(); renderStruttura()
+}
+async function deleteCategoria(id) {
+  if (!confirm('Eliminare questa categoria?')) return
+  const { error } = await db.from('categories').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Categoria eliminata', 'ok'); renderStruttura()
+}
+
+/* ── CRUD SQUADRA ───────────────────────────────────── */
+async function openSquadraModal(id, preCatId) {
+  const [socR, catR, seaR] = await Promise.all([
+    db.from('societies').select('id,name').order('name'),
+    db.from('categories').select('id,name,society_id').order('name'),
+    db.from('seasons').select('id,name,is_active').order('start_date', { ascending:false }),
+  ])
+  const socs  = socR.data  || []
+  const cats  = catR.data  || []
+  const seas  = seaR.data  || []
+
+  let team = null
+  let linkedCatId = preCatId || ''
+  let linkedSeasId = seas.find(s => s.is_active)?.id || ''
+  if (id) {
+    const { data } = await db.from('teams').select('*').eq('id', id).single()
+    team = data
+    const { data: tcs } = await db.from('team_category_season').select('*').eq('team_id', id)
+    if (tcs?.length) { linkedCatId = tcs[0].category_id; linkedSeasId = tcs[0].season_id }
+  }
+
+  const socOpts = socs.map(s =>
+    `<option value="${s.id}" ${team?.society_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('')
+  const catOpts = cats.map(c =>
+    `<option value="${c.id}" ${c.id===linkedCatId?'selected':''}>${esc(c.name)}</option>`).join('')
+  const seaOpts = seas.map(s =>
+    `<option value="${s.id}" ${s.id===linkedSeasId?'selected':''}>${esc(s.name)}${s.is_active?' ★':''}</option>`).join('')
+
+  openModal(`
+    <h3>${team ? 'Modifica Squadra' : 'Nuova Squadra'}</h3>
+    <div class="form-grid">
+      <div class="form-field" style="grid-column:1/-1">
+        <label>Nome Squadra *</label>
+        <input id="m-team-name" value="${esc(team?.name||'')}" placeholder="es. Prima Squadra">
+      </div>
+      <div class="form-field">
+        <label>Società *</label>
+        <select id="m-team-soc">
+          <option value="">— Seleziona —</option>${socOpts}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Sport</label>
+        <select id="m-team-sport">
+          <option value="">— Seleziona —</option>
+          ${(await db.from('sports').select('id,name,icon').order('name')).data?.map(s =>
+            `<option value="${s.id}" ${team?.sport_id===s.id?'selected':''}>${s.icon||''} ${esc(s.name)}</option>`
+          ).join('')||''}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Categoria</label>
+        <select id="m-team-cat">
+          <option value="">— Nessuna —</option>${catOpts}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Stagione</label>
+        <select id="m-team-sea">
+          <option value="">— Nessuna —</option>${seaOpts}
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSquadra('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveSquadra(id) {
+  const name       = document.getElementById('m-team-name').value.trim()
+  const society_id = document.getElementById('m-team-soc').value || null
+  const sport_id   = document.getElementById('m-team-sport').value || null
+  const cat_id     = document.getElementById('m-team-cat').value || null
+  const sea_id     = document.getElementById('m-team-sea').value || null
+  if (!name) { toast('Nome obbligatorio', 'err'); return }
+
+  let teamId = id
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('teams').update({ name, society_id, sport_id }).eq('id', id))
+  } else {
+    const { data: ins, error: e } = await db.from('teams').insert({ name, society_id, sport_id }).select('id').single()
+    err = e; if (ins) teamId = ins.id
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+
+  // Aggiorna team_category_season
+  if (teamId && cat_id && sea_id) {
+    await db.from('team_category_season').delete().eq('team_id', teamId)
+    await db.from('team_category_season').insert({ team_id: teamId, category_id: cat_id, season_id: sea_id })
+  }
+  toast(id ? 'Squadra aggiornata' : 'Squadra creata ✓', 'ok')
+  closeModal(); renderStruttura()
+}
+async function deleteSquadra(id) {
+  if (!confirm('Eliminare questa squadra?')) return
+  await db.from('team_category_season').delete().eq('team_id', id)
+  const { error } = await db.from('teams').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Squadra eliminata', 'ok'); renderStruttura()
+}
+
+/* ═══════════════════════════════════════════════════════
+   3. SESSIONI
+═══════════════════════════════════════════════════════ */
+async function renderSessioni() {
+  setMain(`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Sessioni</div>
+        <div class="page-sub">Allenamenti e partite</div>
+      </div>
+      ${canEdit() ? `<button class="btn btn-primary" onclick="openSessioneModal()">+ Nuova Sessione</button>` : ''}
+    </div>
+    <div class="card">
+      <div class="tbl-wrap" id="sess-table">
+        <div class="empty"><div class="e-icon">⏳</div></div>
+      </div>
+    </div>`)
+
+  try {
+    const catFilter = visibleCategoryIds()
+    let q = db.from('sessions').select(`
+      id, date, notes, season_id, category_id, team_id,
+      categories(name), teams(name), seasons(name)
+    `).order('date', { ascending: false }).limit(100)
+    if (catFilter) q = q.in('category_id', catFilter.length ? catFilter : ['__none__'])
+    const { data, error } = await q
+    if (error) throw error
+
+    if (!data?.length) {
+      document.getElementById('sess-table').innerHTML =
+        `<div class="empty"><div class="e-icon">📅</div><div class="e-text">Nessuna sessione</div></div>`
+      return
+    }
+    document.getElementById('sess-table').innerHTML = `
+      <table>
+        <thead><tr><th>Data</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th>Note</th>${canEdit()?'<th></th>':''}</tr></thead>
+        <tbody>${data.map(s => `
+          <tr>
+            <td><strong>${fmt(s.date)}</strong></td>
+            <td>${esc(s.categories?.name||'—')}</td>
+            <td>${esc(s.teams?.name||'—')}</td>
+            <td><span class="badge badge-blue">${esc(s.seasons?.name||'—')}</span></td>
+            <td style="color:var(--muted);font-size:13px">${esc(s.notes||'')}</td>
+            ${canEdit() ? `<td style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="openSessioneModal('${s.id}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteSessione('${s.id}')">🗑️</button>
+            </td>` : ''}
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+  } catch(e) {
+    toast('Errore caricamento sessioni', 'err')
+  }
+}
+
+async function openSessioneModal(id) {
+  const [catR, teamR, seaR] = await Promise.all([
+    db.from('categories').select('id,name').order('name'),
+    db.from('teams').select('id,name').order('name'),
+    db.from('seasons').select('id,name,is_active').order('start_date', { ascending:false }),
+  ])
+  let sess = null
+  if (id) {
+    const { data } = await db.from('sessions').select('*').eq('id', id).single()
+    sess = data
+  }
+  const catOpts = (catR.data||[]).map(c =>
+    `<option value="${c.id}" ${sess?.category_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('')
+  const teamOpts = (teamR.data||[]).map(t =>
+    `<option value="${t.id}" ${sess?.team_id===t.id?'selected':''}>${esc(t.name)}</option>`).join('')
+  const seaOpts = (seaR.data||[]).map(s =>
+    `<option value="${s.id}" ${sess?.season_id===s.id?'selected':''}>${esc(s.name)}${s.is_active?' ★':''}</option>`).join('')
+
+  openModal(`
+    <h3>${sess ? 'Modifica Sessione' : 'Nuova Sessione'}</h3>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Data *</label>
+        <input id="m-sess-date" type="date" value="${sess?.date||new Date().toISOString().slice(0,10)}">
+      </div>
+      <div class="form-field">
+        <label>Stagione *</label>
+        <select id="m-sess-sea"><option value="">— Seleziona —</option>${seaOpts}</select>
+      </div>
+      <div class="form-field">
+        <label>Categoria *</label>
+        <select id="m-sess-cat"><option value="">— Seleziona —</option>${catOpts}</select>
+      </div>
+      <div class="form-field">
+        <label>Squadra</label>
+        <select id="m-sess-team"><option value="">— Nessuna —</option>${teamOpts}</select>
+      </div>
+      <div class="form-field" style="grid-column:1/-1">
+        <label>Note</label>
+        <textarea id="m-sess-notes" rows="2" style="resize:vertical">${esc(sess?.notes||'')}</textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSessione('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveSessione(id) {
+  const date        = document.getElementById('m-sess-date').value
+  const season_id   = document.getElementById('m-sess-sea').value
+  const category_id = document.getElementById('m-sess-cat').value
+  const team_id     = document.getElementById('m-sess-team').value || null
+  const notes       = document.getElementById('m-sess-notes').value.trim()
+  if (!date || !season_id || !category_id) { toast('Data, stagione e categoria obbligatori', 'err'); return }
+  const payload = { date, season_id, category_id, team_id, notes }
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('sessions').update(payload).eq('id', id))
+  } else {
+    ;({ error: err } = await db.from('sessions').insert(payload))
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+  toast(id ? 'Sessione aggiornata' : 'Sessione creata ✓', 'ok')
+  closeModal(); renderSessioni()
+}
+async function deleteSessione(id) {
+  if (!confirm('Eliminare questa sessione?')) return
+  await db.from('attendances').delete().eq('session_id', id)
+  const { error } = await db.from('sessions').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Sessione eliminata', 'ok'); renderSessioni()
+}
+
+/* ═══════════════════════════════════════════════════════
+   4. ATLETI
+═══════════════════════════════════════════════════════ */
+async function renderAtleti() {
+  setMain(`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Atleti</div>
+        <div class="page-sub">Anagrafica e stagioni</div>
+      </div>
+      ${canEdit() ? `<button class="btn btn-primary" onclick="openAtletaModal()">+ Nuovo Atleta</button>` : ''}
+    </div>
+    <div class="card">
+      <div class="tbl-wrap" id="atleti-table">
+        <div class="empty"><div class="e-icon">⏳</div></div>
+      </div>
+    </div>`)
+
+  try {
+    const catFilter = visibleCategoryIds()
+    let athletes, error
+    if (catFilter) {
+      // Atleti iscritti nelle categorie visibili tramite athlete_seasons
+      const { data: asList } = await db.from('athlete_seasons')
+        .select('athlete_id').in('category_id', catFilter.length ? catFilter : ['__none__'])
+      const ids = [...new Set((asList||[]).map(a => a.athlete_id))]
+      if (!ids.length) {
+        document.getElementById('atleti-table').innerHTML =
+          `<div class="empty"><div class="e-icon">👥</div><div class="e-text">Nessun atleta nelle tue categorie</div></div>`
+        return
+      }
+      ;({ data: athletes, error } = await db.from('athletes').select('*').in('id', ids).order('name'))
+    } else {
+      ;({ data: athletes, error } = await db.from('athletes').select('*').order('name'))
+    }
+    if (error) throw error
+
+    if (!athletes?.length) {
+      document.getElementById('atleti-table').innerHTML =
+        `<div class="empty"><div class="e-icon">👥</div><div class="e-text">Nessun atleta ancora</div></div>`
+      return
+    }
+    document.getElementById('atleti-table').innerHTML = `
+      <table>
+        <thead><tr><th>Nome</th><th>Data Nascita</th><th>Società</th>${canEdit()?'<th></th>':''}</tr></thead>
+        <tbody>${athletes.map(a => `
+          <tr>
+            <td><strong>${esc(a.name)}</strong></td>
+            <td>${fmt(a.birthdate)}</td>
+            <td><span class="badge badge-gray">${esc(a.society_id||'—')}</span></td>
+            ${canEdit() ? `<td style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="openAtletaModal('${a.id}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteAtleta('${a.id}')">🗑️</button>
+            </td>` : ''}
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+  } catch(e) {
+    toast('Errore caricamento atleti', 'err')
+  }
+}
+
+async function openAtletaModal(id) {
+  const { data: socs } = await db.from('societies').select('id,name').order('name')
+  let a = null
+  if (id) {
+    const { data } = await db.from('athletes').select('*').eq('id', id).single()
+    a = data
+  }
+  const socOpts = (socs||[]).map(s =>
+    `<option value="${s.id}" ${a?.society_id===s.id?'selected':''}>${esc(s.name)}</option>`).join('')
+  openModal(`
+    <h3>${a ? 'Modifica Atleta' : 'Nuovo Atleta'}</h3>
+    <div class="form-grid">
+      <div class="form-field" style="grid-column:1/-1">
+        <label>Nome Completo *</label>
+        <input id="m-atl-name" value="${esc(a?.name||'')}" placeholder="es. Mario Rossi">
+      </div>
+      <div class="form-field">
+        <label>Data di Nascita</label>
+        <input id="m-atl-birth" type="date" value="${a?.birthdate||''}">
+      </div>
+      <div class="form-field">
+        <label>Società</label>
+        <select id="m-atl-soc"><option value="">— Nessuna —</option>${socOpts}</select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveAtleta('${id||''}')">💾 Salva</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+    </div>`)
+}
+async function saveAtleta(id) {
+  const name       = document.getElementById('m-atl-name').value.trim()
+  const birthdate  = document.getElementById('m-atl-birth').value || null
+  const society_id = document.getElementById('m-atl-soc').value || null
+  if (!name) { toast('Nome obbligatorio', 'err'); return }
+  const payload = { name, birthdate, society_id }
+  let err
+  if (id) {
+    ;({ error: err } = await db.from('athletes').update(payload).eq('id', id))
+  } else {
+    ;({ error: err } = await db.from('athletes').insert(payload))
+  }
+  if (err) { toast('Errore: ' + err.message, 'err'); return }
+  toast(id ? 'Atleta aggiornato' : 'Atleta creato ✓', 'ok')
+  closeModal(); renderAtleti()
+}
+async function deleteAtleta(id) {
+  if (!confirm('Eliminare questo atleta?')) return
+  await db.from('athlete_seasons').delete().eq('athlete_id', id)
+  await db.from('attendances').delete().eq('athlete_id', id)
+  const { error } = await db.from('athletes').delete().eq('id', id)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Atleta eliminato', 'ok'); renderAtleti()
+}
+
+/* ═══════════════════════════════════════════════════════
+   5. PRESENZE
+═══════════════════════════════════════════════════════ */
+async function renderPresenze() {
+  setMain(`
+    <div class="page-title">Presenze</div>
+    <div class="page-sub">Seleziona una sessione per gestire le presenze</div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Sessioni recenti</div>
+      </div>
+      <div class="tbl-wrap" id="pres-sess-list">
+        <div class="empty"><div class="e-icon">⏳</div></div>
+      </div>
+    </div>
+    <div id="pres-detail"></div>`)
+
+  try {
+    const catFilter = visibleCategoryIds()
+    let q = db.from('sessions').select(`
+      id, date, notes, category_id,
+      categories(name), teams(name), seasons(name)
+    `).order('date', { ascending: false }).limit(30)
+    if (catFilter) q = q.in('category_id', catFilter.length ? catFilter : ['__none__'])
+    const { data: sess, error } = await q
+    if (error) throw error
+
+    if (!sess?.length) {
+      document.getElementById('pres-sess-list').innerHTML =
+        `<div class="empty"><div class="e-icon">📅</div><div class="e-text">Nessuna sessione</div></div>`
+      return
+    }
+    document.getElementById('pres-sess-list').innerHTML = `
+      <table>
+        <thead><tr><th>Data</th><th>Categoria</th><th>Squadra</th><th>Stagione</th><th></th></tr></thead>
+        <tbody>${sess.map(s => `
+          <tr>
+            <td><strong>${fmt(s.date)}</strong></td>
+            <td>${esc(s.categories?.name||'—')}</td>
+            <td>${esc(s.teams?.name||'—')}</td>
+            <td>${esc(s.seasons?.name||'—')}</td>
+            <td><button class="btn btn-primary btn-sm" onclick="loadPresenzeDetail('${s.id}','${esc(s.categories?.name||'')}','${fmt(s.date)}')">Gestisci →</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`
+  } catch(e) {
+    toast('Errore caricamento sessioni', 'err')
+  }
+}
+
+async function loadPresenzeDetail(sessId, catName, dateStr) {
+  const detEl = document.getElementById('pres-detail')
+  detEl.innerHTML = `<div class="card"><div class="card-body"><div class="empty"><div class="e-icon">⏳</div></div></div></div>`
+
+  try {
+    // Trova atleti iscritti alla categoria della sessione
+    const { data: sessRow } = await db.from('sessions').select('category_id, season_id').eq('id', sessId).single()
+    const { data: asRows }  = await db.from('athlete_seasons')
+      .select('athlete_id, athletes(id, name)')
+      .eq('category_id', sessRow.category_id)
+      .eq('season_id', sessRow.season_id)
+    const { data: attRows } = await db.from('attendances').select('*').eq('session_id', sessId)
+
+    const athletes = (asRows||[]).map(r => r.athletes).filter(Boolean)
+    const attMap   = Object.fromEntries((attRows||[]).map(a => [a.athlete_id, a]))
+
+    if (!athletes.length) {
+      detEl.innerHTML = `<div class="card">
+        <div class="card-header"><div class="card-title">📋 ${esc(catName)} — ${dateStr}</div></div>
+        <div class="card-body">
+          <div class="empty"><div class="e-icon">👥</div><div class="e-text">Nessun atleta iscritto in questa categoria/stagione</div></div>
+        </div></div>`
+      return
+    }
+
+    detEl.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 ${esc(catName)} — ${dateStr}</div>
+          ${canEdit() ? `<button class="btn btn-primary btn-sm" onclick="savePresenze('${sessId}')">💾 Salva presenze</button>` : ''}
+        </div>
+        <div class="card-body">
+          <table>
+            <thead><tr><th>Atleta</th><th style="text-align:center">Presente</th><th style="text-align:center">Assente</th><th style="text-align:center">Giustificato</th></tr></thead>
+            <tbody id="pres-rows">
+              ${athletes.map(a => {
+                const cur = attMap[a.id]?.status || ''
+                return `<tr>
+                  <td><strong>${esc(a.name)}</strong></td>
+                  ${['P','A','G'].map(s => `
+                  <td style="text-align:center">
+                    <input type="radio" name="att-${a.id}" value="${s}" ${cur===s?'checked':''} ${canEdit()?'':'disabled'}>
+                  </td>`).join('')}
+                </tr>`
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`
+  } catch(e) {
+    toast('Errore caricamento presenze', 'err')
+  }
+}
+
+async function savePresenze(sessId) {
+  const rows = document.querySelectorAll('#pres-rows tr')
+  const updates = []
+  rows.forEach(tr => {
+    const checked = tr.querySelector('input[type=radio]:checked')
+    if (!checked) return
+    const athleteId = checked.name.replace('att-', '')
+    updates.push({ session_id: sessId, athlete_id: athleteId, status: checked.value })
+  })
+  // Upsert — cancella esistenti e reinserisci
+  await db.from('attendances').delete().eq('session_id', sessId)
+  if (updates.length) {
+    const { error } = await db.from('attendances').insert(updates)
+    if (error) { toast('Errore salvataggio: ' + error.message, 'err'); return }
+  }
+  toast('Presenze salvate ✓', 'ok')
+}
+
+/* ═══════════════════════════════════════════════════════
+   6. UTENTI (solo admin)
+═══════════════════════════════════════════════════════ */
+async function renderUtenti() {
+  if (!isAdmin()) { setMain(`<div class="empty"><div class="e-icon">🔒</div><div class="e-text">Accesso non autorizzato</div></div>`); return }
+  setMain(`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="page-title">Utenti</div>
+        <div class="page-sub">Gestione account e ruoli</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap" id="utenti-table">
+        <div class="empty"><div class="e-icon">⏳</div></div>
+      </div>
+    </div>`)
+
+  try {
+    const { data: users, error } = await db.from('users').select('*').order('name')
+    if (error) throw error
+
+    document.getElementById('utenti-table').innerHTML = `
+      <table>
+        <thead><tr><th>Nome</th><th>Username</th><th>Email</th><th>Ruolo</th><th>Registrato</th><th></th></tr></thead>
+        <tbody>${(users||[]).map(u => {
+          const ri = roleInfo(u.role)
+          return `<tr>
+            <td><strong>${esc(u.name||'—')}</strong></td>
+            <td><code style="font-size:12px;background:#f1f5f9;padding:2px 6px;border-radius:4px">${esc(u.username||'—')}</code></td>
+            <td style="color:var(--muted);font-size:13px">${esc(u.email||'—')}</td>
+            <td><span class="badge ${ri.color}">${ri.label}</span></td>
+            <td style="color:var(--muted);font-size:12px">${fmt(u.created_at)}</td>
+            <td>
+              <button class="btn btn-ghost btn-sm" onclick="openRuoloModal('${u.id}','${u.role||'user'}','${esc(u.name||u.username||'')}')">
+                Cambia ruolo
+              </button>
+            </td>
+          </tr>`
+        }).join('')}
+        </tbody>
+      </table>`
+  } catch(e) {
+    toast('Errore caricamento utenti', 'err')
+  }
+}
+
+async function openRuoloModal(uid, currentRole, userName) {
+  const { data: cats } = await db.from('categories').select('id,name').order('name')
+  const { data: seas } = await db.from('seasons').select('id,name,is_active').order('start_date', { ascending:false })
+  const { data: ucsRows } = await db.from('user_category_seasons').select(`
+    id, role, category_id, season_id,
+    categories(name), seasons(name)
+  `).eq('user_id', uid)
+
+  const roleOpts = Object.entries(ROLES).map(([k,v]) =>
+    `<option value="${k}" ${k===currentRole?'selected':''}>${v.label}</option>`).join('')
+  const catOpts = (cats||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  const seaOpts = (seas||[]).map(s =>
+    `<option value="${s.id}" ${s.is_active?'selected':''}>${esc(s.name)}${s.is_active?' ★':''}</option>`).join('')
+  const ucsHtml = (ucsRows||[]).map(u => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span class="badge badge-blue">${esc(u.categories?.name||'—')}</span>
+      <span class="badge badge-gray">${esc(u.seasons?.name||'—')}</span>
+      <span class="badge badge-green">${u.role}</span>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deleteUCS('${u.id}','${uid}','${currentRole}','${esc(userName)}')">✕</button>
+    </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Nessuna assegnazione</div>'
+
+  openModal(`
+    <h3>👤 ${esc(userName)}</h3>
+    <div class="form-field" style="margin-bottom:16px">
+      <label>Ruolo Sistema</label>
+      <select id="m-usr-role">${roleOpts}</select>
+    </div>
+    <button class="btn btn-ghost" style="margin-bottom:20px" onclick="saveRuolo('${uid}')">Aggiorna ruolo</button>
+    <hr style="border:none;border-top:1px solid var(--border);margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--muted)">ASSEGNAZIONI CATEGORIA / STAGIONE</div>
+    <div style="margin-bottom:14px">${ucsHtml}</div>
+    <div style="background:var(--accent-l);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-field" style="margin:0">
+        <label>Categoria</label>
+        <select id="m-ucs-cat"><option value="">—</option>${catOpts}</select>
+      </div>
+      <div class="form-field" style="margin:0">
+        <label>Stagione</label>
+        <select id="m-ucs-sea"><option value="">—</option>${seaOpts}</select>
+      </div>
+      <div class="form-field" style="margin:0">
+        <label>Ruolo</label>
+        <select id="m-ucs-role">
+          <option value="coach">Allenatore</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary btn-sm" onclick="addUCS('${uid}')">+ Aggiungi</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeModal()">Chiudi</button>
+    </div>`)
+}
+
+async function saveRuolo(uid) {
+  const role = document.getElementById('m-usr-role').value
+  const { error } = await db.from('users').update({ role }).eq('id', uid)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Ruolo aggiornato ✓', 'ok')
+  // Aggiorna locale se è l'utente corrente
+  if (uid === USER.id) USER.role = role
+  closeModal(); renderUtenti()
+}
+
+async function addUCS(uid) {
+  const category_id = document.getElementById('m-ucs-cat').value
+  const season_id   = document.getElementById('m-ucs-sea').value
+  const role        = document.getElementById('m-ucs-role').value
+  if (!category_id || !season_id) { toast('Seleziona categoria e stagione', 'err'); return }
+  const { error } = await db.from('user_category_seasons').insert({
+    user_id: uid, category_id, season_id, role, team_id: ''
+  })
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Assegnazione aggiunta ✓', 'ok')
+  // Ricarica il modal
+  const { data: u } = await db.from('users').select('role,name,username').eq('id', uid).single()
+  openRuoloModal(uid, u.role, u.name || u.username)
+}
+
+async function deleteUCS(ucsId, uid, role, userName) {
+  const { error } = await db.from('user_category_seasons').delete().eq('id', ucsId)
+  if (error) { toast('Errore: ' + error.message, 'err'); return }
+  toast('Assegnazione rimossa', 'ok')
+  openRuoloModal(uid, role, userName)
+}
 </script>
 </body>
 </html>
