@@ -72,42 +72,61 @@
         const errorMsg = document.getElementById('error-msg');
 
         // Funzione di Login
-async function login(e) {
-  e.preventDefault();
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+async function loadSection(section) {
+    const content = document.getElementById('content');
+    content.innerHTML = '<p>Caricamento in corso...</p>';
 
-  console.log("Tentativo di recupero email per:", username);
+    if (section === 'dashboard') {
+        try {
+            // 1. Recupero le ultime 5 stagioni
+            const { data: seasons, error: seasonsErr } = await client
+                .from('seasons')
+                .select('id, name, is_active')
+                .order('name', { ascending: false })
+                .limit(5);
 
-  // 1. Recupero dati dalla tabella pubblica
-  const { data: userRow, error: userErr } = await client
-    .from('users')
-    .select('id, username, email, name, role') // Ora email esiste!
-    .eq('username', username)
-    .maybeSingle();
+            if (seasonsErr) throw seasonsErr;
 
-  if (userErr) {
-    console.error("Errore Database:", userErr);
-    return alert("Errore tecnico: " + userErr.message);
-  }
+            // 2. Recupero le ultime sessioni
+            const { data: sessions, error: sessionsErr } = await client
+                .from('sessions')
+                .select('id, created_at') // Aggiungi altre colonne se necessario
+                .limit(5);
 
-  if (!userRow) {
-    return alert("Username non trovato nel database.");
-  }
+            if (sessionsErr) throw sessionsErr;
 
-  // 2. Login con le credenziali ottenute
-  const { data, error: authError } = await client.auth.signInWithPassword({
-    email: userRow.email,
-    password: password
-  });
+            // 3. Rendering della Dashboard
+            renderDashboard(seasons, sessions);
 
-  if (authError) {
-    return alert("Password errata o errore auth: " + authError.message);
-  }
+        } catch (err) {
+            content.innerHTML = `<p style="color:red">Errore nel caricamento dati: ${err.message}</p>`;
+            console.error(err);
+        }
+    }
+}
 
-  // Successo!
-  USER = { ...data.user, ...userRow };
-  showApp();
+function renderDashboard(seasons, sessions) {
+    const content = document.getElementById('content');
+    
+    let html = `<h3>Stagioni Recenti</h3><ul>`;
+    seasons.forEach(s => {
+        html += `<li>${s.name} ${s.is_active ? '✅' : ''}</li>`;
+    });
+    html += `</ul>`;
+
+    html += `<h3>Ultime Sessioni</h3><ul>`;
+    sessions.forEach(sess => {
+        html += `<li>Sessione del: ${new Date(sess.created_at).toLocaleDateString()}</li>`;
+    });
+    html += `</ul>`;
+
+    content.innerHTML = html;
+}
+
+// Aggiorna la tua initApp per far partire la dashboard
+function initApp() {
+    console.log("App Inizializzata per:", USER.username);
+    loadSection('dashboard');
 }
 
         async function logout() {
