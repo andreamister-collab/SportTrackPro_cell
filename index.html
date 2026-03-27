@@ -322,6 +322,8 @@ async function login(e){
   loadSection('dashboard')
 }
 
+function logout(){ client.auth.signOut(); location.reload() }
+
 /* UTIL */
 function fillSelect(id,data,labelFn){
   const sel=document.getElementById(id)
@@ -346,7 +348,7 @@ async function loadDashboard(){
 /* ===== STAGIONI ===== */
 async function loadSeason(){
   const filter=document.getElementById('season-filter').value
-  let q=client.from('seasons').select('id,name,is_active').order('name',{ascending:false})
+  let q=client.from('seasons').select('id,name,is_active,start_date,end_date').order('name',{ascending:false})
   if(filter==='active') q=q.eq('is_active',true)
   const {data,error}=await q
   if(error){ alert(error.message); return }
@@ -459,7 +461,11 @@ async function loadSociety(){
       <button class="btn danger" onclick="deleteSociety('${s.id}')">🗑️</button>
     </td></tr>`).join('')
 }
-function editSociety(id,name,sport_id
+function editSociety(id,name,sport_id){
+  document.getElementById('society-id').value=id
+  document.getElementById('society-name').value=name
+  document.getElementById('society-sport').value=sport_id
+  document.getElementById('society-form-title').textContent='✏️ Modifica Società'
 }
 function resetSocietyForm(){
   document.getElementById('society-id').value=''
@@ -700,7 +706,7 @@ function editSession(id,title,session_date,society_id,category_id,team_id,season
 }
 function resetSessionForm(){
   document.getElementById('session-id').value=''
-  ['session-title','session-date','session-society','session-category','session-team','session-session'].forEach(id=>document.getElementById(id).value='')
+  ['session-title','session-date','session-society','session-category','session-team','session-season'].forEach(id=>document.getElementById(id).value='')
   document.getElementById('session-form-title').textContent='＋ Nuova Sessione'
 }
 async function saveSession(){
@@ -856,6 +862,9 @@ async function loadSection(sec){
     loadAttendance()
   }
 }
+
+/* Avvio di default */
+loadSection('dashboard')
 </script>
 </body>
 </html>
