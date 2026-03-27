@@ -141,7 +141,10 @@
                 content.innerHTML = templateStagioni(); 
                 initStagioni(); 
                 break;
-
+            case 'sport': 
+               content.innerHTML = templateSport(); 
+                initSport(); 
+                 break;
             /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
             default: 
@@ -178,52 +181,177 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+    const { data, error } = await client.from('seasons').select('*').order('start_date', {ascending:false});
     const tbody = document.getElementById('list-stagioni');
     
+    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
+
+    // Generiamo l'HTML senza usare onclick
     tbody.innerHTML = data?.map(s => `
         <tr>
             <td><strong>${s.name}</strong></td>
             <td>${s.start_date} → ${s.end_date}</td>
             <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:#16a34a" onclick="toggleStagioneState('${s.id}', ${s.is_active})">
+                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">
                     ${s.is_active ? 'Spegni' : 'Attiva'}
                 </button>
-                <button class="btn-sm" style="background:var(--primary)" onclick="editStagione('${s.id}', '${s.name}')">M</button>
-                <button class="btn-sm" style="background:var(--danger)" onclick="deleteStagione('${s.id}')">X</button>
+                <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
 
-    // --- LOGICA AGGIUNTA (Solo Anni) ---
-    document.getElementById('btn-add-stagione').onclick = () => {
-        modal.open('Nuova Stagione', `
-            <p style="font-size:0.9rem; color:#64748b">Inserisci gli anni. Le date verranno impostate al 01/08 e 31/07.</p>
-            <label>Anno Inizio</label><input type="number" id="year-start" placeholder="es. 2025">
-            <label>Anno Fine</label><input type="number" id="year-end" placeholder="es. 2026">
-        `);
+    // === ATTACCHIAMO I LISTENER AI BOTTONI (Metodo sicuro) ===
+    
+    // Bottoni Attiva/Spegni
+    tbody.querySelectorAll('.btn-action-activate').forEach(btn => {
+        btn.onclick = () => handleStagioneToggle(btn.dataset.id, btn.dataset.active === 'true');
+    });
 
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const y1 = document.getElementById('year-start').value;
-            const y2 = document.getElementById('year-end').value;
-            if(!y1 || !y2) return alert("Inserisci entrambi gli anni");
+    // Bottoni Modifica (Matita)
+    tbody.querySelectorAll('.btn-action-edit').forEach(btn => {
+        btn.onclick = () => handleStagioneEdit(btn.dataset.id, btn.dataset.name);
+    });
 
-            const payload = {
-                name: `${y1}/${y2}`,
-                start_date: `${y1}-08-01`,
-                end_date: `${y2}-07-31`,
-                is_active: false
+    // Bottoni Elimina (Cestino)
+    tbody.querySelectorAll('.btn-action-delete').forEach(btn => {
+        btn.onclick = () => handleStagioneDelete(btn.dataset.id);
+    });
+
+    // Bottone "Nuova Stagione" (quello in alto nella card)
+    const btnAdd = document.getElementById('btn-add-stagione');
+    if(btnAdd) {
+        btnAdd.onclick = () => {
+            modal.open('Nuova Stagione', `
+                <p style="font-size:0.85rem; color:#666">Inserisci gli anni solari (es. 2025 e 2026)</p>
+                <label>Anno Inizio</label><input type="number" id="y-start" value="2025">
+                <label>Anno Fine</label><input type="number" id="y-end" value="2026">
+            `);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                const y1 = document.getElementById('y-start').value;
+                const y2 = document.getElementById('y-end').value;
+                await client.from('seasons').insert({ 
+                    name: `${y1}/${y2}`, 
+                    start_date: `${y1}-08-01`, 
+                    end_date: `${y2}-07-31`, 
+                    is_active: false 
+                });
+                modal.close();
+                initStagioni();
             };
+        };
+    }
+}
 
-            const { error } = await client.from('seasons').insert(payload);
-            if(!error) { modal.close(); initStagioni(); } else { alert(error.message); }
+    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+/* ============================================================
+   SEZIONE: AZIONI LOGICHE STAGIONI
+   ============================================================ */
+
+async function handleStagioneToggle(id, isActive) {
+    if (!isActive) {
+        await client.from('seasons').update({ is_active: false }).eq('is_active', true);
+        await client.from('seasons').update({ is_active: true }).eq('id', id);
+    } else {
+        await client.from('seasons').update({ is_active: false }).eq('id', id);
+    }
+    initStagioni();
+}
+
+async function handleStagioneEdit(id, currentName) {
+    const newName = prompt("Modifica nome stagione (es. 2025/2026):", currentName);
+    if (newName && newName !== currentName) {
+        await client.from('seasons').update({ name: newName }).eq('id', id);
+        initStagioni();
+    }
+}
+
+async function handleStagioneDelete(id) {
+    if (confirm("Sei sicuro di voler eliminare questa stagione?")) {
+        const { error } = await client.from('seasons').delete().eq('id', id);
+        if (error) alert("Errore: " + error.message);
+        initStagioni();
+    }
+}
+
+/* ============================================================
+   SEZIONE: SPORT (Template + Init + Azioni)
+   ============================================================ */
+
+function templateSport() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SPORT</h2>
+            <button class="btn" id="btn-add-sport">+ Nuovo Sport</button>
+        </div>
+        <table>
+            <thead><tr><th>Icona</th><th>Nome</th><th style="text-align:right">Azioni</th></tr></thead>
+            <tbody id="list-sport"></tbody>
+        </table>
+    </div>`;
+}
+
+async function initSport() {
+    const { data } = await client.from('sports').select('*').order('name');
+    const tbody = document.getElementById('list-sport');
+    
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td style="font-size:1.5rem">${s.icon || '🏐'}</td>
+            <td><strong>${s.name}</strong></td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-sport-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessun dato.</td></tr>';
+
+    // Listener bottoni tabella Sport
+    tbody.querySelectorAll('.btn-sport-edit').forEach(btn => {
+        btn.onclick = () => handleSportEdit(btn.dataset.id, btn.dataset.name, btn.dataset.icon);
+    });
+    tbody.querySelectorAll('.btn-sport-delete').forEach(btn => {
+        btn.onclick = () => handleSportDelete(btn.dataset.id);
+    });
+
+    // Bottone Nuovo Sport
+    document.getElementById('btn-add-sport').onclick = () => {
+        modal.open('Nuovo Sport', `
+            <label>Nome Sport</label><input type="text" id="sp-name" placeholder="es. Calcio">
+            <label>Icona (Emoji)</label><input type="text" id="sp-icon" placeholder="es. ⚽">
+        `);
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('sp-name').value;
+            const icon = document.getElementById('sp-icon').value;
+            await client.from('sports').insert({ name, icon });
+            modal.close();
+            initSport();
         };
     };
 }
 
-    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+async function handleSportEdit(id, oldName, oldIcon) {
+    modal.open('Modifica Sport', `
+        <label>Nome Sport</label><input type="text" id="up-sp-name" value="${oldName}">
+        <label>Icona (Emoji)</label><input type="text" id="up-sp-icon" value="${oldIcon}">
+    `);
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('up-sp-name').value;
+        const icon = document.getElementById('up-sp-icon').value;
+        await client.from('sports').update({ name, icon }).eq('id', id);
+        modal.close();
+        initSport();
+    };
+}
 
+async function handleSportDelete(id) {
+    if (confirm("Eliminare questo sport?")) {
+        await client.from('sports').delete().eq('id', id);
+        initSport();
+    }
+}
 </script>
 </body>
 </html>
