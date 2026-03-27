@@ -42,22 +42,29 @@ async function initStagioni() {
                 <td>${formatDate(s.start_date)} → ${formatDate(s.end_date)}</td>
                 <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
                 <td>
-                    <button class="btn btn-action" data-action="activate" data-id="${s.id}">${s.is_active?'Disattiva':'Rendi Attiva'}</button>
-                    <button class="btn btn-action" style="background:#f59e0b" data-action="edit" data-id="${s.id}" data-name="${s.name}">Modifica</button>
-                    <button class="btn btn-action" style="background:#ef4444" data-action="delete" data-id="${s.id}">Elimina</button>
+                    <button class="btn btn-action" data-action="activate" data-id="${s.id}">
+                        ${s.is_active?'Disattiva':'Rendi Attiva'}
+                    </button>
+                    <button class="btn btn-action" style="background:#f59e0b" data-action="edit" data-id="${s.id}" data-name="${s.name}">
+                        Modifica
+                    </button>
+                    <button class="btn btn-action" style="background:#ef4444" data-action="delete" data-id="${s.id}">
+                        Elimina
+                    </button>
                 </td>
             </tr>
         `).join('')
         : '<tr><td colspan="4">Nessun dato.</td></tr>';
 
+    // Collego i bottoni delle righe
     document.querySelectorAll('#list-stagioni .btn-action').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
             const id = btn.dataset.id;
             const name = btn.dataset.name;
-            if(action === 'activate') setActiveStagione(id);
-            if(action === 'edit') editStagione(id, name);
-            if(action === 'delete') deleteStagione(id);
+            if (action === 'activate') setActiveStagione(id);
+            if (action === 'edit') editStagione(id, name);
+            if (action === 'delete') deleteStagione(id);
         });
     });
 }
@@ -84,9 +91,8 @@ async function addStagione() {
     else initStagioni();
 }
 
-/* ---------- LA TUA VERSIONE OTTIMIZZATA ---------- */
 async function setActiveStagione(id) {
-    // 1. Disattiva tutte le stagioni attualmente attive
+    // Disattiva solo le stagioni attualmente attive
     const { error: err1 } = await client
         .from('seasons')
         .update({ is_active: false })
@@ -97,7 +103,7 @@ async function setActiveStagione(id) {
         return;
     }
 
-    // 2. Attiva la stagione selezionata
+    // Attiva la stagione selezionata
     const { error: err2 } = await client
         .from('seasons')
         .update({ is_active: true })
