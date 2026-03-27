@@ -438,7 +438,7 @@ async function saveSport(){
   if(!name) return alert('Nome obbligatorio')
   const {error}= id
     ? await client.from('sports').update({name,icon}).eq('id',id)
-    : await client.from('sports').insert({name,icon})
+    : await client.from('sports').insert({name,icon})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetSportForm()
   loadSport()
@@ -480,7 +480,7 @@ async function saveSociety(){
   if(!name||!sport_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('societies').update({name,sport_id}).eq('id',id)
-    : await client.from('societies').insert({name,sport_id})
+    : await client.from('societies').insert({name,sport_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetSocietyForm()
   loadSociety()
@@ -522,7 +522,7 @@ async function saveCategory(){
   if(!name||!society_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('categories').update({name,society_id}).eq('id',id)
-    : await client.from('categories').insert({name,society_id})
+    : await client.from('categories').insert({name,society_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetCategoryForm()
   loadCategory()
@@ -568,7 +568,7 @@ async function saveTeam(){
   if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('teams').update({name,society_id,category_id}).eq('id',id)
-    : await client.from('teams').insert({name,society_id,category_id})
+    : await client.from('teams').insert({name,society_id,category_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetTeamForm()
   loadTeam()
@@ -626,7 +626,7 @@ async function saveAthlete(){
   if(!name||!surname||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('athletes').update({name,surname,born_date,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('athletes').insert({name,surname,born_date,society_id,category_id,team_id,season_id})
+    : await client.from('athletes').insert({name,surname,born_date,society_id,category_id,team_id,season_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetAthleteForm()
   loadAthlete()
@@ -665,7 +665,7 @@ async function saveStaff(){
   if(!user_id||!role||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('user_category_seasons').update({user_id,role,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('user_category_seasons').insert({user_id,role,society_id,category_id,team_id,season_id})
+    : await client.from('user_category_seasons').insert({user_id,role,society_id,category_id,team_id,season_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetStaffForm()
   loadStaff()
@@ -720,7 +720,7 @@ async function saveSession(){
   if(!title||!session_date||!society_id||!category_id||!team_id||!season_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('sessions').update({title,session_date,society_id,category_id,team_id,season_id}).eq('id',id)
-    : await client.from('sessions').insert({title,session_date,society_id,category_id,team_id,season_id})
+    : await client.from('sessions').insert({title,session_date,society_id,category_id,team_id,season_id})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetSessionForm()
   loadSession()
@@ -766,7 +766,7 @@ async function saveAttendance(){
   if(!session_id||!athlete_id) return alert('Compila tutti i campi')
   const {error}= id
     ? await client.from('attendances').update({session_id,athlete_id,status}).eq('id',id)
-    : await client.from('attendances').insert({session_id,athlete_id,status})
+    : await client.from('attendances').insert({session_id,athlete_id,status})   // <-- NIENTE id
   if(error) return alert(error.message)
   resetAttendanceForm()
   loadAttendance()
