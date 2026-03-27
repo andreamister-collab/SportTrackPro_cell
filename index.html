@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SportTrackPro - Gestione</title>
 
-<!-- Libreria Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Config DB centralizzata -->
 <script type="module" src="db.js"></script>
 
 <style>
@@ -62,9 +60,7 @@ th { background:#f8fafc; font-weight:600; }
         <a data-section="sessioni" onclick="loadPage('sessioni')">SESSIONI E PARTITE</a>
 
         <!-- === SEZIONE AGGIUNTIVA (AGGIUNGI QUI NUOVI LINK) === -->
-        <!-- Esempio:
-        <a data-section="gare" onclick="loadPage('gare')">GARE</a>
-        -->
+        <!-- <a data-section="gare" onclick="loadPage('gare')">GARE</a> -->
 
         <button class="btn-logout" id="btn-logout">Logout</button>
     </nav>
@@ -78,6 +74,7 @@ th { background:#f8fafc; font-weight:600; }
 import { client } from './db.js';
 
 let CURRENT_USER = null;
+let USER_ASSIGNMENT = null; // contiene society_id, category_id, team_id, season_id
 
 /* ---------- LOGIN ---------- */
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -89,15 +86,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
 
     try {
+        // 1) Recupera l'utente dalla tabella users
         const { data: userRow, error: userErr } = await client
             .from('users')
-            .select('id, username, email, name, role, society_id, category_id, team_id, season_id')
+            .select('id, username, email, name, role')
             .eq('username', username)
             .maybeSingle();
 
         if (userErr) throw new Error("Errore Database: " + userErr.message);
         if (!userRow) throw new Error("Utente non trovato.");
 
+        // 2) Autenticazione Supabase
         const { data: authData, error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
@@ -105,7 +104,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (authError) throw new Error("Password errata.");
 
+        // 3) Recupera l'assegnazione (society_id, category_id, team_id, season_id)
+        const { data: assignRow, error: assignErr } = await client
+            .from('user_category_seasons')
+            .select('society_id, category_id, team_id, season_id, role')
+            .eq('user_id', userRow.id)
+            .maybeSingle();
+
+        if (assignErr) throw new Error("Errore assegnazione: " + assignErr.message);
+
         CURRENT_USER = { ...authData.user, ...userRow };
+        USER_ASSIGNMENT = assignRow || {};
+
         initDashboard();
 
     } catch (err) {
@@ -123,7 +133,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 function initDashboard() {
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    loadPage('societa'); // pagina iniziale
+    loadPage('societa');
 }
 
 window.loadPage = function(section) {
@@ -240,51 +250,58 @@ function templateSessioni() {
 
 /* ---------- INIT PAGINE (QUERY SUPABASE) ---------- */
 async function initSocieta() {
-    const { data } = await client.from('societies').select('id,name,sport_id').order('name');
+    const { data, error } = await client.from('societies').select('id,name,sport_id').order('name');
+    if (error) return showError('list-societa', error.message);
     document.getElementById('list-societa').innerHTML = data?.length
         ? data.map(s => `<li>${s.name}</li>`).join('')
         : '<li>Nessun dato.</li>';
 }
 
 async function initCategoria() {
-    const { data } = await client.from('categories').select('id,name,society_id').order('name');
+    const { data, error } = await client.from('categories').select('id,name,society_id').order('name');
+    if (error) return showError('list-categorie', error.message);
     document.getElementById('list-categorie').innerHTML = data?.length
         ? data.map(c => `<li>${c.name}</li>`).join('')
         : '<li>Nessun dato.</li>';
 }
 
 async function initSquadra() {
-    const { data } = await client.from('teams').select('id,name,society_id,category_id').order('name');
+    const { data, error } = await client.from('teams').select('id,name,society_id,category_id').order('name');
+    if (error) return showError('list-squadre', error.message);
     document.getElementById('list-squadre').innerHTML = data?.length
         ? data.map(t => `<li>${t.name}</li>`).join('')
         : '<li>Nessun dato.</li>';
 }
 
 async function initSport() {
-    const { data } = await client.from('sports').select('id,name,icon').order('name');
+    const { data, error } = await client.from('sports').select('id,name,icon').order('name');
+    if (error) return showError('list-sport', error.message);
     document.getElementById('list-sport').innerHTML = data?.length
         ? data.map(s => `<li>${s.icon} ${s.name}</li>`).join('')
         : '<li>Nessun dato.</li>';
 }
 
 async function initStaff() {
-    const { data } = await client.from('user_category_seasons')
+    const { data, error } = await client.from('user_category_seasons')
         .select('id,role,user_id,society_id,team_id,category_id,season_id')
         .order('role');
+    if (error) return showError('list-staff', error.message);
     document.getElementById('list-staff').innerHTML = data?.length
         ? data.map(st => `<tr><td>${st.role}</td><td>${st.user_id}</td><td>${st.society_id}</td></tr>`).join('')
         : '<tr><td colspan="3">Nessun dato.</td></tr>';
 }
 
 async function initAtleti() {
-    const { data } = await client.from('athletes').select('id,name,surname,born_date').order('surname');
+    const { data, error } = await client.from('athletes').select('id,name,surname,born_date').order('surname');
+    if (error) return showError('list-atleti', error.message);
     document.getElementById('list-atleti').innerHTML = data?.length
         ? data.map(a => `<tr><td>${a.name}</td><td>${a.surname}</td><td>${a.born_date || '-'}</td></tr>`).join('')
         : '<tr><td colspan="3">Nessun dato.</td></tr>';
 }
 
 async function initSessioni() {
-    const { data } = await client.from('sessions').select('id,title,session_date,category_id,team_id').order('session_date',{ascending:false});
+    const { data, error } = await client.from('sessions').select('id,title,session_date,category_id,team_id').order('session_date',{ascending:false});
+    if (error) return showError('list-sessioni', error.message);
     document.getElementById('list-sessioni').innerHTML = data?.length
         ? data.map(s => `<li>${s.session_date} - ${s.title}</li>`).join('')
         : '<li>Nessun dato.</li>';
@@ -292,7 +309,8 @@ async function initSessioni() {
 
 /* === SEZIONE AGGIUNTIVA (AGGIUNGI QUI LE TUE NUOVE INIT) === */
 // async function initGare() {
-//     const { data } = await client.from('gare').select('*').order('id');
+//     const { data, error } = await client.from('gare').select('*').order('id');
+//     if (error) return showError('list-gare', error.message);
 //     document.getElementById('list-gare').innerHTML = data?.length ? data.map(g => `<li>${g.name}</li>`).join('') : '<li>Nessun dato.</li>';
 // }
 
@@ -309,13 +327,17 @@ async function addAtleta() {
         await client.from('athletes').insert({
             name,
             surname,
-            society_id: CURRENT_USER.society_id,
-            category_id: CURRENT_USER.category_id,
-            team_id: CURRENT_USER.team_id,
-            season_id: CURRENT_USER.season_id
+            society_id: USER_ASSIGNMENT.society_id,
+            category_id: USER_ASSIGNMENT.category_id,
+            team_id: USER_ASSIGNMENT.team_id,
+            season_id: USER_ASSIGNMENT.season_id
         });
         initAtleti();
     }
+}
+
+function showError(elementId, message) {
+    document.getElementById(elementId).innerHTML = `<li style="color:#b91c1c">${message}</li>`;
 }
 </script>
 </body>
