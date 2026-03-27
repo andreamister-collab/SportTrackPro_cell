@@ -457,8 +457,7 @@ async function createTeam(){
   const name=document.getElementById('team-name').value.trim()
   const society_id=document.getElementById('team-society').value
   const category_id=document.getElementById('team-category').value
-  if(!name||!society_id||!category_id
-    if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
+  if(!name||!society_id||!category_id) return alert('Compila tutti i campi')
   const {error}=await client.from('teams').insert({name,society_id,category_id})
   if(error) return alert(error.message)
   document.getElementById('team-name').value=''
