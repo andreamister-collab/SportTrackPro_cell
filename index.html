@@ -3,79 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Login SportTrackPro</title>
+    <title>SportTrackPro - Login</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; background: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 350px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        :root { --primary: #3b82f6; --bg: #f3f4f6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        /* Contenitori principali */
+        #login-wrap { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        #app { display: none; width: 100%; height: 100vh; background: white; padding: 20px; }
+
+        h2 { text-align: center; color: #1f2937; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #4b5563; }
+        input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        
+        button { 
+            width: 100%; padding: 0.75rem; background: var(--primary); color: white; 
+            border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; 
+            cursor: pointer; transition: background 0.2s; 
+        }
         button:hover { background: #2563eb; }
-        #status { margin-top: 15px; font-size: 0.9em; padding: 10px; border-radius: 4px; display: none; }
-        .error { background: #fee2e2; color: #b91c1c; display: block !important; }
-        .success { background: #dcfce7; color: #15803d; display: block !important; }
+        #error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 1rem; text-align: center; display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Login Test</h2>
-    <form id="login-form">
-        <input type="text" id="username" placeholder="Username (es. mario.rossi)" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <button type="submit" id="btn-login">Accedi</button>
-    </form>
-    <div id="status"></div>
-</div>
+    <div id="login-wrap">
+        <h2>SportTrackPro</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Inserisci username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            <button type="submit" id="btn-login">Accedi</button>
+            <div id="error-msg"></div>
+        </form>
+    </div>
 
-<script>
-    // --- CONFIGURAZIONE ---
-    const SUPABASE_URL = 'https://saoghfehqrjgobcpiebz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb2doZmVocXJqZ29iY3BpZWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgwMTcsImV4cCI6MjA4OTE1NDAxN30.3i6bHXbdmKppLt8r2n4YCD5rgeFnm6veeFPmReDmOMY'; // <--- IMPORTANTE
+    <div id="app">
+        <header>
+            <h1 id="welcome-msg">Benvenuto!</h1>
+            <button onclick="logout()" style="width: auto; padding: 5px 15px; background: #6b7280;">Logout</button>
+        </header>
+        <hr>
+        <div id="content">
+            <p>Caricamento dashboard in corso...</p>
+        </div>
+    </div>
 
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <script>
+        // Configurazione Supabase
+        const SUPABASE_URL = 'https://saoghfehqrjgobcpiebz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb2doZmVocXJqZ29iY3BpZWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgwMTcsImV4cCI6MjA4OTE1NDAxN30.3i6bHXbdmKppLt8r2n4YCD5rgeFnm6veeFPmReDmOMY'; // <--- IMPORTANTE
 
-    const loginForm = document.getElementById('login-form');
-    const statusDiv = document.getElementById('status');
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const email = `${username}@sporttrackpro.it`;
-        
-        statusDiv.className = '';
-        statusDiv.innerText = 'Accesso in corso...';
-        statusDiv.style.display = 'block';
+        let USER = null;
 
-        try {
-            // 1. Auth Supabase
-            const { data: authData, error: authError } = await client.auth.signInWithPassword({ email, password });
+        // Elementi DOM
+        const loginForm = document.getElementById('login-form');
+        const loginWrap = document.getElementById('login-wrap');
+        const appDiv = document.getElementById('app');
+        const errorMsg = document.getElementById('error-msg');
+
+        // Funzione di Login
+        async function login(e) {
+            e.preventDefault();
+            errorMsg.style.display = 'none';
             
-            if (authError) throw new Error('Auth: ' + authError.message);
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
 
-            // 2. Controllo Tabella Users
-            const { data: userRow, error: userErr } = await client
-                .from('users')
-                .select('id, username, name, role')
-                .eq('username', username)
-                .single();
+            try {
+                // 1. Recupero email dalla tabella 'users' usando lo username
+                const { data: userRow, error: userErr } = await client
+                    .from('users')
+                    .select('email, id, name, role')
+                    .eq('username', username)
+                    .single();
 
-            if (userErr) throw new Error('Database: ' + userErr.message);
-            if (!userRow) throw new Error('Profilo non trovato nella tabella users');
+                if (userErr || !userRow || !userRow.email) {
+                    throw new Error('Username non trovato o profilo incompleto');
+                }
 
-            // Successo
-            statusDiv.className = 'success';
-            statusDiv.innerHTML = `✅ Benvenuto <b>${userRow.name}</b>!<br>Ruolo: ${userRow.role}`;
-            console.log('Utente loggato:', userRow);
+                // 2. Autenticazione con email e password
+                const { data, error: authError } = await client.auth.signInWithPassword({
+                    email: userRow.email,
+                    password: password
+                });
 
-        } catch (err) {
-            statusDiv.className = 'error';
-            statusDiv.innerText = 'Errore: ' + err.message;
-            console.error(err);
+                if (authError) throw authError;
+
+                // 3. Successo: Imposta utente e cambia schermata
+                USER = { ...data.user, ...userRow };
+                showApp();
+
+            } catch (err) {
+                errorMsg.innerText = err.message;
+                errorMsg.style.display = 'block';
+                console.error("Errore Login:", err);
+            }
         }
-    });
-</script>
 
+        function showApp() {
+            loginWrap.style.display = 'none';
+            appDiv.style.display = 'block';
+            document.getElementById('welcome-msg').innerText = `Ciao, ${USER.name || 'Utente'}`;
+            initApp();
+        }
+
+        function initApp() {
+            console.log("App Inizializzata per:", USER.username);
+            // Qui richiamerai loadSection('dashboard') o simili
+        }
+
+        async function logout() {
+            await client.auth.signOut();
+            location.reload();
+        }
+
+        // Event Listener
+        loginForm.addEventListener('submit', login);
+    </script>
 </body>
 </html>
