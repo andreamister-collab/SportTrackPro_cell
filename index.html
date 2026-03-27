@@ -145,6 +145,10 @@
                content.innerHTML = templateSport(); 
                 initSport(); 
                  break;
+             case 'societa': 
+                content.innerHTML = templateSocieta(); 
+                initSocieta(); 
+                break;
             /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
             default: 
@@ -350,6 +354,119 @@ async function handleSportDelete(id) {
     if (confirm("Eliminare questo sport?")) {
         await client.from('sports').delete().eq('id', id);
         initSport();
+    }
+}
+/* ============================================================
+   SEZIONE: SOCIETÀ (Template + Init)
+   ============================================================ */
+
+function templateSocieta() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SOCIETÀ</h2>
+            <button class="btn" id="btn-add-societa">+ Nuova Società</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Società</th>
+                    <th>Sport Associato</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-societa">
+                <tr><td colspan="3">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+async function initSocieta() {
+    // Recuperiamo le società includendo i dati della tabella sports (Join)
+    const { data, error } = await client
+        .from('societies')
+        .select('*, sports(name, icon)')
+        .order('name');
+
+    const tbody = document.getElementById('list-societa');
+    if (error) { tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; return; }
+
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '<span style="color:red">Sport non assegnato</span>'}</td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-soc-edit" data-id="${s.id}" data-name="${s.name}" data-sport="${s.sport_id}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-soc-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessuna società registrata.</td></tr>';
+
+    // --- Aggancio Eventi ai bottoni della tabella ---
+    tbody.querySelectorAll('.btn-soc-edit').forEach(btn => {
+        btn.onclick = () => handleSocietaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.sport);
+    });
+    tbody.querySelectorAll('.btn-soc-delete').forEach(btn => {
+        btn.onclick = () => handleSocietaDelete(btn.dataset.id);
+    });
+
+    // --- Logica Bottone "Nuova Società" ---
+    document.getElementById('btn-add-societa').onclick = async () => {
+        // Recuperiamo la lista degli sport per popolare la tendina
+        const { data: sportsList } = await client.from('sports').select('*').order('name');
+        const options = sportsList?.map(sp => `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`).join('') || '';
+
+        modal.open('Aggiungi Nuova Società', `
+            <label>Nome della Società</label>
+            <input type="text" id="new-soc-name" placeholder="es. A.C. Pro Vercelli">
+            <label>Disciplina Sportiva</label>
+            <select id="new-soc-sport">
+                <option value="">-- Seleziona lo Sport --</option>
+                ${options}
+            </select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('new-soc-name').value;
+            const sport_id = document.getElementById('new-soc-sport').value;
+            
+            if(!name || !sport_id) return alert("Inserisci nome e seleziona uno sport!");
+
+            const { error: insErr } = await client.from('societies').insert({ name, sport_id });
+            if(!insErr) { modal.close(); initSocieta(); } else { alert(insErr.message); }
+        };
+    };
+}
+    /* --- AZIONI SOCIETÀ --- */
+
+async function handleSocietaEdit(id, currentName, currentSportId) {
+    // Recuperiamo gli sport per permettere il cambio
+    const { data: sportsList } = await client.from('sports').select('*').order('name');
+    const options = sportsList?.map(sp => 
+        `<option value="${sp.id}" ${sp.id == currentSportId ? 'selected' : ''}>${sp.icon} ${sp.name}</option>`
+    ).join('');
+
+    modal.open('Modifica Società', `
+        <label>Nome Società</label>
+        <input type="text" id="edit-soc-name" value="${currentName}">
+        <label>Disciplina Sportiva</label>
+        <select id="edit-soc-sport">${options}</select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('edit-soc-name').value;
+        const sport_id = document.getElementById('edit-soc-sport').value;
+
+        const { error } = await client.from('societies').update({ name, sport_id }).eq('id', id);
+        if(!error) { modal.close(); initSocieta(); } else { alert(error.message); }
+    };
+}
+
+async function handleSocietaDelete(id) {
+    if (confirm("Attenzione: eliminando la società perderai tutti i collegamenti a categorie e squadre. Procedere?")) {
+        const { error } = await client.from('societies').delete().eq('id', id);
+        if(!error) initSocieta(); else alert(error.message);
     }
 }
 </script>
