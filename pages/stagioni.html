@@ -22,17 +22,7 @@
 <script type="module">
 import { client } from '../db.js';
 
-// --- RENDI LE FUNZIONI GLOBALI PER GLI ONCLICK ---
-window.initStagioni = initStagioni;
-window.addStagione = addStagione;
-window.setActiveStagione = setActiveStagione;
-window.editStagione = editStagione;
-window.deleteStagione = deleteStagione;
-
-// Collega il bottone (evita onclick inline)
-document.getElementById('btn-add-stagione').addEventListener('click', addStagione);
-
-// Carica e mostra tutte le stagioni
+/* ---------- FUNZIONI ---------- */
 async function initStagioni() {
     const { data, error } = await client
         .from('seasons')
@@ -52,22 +42,27 @@ async function initStagioni() {
                 <td>${formatDate(s.start_date)} → ${formatDate(s.end_date)}</td>
                 <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
                 <td>
-                    <button class="btn" style="background:#0ea5e9" onclick="setActiveStagione('${s.id}')">
-                        ${s.is_active?'Disattiva':'Rendi Attiva'}
-                    </button>
-                    <button class="btn" style="background:#f59e0b" onclick="editStagione('${s.id}','${s.name}')">
-                        Modifica
-                    </button>
-                    <button class="btn" style="background:#ef4444" onclick="deleteStagione('${s.id}')">
-                        Elimina
-                    </button>
+                    <button class="btn btn-action" data-action="activate" data-id="${s.id}">${s.is_active?'Disattiva':'Rendi Attiva'}</button>
+                    <button class="btn btn-action" style="background:#f59e0b" data-action="edit" data-id="${s.id}" data-name="${s.name}">Modifica</button>
+                    <button class="btn btn-action" style="background:#ef4444" data-action="delete" data-id="${s.id}">Elimina</button>
                 </td>
             </tr>
         `).join('')
         : '<tr><td colspan="4">Nessun dato.</td></tr>';
+
+    // Aggancio gli eventi ai bottoni generati dinamicamente
+    document.querySelectorAll('#list-stagioni .btn-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            const id = btn.dataset.id;
+            const name = btn.dataset.name;
+            if(action === 'activate') setActiveStagione(id);
+            if(action === 'edit') editStagione(id, name);
+            if(action === 'delete') deleteStagione(id);
+        });
+    });
 }
 
-// Crea nuova stagione: chiede solo gli anni
 async function addStagione() {
     const annoInizio = prompt('Anno inizio (es. 2025)');
     if(!annoInizio) return;
@@ -90,7 +85,6 @@ async function addStagione() {
     else initStagioni();
 }
 
-// Rende attiva SOLO questa stagione
 async function setActiveStagione(id) {
     await client.from('seasons').update({is_active:false}).neq('id','00000000-0000-0000-0000-000000000000');
     const { error } = await client.from('seasons').update({is_active:true}).eq('id',id);
@@ -98,7 +92,6 @@ async function setActiveStagione(id) {
     else initStagioni();
 }
 
-// Modifica nome/anni di una stagione
 async function editStagione(id, currentName) {
     const [curInizio, curFine] = currentName.split('/');
     const annoInizio = prompt('Anno inizio', curInizio);
@@ -112,18 +105,13 @@ async function editStagione(id, currentName) {
     const end_date = `31/07/${annoFine}`;
 
     const { error } = await client.from('seasons')
-        .update({
-            name,
-            start_date: convertITDate(start_date),
-            end_date: convertITDate(end_date)
-        })
+        .update({ name, start_date: convertITDate(start_date), end_date: convertITDate(end_date) })
         .eq('id', id);
 
     if(error) alert('Errore: ' + error.message);
     else initStagioni();
 }
 
-// Elimina stagione
 async function deleteStagione(id) {
     if(!confirm('Sei sicuro di voler eliminare questa stagione?')) return;
 
@@ -132,7 +120,6 @@ async function deleteStagione(id) {
     else initStagioni();
 }
 
-/* Utility */
 function convertITDate(itDate) {
     const [d,m,y] = itDate.split('/');
     return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
@@ -141,6 +128,10 @@ function formatDate(sqlDate) {
     const [y,m,d] = sqlDate.split('-');
     return `${d}/${m}/${y}`;
 }
+
+/* ---------- INIZIO ---------- */
+document.getElementById('btn-add-stagione').addEventListener('click', addStagione);
+initStagioni();
 </script>
 
 <style>
