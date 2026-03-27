@@ -1,0 +1,143 @@
+<div class="card">
+    <div class="header">
+        <h2>STAGIONI</h2>
+        <button class="btn" onclick="addStagione()">+ Nuova Stagione</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Periodo</th>
+                <th>Stato</th>
+                <th>Azioni</th>
+            </tr>
+        </thead>
+        <tbody id="list-stagioni">
+            <tr><td colspan="4">Caricamento...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script type="module">
+import { client } from '../db.js';
+
+// Carica e mostra tutte le stagioni
+window.initStagioni = async function() {
+    const { data, error } = await client
+        .from('seasons')
+        .select('id,name,start_date,end_date,is_active')
+        .order('start_date', {ascending:false});
+
+    const tbody = document.getElementById('list-stagioni');
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c">${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data?.length
+        ? data.map(s => `
+            <tr>
+                <td>${s.name}</td>
+                <td>${formatDate(s.start_date)} → ${formatDate(s.end_date)}</td>
+                <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+                <td>
+                    <button class="btn" style="background:#0ea5e9" onclick="setActiveStagione('${s.id}')">
+                        ${s.is_active?'Disattiva':'Rendi Attiva'}
+                    </button>
+                    <button class="btn" style="background:#f59e0b" onclick="editStagione('${s.id}','${s.name}')">
+                        Modifica
+                    </button>
+                    <button class="btn" style="background:#ef4444" onclick="deleteStagione('${s.id}')">
+                        Elimina
+                    </button>
+                </td>
+            </tr>
+        `).join('')
+        : '<tr><td colspan="4">Nessun dato.</td></tr>';
+};
+
+// Crea nuova stagione: chiede solo gli anni
+window.addStagione = async function() {
+    const annoInizio = prompt('Anno inizio (es. 2025)');
+    if(!annoInizio) return;
+
+    const annoFine = prompt('Anno fine (es. 2026)');
+    if(!annoFine) return;
+
+    const name = `${annoInizio}/${annoFine}`;
+    const start_date = `01/08/${annoInizio}`;
+    const end_date = `31/07/${annoFine}`;
+
+    const { error } = await client.from('seasons').insert({
+        name,
+        start_date: convertITDate(start_date),
+        end_date: convertITDate(end_date),
+        is_active: false
+    });
+
+    if(error) alert('Errore: ' + error.message);
+    else initStagioni();
+};
+
+// Rende attiva SOLO questa stagione
+window.setActiveStagione = async function(id) {
+    // Prima disattivo tutte
+    await client.from('seasons').update({is_active:false}).neq('id','00000000-0000-0000-0000-000000000000');
+    // Poi attivo quella scelta
+    const { error } = await client.from('seasons').update({is_active:true}).eq('id',id);
+    if(error) alert('Errore: ' + error.message);
+    else initStagioni();
+};
+
+// Modifica nome/anni di una stagione
+window.editStagione = async function(id, currentName) {
+    const [curInizio, curFine] = currentName.split('/');
+    const annoInizio = prompt('Anno inizio', curInizio);
+    if(!annoInizio) return;
+
+    const annoFine = prompt('Anno fine', curFine);
+    if(!annoFine) return;
+
+    const name = `${annoInizio}/${annoFine}`;
+    const start_date = `01/08/${annoInizio}`;
+    const end_date = `31/07/${annoFine}`;
+
+    const { error } = await client.from('seasons')
+        .update({
+            name,
+            start_date: convertITDate(start_date),
+            end_date: convertITDate(end_date)
+        })
+        .eq('id', id);
+
+    if(error) alert('Errore: ' + error.message);
+    else initStagioni();
+};
+
+// Elimina stagione
+window.deleteStagione = async function(id) {
+    if(!confirm('Sei sicuro di voler eliminare questa stagione?')) return;
+
+    const { error } = await client.from('seasons').delete().eq('id', id);
+    if(error) alert('Errore: ' + error.message);
+    else initStagioni();
+};
+
+/* Utility */
+function convertITDate(itDate) {
+    // da "01/08/2025" a "2025-08-01"
+    const [d,m,y] = itDate.split('/');
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+function formatDate(sqlDate) {
+    const [y,m,d] = sqlDate.split('-');
+    return `${d}/${m}/${y}`;
+}
+</script>
+
+<style>
+.badge { display:inline-block; padding:0.25rem 0.5rem; border-radius:999px; font-size:0.75rem; font-weight:600; }
+.badge-active { background:#dcfce7; color:#166534; }
+.badge-inactive { background:#f1f5f9; color:#475569; }
+</style>
