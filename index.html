@@ -886,15 +886,15 @@ async function initAssignments() {
     infoBanner.innerHTML = `📅 Stagione Corrente: ${season.name}`;
 
     // 2. Carica assegnazioni correnti (Uso i nomi delle tabelle per i join)
-    const { data, error } = await client
-        .from('user_category_seasons')
-        .select(`
-            id, 
-            role, 
-            users (name), 
-            categories (name)
-        `)
-        .eq('season_id', season.id);
+const { data, error } = await client
+    .from('user_category_seasons')
+    .select(`
+        id, 
+        role, 
+        users!fk_staff_user (name), 
+        categories!fk_staff_category (name)
+    `)
+    .eq('season_id', season.id);
 
     if (error) {
         console.error(error);
