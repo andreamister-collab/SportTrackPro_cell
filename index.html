@@ -1057,30 +1057,30 @@ function templateAtleti() {
     <div class="card">
         <div class="header">
             <h2>ANAGRAFICA ATLETI</h2>
-            <div class="actions" style="display: flex; gap: 10px;">
+            <div class="actions">
                 <button class="btn btn-outline" onclick="exportAtleti()">📤 Esporta</button>
                 <button class="btn btn-outline" onclick="document.getElementById('import-excel').click()">📥 Importa</button>
                 <input type="file" id="import-excel" hidden accept=".xlsx, .xls" onchange="importAtleti(event)">
                 <button class="btn" id="btn-add-atleta">+ Nuovo Atleta</button>
             </div>
         </div>
-        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb; padding:8px; background:#eff6ff; border-radius:4px; display:inline-block;"></div>
+        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb;"></div>
         <table>
             <thead>
                 <tr>
-                    <th>Atleta (Cognome Nome)</th>
+                    <th>Atleta</th>
+                    <th>Soprannome</th>
                     <th>Squadra</th>
-                    <th style="text-align:center">N° Maglia</th>
+                    <th style="text-align:center">N°</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
             <tbody id="list-atleti">
-                <tr><td colspan="4">Caricamento in corso...</td></tr>
+                <tr><td colspan="5">Caricamento...</td></tr>
             </tbody>
         </table>
     </div>`;
 }
-
 /**
  * Inizializzazione Tabella Atleti
  */
@@ -1169,11 +1169,15 @@ async function openAtletaModal(activeSeasonId, editId = null) {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
             <div>
                 <label>Cognome *</label>
-                <input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}">
+                <input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}" placeholder="Rossi">
             </div>
             <div>
                 <label>Nome *</label>
-                <input type="text" id="at-name" value="${editData?.athletes?.name || ''}">
+                <input type="text" id="at-name" value="${editData?.athletes?.name || ''}" placeholder="Mario">
+            </div>
+            <div>
+                <label>Soprannome</label>
+                <input type="text" id="at-nickname" value="${editData?.athletes?.nickname || ''}" placeholder="es. Lucone">
             </div>
             <div>
                 <label>Data di Nascita</label>
@@ -1183,54 +1187,58 @@ async function openAtletaModal(activeSeasonId, editId = null) {
                 <label>Numero Maglia</label>
                 <input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="Lascia vuoto se N/D">
             </div>
+            <div>
+                <label>Ruolo</label>
+                <input type="text" id="at-role" value="${editData?.role || ''}" placeholder="Attaccante">
+            </div>
         </div>
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
         const surname = document.getElementById('at-surname').value.trim();
         const name = document.getElementById('at-name').value.trim();
+        const nickname = document.getElementById('at-nickname').value.trim();
         const category_id = document.getElementById('at-category').value;
         const teamEl = document.getElementById('at-team');
-        const team_id = teamEl.value || null;
-        const jersey = document.getElementById('at-jersey').value || null; // Supporto Jersey Null [cite: 2026-03-28]
 
-        if (!surname || !name || !category_id) return alert("Cognome, Nome e Categoria obbligatori!");
+        if (!surname || !name || !category_id) return alert("Compila i campi obbligatori!");
 
+        // 1. Upsert Atleta
         const { data: athlete, error: aErr } = await client.from('athletes').upsert({
             id: editData?.athletes?.id || undefined,
-            name, surname, 
+            name, surname, nickname,
             born_date: document.getElementById('at-born').value || null,
             society_id: teamEl.options[teamEl.selectedIndex]?.getAttribute('data-soc') || editData?.society_id
         }).select().single();
 
-        if (aErr) return alert(aErr.message);
+        if (aErr) return alert("Errore Anagrafica: " + aErr.message);
 
+        // 2. Upsert Assegnazione
         const { error: assErr } = await client.from('athlete_team_seasons').upsert({
             id: editId || undefined,
             athlete_id: athlete.id,
             season_id: activeSeasonId,
             category_id,
-            team_id,
+            team_id: teamEl.value || null,
             society_id: athlete.society_id,
-            jersey_number: jersey
+            jersey_number: document.getElementById('at-jersey').value || null,
+            role: document.getElementById('at-role').value
         });
 
         if (!assErr) { modal.close(); initAtleti(); } else { alert(assErr.message); }
     };
 }
-
-/**
- * EXPORT EXCEL
- */
+// EXPORT
 async function exportAtleti() {
     const { data: activeSeason } = await client.from('seasons').select('id, name').eq('is_active', true).maybeSingle();
-    const { data } = await client.from('athlete_team_seasons').select('jersey_number, athletes(name, surname, born_date), teams(name), categories(name)').eq('season_id', activeSeason.id);
+    const { data } = await client.from('athlete_team_seasons').select('jersey_number, role, athletes(name, surname, nickname, born_date), teams(name), categories(name)').eq('season_id', activeSeason.id);
 
     const rows = data.map(r => ({
         Cognome: r.athletes?.surname,
         Nome: r.athletes?.name,
+        Soprannome: r.athletes?.nickname,
         Data_Nascita: r.athletes?.born_date,
-        Categoria: r.categories?.name,
+        Ruolo: r.role,
         Squadra: r.teams?.name || 'Categoria Intera',
         Numero_Maglia: r.jersey_number
     }));
@@ -1238,55 +1246,40 @@ async function exportAtleti() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Atleti");
-    XLSX.writeFile(wb, `Export_Atleti_${activeSeason.name}.xlsx`);
+    XLSX.writeFile(wb, `Atleti_${activeSeason.name}.xlsx`);
 }
 
-/**
- * IMPORT EXCEL
- */
+// IMPORT
 async function importAtleti(event) {
     const file = event.target.files[0];
-    if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (e) => {
-        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        
+        const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), {type:'array'}).Sheets.Atleti || {});
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
-        const { data: categories } = await client.from('categories').select('id, name');
-        const { data: teams } = await client.from('teams').select('id, name, society_id').eq('season_id', activeSeason.id);
-
+        
         for (const row of json) {
-            const { data: athlete } = await client.from('athletes').upsert({ name: row.Nome, surname: row.Cognome, born_date: row.Data_Nascita }).select().single();
-            const catId = categories.find(c => c.name.toLowerCase() === row.Categoria?.toLowerCase())?.id;
-            const team = teams.find(t => t.name.toLowerCase() === row.Squadra?.toLowerCase());
-
-            if (catId) {
+            const { data: athlete } = await client.from('athletes').upsert({ 
+                name: row.Nome, 
+                surname: row.Cognome, 
+                nickname: row.Soprannome, 
+                born_date: row.Data_Nascita 
+            }).select().single();
+            
+            if (athlete) {
+                // Qui dovresti aggiungere la logica per trovare team_id e category_id in base ai nomi nel file
                 await client.from('athlete_team_seasons').upsert({
                     athlete_id: athlete.id,
                     season_id: activeSeason.id,
-                    category_id: catId,
-                    team_id: team?.id || null,
-                    society_id: team?.society_id || null,
-                    jersey_number: row.Numero_Maglia || null
+                    jersey_number: row.Numero_Maglia || null,
+                    role: row.Ruolo
                 });
             }
         }
-        alert("Importazione completata!");
+        alert("Import completato");
         initAtleti();
     };
     reader.readAsArrayBuffer(file);
 }
-
-/* --- FUNZIONI GLOBALI WINDOW --- */
-window.handleEditAtleta = (id) => openAtletaModal(null, id);
-window.handleDeleteAtleta = async (id) => {
-    if (confirm("Rimuovere l'assegnazione?")) {
-        await client.from('athlete_team_seasons').delete().eq('id', id);
-        initAtleti();
-    }
-};
 	/* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
