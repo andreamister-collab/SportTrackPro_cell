@@ -1298,6 +1298,7 @@ window.applyAtletiFilters = function() {
         </tr>
     `).join('') || '<tr><td colspan="8">Nessun atleta trovato.</td></tr>';
 };
+
 /* ============================================================
    FUNZIONE IMPORT DEFINITIVA: CREA ATLETA + MAPPATURA UUID
    ============================================================ */
@@ -1312,7 +1313,7 @@ window.importAtleti = async function(event) {
             const workbook = XLSX.read(data, { type: 'array' });
             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-            if (jsonData.length === 0) return alert("Il file Excel è vuoto.");
+            console.log("Inizio mappatura dati...", jsonData);
 
             // 1. Scarichiamo tutti i riferimenti per trasformare i nomi in ID
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
@@ -1327,18 +1328,18 @@ window.importAtleti = async function(event) {
                 i.name?.toString().trim().toLowerCase() === name?.toString().trim().toLowerCase()
             )?.id;
 
-            const toInsert = [];
-            let newAthletesCreated = 0;
+            const finalAssignments = [];
+            let newAthletesCount = 0;
 
             // 2. Elaborazione ciclica delle righe
             for (const row of jsonData) {
-                // Pulizia Nome/Cognome (Gestisce 'Trimboli Maciste' -> Surname: Trimboli, Name: Maciste)
+                // Pulizia Nome/Cognome (Gestisce 'Cognome Nome')
                 let fullStr = row.Atleta?.toString().trim() || "";
                 let parts = fullStr.split(" ");
                 let surname = parts[0] || "Cognome";
                 let name = parts.slice(1).join(" ") || "Nome";
 
-                // A. CERCHIAMO O CREIAMO L'ATLETA (Necessario per avere l'ID)
+                // A. CERCHIAMO O CREIAMO L'ATLETA (Serve l'ID per Supabase)
                 let athleteId = existingAths.data.find(a => 
                     a.surname.toLowerCase() === surname.toLowerCase() && 
                     a.name.toLowerCase() === name.toLowerCase()
@@ -1356,7 +1357,7 @@ window.importAtleti = async function(event) {
                         continue; 
                     }
                     athleteId = newAth.id;
-                    newAthletesCreated++;
+                    newAthletesCount++;
                     // Aggiorniamo la cache locale per non ricrearlo se duplicato nel file
                     existingAths.data.push({ id: athleteId, name: name, surname: surname });
                 }
@@ -1369,7 +1370,7 @@ window.importAtleti = async function(event) {
 
                 // C. PREPARIAMO IL RECORD PER athlete_team_seasons
                 if (athleteId && sId && seaId) {
-                    toInsert.push({
+                    finalAssignments.push({
                         athlete_id: athleteId,
                         society_id: sId,
                         season_id: seaId,
@@ -1385,11 +1386,11 @@ window.importAtleti = async function(event) {
             }
 
             // 3. INVIO MASSIVO AL DATABASE
-            if (toInsert.length > 0) {
-                const { error: errIns } = await client.from('athlete_team_seasons').insert(toInsert);
+            if (finalAssignments.length > 0) {
+                const { error: errIns } = await client.from('athlete_team_seasons').insert(finalAssignments);
                 if (errIns) throw errIns;
                 
-                alert(`Import riuscito!\n- Nuovi atleti creati: ${newAthletesCreated}\n- Assegnazioni inserite: ${toInsert.length}`);
+                alert(`Import riuscito!\n- Nuovi atleti creati: ${newAthletesCount}\n- Assegnazioni inserite: ${finalAssignments.length}`);
             } else {
                 alert("Nessun dato valido. Controlla che i nomi delle Società e Stagioni corrispondano al DB.");
             }
@@ -1403,24 +1404,6 @@ window.importAtleti = async function(event) {
         }
     };
     reader.readAsArrayBuffer(file);
-};
-// 4. EXPORT E ELIMINA (Inclusa Società)
-window.exportAtleti = function() {
-    const table = document.querySelector("table");
-    if (!table) return;
-    const rows = Array.from(table.querySelectorAll("tr")).map(tr => 
-        Array.from(tr.querySelectorAll("th, td")).slice(0, -1).map(td => td.innerText.trim())
-    );
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Atleti");
-    XLSX.writeFile(wb, "SportTrackPro_Atleti.xlsx");
-};
-
-window.deleteAtleta = async function(id) {
-    if (!confirm("Rimuovere l'atleta dalla stagione?")) return;
-    const { error } = await client.from('athlete_team_seasons').delete().eq('id', id);
-    if (!error) window.loadAtletiData();
 };
 // 4. EXPORT EXCEL REALE (Richiede libreria SheetJS)
 window.exportAtleti = function() {
