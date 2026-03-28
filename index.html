@@ -1034,6 +1034,156 @@ window.deleteAssignment = async (id) => {
         else alert("Errore: " + error.message);
     }
 };
+/* ============================================================
+   SEZIONE: ANAGRAFICA ATLETI (Semplificata)
+   ============================================================ */
+
+function templateAtleti() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>ANAGRAFICA ATLETI</h2>
+            <div class="actions">
+                <button class="btn-outline" onclick="exportAtleti()">📥 Esporta</button>
+                <button class="btn-outline" onclick="document.getElementById('import-excel').click()">📤 Importa</button>
+                <input type="file" id="import-excel" hidden accept=".xlsx, .xls, .csv" onchange="importAtleti(event)">
+                <button class="btn" id="btn-add-atleta">+ Nuovo Atleta</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Cognome e Nome</th>
+                    <th>Data di Nascita</th>
+                    <th>Note</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-atleti">
+                <tr><td colspan="4">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+async function initAtleti() {
+    const tbody = document.getElementById('list-atleti');
+    if (!tbody) return;
+
+    const { data, error } = await client
+        .from('athletes')
+        .select('*')
+        .order('surname', { ascending: true });
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data?.map(a => `
+        <tr>
+            <td><strong>${a.surname} ${a.name}</strong></td>
+            <td>${a.birth_date ? new Date(a.birth_date).toLocaleDateString('it-IT') : '-'}</td>
+            <td style="color: #666; font-size: 0.9em;">${a.notes || ''}</td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-warning" onclick="handleEditAtleta('${a.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="deleteAtleta('${a.id}')">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4">Nessun atleta in anagrafica.</td></tr>';
+
+    document.getElementById('btn-add-atleta').onclick = () => openAtletaModal();
+}
+
+async function openAtletaModal(editData = null) {
+    const isEdit = !!editData;
+
+    modal.open(isEdit ? 'Modifica Atleta' : 'Nuovo Atleta', `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label>Cognome *</label>
+                <input type="text" id="atl-surname" value="${isEdit ? editData.surname : ''}" required>
+            </div>
+            <div>
+                <label>Nome *</label>
+                <input type="text" id="atl-name" value="${isEdit ? editData.name : ''}" required>
+            </div>
+        </div>
+        
+        <label>Data di Nascita</label>
+        <input type="date" id="atl-birth" value="${isEdit ? editData.birth_date : ''}">
+        
+        <label>Note / Info Mediche</label>
+        <textarea id="atl-notes" rows="3">${isEdit ? (editData.notes || '') : ''}</textarea>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const payload = {
+            surname: document.getElementById('atl-surname').value.toUpperCase().trim(),
+            name: document.getElementById('atl-name').value.trim(),
+            birth_date: document.getElementById('atl-birth').value || null,
+            notes: document.getElementById('atl-notes').value.trim()
+        };
+
+        if (!payload.surname || !payload.name) return alert("Inserire Cognome e Nome");
+
+        const { error } = isEdit 
+            ? await client.from('athletes').update(payload).eq('id', editData.id)
+            : await client.from('athletes').insert(payload);
+
+        if (!error) { modal.close(); initAtleti(); }
+        else alert("Errore: " + error.message);
+    };
+}
+
+// EXPORT EXCEL (Senza CF)
+window.exportAtleti = async () => {
+    const { data } = await client.from('athletes').select('surname, name, birth_date, notes').order('surname');
+    const ws = XLSX.utils.json_to_sheet(data.map(a => ({
+        "COGNOME": a.surname,
+        "NOME": a.name,
+        "DATA NASCITA": a.birth_date,
+        "NOTE": a.notes
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Atleti");
+    XLSX.writeFile(wb, "Anagrafica_Atleti.xlsx");
+};
+
+// IMPORT EXCEL (Senza CF)
+window.importAtleti = async (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+        const atleti = jsonData.map(row => ({
+            surname: (row["COGNOME"] || "").toString().toUpperCase().trim(),
+            name: (row["NOME"] || "").toString().trim(),
+            birth_date: row["DATA NASCITA"] || null,
+            notes: row["NOTE"] || ""
+        })).filter(a => a.surname && a.name);
+
+        if (confirm(`Importare ${atleti.length} atleti?`)) {
+            const { error } = await client.from('athletes').insert(atleti);
+            if (!error) { alert("Importazione ok!"); initAtleti(); }
+        }
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.handleEditAtleta = async (id) => {
+    const { data } = await client.from('athletes').select('*').eq('id', id).single();
+    if (data) openAtletaModal(data);
+};
+
+window.deleteAtleta = async (id) => {
+    if (confirm("Eliminare definitivamente l'atleta?")) {
+        await client.from('athletes').delete().eq('id', id);
+        initAtleti();
+    }
+};
 	/* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
