@@ -68,7 +68,7 @@
         <a data-section="squadra">SQUADRA</a>
         <a data-section="staff">👥 ANAGRAFICA STAFF</a>
         <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
-        <a data-section="atleti">🏃 ATLETI</a>
+        <a data-section="atleti">🏃 ANAGRAFICA ATLETI</a>
         <a data-section="sessioni">📅 SESSIONI E PARTITE</a> <button id="btn-logout" class="btn-logout">Esci</button>
         <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
@@ -174,10 +174,11 @@
             initAssignments();
             break;
 
-        case 'atleti': // Lo faremo nel prossimo step
-            content.innerHTML = `<div class="card"><h2>Sezione Atleti</h2><p>In fase di sviluppo...</p></div>`;
+        case 'atleti':
+            content.innerHTML = templateAtleti();
+            initAtleti();
             break;
-
+			
         case 'sessioni': // Futura gestione Allenamenti/Partite
             content.innerHTML = `<div class="card"><h2>Calendario Sessioni</h2><p>In fase di sviluppo...</p></div>`;
             break;
@@ -389,7 +390,7 @@ async function handleSportDelete(id) {
     }
 }
 /* ============================================================
-   SEZIONE: SOCIETÀ (Template + Init)
+   SEZIONE: SOCIETÀ (Versione Finale Anti-Errore)
    ============================================================ */
 
 function templateSocieta() {
@@ -415,47 +416,40 @@ function templateSocieta() {
 }
 
 async function initSocieta() {
-    // Specifichiamo di usare la colonna sport_id per il join
-const { data, error } = await client
-    .from('societies')
-    .select('*, sports!fk_soc_to_sport(name, icon)') // Usa il nuovo nome univoco
-    .order('name');
-	
     const tbody = document.getElementById('list-societa');
+    if (!tbody) return;
+
+    const { data, error } = await client
+        .from('societies')
+        .select('*, sports!fk_soc_to_sport(name, icon)') 
+        .order('name');
+    
     if (error) { 
-        console.error(error);
         tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
         return; 
     }
 
-    tbody.innerHTML = data?.map(s => `
+    tbody.innerHTML = data?.map(s => {
+        // Protezione per nomi con apostrofi
+        const safeName = s.name.replace(/'/g, "\\'");
+        return `
         <tr>
             <td><strong>${s.name}</strong></td>
             <td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '-'}</td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:var(--warning)" onclick="handleSocietaEdit('${s.id}', '${s.name}', '${s.sport_id}')">✏️</button>
-                <button class="btn-sm" style="background:var(--danger)" onclick="handleSocietaDelete('${s.id}')">🗑️</button>
+                <button class="btn-sm btn-warning" onclick="handleSocietaEdit('${s.id}', '${safeName}', '${s.sport_id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="handleSocietaDelete('${s.id}')">🗑️</button>
             </td>
-        </tr>
-    `).join('') || '<tr><td colspan="3">Nessuna società.</td></tr>';
+        </tr>`;
+    }).join('') || '<tr><td colspan="3">Nessuna società.</td></tr>';
 
-    // --- Aggancio Eventi ai bottoni della tabella ---
-    tbody.querySelectorAll('.btn-soc-edit').forEach(btn => {
-        btn.onclick = () => handleSocietaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.sport);
-    });
-    tbody.querySelectorAll('.btn-soc-delete').forEach(btn => {
-        btn.onclick = () => handleSocietaDelete(btn.dataset.id);
-    });
-
-    // --- Logica Bottone "Nuova Società" ---
     document.getElementById('btn-add-societa').onclick = async () => {
-        // Recuperiamo la lista degli sport per popolare la tendina
         const { data: sportsList } = await client.from('sports').select('*').order('name');
         const options = sportsList?.map(sp => `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`).join('') || '';
 
         modal.open('Aggiungi Nuova Società', `
             <label>Nome della Società</label>
-            <input type="text" id="new-soc-name" placeholder="es. A.C. Pro Vercelli">
+            <input type="text" id="new-soc-name" placeholder="es. A.C. Esempio">
             <label>Disciplina Sportiva</label>
             <select id="new-soc-sport">
                 <option value="">-- Seleziona lo Sport --</option>
@@ -464,9 +458,8 @@ const { data, error } = await client
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const name = document.getElementById('new-soc-name').value;
+            const name = document.getElementById('new-soc-name').value.trim();
             const sport_id = document.getElementById('new-soc-sport').value;
-            
             if(!name || !sport_id) return alert("Inserisci nome e seleziona uno sport!");
 
             const { error: insErr } = await client.from('societies').insert({ name, sport_id });
@@ -474,10 +467,9 @@ const { data, error } = await client
         };
     };
 }
-    /* --- AZIONI SOCIETÀ --- */
 
-async function handleSocietaEdit(id, currentName, currentSportId) {
-    // Recuperiamo gli sport per permettere il cambio
+// ESPOSIZIONE GLOBALE FUNZIONI SOCIETÀ
+window.handleSocietaEdit = async function(id, currentName, currentSportId) {
     const { data: sportsList } = await client.from('sports').select('*').order('name');
     const options = sportsList?.map(sp => 
         `<option value="${sp.id}" ${sp.id == currentSportId ? 'selected' : ''}>${sp.icon} ${sp.name}</option>`
@@ -491,22 +483,21 @@ async function handleSocietaEdit(id, currentName, currentSportId) {
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
-        const name = document.getElementById('edit-soc-name').value;
+        const name = document.getElementById('edit-soc-name').value.trim();
         const sport_id = document.getElementById('edit-soc-sport').value;
-
         const { error } = await client.from('societies').update({ name, sport_id }).eq('id', id);
         if(!error) { modal.close(); initSocieta(); } else { alert(error.message); }
     };
-}
+};
 
-async function handleSocietaDelete(id) {
-    if (confirm("Attenzione: eliminando la società perderai tutti i collegamenti a categorie e squadre. Procedere?")) {
+window.handleSocietaDelete = async function(id) {
+    if (confirm("Attenzione: eliminando la società perderai tutti i collegamenti. Procedere?")) {
         const { error } = await client.from('societies').delete().eq('id', id);
-        if(!error) initSocieta(); else alert(error.message);
+        if(!error) initSocieta(); else alert("Errore: " + error.message);
     }
-}
+};
 /* ============================================================
-   SEZIONE: CATEGORIA
+   SEZIONE: CATEGORIA (Versione Finale Anti-Errore)
    ============================================================ */
 
 function templateCategoria() {
@@ -524,52 +515,47 @@ function templateCategoria() {
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
-            <tbody id="list-categoria"></tbody>
+            <tbody id="list-categoria">
+                <tr><td colspan="3">Caricamento in corso...</td></tr>
+            </tbody>
         </table>
     </div>`;
 }
 
 async function initCategoria() {
-    // Specifichiamo di usare la colonna society_id
-const { data, error } = await client
-    .from('categories')
-    .select('*, societies!fk_cat_to_soc(name)') // Usa il nuovo nome univoco
-    .order('name');
-
     const tbody = document.getElementById('list-categoria');
+    if (!tbody) return;
+
+    const { data, error } = await client
+        .from('categories')
+        .select('*, societies!fk_cat_to_soc(name)') 
+        .order('name');
+
     if (error) { 
         tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
         return; 
     }
 
-    tbody.innerHTML = data?.map(c => `
+    tbody.innerHTML = data?.map(c => {
+        const safeName = c.name.replace(/'/g, "\\'");
+        return `
         <tr>
             <td><strong>${c.name}</strong></td>
             <td>${c.societies ? c.societies.name : 'N/A'}</td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:var(--warning)" onclick="handleCategoriaEdit('${c.id}', '${c.name}', '${c.society_id}')">✏️</button>
-                <button class="btn-sm" style="background:var(--danger)" onclick="handleCategoriaDelete('${c.id}')">🗑️</button>
+                <button class="btn-sm btn-warning" onclick="handleCategoriaEdit('${c.id}', '${safeName}', '${c.society_id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="handleCategoriaDelete('${c.id}')">🗑️</button>
             </td>
-        </tr>
-    `).join('') || '<tr><td colspan="3">Nessuna categoria.</td></tr>';
+        </tr>`;
+    }).join('') || '<tr><td colspan="3">Nessuna categoria.</td></tr>';
 
-    // Listener bottoni tabella
-    tbody.querySelectorAll('.btn-cat-edit').forEach(btn => {
-        btn.onclick = () => handleCategoriaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.soc);
-    });
-    tbody.querySelectorAll('.btn-cat-delete').forEach(btn => {
-        btn.onclick = () => handleCategoriaDelete(btn.dataset.id);
-    });
-
-    // Bottone Nuova Categoria
     document.getElementById('btn-add-categoria').onclick = async () => {
-        // Carichiamo le società per la tendina
         const { data: socList } = await client.from('societies').select('id, name').order('name');
         const options = socList?.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '';
 
         modal.open('Nuova Categoria', `
-            <label>Nome Categoria (es. Under 17)</label>
-            <input type="text" id="cat-name" placeholder="Inserisci nome...">
+            <label>Nome Categoria</label>
+            <input type="text" id="cat-name" placeholder="es. Under 19">
             <label>Associa a Società</label>
             <select id="cat-soc-id">
                 <option value="">-- Seleziona Società --</option>
@@ -578,17 +564,18 @@ const { data, error } = await client
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const name = document.getElementById('cat-name').value;
+            const name = document.getElementById('cat-name').value.trim();
             const society_id = document.getElementById('cat-soc-id').value;
             if(!name || !society_id) return alert("Compila tutti i campi!");
 
-            await client.from('categories').insert({ name, society_id });
-            modal.close();
-            initCategoria();
+            const { error: insErr } = await client.from('categories').insert({ name, society_id });
+            if(!insErr) { modal.close(); initCategoria(); } else { alert(insErr.message); }
         };
     };
 }
-async function handleCategoriaEdit(id, oldName, oldSocId) {
+
+// ESPOSIZIONE GLOBALE FUNZIONI CATEGORIA
+window.handleCategoriaEdit = async function(id, oldName, oldSocId) {
     const { data: socList } = await client.from('societies').select('id, name').order('name');
     const options = socList?.map(s => 
         `<option value="${s.id}" ${s.id == oldSocId ? 'selected' : ''}>${s.name}</option>`
@@ -602,20 +589,19 @@ async function handleCategoriaEdit(id, oldName, oldSocId) {
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
-        const name = document.getElementById('up-cat-name').value;
+        const name = document.getElementById('up-cat-name').value.trim();
         const society_id = document.getElementById('up-cat-soc-id').value;
-        await client.from('categories').update({ name, society_id }).eq('id', id);
-        modal.close();
-        initCategoria();
+        const { error } = await client.from('categories').update({ name, society_id }).eq('id', id);
+        if(!error) { modal.close(); initCategoria(); } else { alert(error.message); }
     };
-}
+};
 
-async function handleCategoriaDelete(id) {
-    if (confirm("Eliminando la categoria potresti perdere i dati delle squadre collegate. Confermi?")) {
-        await client.from('categories').delete().eq('id', id);
-        initCategoria();
+window.handleCategoriaDelete = async function(id) {
+    if (confirm("Eliminare questa categoria?")) {
+        const { error } = await client.from('categories').delete().eq('id', id);
+        if(!error) initCategoria(); else alert("Errore: " + error.message);
     }
-}
+};
 /* ============================================================
    SEZIONE: SQUADRA (Versione Definitiva con Modifica e Colonne Separate)
    ============================================================ */
