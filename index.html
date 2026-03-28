@@ -603,9 +603,12 @@ window.handleCategoriaDelete = async function(id) {
     }
 };
 /* ============================================================
-   SEZIONE: SQUADRA (Anagrafica Team) - CORRETTA
+   SEZIONE: SQUADRA (Anagrafica Team con Filtro Stagione)
    ============================================================ */
 
+/**
+ * Template HTML della sezione Squadre
+ */
 function templateSquadra() {
     return `
     <div class="card">
@@ -613,7 +616,9 @@ function templateSquadra() {
             <h2>GESTIONE SQUADRE</h2>
             <button class="btn" id="btn-add-squadra">+ Nuova Squadra</button>
         </div>
-        <div id="team-season-info" style="margin-bottom:1rem; font-weight:bold; color:#059669;"></div>
+        <div id="team-season-info" style="margin-bottom:1rem; font-weight:bold; color:#059669; padding: 8px; background: #ecfdf5; border-radius: 4px; display: inline-block;">
+            Caricamento stagione...
+        </div>
         <table>
             <thead>
                 <tr>
@@ -631,6 +636,9 @@ function templateSquadra() {
     </div>`;
 }
 
+/**
+ * Inizializza la tabella filtrando per la stagione impostata come 'is_active'
+ */
 async function initSquadra() {
     const tbody = document.getElementById('list-squadra');
     const infoBanner = document.getElementById('team-season-info');
@@ -644,13 +652,14 @@ async function initSquadra() {
         .maybeSingle();
     
     if (!activeSeason) {
-        if (infoBanner) infoBanner.innerHTML = "⚠️ Seleziona una stagione attiva nelle impostazioni.";
-        tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva trovata.</td></tr>';
+        if (infoBanner) infoBanner.innerHTML = "⚠️ Attenzione: nessuna stagione attiva impostata.";
+        tbody.innerHTML = '<tr><td colspan="5">Seleziona una stagione attiva nelle impostazioni per vedere le squadre.</td></tr>';
         return;
     }
+    
     if (infoBanner) infoBanner.innerText = `📅 Stagione Attiva: ${activeSeason.name}`;
 
-    // 2. Query con join semplici sulle tabelle al plurale
+    // 2. Query con join sulle tabelle collegate e filtro season_id
     const { data, error } = await client
         .from('teams')
         .select(`
@@ -668,13 +677,12 @@ async function initSquadra() {
         .order('name');
 
     if (error) {
-        console.error("Errore dettagliato query teams:", error);
-        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}. Verifica i nomi delle tabelle nel DB.</td></tr>`;
+        console.error("Errore query teams:", error);
+        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data?.map(t => {
-        // Protezione per i nomi con apostrofi nelle funzioni onclick
         const safeName = t.name.replace(/'/g, "\\'");
         return `
         <tr>
@@ -692,48 +700,27 @@ async function initSquadra() {
     document.getElementById('btn-add-squadra').onclick = () => openSquadraModal(activeSeason.id);
 }
 
-/* --- FUNZIONI GLOBALI SQUADRA --- */
-
-window.handleEditSquadra = async function(id) {
-    const { data, error } = await client.from('teams').select('*').eq('id', id).single();
-    if (!error && data) {
-        openSquadraModal(data.season_id, data);
-    } else {
-        alert("Errore nel recupero dati squadra.");
-    }
-};
-
-window.handleDeleteSquadra = async function(id) {
-    if (confirm("Sei sicuro di voler eliminare questa squadra?")) {
-        const { error } = await client.from('teams').delete().eq('id', id);
-        if (!error) {
-            initSquadra();
-        } else {
-            alert("Errore durante l'eliminazione: " + error.message);
-        }
-    }
-};
-
 /**
  * Modale per Nuova/Modifica Squadra
  */
 async function openSquadraModal(activeSeasonId, editData = null) {
     const isEdit = !!editData;
 
-    // Caricamento liste per le tendine
-    const [socRes, catRes, spoRes] = await Promise.all([
+    // Caricamento liste per i dropdown
+    const [socRes, catRes, spoRes, seaRes] = await Promise.all([
         client.from('societies').select('id, name').order('name'),
         client.from('categories').select('id, name').order('name'),
-        client.from('sports').select('id, name, icon').order('name')
+        client.from('sports').select('id, name, icon').order('name'),
+        client.from('seasons').select('name').eq('id', activeSeasonId).single()
     ]);
 
     modal.open(isEdit ? 'Modifica Squadra' : 'Nuova Squadra', `
-        <div style="margin-bottom:15px; padding:10px; background:#ecfdf5; border-radius:6px; color:#065f46; font-size:0.85em; border:1px solid #d1fae5;">
-            Salvataggio in stagione: <strong>Selezionata/Attiva</strong>
+        <div style="margin-bottom:15px; padding:10px; background:#f0fdf4; border-radius:6px; color:#166534; font-size:0.85em; border:1px solid #dcfce7;">
+            Stai salvando nella stagione: <strong>${seaRes.data?.name || 'Attiva'}</strong>
         </div>
         
         <label>Nome Squadra</label>
-        <input type="text" id="tm-name" value="${editData ? editData.name : ''}" placeholder="es. Esordienti 2012">
+        <input type="text" id="tm-name" value="${editData ? editData.name : ''}" placeholder="es. Giovanissimi 2010">
         
         <label>Società</label>
         <select id="tm-soc">
@@ -755,14 +742,17 @@ async function openSquadraModal(activeSeasonId, editData = null) {
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
-        const name = document.getElementById('tm-name').value.trim();
-        const society_id = document.getElementById('tm-soc').value;
-        const category_id = document.getElementById('tm-cat').value;
-        const sport_id = document.getElementById('tm-spo').value;
+        const payload = {
+            name: document.getElementById('tm-name').value.trim(),
+            society_id: document.getElementById('tm-soc').value,
+            category_id: document.getElementById('tm-cat').value,
+            sport_id: document.getElementById('tm-spo').value,
+            season_id: activeSeasonId // Collegamento automatico alla stagione
+        };
 
-        if(!name || !society_id || !category_id || !sport_id) return alert("Tutti i campi sono obbligatori!");
-
-        const payload = { name, society_id, category_id, sport_id, season_id: activeSeasonId };
+        if(!payload.name || !payload.society_id || !payload.category_id || !payload.sport_id) {
+            return alert("Compila tutti i campi obbligatori!");
+        }
 
         const { error } = isEdit 
             ? await client.from('teams').update(payload).eq('id', editData.id)
@@ -776,72 +766,23 @@ async function openSquadraModal(activeSeasonId, editData = null) {
         }
     };
 }
-// Modale (Vedi messaggio precedente per logica openSquadraModal con activeSeasonId)
-/* ============================================================
-   SEZIONE: STAFF (Anagrafica Utenti)
-   ============================================================ */
 
-function templateStaff() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>ANAGRAFICA STAFF</h2>
-            <button class="btn" id="btn-add-staff">+ Nuovo Utente Staff</button>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Username</th>
-                    <th style="text-align:right">Azioni</th>
-                </tr>
-            </thead>
-            <tbody id="list-staff">
-                <tr><td colspan="3">Caricamento in corso...</td></tr>
-            </tbody>
-        </table>
-    </div>`;
-}
+/* --- FUNZIONI GLOBALI (Window) --- */
 
-async function initStaff() {
-    const tbody = document.getElementById('list-staff');
-    if (!tbody) return;
-
-    const { data, error } = await client
-        .from('users')
-        .select('*')
-        .neq('username', 'admin') // Escludiamo l'admin
-        .order('name');
-
-    if (error) return;
-
-    tbody.innerHTML = data?.map(u => `
-        <tr>
-            <td><strong>${u.name}</strong></td>
-            <td>${u.username}</td>
-            <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
-                <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
-            </td>
-        </tr>
-    `).join('') || '<tr><td colspan="3">Nessun utente trovato.</td></tr>';
-
-    document.getElementById('btn-add-staff').onclick = () => openStaffModal();
-}
-
-// Funzioni Globali Staff
-window.handleEditStaff = async (id) => {
-    const { data } = await client.from('users').select('*').eq('id', id).single();
-    if (data) openStaffModal(data);
-};
-
-window.handleDeleteStaff = async (id) => {
-    if (confirm("Eliminare definitivamente l'utente dallo staff?")) {
-        await client.from('users').delete().eq('id', id);
-        initStaff();
+window.handleEditSquadra = async function(id) {
+    const { data, error } = await client.from('teams').select('*').eq('id', id).single();
+    if (!error && data) {
+        openSquadraModal(data.season_id, data);
     }
 };
 
+window.handleDeleteSquadra = async function(id) {
+    if (confirm("Eliminare questa squadra?")) {
+        const { error } = await client.from('teams').delete().eq('id', id);
+        if (!error) initSquadra();
+        else alert("Errore: " + error.message);
+    }
+};
 /* ============================================================
    SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team) - UNICA
    ============================================================ */
