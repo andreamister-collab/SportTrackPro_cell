@@ -171,149 +171,555 @@
         a.onclick = () => loadPage(a.dataset.section);
     });
 
-    /* ============================================================
-       PAGINA: STAGIONI (Esempio già integrato)
-       ============================================================ */
-    function templateStagioni() {
-        return `
-        <div class="card">
-            <div class="header">
-                <h2>GESTIONE STAGIONI</h2>
-                <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
-            </div>
-            <table>
-                <thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Stato</th></tr></thead>
-                <tbody id="list-stagioni"></tbody>
-            </table>
-        </div>`;
-    }
+/* ============================================================
+   PAGINA: STAGIONI (Versione Aggiornata)
+   ============================================================ */
+function templateStagioni() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE STAGIONI</h2>
+            <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Periodo</th>
+                    <th>Stato</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-stagioni"></tbody>
+        </table>
+    </div>`;
+}
 
-    async function initStagioni() {
-        const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
-        const tbody = document.getElementById('list-stagioni');
-        tbody.innerHTML = data?.map(s => `
-            <tr>
-                <td><strong>${s.name}</strong></td>
-                <td>${s.start_date}</td>
-                <td>${s.end_date}</td>
-                <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
-            </tr>
-        `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
+async function initStagioni() {
+    const { data, error } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+    const tbody = document.getElementById('list-stagioni');
+    
+    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
 
-        // Bottone aggiunta
-        document.getElementById('btn-add-stagione').onclick = () => {
+    // Generiamo l'HTML senza usare onclick
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.start_date} → ${s.end_date}</td>
+            <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">
+                    ${s.is_active ? 'Spegni' : 'Attiva'}
+                </button>
+                <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
+
+    // === ATTACCHIAMO I LISTENER AI BOTTONI (Metodo sicuro) ===
+    
+    // Bottoni Attiva/Spegni
+    tbody.querySelectorAll('.btn-action-activate').forEach(btn => {
+        btn.onclick = () => handleStagioneToggle(btn.dataset.id, btn.dataset.active === 'true');
+    });
+
+    // Bottoni Modifica (Matita)
+    tbody.querySelectorAll('.btn-action-edit').forEach(btn => {
+        btn.onclick = () => handleStagioneEdit(btn.dataset.id, btn.dataset.name);
+    });
+
+    // Bottoni Elimina (Cestino)
+    tbody.querySelectorAll('.btn-action-delete').forEach(btn => {
+        btn.onclick = () => handleStagioneDelete(btn.dataset.id);
+    });
+
+    // Bottone "Nuova Stagione" (quello in alto nella card)
+    const btnAdd = document.getElementById('btn-add-stagione');
+    if(btnAdd) {
+        btnAdd.onclick = () => {
             modal.open('Nuova Stagione', `
-                <label>Nome (es. 2025/2026)</label><input type="text" id="s-name">
-                <label>Data Inizio</label><input type="date" id="s-start">
-                <label>Data Fine</label><input type="date" id="s-end">
+                <p style="font-size:0.85rem; color:#666">Inserisci gli anni solari (es. 2025 e 2026)</p>
+                <label>Anno Inizio</label><input type="number" id="y-start" value="2025">
+                <label>Anno Fine</label><input type="number" id="y-end" value="2026">
             `);
             document.getElementById('btn-modal-save').onclick = async () => {
-                const name = document.getElementById('s-name').value;
-                const start = document.getElementById('s-start').value;
-                const end = document.getElementById('s-end').value;
-                await client.from('seasons').insert({ name, start_date: start, end_date: end });
+                const y1 = document.getElementById('y-start').value;
+                const y2 = document.getElementById('y-end').value;
+                await client.from('seasons').insert({ 
+                    name: `${y1}/${y2}`, 
+                    start_date: `${y1}-08-01`, 
+                    end_date: `${y2}-07-31`, 
+                    is_active: false 
+                });
                 modal.close();
                 initStagioni();
             };
         };
     }
-/* --- SOCIETÀ --- */
-    function templateSocieta() {
-        return `<div class="card"><div class="header"><h2>SOCIETÀ</h2><button class="btn" id="btn-add-soc">+ Nuova Società</button></div>
-                <table><thead><tr><th>Nome</th></tr></thead><tbody id="list-soc"></tbody></table></div>`;
+}
+
+    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+/* ============================================================
+   SEZIONE: AZIONI LOGICHE STAGIONI
+   ============================================================ */
+
+async function handleStagioneToggle(id, isActive) {
+    if (!isActive) {
+        await client.from('seasons').update({ is_active: false }).eq('is_active', true);
+        await client.from('seasons').update({ is_active: true }).eq('id', id);
+    } else {
+        await client.from('seasons').update({ is_active: false }).eq('id', id);
     }
-    async function initSocieta() {
-        const { data } = await client.from('societies').select('*').order('name');
-        document.getElementById('list-soc').innerHTML = data?.map(s => `<tr><td><strong>${s.name}</strong></td></tr>`).join('') || '';
-        document.getElementById('btn-add-soc').onclick = () => {
-            modal.open('Nuova Società', `<label>Nome Società</label><input type="text" id="soc-name">`);
-            document.getElementById('btn-modal-save').onclick = async () => {
-                await client.from('societies').insert({ name: document.getElementById('soc-name').value });
-                modal.close(); initSocieta();
-            };
+    initStagioni();
+}
+
+async function handleStagioneEdit(id, currentName) {
+    const newName = prompt("Modifica nome stagione (es. 2025/2026):", currentName);
+    if (newName && newName !== currentName) {
+        await client.from('seasons').update({ name: newName }).eq('id', id);
+        initStagioni();
+    }
+}
+
+async function handleStagioneDelete(id) {
+    if (confirm("Sei sicuro di voler eliminare questa stagione?")) {
+        const { error } = await client.from('seasons').delete().eq('id', id);
+        if (error) alert("Errore: " + error.message);
+        initStagioni();
+    }
+}
+
+/* ============================================================
+   SEZIONE: SPORT (Template + Init + Azioni)
+   ============================================================ */
+
+function templateSport() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SPORT</h2>
+            <button class="btn" id="btn-add-sport">+ Nuovo Sport</button>
+        </div>
+        <table>
+            <thead><tr><th>Icona</th><th>Nome</th><th style="text-align:right">Azioni</th></tr></thead>
+            <tbody id="list-sport"></tbody>
+        </table>
+    </div>`;
+}
+
+async function initSport() {
+    const { data } = await client.from('sports').select('*').order('name');
+    const tbody = document.getElementById('list-sport');
+    
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td style="font-size:1.5rem">${s.icon || '🏐'}</td>
+            <td><strong>${s.name}</strong></td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-sport-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessun dato.</td></tr>';
+
+    // Listener bottoni tabella Sport
+    tbody.querySelectorAll('.btn-sport-edit').forEach(btn => {
+        btn.onclick = () => handleSportEdit(btn.dataset.id, btn.dataset.name, btn.dataset.icon);
+    });
+    tbody.querySelectorAll('.btn-sport-delete').forEach(btn => {
+        btn.onclick = () => handleSportDelete(btn.dataset.id);
+    });
+
+    // Bottone Nuovo Sport
+    document.getElementById('btn-add-sport').onclick = () => {
+        modal.open('Nuovo Sport', `
+            <label>Nome Sport</label><input type="text" id="sp-name" placeholder="es. Calcio">
+            <label>Icona (Emoji)</label><input type="text" id="sp-icon" placeholder="es. ⚽">
+        `);
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('sp-name').value;
+            const icon = document.getElementById('sp-icon').value;
+            await client.from('sports').insert({ name, icon });
+            modal.close();
+            initSport();
         };
+    };
+}
+
+async function handleSportEdit(id, oldName, oldIcon) {
+    modal.open('Modifica Sport', `
+        <label>Nome Sport</label><input type="text" id="up-sp-name" value="${oldName}">
+        <label>Icona (Emoji)</label><input type="text" id="up-sp-icon" value="${oldIcon}">
+    `);
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('up-sp-name').value;
+        const icon = document.getElementById('up-sp-icon').value;
+        await client.from('sports').update({ name, icon }).eq('id', id);
+        modal.close();
+        initSport();
+    };
+}
+
+async function handleSportDelete(id) {
+    if (confirm("Eliminare questo sport?")) {
+        await client.from('sports').delete().eq('id', id);
+        initSport();
     }
-	/* --- SPORT --- */
-    function templateSport() {
-        return `<div class="card"><div class="header"><h2>SPORT</h2><button class="btn" id="btn-add-sport">+ Nuovo Sport</button></div>
-                <table><thead><tr><th>Icona</th><th>Nome</th></tr></thead><tbody id="list-sport"></tbody></table></div>`;
+}
+/* ============================================================
+   SEZIONE: SOCIETÀ (Template + Init)
+   ============================================================ */
+
+function templateSocieta() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SOCIETÀ</h2>
+            <button class="btn" id="btn-add-societa">+ Nuova Società</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Società</th>
+                    <th>Sport Associato</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-societa">
+                <tr><td colspan="3">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+async function initSocieta() {
+    // Specifichiamo di usare la colonna sport_id per il join
+const { data, error } = await client
+    .from('societies')
+    .select('*, sports!fk_soc_to_sport(name, icon)') // Usa il nuovo nome univoco
+    .order('name');
+	
+    const tbody = document.getElementById('list-societa');
+    if (error) { 
+        console.error(error);
+        tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
+        return; 
     }
-    async function initSport() {
-        const { data } = await client.from('sports').select('*').order('name');
-        document.getElementById('list-sport').innerHTML = data?.map(s => `<tr><td>${s.icon}</td><td>${s.name}</td></tr>`).join('') || '';
-        document.getElementById('btn-add-sport').onclick = () => {
-            modal.open('Nuovo Sport', `<label>Nome</label><input type="text" id="sp-name"><label>Icona (Emoji)</label><input type="text" id="sp-icon">`);
-            document.getElementById('btn-modal-save').onclick = async () => {
-                await client.from('sports').insert({ name: document.getElementById('sp-name').value, icon: document.getElementById('sp-icon').value });
-                modal.close(); initSport();
-            };
+
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '-'}</td>
+            <td style="text-align:right">
+                <button class="btn-sm" style="background:var(--warning)" onclick="handleSocietaEdit('${s.id}', '${s.name}', '${s.sport_id}')">✏️</button>
+                <button class="btn-sm" style="background:var(--danger)" onclick="handleSocietaDelete('${s.id}')">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessuna società.</td></tr>';
+
+    // --- Aggancio Eventi ai bottoni della tabella ---
+    tbody.querySelectorAll('.btn-soc-edit').forEach(btn => {
+        btn.onclick = () => handleSocietaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.sport);
+    });
+    tbody.querySelectorAll('.btn-soc-delete').forEach(btn => {
+        btn.onclick = () => handleSocietaDelete(btn.dataset.id);
+    });
+
+    // --- Logica Bottone "Nuova Società" ---
+    document.getElementById('btn-add-societa').onclick = async () => {
+        // Recuperiamo la lista degli sport per popolare la tendina
+        const { data: sportsList } = await client.from('sports').select('*').order('name');
+        const options = sportsList?.map(sp => `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`).join('') || '';
+
+        modal.open('Aggiungi Nuova Società', `
+            <label>Nome della Società</label>
+            <input type="text" id="new-soc-name" placeholder="es. A.C. Pro Vercelli">
+            <label>Disciplina Sportiva</label>
+            <select id="new-soc-sport">
+                <option value="">-- Seleziona lo Sport --</option>
+                ${options}
+            </select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('new-soc-name').value;
+            const sport_id = document.getElementById('new-soc-sport').value;
+            
+            if(!name || !sport_id) return alert("Inserisci nome e seleziona uno sport!");
+
+            const { error: insErr } = await client.from('societies').insert({ name, sport_id });
+            if(!insErr) { modal.close(); initSocieta(); } else { alert(insErr.message); }
         };
+    };
+}
+    /* --- AZIONI SOCIETÀ --- */
+
+async function handleSocietaEdit(id, currentName, currentSportId) {
+    // Recuperiamo gli sport per permettere il cambio
+    const { data: sportsList } = await client.from('sports').select('*').order('name');
+    const options = sportsList?.map(sp => 
+        `<option value="${sp.id}" ${sp.id == currentSportId ? 'selected' : ''}>${sp.icon} ${sp.name}</option>`
+    ).join('');
+
+    modal.open('Modifica Società', `
+        <label>Nome Società</label>
+        <input type="text" id="edit-soc-name" value="${currentName}">
+        <label>Disciplina Sportiva</label>
+        <select id="edit-soc-sport">${options}</select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('edit-soc-name').value;
+        const sport_id = document.getElementById('edit-soc-sport').value;
+
+        const { error } = await client.from('societies').update({ name, sport_id }).eq('id', id);
+        if(!error) { modal.close(); initSocieta(); } else { alert(error.message); }
+    };
+}
+
+async function handleSocietaDelete(id) {
+    if (confirm("Attenzione: eliminando la società perderai tutti i collegamenti a categorie e squadre. Procedere?")) {
+        const { error } = await client.from('societies').delete().eq('id', id);
+        if(!error) initSocieta(); else alert(error.message);
     }
-	/* --- CATEGORIA --- */
-    function templateCategoria() {
-        return `<div class="card"><div class="header"><h2>CATEGORIE</h2><button class="btn" id="btn-add-cat">+ Nuova Categoria</button></div>
-                <table><thead><tr><th>Nome</th></tr></thead><tbody id="list-cat"></tbody></table></div>`;
+}
+/* ============================================================
+   SEZIONE: CATEGORIA
+   ============================================================ */
+
+function templateCategoria() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE CATEGORIE</h2>
+            <button class="btn" id="btn-add-categoria">+ Nuova Categoria</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Categoria</th>
+                    <th>Società di Riferimento</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-categoria"></tbody>
+        </table>
+    </div>`;
+}
+
+async function initCategoria() {
+    // Specifichiamo di usare la colonna society_id
+const { data, error } = await client
+    .from('categories')
+    .select('*, societies!fk_cat_to_soc(name)') // Usa il nuovo nome univoco
+    .order('name');
+
+    const tbody = document.getElementById('list-categoria');
+    if (error) { 
+        tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
+        return; 
     }
-    async function initCategoria() {
-        const { data } = await client.from('categories').select('*').order('name');
-        document.getElementById('list-cat').innerHTML = data?.map(c => `<tr><td><strong>${c.name}</strong></td></tr>`).join('') || '';
-        document.getElementById('btn-add-cat').onclick = () => {
-            modal.open('Nuova Categoria', `<label>Nome Categoria</label><input type="text" id="cat-name">`);
-            document.getElementById('btn-modal-save').onclick = async () => {
-                await client.from('categories').insert({ name: document.getElementById('cat-name').value });
-                modal.close(); initCategoria();
-            };
+
+    tbody.innerHTML = data?.map(c => `
+        <tr>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.societies ? c.societies.name : 'N/A'}</td>
+            <td style="text-align:right">
+                <button class="btn-sm" style="background:var(--warning)" onclick="handleCategoriaEdit('${c.id}', '${c.name}', '${c.society_id}')">✏️</button>
+                <button class="btn-sm" style="background:var(--danger)" onclick="handleCategoriaDelete('${c.id}')">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessuna categoria.</td></tr>';
+
+    // Listener bottoni tabella
+    tbody.querySelectorAll('.btn-cat-edit').forEach(btn => {
+        btn.onclick = () => handleCategoriaEdit(btn.dataset.id, btn.dataset.name, btn.dataset.soc);
+    });
+    tbody.querySelectorAll('.btn-cat-delete').forEach(btn => {
+        btn.onclick = () => handleCategoriaDelete(btn.dataset.id);
+    });
+
+    // Bottone Nuova Categoria
+    document.getElementById('btn-add-categoria').onclick = async () => {
+        // Carichiamo le società per la tendina
+        const { data: socList } = await client.from('societies').select('id, name').order('name');
+        const options = socList?.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '';
+
+        modal.open('Nuova Categoria', `
+            <label>Nome Categoria (es. Under 17)</label>
+            <input type="text" id="cat-name" placeholder="Inserisci nome...">
+            <label>Associa a Società</label>
+            <select id="cat-soc-id">
+                <option value="">-- Seleziona Società --</option>
+                ${options}
+            </select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const name = document.getElementById('cat-name').value;
+            const society_id = document.getElementById('cat-soc-id').value;
+            if(!name || !society_id) return alert("Compila tutti i campi!");
+
+            await client.from('categories').insert({ name, society_id });
+            modal.close();
+            initCategoria();
         };
+    };
+}
+async function handleCategoriaEdit(id, oldName, oldSocId) {
+    const { data: socList } = await client.from('societies').select('id, name').order('name');
+    const options = socList?.map(s => 
+        `<option value="${s.id}" ${s.id == oldSocId ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+
+    modal.open('Modifica Categoria', `
+        <label>Nome Categoria</label>
+        <input type="text" id="up-cat-name" value="${oldName}">
+        <label>Società</label>
+        <select id="up-cat-soc-id">${options}</select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('up-cat-name').value;
+        const society_id = document.getElementById('up-cat-soc-id').value;
+        await client.from('categories').update({ name, society_id }).eq('id', id);
+        modal.close();
+        initCategoria();
+    };
+}
+
+async function handleCategoriaDelete(id) {
+    if (confirm("Eliminando la categoria potresti perdere i dati delle squadre collegate. Confermi?")) {
+        await client.from('categories').delete().eq('id', id);
+        initCategoria();
     }
-	/* --- SQUADRA --- */
-    function templateSquadra() {
-        return `<div class="card"><div class="header"><h2>SQUADRE</h2><button class="btn" id="btn-add-team">+ Nuova Squadra</button></div>
-                <table><thead><tr><th>Nome</th><th>Società</th><th>Categoria</th><th>Sport</th></tr></thead><tbody id="list-team"></tbody></table></div>`;
+}
+/* ============================================================
+   SEZIONE: SQUADRA (Versione Definitiva con Modifica e Colonne Separate)
+   ============================================================ */
+
+function templateSquadra() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SQUADRE</h2>
+            <button class="btn" id="btn-add-squadra">+ Nuova Squadra</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Squadra</th>
+                    <th>Società</th>
+                    <th>Categoria</th>
+                    <th>Sport</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-squadra">
+                <tr><td colspan="5">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+async function initSquadra() {
+    const { data, error } = await client
+        .from('teams')
+        .select(`
+            id, name, society_id, category_id, sport_id,
+            societies!rel_team_society (name),
+            categories!rel_team_category (name),
+            sports!rel_team_sport (name, icon)
+        `)
+        .order('name');
+
+    const tbody = document.getElementById('list-squadra');
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5">Errore query: ${error.message}</td></tr>`;
+        return;
     }
 
-    async function initSquadra() {
-        const { data } = await client.from('teams').select(`
-            id, name, 
-            societies!rel_team_society(name), 
-            categories!rel_team_category(name), 
-            sports!rel_team_sport(name, icon)
-        `).order('name');
+    tbody.innerHTML = data?.map(t => `
+        <tr>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.societies?.name || '-'}</td>
+            <td><span style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-size:0.8rem">${t.categories?.name || '-'}</span></td>
+            <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
+            <td style="text-align:right">
+                <button class="btn-sm" style="background:#f59e0b" onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️</button>
+                <button class="btn-sm" style="background:#ef4444; margin-left:5px" onclick="deleteTeam('${t.id}')">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="5">Nessuna squadra.</td></tr>';
 
-        document.getElementById('list-team').innerHTML = data?.map(t => `
-            <tr>
-                <td><strong>${t.name}</strong></td>
-                <td>${t.societies?.name || '-'}</td>
-                <td><span class="badge badge-inactive">${t.categories?.name || '-'}</span></td>
-                <td>${t.sports?.icon || ''} ${t.sports?.name || '-'}</td>
-            </tr>
-        `).join('') || '';
+    document.getElementById('btn-add-squadra').onclick = () => openTeamModal();
+}
+async function openTeamModal(editData = null) {
+    const [resSoc, resCat, resSport] = await Promise.all([
+        client.from('societies').select('id, name').order('name'),
+        client.from('categories').select('id, name').order('name'),
+        client.from('sports').select('id, name, icon').order('name')
+    ]);
 
-        document.getElementById('btn-add-team').onclick = async () => {
-            // Carichiamo le liste per i select del modal
-            const [soc, cat, spr] = await Promise.all([
-                client.from('societies').select('*'),
-                client.from('categories').select('*'),
-                client.from('sports').select('*')
-            ]);
+    const title = editData ? 'Modifica Squadra' : 'Nuova Squadra';
+    
+    modal.open(title, `
+        <label>Nome Squadra</label>
+        <input type="text" id="m-team-name" value="${editData ? editData.name : ''}" placeholder="es. Pulcini 2015">
+        
+        <label>Società</label>
+        <select id="m-team-soc">
+            ${resSoc.data.map(s => `<option value="${s.id}" ${editData?.socId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+        </select>
+        
+        <label>Categoria</label>
+        <select id="m-team-cat">
+            ${resCat.data.map(c => `<option value="${c.id}" ${editData?.catId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        </select>
+        
+        <label>Sport</label>
+        <select id="m-team-sport">
+            ${resSport.data.map(sp => `<option value="${sp.id}" ${editData?.sportId === sp.id ? 'selected' : ''}>${sp.icon} ${sp.name}</option>`).join('')}
+        </select>
+    `);
 
-            modal.open('Nuova Squadra', `
-                <label>Nome Squadra</label><input type="text" id="t-name">
-                <label>Società</label><select id="t-soc">${soc.data.map(s=>`<option value="${s.id}">${s.name}</option>`)}</select>
-                <label>Categoria</label><select id="t-cat">${cat.data.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select>
-                <label>Sport</label><select id="t-spr">${spr.data.map(sp=>`<option value="${sp.id}">${sp.icon} ${sp.name}</option>`)}</select>
-            `);
-
-            document.getElementById('btn-modal-save').onclick = async () => {
-                await client.from('teams').insert({
-                    name: document.getElementById('t-name').value,
-                    society_id: document.getElementById('t-soc').value,
-                    category_id: document.getElementById('t-cat').value,
-                    sport_id: document.getElementById('t-spr').value
-                });
-                modal.close(); initSquadra();
-            };
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const payload = {
+            name: document.getElementById('m-team-name').value,
+            society_id: document.getElementById('m-team-soc').value,
+            category_id: document.getElementById('m-team-cat').value,
+            sport_id: document.getElementById('m-team-sport').value
         };
+
+        if (!payload.name) return alert("Inserisci un nome!");
+
+        let result;
+        if (editData) {
+            result = await client.from('teams').update(payload).eq('id', editData.id);
+        } else {
+            result = await client.from('teams').insert(payload);
+        }
+
+        if (!result.error) {
+            modal.close();
+            initSquadra();
+        } else {
+            alert("Errore nel salvataggio: " + result.error.message);
+        }
+    };
+}
+
+window.handleEditTeam = (id, name, socId, catId, sportId) => {
+    openTeamModal({ id, name, socId, catId, sportId });
+};
+
+window.deleteTeam = async (id) => {
+    if (confirm("Eliminare definitivamente questa squadra?")) {
+        const { error } = await client.from('teams').delete().eq('id', id);
+        if (!error) initSquadra(); else alert(error.message);
     }
+};
     /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
