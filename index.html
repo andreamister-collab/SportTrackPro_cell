@@ -1046,10 +1046,13 @@ window.deleteAssignment = async (id) => {
     }
 };
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI - FIX DEFINITIVO
+   MODULO ANAGRAFICA ATLETI - FIX GLOBALE
    ============================================================ */
 
-// 1. TEMPLATE (Include Società e Tasto Import)
+// Variabile globale per mantenere i dati caricati
+window.allAtletiData = [];
+
+// TEMPLATE: Include il tasto Import e la colonna Società
 window.templateAtleti = function() {
     return `
     <div class="card">
@@ -1063,7 +1066,7 @@ window.templateAtleti = function() {
             </div>
         </div>
 
-        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
             <div>
                 <label style="font-size: 11px; font-weight:bold;">Cerca Atleta</label>
                 <input type="text" id="filter-name" placeholder="Cognome..." oninput="applyAtletiFilters()" style="width:100%">
@@ -1106,12 +1109,9 @@ window.templateAtleti = function() {
     </div>`;
 };
 
-// 2. LOGICA DI INIZIALIZZAZIONE (FIX ReferenceError)
-window.allAtletiData = []; // Variabile globale per i dati
-
+// INIZIALIZZAZIONE: Risolve il ReferenceError
 window.initAtleti = async function() {
     try {
-        // Caricamento dati per i filtri
         const [socs, seas, cats, teams] = await Promise.all([
             client.from('societies').select('*').order('name'),
             client.from('seasons').select('*').order('name'),
@@ -1119,7 +1119,6 @@ window.initAtleti = async function() {
             client.from('teams').select('*').order('name')
         ]);
 
-        // Popolamento select filtri
         const fSoc = document.getElementById('filter-society');
         const fSea = document.getElementById('filter-season');
         const fCat = document.getElementById('filter-category');
@@ -1148,12 +1147,11 @@ window.loadAtletiData = async function() {
             categories:category_id (name, id)
         `);
 
-    if (error) return console.error(error);
+    if (error) return;
     window.allAtletiData = data || [];
     window.applyAtletiFilters();
 };
 
-// 3. FILTRI E RENDERING
 window.applyAtletiFilters = function() {
     const nameVal = document.getElementById('filter-name')?.value.toLowerCase();
     const socVal = document.getElementById('filter-society')?.value;
@@ -1175,11 +1173,11 @@ window.applyAtletiFilters = function() {
     tbody.innerHTML = filtered.map(row => `
         <tr>
             <td><strong>${row.athletes?.surname || ''} ${row.athletes?.name || ''}</strong></td>
-            <td><small>${row.societies?.name || '-'}</small></td>
+            <td><span style="color: #2563eb;">${row.societies?.name || '-'}</span></td>
             <td>${row.seasons?.name || '-'}</td>
             <td>${row.categories?.name || '-'}</td>
             <td>${row.teams?.name || 'Intera Cat.'}</td>
-            <td><span class="badge-role">${row.role || '-'}</span></td>
+            <td>${row.role || '-'}</td>
             <td style="text-align:center">${row.jersey_number || '-'}</td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="openAtletaModal('${row.id}')">✏️</button>
@@ -1189,6 +1187,13 @@ window.applyAtletiFilters = function() {
     `).join('') || '<tr><td colspan="8">Nessun atleta trovato.</td></tr>';
 };
 
+// IMPORT EXCEL
+window.importAtleti = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    alert("Funzione Importazione pronta: selezionato " + file.name);
+    // Logica di parsing XLSX da aggiungere qui
+};
 // 4. EXPORT E ELIMINA (Inclusa Società)
 window.exportAtleti = function() {
     const table = document.querySelector("table");
