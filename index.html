@@ -394,11 +394,11 @@ function templateSocieta() {
 
 async function initSocieta() {
     // Specifichiamo di usare la colonna sport_id per il join
-    const { data, error } = await client
-        .from('societies')
-        .select('*, sports!sport_id(name, icon)')
-        .order('name');
-
+const { data, error } = await client
+    .from('societies')
+    .select('*, sports!fk_soc_to_sport(name, icon)') // Usa il nuovo nome univoco
+    .order('name');
+	
     const tbody = document.getElementById('list-societa');
     if (error) { 
         console.error(error);
@@ -509,10 +509,10 @@ function templateCategoria() {
 
 async function initCategoria() {
     // Specifichiamo di usare la colonna society_id
-    const { data, error } = await client
-        .from('categories')
-        .select('*, societies!society_id(name)')
-        .order('name');
+const { data, error } = await client
+    .from('categories')
+    .select('*, societies!fk_cat_to_soc(name)') // Usa il nuovo nome univoco
+    .order('name');
 
     const tbody = document.getElementById('list-categoria');
     if (error) { 
@@ -623,16 +623,16 @@ function templateSquadra() {
 
 async function initSquadra() {
     // Qui le relazioni sono multiple, specifichiamole tutte
-    const { data, error } = await client
-        .from('teams')
-        .select(`
-            id,
-            name,
-            societies!society_id (name),
-            categories!category_id (name),
-            sports!sport_id (name, icon)
-        `)
-        .order('name');
+const { data, error } = await client
+    .from('teams')
+    .select(`
+        id,
+        name,
+        societies!rel_team_society (name),
+        categories!rel_team_category (name),
+        sports!rel_team_sport (name, icon)
+    `)
+    .order('name');
 
     const tbody = document.getElementById('list-squadra');
     if (error) {
