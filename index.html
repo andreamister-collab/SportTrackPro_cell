@@ -744,7 +744,6 @@ window.deleteTeam = async (id) => {
 /* ============================================================
    SEZIONE: STAFF (Solo Anagrafica DB - Senza Password)
    ============================================================ */
-
 function templateStaff() {
     return `
     <div class="card">
@@ -757,44 +756,36 @@ function templateStaff() {
                 <tr>
                     <th>Nome e Cognome</th>
                     <th>Email</th>
-                    <th>Ruolo</th>
+                    <th>Ruolo Attuale</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
-            <tbody id="list-staff-users">
-                <tr><td colspan="4">Caricamento in corso...</td></tr>
-            </tbody>
+            <tbody id="list-staff-users"></tbody>
         </table>
     </div>`;
 }
 
 async function initStaff() {
     const tbody = document.getElementById('list-staff-users');
-    
-    const { data, error } = await client
-        .from('users')
-        .select('*')
-        .neq('username', 'admin') 
-        .order('name');
+    const { data, error } = await client.from('users').select('*').neq('username', 'admin').order('name');
 
-    if (error) {
-        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
-        return;
-    }
+    if (error) return;
 
     tbody.innerHTML = data?.map(u => `
         <tr>
             <td><strong>${u.name}</strong></td>
             <td>${u.email || '-'}</td>
-            <td><span class="badge badge-inactive" style="text-transform: uppercase; font-size: 0.75rem;">${u.role}</span></td>
+            <td><span class="badge badge-inactive">${u.role.toUpperCase()}</span></td>
             <td style="text-align:right">
+                <button class="btn-sm" style="background:#6366f1; color:white;" onclick="viewStaffHistory('${u.id}', '${u.name.replace(/'/g, "\\'")}')" title="Vedi Carriera">🕒</button>
                 <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">Nessun membro dello staff registrato.</td></tr>';
+    `).join('') || '<tr><td colspan="4">Nessun membro staff.</td></tr>';
 
     document.getElementById('btn-add-staff-user').onclick = () => openStaffModal();
+
 }
 
 async function openStaffModal(editData = null) {
@@ -871,7 +862,7 @@ function templateAssignments() {
                 <tr>
                     <th>Staff</th>
                     <th>Categoria</th>
-                    <th>Ruolo</th>
+                    <th>Ruolo in Squadra</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
@@ -881,80 +872,92 @@ function templateAssignments() {
 }
 
 async function initAssignments() {
-    // 1. Cerchiamo la stagione attiva
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    
-    const infoDiv = document.getElementById('assign-season-info');
     const tbody = document.getElementById('list-assignments');
-
-    if (!activeSeason) {
-        infoDiv.innerHTML = "⚠️ Nessuna stagione attiva! Impostala nella sezione Stagioni.";
-        tbody.innerHTML = "";
+    const infoBanner = document.getElementById('assign-season-info');
+    
+    // 1. Identifica stagione attiva
+    const { data: season } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
+    
+    if (!season) {
+        infoBanner.innerHTML = "⚠️ Nessuna stagione attiva impostata.";
+        tbody.innerHTML = '<tr><td colspan="4">Attivare una stagione per procedere.</td></tr>';
         return;
     }
-    infoDiv.innerText = `Stagione Corrente: ${activeSeason.name}`;
+    infoBanner.innerHTML = `📅 Stagione Corrente: ${season.name}`;
 
-    // 2. Carichiamo i legami esistenti
+    // 2. Carica assegnazioni correnti (Uso i nomi delle tabelle per i join)
     const { data, error } = await client
         .from('user_category_seasons')
         .select(`
-            id, role,
-            users!fk_staff_user(username),
-            categories!fk_staff_category(name)
+            id, 
+            role, 
+            users (name), 
+            categories (name)
         `)
-        .eq('season_id', activeSeason.id);
+        .eq('season_id', season.id);
 
-    if (error) { console.error(error); return; }
+    if (error) {
+        console.error(error);
+        return;
+    }
 
     tbody.innerHTML = data?.map(a => `
         <tr>
-            <td><strong>${a.users?.username || 'N/A'}</strong></td>
+            <td><strong>${a.users?.name || 'N/A'}</strong></td>
             <td>${a.categories?.name || 'N/A'}</td>
-            <td><span class="badge badge-inactive">${a.role}</span></td>
+            <td><span class="badge badge-active">${a.role}</span></td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:var(--danger)" onclick="deleteAssignment('${a.id}')">Rimuovi</button>
+                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">Rimuovi</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4">Nessuna assegnazione per questa stagione.</td></tr>';
 
-    // 3. Bottone per Nuova Assegnazione
+    // 3. Logica per aggiungere
     document.getElementById('btn-add-assignment').onclick = async () => {
         const [uRes, cRes] = await Promise.all([
-            client.from('users').select('id, username').order('username'),
+            client.from('users').select('id, name').neq('username', 'admin').order('name'),
             client.from('categories').select('id, name').order('name')
         ]);
 
         modal.open('Nuova Assegnazione', `
-            <p>Stagione: <strong>${activeSeason.name}</strong></p>
-            <label>Membro dello Staff</label>
-            <select id="as-user">${uRes.data.map(u=>`<option value="${u.id}">${u.username}</option>`)}</select>
-            <label>Assegna a Categoria</label>
-            <select id="as-cat">${cRes.data.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select>
-            <label>Ruolo (es. Allenatore, Dirigente)</label>
-            <input type="text" id="as-role" placeholder="es. Allenatore">
+            <p style="font-size:0.8rem; margin-bottom:10px">Stagione: ${season.name}</p>
+            <label>Membro Staff</label>
+            <select id="as-user">
+                ${uRes.data.map(user => `<option value="${user.id}">${user.name}</option>`).join('')}
+            </select>
+            <label>Categoria</label>
+            <select id="as-cat">
+                ${cRes.data.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('')}
+            </select>
+            <label>Ruolo in Squadra</label>
+            <input type="text" id="as-role" placeholder="es. Allenatore, Vice, Dirigente...">
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const payload = {
+            const { error: insErr } = await client.from('user_category_seasons').insert({
                 user_id: document.getElementById('as-user').value,
                 category_id: document.getElementById('as-cat').value,
-                season_id: activeSeason.id,
+                season_id: season.id,
                 role: document.getElementById('as-role').value || 'Collaboratore'
-            };
-            await client.from('user_category_seasons').insert(payload);
-            modal.close();
-            initAssignments();
+            });
+
+            if(!insErr) {
+                modal.close(); 
+                initAssignments();
+            } else {
+                alert("Errore: " + insErr.message);
+            }
         };
     };
 }
 
-// Funzione globale per eliminare l'assegnazione
+// Funzione globale per la cancellazione
 window.deleteAssignment = async (id) => {
-    if (confirm("Rimuovere questa assegnazione?")) {
-        await client.from('user_category_seasons').delete().eq('id', id);
-        initAssignments();
+    if (confirm("Rimuovere questa assegnazione dallo staff?")) {
+        const { error } = await client.from('user_category_seasons').delete().eq('id', id);
+        if (!error) initAssignments();
     }
-};    
+};
 	/* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
