@@ -651,8 +651,6 @@ async function initSquadra() {
     `).join('') || '<tr><td colspan="4">Nessuna squadra trovata.</td></tr>';
 
     // ... (restanti listener per eliminazione) ...
-}
-
     // Listener Elimina
     tbody.querySelectorAll('.btn-team-delete').forEach(btn => {
         btn.onclick = () => handleSquadraDelete(btn.dataset.id);
