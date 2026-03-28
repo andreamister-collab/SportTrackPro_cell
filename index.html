@@ -609,105 +609,125 @@ function templateSquadra() {
             <thead>
                 <tr>
                     <th>Nome Squadra</th>
-                    <th>Società / Categoria</th>
+                    <th>Società</th>
+                    <th>Categoria</th>
                     <th>Sport</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
             <tbody id="list-squadra">
-                <tr><td colspan="4">Caricamento in corso...</td></tr>
+                <tr><td colspan="5">Caricamento in corso...</td></tr>
             </tbody>
         </table>
     </div>`;
-}
-
 async function initSquadra() {
-    // Qui le relazioni sono multiple, specifichiamole tutte
-const { data, error } = await client
-    .from('teams')
-    .select(`
-        id,
-        name,
-        societies!rel_team_society (name),
-        categories!rel_team_category (name),
-        sports!rel_team_sport (name, icon)
-    `)
-    .order('name');
+    // 1. Caricamento dati con JOIN esplicite
+    const { data, error } = await client
+        .from('teams')
+        .select(`
+            id,
+            name,
+            society_id,
+            category_id,
+            sport_id,
+            societies!rel_team_society (name),
+            categories!rel_team_category (name),
+            sports!rel_team_sport (name, icon)
+        `)
+        .order('name');
 
     const tbody = document.getElementById('list-squadra');
     if (error) {
-        console.error(error);
-        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="color:red">Errore: ${error.message}</td></tr>`;
         return;
     }
 
+    // 2. Rendering della tabella
     tbody.innerHTML = data?.map(t => `
         <tr>
             <td><strong>${t.name}</strong></td>
-            <td>${t.societies?.name || '-'}<br><small>${t.categories?.name || '-'}</small></td>
+            <td>${t.societies?.name || '-'}</td>
+            <td><span class="badge badge-inactive">${t.categories?.name || '-'}</span></td>
             <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
             <td style="text-align:right">
+                <button class="btn-sm" style="background:var(--warning); margin-right:5px" 
+                    onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️</button>
                 <button class="btn-sm" style="background:var(--danger)" onclick="deleteTeam('${t.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">Nessuna squadra.</td></tr>';
-    // Gestione clic bottone "Nuova Squadra"
-    document.getElementById('btn-add-squadra').onclick = async () => {
-        // Carichiamo i dati per le tendine del modulo
-        const [resSoc, resCat, resSport] = await Promise.all([
-            client.from('societies').select('id, name').order('name'),
-            client.from('categories').select('id, name').order('name'),
-            client.from('sports').select('id, name, icon').order('name')
-        ]);
+    `).join('') || '<tr><td colspan="5">Nessuna squadra presente.</td></tr>';
 
-        modal.open('Crea Nuova Squadra', `
-            <label>Nome Squadra (es. Under 17 Regionale)</label>
-            <input type="text" id="new-team-name" placeholder="Inserisci nome...">
-            
-            <label>Società di appartenenza</label>
-            <select id="new-team-soc">
-                ${resSoc.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-            </select>
-            
-            <label>Categoria</label>
-            <select id="new-team-cat">
-                ${resCat.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-            </select>
-            
-            <label>Disciplina Sportiva</label>
-            <select id="new-team-sport">
-                ${resSport.data.map(sp => `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`).join('')}
-            </select>
-        `);
+    // 3. Bottone aggiungi
+    document.getElementById('btn-add-squadra').onclick = () => openTeamModal();
+}
 
-        // Salvataggio nuova squadra
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const payload = {
-                name: document.getElementById('new-team-name').value,
-                society_id: document.getElementById('new-team-soc').value,
-                category_id: document.getElementById('new-team-cat').value,
-                sport_id: document.getElementById('new-team-sport').value
-            };
+// Funzione per aprire il Modal (sia per Nuovo che per Modifica)
+async function openTeamModal(editData = null) {
+    // Carichiamo le liste per le select
+    const [resSoc, resCat, resSport] = await Promise.all([
+        client.from('societies').select('id, name').order('name'),
+        client.from('categories').select('id, name').order('name'),
+        client.from('sports').select('id, name, icon').order('name')
+    ]);
 
-            if(!payload.name) return alert("Inserisci un nome per la squadra!");
+    const title = editData ? 'Modifica Squadra' : 'Nuova Squadra';
+    
+    modal.open(title, `
+        <label>Nome Squadra</label>
+        <input type="text" id="m-team-name" value="${editData ? editData.name : ''}" placeholder="es. Pulcini 2015">
+        
+        <label>Società</label>
+        <select id="m-team-soc">
+            ${resSoc.data.map(s => `<option value="${s.id}" ${editData?.socId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+        </select>
+        
+        <label>Categoria</label>
+        <select id="m-team-cat">
+            ${resCat.data.map(c => `<option value="${c.id}" ${editData?.catId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        </select>
+        
+        <label>Sport</label>
+        <select id="m-team-sport">
+            ${resSport.data.map(sp => `<option value="${sp.id}" ${editData?.sportId === sp.id ? 'selected' : ''}>${sp.icon} ${sp.name}</option>`).join('')}
+        </select>
+    `);
 
-            const { error: insErr } = await client.from('teams').insert(payload);
-            
-            if(!insErr) {
-                modal.close();
-                initSquadra();
-            } else {
-                alert("Errore: " + insErr.message);
-            }
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const payload = {
+            name: document.getElementById('m-team-name').value,
+            society_id: document.getElementById('m-team-soc').value,
+            category_id: document.getElementById('m-team-cat').value,
+            sport_id: document.getElementById('m-team-sport').value
         };
+
+        if (!payload.name) return alert("Inserisci un nome!");
+
+        let result;
+        if (editData) {
+            result = await client.from('teams').update(payload).eq('id', editData.id);
+        } else {
+            result = await client.from('teams').insert(payload);
+        }
+
+        if (!result.error) {
+            modal.close();
+            initSquadra();
+        } else {
+            alert("Errore nel salvataggio: " + result.error.message);
+        }
     };
 }
 
-// Funzione eliminazione (globale per essere richiamata dall'onclick inline)
+// Handler per il tasto modifica (chiamato dall'onclick della tabella)
+window.handleEditTeam = (id, name, socId, catId, sportId) => {
+    openTeamModal({ id, name, socId, catId, sportId });
+};
+
+// Handler per eliminazione
 window.deleteTeam = async (id) => {
-    if(confirm("Sei sicuro di voler eliminare questa squadra?")) {
+    if (confirm("Eliminare definitivamente questa squadra?")) {
         const { error } = await client.from('teams').delete().eq('id', id);
-        if(!error) initSquadra(); else alert(error.message);
+        if (!error) initSquadra(); else alert(error.message);
     }
 };
 </script>
