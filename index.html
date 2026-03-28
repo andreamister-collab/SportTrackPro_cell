@@ -914,40 +914,39 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   MODULO ASSEGNAZIONI TECNICHE - FIX REFERENCE ERROR
+   MODULO ASSEGNAZIONI TECNICHE - (Tabella: user_category_seasons)
    ============================================================ */
 
 (function() {
-    // Variabile privata per i dati
-    let _allStaffData = [];
+    // Variabile privata per il filtraggio
+    let _allAssignments = [];
 
-    // 1. TEMPLATE (Assicurati che il nome coincida con loadPage)
-    // Se loadPage chiama 'templateAssignments', usa quel nome.
+    // --- 1. IL TEMPLATE (Include Filtri per Società e Stagione) ---
     window.templateAssignments = function() {
         return `
         <div class="card">
             <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
                 <h2>ASSEGNAZIONI TECNICHE</h2>
                 <div class="actions">
-                    <button class="btn" onclick="openAssegnazioneStaffModal()">+ Assegna Staff</button>
+                    <button class="btn" id="btn-add-assignment">+ Assegna Staff a Squadra</button>
                 </div>
             </div>
 
             <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
-                    <label style="font-size: 11px; font-weight:bold;">Cerca</label>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Membro</label>
                     <input type="text" id="f-staff-name" placeholder="Nome..." oninput="applyStaffFilters()" style="width:100%">
                 </div>
                 <div>
-                    <label style="font-size: 11px; font-weight:bold;">Società</label>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
                     <select id="f-staff-soc" onchange="applyStaffFilters()" style="width:100%"><option value="">Tutte</option></select>
                 </div>
                 <div>
-                    <label style="font-size: 11px; font-weight:bold;">Stagione</label>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Stagione</label>
                     <select id="f-staff-sea" onchange="applyStaffFilters()" style="width:100%"></select>
                 </div>
                 <div>
-                    <label style="font-size: 11px; font-weight:bold;">Squadra</label>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Squadra</label>
                     <select id="f-staff-team" onchange="applyStaffFilters()" style="width:100%"><option value="">Tutte</option></select>
                 </div>
             </div>
@@ -958,21 +957,22 @@ window.handleDeleteStaff = async function(id) {
                         <th>Membro Staff</th>
                         <th>Società</th>
                         <th>Stagione</th>
-                        <th>Squadra</th>
+                        <th>Squadra (Team)</th>
                         <th>Ruolo</th>
                         <th style="text-align:right">Azioni</th>
                     </tr>
                 </thead>
-                <tbody id="list-assegnazioni-staff">
-                    <tr><td colspan="6">Caricamento...</td></tr>
+                <tbody id="list-assignments">
+                    <tr><td colspan="6">Caricamento in corso...</td></tr>
                 </tbody>
             </table>
         </div>`;
     };
 
-    // 2. INIZIALIZZAZIONE (Chiamata da loadPage)
+    // --- 2. INIZIALIZZAZIONE ---
     window.initAssignments = async function() {
         try {
+            // Caricamento opzioni filtri
             const [socs, seas, teams] = await Promise.all([
                 client.from('societies').select('*').order('name'),
                 client.from('seasons').select('*').order('name'),
@@ -988,80 +988,134 @@ window.handleDeleteStaff = async function(id) {
             if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
             await _fetchData();
-        } catch(e) { console.error(e); }
+        } catch (err) {
+            console.error("Errore init assignments:", err);
+        }
     };
 
-    // 3. RECUPERO DATI E FILTRI
-   // --- 3. RECUPERO DATI E FILTRI (CORRETTO) ---
+    // --- 3. RECUPERO DATI (Punta a user_category_seasons) ---
     async function _fetchData() {
-        // La stringa di selezione deve puntare alle tabelle relazionate correttamente
+        // Recupero la stagione attiva per impostare il pulsante "Aggiungi"
+        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
+        if (activeSeason) {
+            const btn = document.getElementById('btn-add-assignment');
+            if(btn) btn.onclick = () => openAssignmentModal(activeSeason.id);
+        }
+
+        // Recupero tutti i dati con le relazioni corrette
         const { data, error } = await client
-            .from('staff_assignments')
+            .from('user_category_seasons')
             .select(`
-                id, 
-                role, 
-                staff (id, name, surname), 
-                societies (id, name), 
-                seasons (id, name), 
-                teams (id, name)
+                id, role, season_id, team_id, user_id,
+                users!fk_staff_user (name),
+                teams!fk_ucs_team (name),
+                societies:society_id (id, name),
+                seasons:season_id (id, name)
             `);
         
         if (error) {
-            console.error("Errore nel recupero dati:", error.message);
+            console.error("Errore query UCS:", error);
             return;
         }
 
-        if (data) {
-            _allStaffData = data;
-            // Chiamiamo i filtri per popolare la tabella
-            window.applyStaffFilters(); 
-        }
+        _allAssignments = data || [];
+        window.applyStaffFilters();
     }
-	// --- 3. RECUPERO DATI E FILTRI (CORRETTO) ---
+
+    // --- 4. FILTRAGGIO E RENDERING ---
     window.applyStaffFilters = function() {
         const name = document.getElementById('f-staff-name')?.value.toLowerCase();
         const soc = document.getElementById('f-staff-soc')?.value;
         const sea = document.getElementById('f-staff-sea')?.value;
         const team = document.getElementById('f-staff-team')?.value;
 
-        const filtered = _allStaffData.filter(row => {
-            return (!name || `${row.staff?.surname} ${row.staff?.name}`.toLowerCase().includes(name)) &&
-                   (!soc || row.societies?.id == soc) &&
-                   (!sea || row.seasons?.id == sea) &&
-                   (!team || row.teams?.id == team);
+        const filtered = _allAssignments.filter(a => {
+            return (!name || a.users?.name?.toLowerCase().includes(name)) &&
+                   (!soc || a.societies?.id == soc) &&
+                   (!sea || a.seasons?.id == sea) &&
+                   (!team || a.team_id == team);
         });
 
-        _render(filtered);
-    };
-
-    function _render(data) {
-        const tbody = document.getElementById('list-assegnazioni-staff');
+        const tbody = document.getElementById('list-assignments');
         if (!tbody) return;
-        tbody.innerHTML = data.map(row => `
+
+        tbody.innerHTML = filtered.map(a => `
             <tr>
-                <td><strong>${row.staff?.surname} ${row.staff?.name}</strong></td>
-                <td><span style="color: #2563eb; font-weight:500;">${row.societies?.name || '-'}</span></td>
-                <td>${row.seasons?.name || '-'}</td>
-                <td>${row.teams?.name || 'Staff Societario'}</td>
-                <td><span class="badge-role">${row.role || '-'}</span></td>
+                <td><strong>${a.users?.name || 'N/D'}</strong></td>
+                <td><span style="color: #2563eb; font-weight:500;">${a.societies?.name || '-'}</span></td>
+                <td>${a.seasons?.name || '-'}</td>
+                <td>${a.teams?.name || 'N/D'}</td>
+                <td><span class="badge badge-active">${a.role}</span></td>
                 <td style="text-align:right">
-                    <button class="btn-sm btn-warning" onclick="openAssegnazioneStaffModal('${row.id}')">✏️</button>
-                    <button class="btn-sm btn-danger" onclick="deleteAssegnazioneStaff('${row.id}')">🗑️</button>
+                    <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
+                    <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="6">Nessun risultato.</td></tr>';
-    }
-
-    // 4. AZIONI GLOBALI
-    window.openAssegnazioneStaffModal = async function(id = null) {
-        // ... (Logica modale come fornita in precedenza)
-        // Assicurati che alla fine del salvataggio chiami _fetchData()
+        `).join('') || '<tr><td colspan="6">Nessuna assegnazione trovata.</td></tr>';
     };
 
-    window.deleteAssegnazioneStaff = async function(id) {
-        if (!confirm("Rimuovere?")) return;
-        const { error } = await client.from('staff_assignments').delete().eq('id', id);
-        if (!error) _fetchData();
+    // --- 5. LOGICA MODALE (Adattata dal tuo codice) ---
+    window.openAssignmentModal = async function(activeSeasonId, editData = null) {
+        const isEdit = !!editData;
+        const [sRes, uRes, tRes] = await Promise.all([
+            client.from('seasons').select('name').eq('id', activeSeasonId).single(),
+            client.from('users').select('id, name').neq('username', 'admin').order('name'),
+            client.from('teams').select('id, name, category_id, society_id').eq('season_id', activeSeasonId).order('name')
+        ]);
+
+        const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
+
+        modal.open(isEdit ? 'Modifica Staff' : 'Nuova Assegnazione Staff', `
+            <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.85em;">
+                <strong>Stagione Attiva:</strong> ${sRes.data?.name || 'Corrente'}
+            </div>
+            <label>Membro Staff</label>
+            <select id="as-user">
+                <option value="">-- Seleziona Staff --</option>
+                ${uRes.data?.map(u => `<option value="${u.id}" ${isEdit && editData.user_id === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
+            </select>
+            <label>Squadra (Team)</label>
+            <select id="as-team">
+                <option value="">-- Seleziona Squadra --</option>
+                ${tRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+            </select>
+            <label>Ruolo Tecnico</label>
+            <select id="as-role">
+                ${ruoliValidi.map(r => `<option value="${r}" ${isEdit && editData.role === r ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const teamSelect = document.getElementById('as-team');
+            const payload = {
+                user_id: document.getElementById('as-user').value,
+                team_id: teamSelect.value,
+                category_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-cat'),
+                society_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-soc'),
+                season_id: activeSeasonId,
+                role: document.getElementById('as-role').value
+            };
+
+            if (!payload.user_id || !payload.team_id) return alert("Compila tutti i campi!");
+
+            const { error } = isEdit 
+                ? await client.from('user_category_seasons').update(payload).eq('id', editData.id)
+                : await client.from('user_category_seasons').insert(payload);
+            
+            if (!error) { modal.close(); _fetchData(); } else { alert(error.message); }
+        };
+    };
+
+    window.handleEditAssignment = async (id) => {
+        const { data, error } = await client.from('user_category_seasons').select('*').eq('id', id).single();
+        if (!error) openAssignmentModal(data.season_id, data);
+    };
+
+    window.deleteAssignment = async (id) => {
+        if (confirm("Rimuovere questo incarico?")) {
+            const { error } = await client.from('user_category_seasons').delete().eq('id', id);
+            if (!error) _fetchData();
+        }
     };
 
 })();
