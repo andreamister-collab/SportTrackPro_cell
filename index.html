@@ -688,82 +688,9 @@ async function openTeamModal(editData = null) {
     };
 }
 /* ============================================================
-   ASSEGNAZIONI STAFF: Filtrate per Stagione
+   SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team) - UNICA
    ============================================================ */
 
-async function initAssignments() {
-    const tbody = document.getElementById('list-assignments');
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
-
-    if (!activeSeason) return;
-
-    const { data, error } = await client
-        .from('user_category_seasons')
-        .select('*, users(name), teams(name)')
-        .eq('season_id', activeSeason.id); // FILTRA SOLO ASSEGNAZIONI DI QUESTA STAGIONE
-
-    tbody.innerHTML = data?.map(a => `
-        <tr>
-            <td><strong>${a.users?.name}</strong></td>
-            <td>${a.teams?.name}</td>
-            <td><span class="badge">${a.role}</span></td>
-            <td style="text-align:right">
-                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
-            </td>
-        </tr>
-    `).join('') || '<tr><td colspan="4">Nessuno staff assegnato per questa stagione.</td></tr>';
-}
-
-async function openAssignmentModal() {
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    const { data: users } = await client.from('users').select('id, name').neq('username', 'admin').order('name');
-    
-    // Filtriamo anche i team per la stagione attiva per evitare errori
-    const { data: teams } = await client.from('teams').select('id, name').eq('season_id', activeSeason.id).order('name');
-
-    modal.open('Nuova Assegnazione Staff', `
-        <div style="margin-bottom:15px; padding:10px; background:#f0f9ff; border-left:4px solid #0ea5e9; color:#0369a1;">
-            Stai lavorando nella stagione: <strong>${activeSeason.name}</strong>
-        </div>
-
-        <label>Seleziona Membro Staff</label>
-        <select id="as-user">
-            ${users.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
-        </select>
-
-        <label>Seleziona Squadra (Team)</label>
-        <select id="as-team">
-            ${teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
-        </select>
-
-        <label>Ruolo</label>
-        <select id="as-role">
-            <option value="Allenatore">Allenatore</option>
-            <option value="Vice Allenatore">Vice Allenatore</option>
-            <option value="Dirigente">Dirigente</option>
-            <option value="Collaboratore">Collaboratore</option>
-        </select>
-    `);
-
-    document.getElementById('btn-modal-save').onclick = async () => {
-        const payload = {
-            user_id: document.getElementById('as-user').value,
-            team_id: document.getElementById('as-team').value,
-            role: document.getElementById('as-role').value,
-            season_id: activeSeason.id // COLLEGA ALLA STAGIONE
-        };
-
-        const { error } = await client.from('user_category_seasons').insert(payload);
-        if (!error) { modal.close(); initAssignments(); }
-    };
-}
-/* ============================================================
-   SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team)
-   ============================================================ */
-
-/**
- * Genera il template HTML della tabella assegnazioni
- */
 function templateAssignments() {
     return `
     <div class="card">
@@ -788,49 +715,40 @@ function templateAssignments() {
     </div>`;
 }
 
-/**
- * Inizializza la tabella recuperando i dati filtrati per Stagione Attiva
- */
 async function initAssignments() {
     const tbody = document.getElementById('list-assignments');
     const infoBanner = document.getElementById('assign-season-info');
     if (!tbody) return;
 
-    // 1. Recupero la Stagione Attiva per filtrare i dati
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
+    // 1. Recupero la Stagione Attiva
+    const { data: activeSeason, error: sErr } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
 
     if (!activeSeason) {
-        infoBanner.innerHTML = "⚠️ Attivare una stagione nelle impostazioni per procedere.";
+        if (infoBanner) infoBanner.innerHTML = "⚠️ Attivare una stagione nelle impostazioni.";
         tbody.innerHTML = '<tr><td colspan="4">Nessuna stagione attiva trovata.</td></tr>';
         return;
     }
-    infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
+    if (infoBanner) infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
 
     // 2. Caricamento assegnazioni SOLO della stagione attiva
     const { data, error } = await client
         .from('user_category_seasons')
-        .select(`
-            id, 
-            role, 
-            users!fk_staff_user (name), 
-            teams!fk_ucs_team (name)
-        `)
-        .eq('season_id', activeSeason.id); // FILTRO STAGIONE ATTIVA
+        .select(`id, role, users!fk_staff_user (name), teams!fk_ucs_team (name)`)
+        .eq('season_id', activeSeason.id);
 
     if (error) {
         tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
         return;
     }
 
-    // 3. Render Tabella
     tbody.innerHTML = data?.map(a => `
         <tr>
             <td><strong>${a.users?.name || 'N/D'}</strong></td>
             <td>${a.teams?.name || 'N/D'}</td>
             <td><span class="badge badge-active">${a.role}</span></td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')" title="Rimuovi">🗑️</button>
+                <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4">Nessuna assegnazione per questa stagione.</td></tr>';
@@ -838,13 +756,8 @@ async function initAssignments() {
     document.getElementById('btn-add-assignment').onclick = () => openAssignmentModal(activeSeason.id);
 }
 
-/**
- * Modale per creare/modificare assegnazioni (Filtra i Team per Stagione)
- */
 async function openAssignmentModal(activeSeasonId, editData = null) {
     const isEdit = !!editData;
-
-    // Recupero info stagione e dati necessari (Filtrando i Team per la stagione attiva)
     const [sRes, uRes, tRes] = await Promise.all([
         client.from('seasons').select('name').eq('id', activeSeasonId).single(),
         client.from('users').select('id, name').neq('username', 'admin').order('name'),
@@ -854,25 +767,19 @@ async function openAssignmentModal(activeSeasonId, editData = null) {
     const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
 
     modal.open(isEdit ? 'Modifica Assegnazione Staff' : 'Nuova Assegnazione Staff', `
-        <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.9em;">
+        <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.85em;">
             <strong>Stagione Attiva:</strong> ${sRes.data?.name || 'Corrente'}
         </div>
-
         <label>Membro Staff</label>
         <select id="as-user">
             <option value="">-- Seleziona Staff --</option>
-            ${uRes.data.map(u => `<option value="${u.id}" ${isEdit && editData.user_id === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
+            ${uRes.data?.map(u => `<option value="${u.id}" ${isEdit && editData.user_id === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
         </select>
-
         <label>Squadra (Team)</label>
         <select id="as-team">
             <option value="">-- Seleziona Squadra --</option>
-            ${tRes.data.map(t => `
-                <option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>
-                    ${t.name}
-                </option>`).join('')}
+            ${tRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
         </select>
-
         <label>Ruolo Tecnico</label>
         <select id="as-role">
             ${ruoliValidi.map(r => `<option value="${r}" ${isEdit && editData.role === r ? 'selected' : ''}>${r}</option>`).join('')}
@@ -880,38 +787,39 @@ async function openAssignmentModal(activeSeasonId, editData = null) {
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
-        const user_id = document.getElementById('as-user').value;
         const teamSelect = document.getElementById('as-team');
-        const role = document.getElementById('as-role').value;
-
-        if (!user_id || !teamSelect.value) return alert("Seleziona sia lo staff che la squadra!");
-
-        const selectedTeam = teamSelect.options[teamSelect.selectedIndex];
         const payload = {
-            user_id: user_id,
+            user_id: document.getElementById('as-user').value,
             team_id: teamSelect.value,
-            category_id: selectedTeam.getAttribute('data-cat'),
-            society_id: selectedTeam.getAttribute('data-soc'),
+            category_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-cat'),
+            society_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-soc'),
             season_id: activeSeasonId,
-            role: role
+            role: document.getElementById('as-role').value
         };
+
+        if (!payload.user_id || !payload.team_id) return alert("Compila tutti i campi!");
 
         const { error } = isEdit 
             ? await client.from('user_category_seasons').update(payload).eq('id', editData.id)
             : await client.from('user_category_seasons').insert(payload);
         
-        if (!error) {
-            modal.close();
-            initAssignments(); 
-        } else {
-            alert("Errore: " + error.message);
-        }
+        if (!error) { modal.close(); initAssignments(); } else { alert(error.message); }
     };
+}
 
-/* --- FUNZIONI GLOBALI (Window) --- */
-
+// FUNZIONI GLOBALI PER I BOTTONI
 window.handleEditAssignment = async (id) => {
-    const { data, error } = await client.from('user_
+    const { data, error } = await client.from('user_category_seasons').select('*').eq('id', id).single();
+    if (!error) openAssignmentModal(data.season_id, data);
+};
+
+window.deleteAssignment = async (id) => {
+    if (confirm("Rimuovere questo incarico dallo staff?")) {
+        const { error } = await client.from('user_category_seasons').delete().eq('id', id);
+        if (!error) initAssignments();
+    }
+};
+
 /* ============================================================
    SEZIONE: ANAGRAFICA ATLETI (Semplificata)
    ============================================================ */
