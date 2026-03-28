@@ -854,88 +854,14 @@ window.handleDeleteStaff = async (id) => {
  * Genera il template HTML della tabella assegnazioni
  */
 function templateAssignments() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>ASSEGNAZIONI TECNICHE</h2>
-            <button class="btn" id="btn-add-assignment">+ Assegna Staff a Squadra</button>
-        </div>
-        <div id="assign-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb;"></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Membro Staff</th>
-                    <th>Squadra (Team)</th>
-                    <th>Ruolo in Squadra</th>
-                    <th style="text-align:right">Azioni</th>
-                </tr>
-            </thead>
-            <tbody id="list-assignments">
-                <tr><td colspan="4">Caricamento in corso...</td></tr>
-            </tbody>
-        </table>
-    </div>`;
-}
-
 /**
- * Inizializza la tabella recuperando i dati da Supabase
- */
-async function initAssignments() {
-    const tbody = document.getElementById('list-assignments');
-    const infoBanner = document.getElementById('assign-season-info');
-    
-    // 1. Recupero Stagione Attiva
-    const { data: season, error: sErr } = await client
-        .from('seasons')
-        .select('*')
-        .eq('is_active', true)
-        .maybeSingle();
-
-    if (!season) {
-        infoBanner.innerHTML = "⚠️ Attivare una stagione per procedere.";
-        tbody.innerHTML = '<tr><td colspan="4">Nessuna stagione attiva trovata.</td></tr>';
-        return;
-    }
-    infoBanner.innerText = `📅 Stagione Corrente: ${season.name}`;
-
-    // 2. Caricamento Assegnazioni con Join espliciti sui vincoli (Constraints)
-    const { data, error } = await client
-        .from('user_category_seasons')
-        .select(`
-            id, 
-            role, 
-            users!fk_staff_user (name), 
-            teams!fk_ucs_team (name)
-        `)
-        .eq('season_id', season.id);
-
-    if (error) {
-        console.error("Errore Caricamento:", error);
-        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
-        return;
-    }
-
-    // 3. Render della tabella
-    tbody.innerHTML = data?.map(a => `
-        <tr>
-            <td><strong>${a.users?.name || 'N/D'}</strong></td>
-            <td>${a.teams?.name || 'N/D'}</td>
-            <td><span class="badge badge-active">${a.role}</span></td>
-            <td style="text-align:right">
-                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">Rimuovi</button>
-            </td>
-        </tr>
-    `).join('') || '<tr><td colspan="4">Nessuna assegnazione presente per questa stagione.</td></tr>';
-
-    // 4. Listener per il tasto Aggiungi
-    document.getElementById('btn-add-assignment').onclick = () => openAssignmentModal(season.id);
-}
-
-/**
- * Apre la modale per creare una nuova assegnazione
+ * Apre la modale per creare una nuova assegnazione con Ruoli predefiniti
  */
 async function openAssignmentModal(activeSeasonId) {
-    // Carichiamo Staff e Team (Prendiamo anche i legami category e society dai Team)
+    // 1. Recuperiamo il nome della stagione attiva per mostrarlo nella modale
+    const { data: sName } = await client.from('seasons').select('name').eq('id', activeSeasonId).single();
+
+    // 2. Carichiamo Staff e Team
     const [uRes, tRes] = await Promise.all([
         client.from('users').select('id, name').neq('username', 'admin').order('name'),
         client.from('teams').select('id, name, category_id, society_id').order('name')
@@ -946,7 +872,14 @@ async function openAssignmentModal(activeSeasonId) {
         return;
     }
 
+    // Definizione dei ruoli validi
+    const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
+
     modal.open('Nuova Assegnazione Staff', `
+        <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb;">
+            <strong>Stagione:</strong> ${sName?.name || 'Corrente'}
+        </div>
+
         <label>Seleziona Membro Staff</label>
         <select id="as-user">
             ${uRes.data.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
@@ -960,8 +893,10 @@ async function openAssignmentModal(activeSeasonId) {
                 </option>`).join('')}
         </select>
 
-        <label>Ruolo (es. Primo Allenatore, Vice, ecc.)</label>
-        <input type="text" id="as-role" placeholder="Inserisci incarico...">
+        <label>Ruolo (Seleziona dalla lista)</label>
+        <select id="as-role">
+            ${ruoliValidi.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
     `);
 
     // Gestione del Salvataggio
@@ -969,17 +904,15 @@ async function openAssignmentModal(activeSeasonId) {
         const teamSelect = document.getElementById('as-team');
         const selectedTeam = teamSelect.options[teamSelect.selectedIndex];
 
-        // Creiamo il payload includendo tutti i campi obbligatori del database
         const payload = {
             user_id: document.getElementById('as-user').value,
             team_id: teamSelect.value,
-            category_id: selectedTeam.getAttribute('data-cat'), // Recuperato dal Team
-            society_id: selectedTeam.getAttribute('data-soc'),   // Recuperato dal Team
+            category_id: selectedTeam.getAttribute('data-cat'),
+            society_id: selectedTeam.getAttribute('data-soc'),
             season_id: activeSeasonId,
-            role: document.getElementById('as-role').value || 'Staff'
+            role: document.getElementById('as-role').value // Valore preso dalla select
         };
 
-        // Controllo validità
         if (!payload.category_id || !payload.society_id) {
             alert("Errore: Il Team selezionato non ha una Categoria o Società collegata.");
             return;
@@ -989,13 +922,12 @@ async function openAssignmentModal(activeSeasonId) {
         
         if (!insErr) {
             modal.close();
-            initAssignments(); // Ricarica la tabella
+            initAssignments(); 
         } else {
             alert("Errore durante il salvataggio: " + insErr.message);
         }
     };
 }
-
 /**
  * Funzione globale per rimuovere un'assegnazione
  */
