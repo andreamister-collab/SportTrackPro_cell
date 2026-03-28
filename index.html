@@ -1301,6 +1301,10 @@ window.applyAtletiFilters = function() {
 /* ============================================================
    IMPORTAZIONE ATLETI CON CREAZIONE ANAGRAFICA E MAPPATURA ID
    ============================================================ */
+/* ============================================================
+   IMPORTAZIONE ATLETI - MAPPING ID E CREAZIONE AUTOMATICA
+   ============================================================ */
+
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1314,7 +1318,7 @@ window.importAtleti = async function(event) {
 
             console.log("Dati pronti per elaborazione:", jsonData);
 
-            // 1. Carichiamo le anagrafiche per mappare i nomi agli ID
+            // 1. Carichiamo le tabelle di riferimento per trasformare i nomi in ID
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1328,33 +1332,46 @@ window.importAtleti = async function(event) {
             )?.id;
 
             const finalAssignments = [];
+            let newAthletesCreated = 0;
 
+            // 2. Elaborazione righe Excel
             for (const row of jsonData) {
-                // Gestione Nome/Cognome Atleta
+                // Pulizia Nome/Cognome (Assume formato "COGNOME NOME")
                 let fullStr = row.Atleta?.toString().trim() || "";
                 let parts = fullStr.split(" ");
                 let surname = parts[0] || "SenzaCognome";
                 let name = parts.slice(1).join(" ") || " ";
 
-                // A. Cerchiamo o Creiamo l'atleta
+                // A. Controllo/Creazione Atleta nell'anagrafica 'athletes'
                 let athleteId = existingAths.data.find(a => 
-                    a.surname.toLowerCase() === surname.toLowerCase() && a.name.toLowerCase() === name.toLowerCase()
+                    a.surname.toLowerCase() === surname.toLowerCase() && 
+                    a.name.toLowerCase() === name.trim().toLowerCase()
                 )?.id;
 
                 if (!athleteId) {
-                    const { data: newAth, error: errA } = await client.from('athletes')
-                        .insert([{ name, surname }]).select('id').single();
-                    if (errA) continue;
+                    const { data: newAth, error: errA } = await client
+                        .from('athletes')
+                        .insert([{ name: name.trim(), surname: surname }])
+                        .select('id')
+                        .single();
+                    
+                    if (errA) {
+                        console.error("Errore creazione anagrafica:", surname, errA);
+                        continue; 
+                    }
                     athleteId = newAth.id;
-                    existingAths.data.push({ id: athleteId, name, surname });
+                    newAthletesCreated++;
+                    // Aggiorniamo la cache locale per evitare duplicati nello stesso file
+                    existingAths.data.push({ id: athleteId, name: name.trim(), surname: surname });
                 }
 
-                // B. Mapping degli altri campi
+                // B. Mapping dei nomi testuali verso ID UUID
                 const sId = findId(socs.data, row.Società);
                 const seaId = findId(seas.data, row.Stagione);
                 const cId = findId(cats.data, row.Categoria);
                 const tId = findId(teams.data, row.Squadra);
 
+                // C. Preparazione record per 'athlete_team_seasons'
                 if (athleteId && sId && seaId) {
                     finalAssignments.push({
                         athlete_id: athleteId,
@@ -1363,26 +1380,33 @@ window.importAtleti = async function(event) {
                         category_id: cId || null,
                         team_id: tId || null,
                         role: row.Ruolo || 'Atleta',
-                        jersey_number: row['N°'] || row.Numero || null
+                        jersey_number: row['N°'] || row.Numero || null,
+                        nickname: row.Nickname || null
                     });
+                } else {
+                    console.warn("Riga ignorata (Società o Stagione non trovate nel DB):", row);
                 }
             }
 
-            // 2. Inserimento finale
+            // 3. Inserimento finale nel DB
             if (finalAssignments.length > 0) {
-                const { error: errIns } = await client.from('athlete_team_seasons').insert(finalAssignments);
+                const { error: errIns } = await client
+                    .from('athlete_team_seasons')
+                    .insert(finalAssignments);
+
                 if (errIns) throw errIns;
-                alert(`Importazione riuscita: ${finalAssignments.length} atleti assegnati.`);
+                
+                alert(`Importazione completata!\n- Nuovi atleti creati: ${newAthletesCreated}\n- Assegnazioni inserite: ${finalAssignments.length}`);
             } else {
-                alert("Nessun dato corrispondente trovato nel database (controlla nomi Società/Stagione).");
+                alert("Nessun dato corrispondente trovato. Verifica che i nomi di Società e Stagione nell'Excel siano uguali a quelli nel database.");
             }
 
             await window.loadAtletiData();
             event.target.value = ""; 
 
         } catch (err) {
-            console.error("Errore Import:", err);
-            alert("Errore: " + err.message);
+            console.error("Errore critico Import:", err);
+            alert("Errore durante l'importazione: " + err.message);
         }
     };
     reader.readAsArrayBuffer(file);
