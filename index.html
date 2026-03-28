@@ -603,90 +603,154 @@ window.handleCategoriaDelete = async function(id) {
     }
 };
 /* ============================================================
-   SQUADRE: Con Filtro Stagione Attiva
+   SEZIONE: SQUADRA (Anagrafica Team)
    ============================================================ */
 
-async function initTeams() {
-    const tbody = document.getElementById('list-teams');
-    
-    // 1. Recupero la stagione attiva
+function templateSquadra() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE SQUADRE</h2>
+            <button class="btn" id="btn-add-squadra">+ Nuova Squadra</button>
+        </div>
+        <div id="team-season-info" style="margin-bottom:1rem; font-weight:bold; color:#059669;"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Squadra</th>
+                    <th>Società</th>
+                    <th>Categoria</th>
+                    <th>Sport</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-squadra">
+                <tr><td colspan="5">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+async function initSquadra() {
+    const tbody = document.getElementById('list-squadra');
+    const infoBanner = document.getElementById('team-season-info');
+    if (!tbody) return;
+
     const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
     
     if (!activeSeason) {
-        tbody.innerHTML = '<tr><td colspan="5">⚠️ Seleziona una stagione attiva nelle impostazioni.</td></tr>';
+        if (infoBanner) infoBanner.innerHTML = "⚠️ Seleziona una stagione attiva.";
+        tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva.</td></tr>';
         return;
     }
+    if (infoBanner) infoBanner.innerText = `📅 Stagione Attiva: ${activeSeason.name}`;
 
-    // 2. Filtro le squadre per la stagione attiva
     const { data, error } = await client
         .from('teams')
         .select('*, societies(name), categories(name), sports(name, icon)')
-        .eq('season_id', activeSeason.id) // FILTRO FONDAMENTALE
+        .eq('season_id', activeSeason.id)
         .order('name');
 
-    if (error) return;
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
+        return;
+    }
 
     tbody.innerHTML = data?.map(t => `
         <tr>
             <td><strong>${t.name}</strong></td>
             <td>${t.societies?.name || '-'}</td>
             <td>${t.categories?.name || '-'}</td>
-            <td>${t.sports?.icon} ${t.sports?.name}</td>
+            <td>${t.sports?.icon || ''} ${t.sports?.name || '-'}</td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditTeam('${t.id}')">✏️</button>
-                <button class="btn-sm btn-danger" onclick="handleDeleteTeam('${t.id}')">🗑️</button>
+                <button class="btn-sm btn-warning" onclick="handleEditSquadra('${t.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="handleDeleteSquadra('${t.id}')">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="5">Nessuna squadra per questa stagione.</td></tr>';
+
+    document.getElementById('btn-add-squadra').onclick = () => openSquadraModal(activeSeason.id);
 }
 
-// Modale Nuova Squadra con Info Stagione
-async function openTeamModal(editData = null) {
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    const { data: soc } = await client.from('societies').select('*').order('name');
-    const { data: cat } = await client.from('categories').select('*').order('name');
-    const { data: spo } = await client.from('sports').select('*').order('name');
+// Funzioni Globali Squadra
+window.handleEditSquadra = async (id) => {
+    const { data } = await client.from('teams').select('*').eq('id', id).single();
+    if (data) openSquadraModal(data.season_id, data);
+};
 
-    modal.open(editData ? 'Modifica Squadra' : 'Nuova Squadra', `
-        <div style="margin-bottom:15px; padding:10px; background:#e0f2fe; border-radius:6px; color:#0369a1; font-size:0.9em;">
-            <strong>Stagione Attiva:</strong> ${activeSeason.name}
+window.handleDeleteSquadra = async (id) => {
+    if (confirm("Eliminare la squadra?")) {
+        await client.from('teams').delete().eq('id', id);
+        initSquadra();
+    }
+};
+
+// Modale (Vedi messaggio precedente per logica openSquadraModal con activeSeasonId)
+/* ============================================================
+   SEZIONE: STAFF (Anagrafica Utenti)
+   ============================================================ */
+
+function templateStaff() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>ANAGRAFICA STAFF</h2>
+            <button class="btn" id="btn-add-staff">+ Nuovo Utente Staff</button>
         </div>
-        
-        <label>Nome Squadra</label>
-        <input type="text" id="tm-name" value="${editData ? editData.name : ''}" placeholder="es. Pulcini 2015">
-        
-        <label>Società</label>
-        <select id="tm-soc">
-            ${soc.map(s => `<option value="${s.id}" ${editData?.society_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
-        </select>
-
-        <label>Categoria</label>
-        <select id="tm-cat">
-            ${cat.map(c => `<option value="${c.id}" ${editData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
-        </select>
-
-        <label>Sport</label>
-        <select id="tm-spo">
-            ${spo.map(p => `<option value="${p.id}" ${editData?.sport_id === p.id ? 'selected' : ''}>${p.icon} ${p.name}</option>`).join('')}
-        </select>
-    `);
-
-    document.getElementById('btn-modal-save').onclick = async () => {
-        const payload = {
-            name: document.getElementById('tm-name').value,
-            society_id: document.getElementById('tm-soc').value,
-            category_id: document.getElementById('tm-cat').value,
-            sport_id: document.getElementById('tm-spo').value,
-            season_id: activeSeason.id // SALVATAGGIO AUTOMATICO STAGIONE
-        };
-
-        const { error } = editData 
-            ? await client.from('teams').update(payload).eq('id', editData.id)
-            : await client.from('teams').insert(payload);
-
-        if (!error) { modal.close(); initTeams(); }
-    };
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Username</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-staff">
+                <tr><td colspan="3">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
 }
+
+async function initStaff() {
+    const tbody = document.getElementById('list-staff');
+    if (!tbody) return;
+
+    const { data, error } = await client
+        .from('users')
+        .select('*')
+        .neq('username', 'admin') // Escludiamo l'admin
+        .order('name');
+
+    if (error) return;
+
+    tbody.innerHTML = data?.map(u => `
+        <tr>
+            <td><strong>${u.name}</strong></td>
+            <td>${u.username}</td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">Nessun utente trovato.</td></tr>';
+
+    document.getElementById('btn-add-staff').onclick = () => openStaffModal();
+}
+
+// Funzioni Globali Staff
+window.handleEditStaff = async (id) => {
+    const { data } = await client.from('users').select('*').eq('id', id).single();
+    if (data) openStaffModal(data);
+};
+
+window.handleDeleteStaff = async (id) => {
+    if (confirm("Eliminare definitivamente l'utente dallo staff?")) {
+        await client.from('users').delete().eq('id', id);
+        initStaff();
+    }
+};
+
 /* ============================================================
    SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team) - UNICA
    ============================================================ */
