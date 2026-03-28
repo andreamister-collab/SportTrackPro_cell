@@ -1046,43 +1046,44 @@ window.deleteAssignment = async (id) => {
 };
 
 /* ============================================================
-   SEZIONE: ATLETI (Anagrafica + Assegnazione Stagionale)
+   GESTIONE ANAGRAFICA ATLETI - VERSIONE INTEGRATA
    ============================================================ */
 
 /**
- * Template HTML con pulsanti Import/Export
+ * Renderizza la tabella principale
  */
 function templateAtleti() {
     return `
     <div class="card">
         <div class="header">
             <h2>ANAGRAFICA ATLETI</h2>
-            <div class="actions">
+            <div class="actions" style="display: flex; gap: 10px;">
                 <button class="btn btn-outline" onclick="exportAtleti()">📤 Esporta</button>
                 <button class="btn btn-outline" onclick="document.getElementById('import-excel').click()">📥 Importa</button>
                 <input type="file" id="import-excel" hidden accept=".xlsx, .xls" onchange="importAtleti(event)">
                 <button class="btn" id="btn-add-atleta">+ Nuovo Atleta</button>
             </div>
         </div>
-        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb;"></div>
+        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb; padding:8px; background:#eff6ff; border-radius:4px;"></div>
         <table>
             <thead>
                 <tr>
-                    <th>Atleta</th>
+                    <th>Atleta (Cognome Nome)</th>
                     <th>Soprannome</th>
-                    <th>Squadra</th>
-                    <th style="text-align:center">N°</th>
+                    <th>Squadra / Categoria</th>
+                    <th style="text-align:center">N° Maglia</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
             <tbody id="list-atleti">
-                <tr><td colspan="5">Caricamento...</td></tr>
+                <tr><td colspan="5">Caricamento in corso...</td></tr>
             </tbody>
         </table>
     </div>`;
 }
+
 /**
- * Inizializzazione Tabella Atleti
+ * Inizializza i dati della tabella
  */
 async function initAtleti() {
     const tbody = document.getElementById('list-atleti');
@@ -1091,64 +1092,66 @@ async function initAtleti() {
 
     const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
     if (!activeSeason) {
-        if (infoBanner) infoBanner.innerHTML = "⚠️ Nessuna stagione attiva trovata.";
-        tbody.innerHTML = '<tr><td colspan="4">Attivare una stagione per gestire gli atleti.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva.</td></tr>';
         return;
     }
     infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
 
-  // Modifica la query dentro initAtleti così:
-    // Sostituisci la query esistente con questa
-// TEST: Prova a caricare SOLO la tabella principale senza join
-const { data, error } = await client
-    .from('athlete_team_seasons')
-    .select('*') // Rimuovi i join temporaneamente per test
-    .eq('season_id', activeSeason.id);
-
-if (error) console.error("Se vedi ancora 403 qui, la tua API KEY è invalida o RLS è ancora attiva");
+    const { data, error } = await client
+        .from('athlete_team_seasons')
+        .select(`
+            id,
+            nickname,
+            jersey_number,
+            athletes:athlete_id (id, name, surname),
+            teams:team_id (name),
+            categories:category_id (name)
+        `)
+        .eq('season_id', activeSeason.id);
 
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data?.map(row => `
         <tr>
             <td><strong>${row.athletes?.surname || ''} ${row.athletes?.name || ''}</strong></td>
-            <td>${row.teams?.name || '<span style="color:gray italic">Categoria Intera</span>'}</td>
+            <td style="color:#64748b; font-style:italic;">${row.nickname || '-'}</td>
+            <td>${row.teams?.name || row.categories?.name || 'N/D'}</td>
             <td style="text-align:center">
-                ${row.jersey_number ? `<span class="badge" style="background:#2563eb; color:white; padding:4px 8px; border-radius:4px;">${row.jersey_number}</span>` : '<span style="color:#9ca3af; font-style:italic">N/D</span>'}
+                ${row.jersey_number ? `<span class="badge-blue">${row.jersey_number}</span>` : '<span style="color:#9ca3af">N/D</span>'}
             </td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="handleEditAtleta('${row.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteAtleta('${row.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">Nessun atleta assegnato a questa stagione.</td></tr>';
+    `).join('') || '<tr><td colspan="5">Nessun atleta trovato.</td></tr>';
 
     document.getElementById('btn-add-atleta').onclick = () => openAtletaModal(activeSeason.id);
 }
 
 /**
- * Modale Nuovo/Modifica Atleta (Stile Immagini)
+ * Modale Inserimento/Modifica
  */
 async function openAtletaModal(activeSeasonId, editId = null) {
     let editData = null;
     if (editId) {
-        // Recuperiamo i dati: nickname è in athlete_team_seasons
         const { data } = await client.from('athlete_team_seasons').select('*, athletes(*)').eq('id', editId).single();
         editData = data;
     }
 
+    // Caricamento categorie e team con relativi legami di società
     const [catRes, teamRes] = await Promise.all([
-        client.from('categories').select('id, name').order('name'),
-        client.from('teams').select('id, name, society_id').eq('season_id', activeSeasonId).order('name')
+        client.from('categories').select('id, name, society_id').order('name'),
+        client.from('teams').select('id, name, category_id').eq('season_id', activeSeasonId).order('name')
     ]);
 
     modal.open(editId ? 'Modifica Atleta' : 'Nuovo Atleta', `
-        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
-            <h4 style="margin:0 0 10px 0; font-size:0.8em; color:#64748b; text-transform:uppercase;">📋 Assegnazione</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="modal-section">
+            <h4>📋 ASSEGNAZIONE</h4>
+            <div class="grid-2">
                 <div>
                     <label>Categoria *</label>
                     <select id="at-category">
@@ -1160,85 +1163,78 @@ async function openAtletaModal(activeSeasonId, editId = null) {
                     <label>Squadra</label>
                     <select id="at-team">
                         <option value="">-- Categoria intera --</option>
-                        ${teamRes.data?.map(t => `<option value="${t.id}" data-soc="${t.society_id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                        ${teamRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
                     </select>
                 </div>
             </div>
         </div>
 
-        <h4 style="margin:0 0 10px 0; font-size:0.8em; color:#64748b; text-transform:uppercase;">👤 Dati Personali</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div>
-                <label>Cognome *</label>
-                <input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}" placeholder="Rossi">
-            </div>
-            <div>
-                <label>Nome *</label>
-                <input type="text" id="at-name" value="${editData?.athletes?.name || ''}" placeholder="Mario">
-            </div>
-            <div>
-                <label>Soprannome</label>
-                <input type="text" id="at-nickname" value="${editData?.nickname || ''}" placeholder="es. Lucone">
-            </div>
-            <div>
-                <label>Data di Nascita</label>
-                <input type="date" id="at-born" value="${editData?.athletes?.born_date || ''}">
-            </div>
-            <div>
-                <label>Numero Maglia</label>
-                <input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="Lascia vuoto se N/D">
+        <div class="modal-section">
+            <h4>👤 DATI PERSONALI</h4>
+            <div class="grid-2">
+                <div>
+                    <label>Cognome *</label>
+                    <input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}">
+                </div>
+                <div>
+                    <label>Nome *</label>
+                    <input type="text" id="at-name" value="${editData?.athletes?.name || ''}">
+                </div>
+                <div>
+                    <label>Soprannome</label>
+                    <input type="text" id="at-nickname" value="${editData?.nickname || ''}" placeholder="es. Lucone">
+                </div>
+                <div>
+                    <label>Data di Nascita</label>
+                    <input type="date" id="at-born" value="${editData?.athletes?.born_date || ''}">
+                </div>
+                <div>
+                    <label>Numero Maglia</label>
+                    <input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="Lascia vuoto se N/D">
+                </div>
+                <div>
+                    <label>Ruolo</label>
+                    <input type="text" id="at-role" value="${editData?.role || ''}" placeholder="es. Portiere">
+                </div>
             </div>
         </div>
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
-        const surname = document.getElementById('at-surname').value.trim();
-        const name = document.getElementById('at-name').value.trim();
-        const nickname = document.getElementById('at-nickname').value.trim();
-        const category_id = document.getElementById('at-category').value;
-        const teamEl = document.getElementById('at-team');
-        const born_date = document.getElementById('at-born').value;
-        const jersey = document.getElementById('at-jersey').value;
-
-        if (!surname || !name || !category_id) return alert("Cognome, Nome e Categoria sono obbligatori!");
-
-        // 1. SALVATAGGIO ANAGRAFICA (Tabella: athletes)
-        // Inviamo solo le colonne che esistono sicuramente in athletes
-        const athletePayload = {
-            id: editData?.athletes?.id || undefined,
-            surname: surname,
-            name: name,
-            born_date: born_date || null
-        };
-
-        const { data: athlete, error: aErr } = await client.from('athletes').upsert(athletePayload).select().single();
+        const catId = document.getElementById('at-category').value;
+        const teamId = document.getElementById('at-team').value || null;
         
-        if (aErr) {
-            console.error("Errore Athletes:", aErr);
-            return alert("Errore Anagrafica: " + aErr.message);
-        }
+        // Recupero Society ID dalla Categoria selezionata
+        const selectedCat = catRes.data.find(c => c.id === catId);
+        const societyId = selectedCat?.society_id;
 
-        // 2. SALVATAGGIO ASSEGNAZIONE (Tabella: athlete_team_seasons)
-        const assignmentPayload = {
+        if (!catId || !societyId) return alert("Seleziona una categoria valida!");
+
+        // 1. Salvataggio Anagrafica (Athletes)
+        const { data: athlete, error: aErr } = await client.from('athletes').upsert({
+            id: editData?.athletes?.id || undefined,
+            name: document.getElementById('at-name').value.trim(),
+            surname: document.getElementById('at-surname').value.trim(),
+            born_date: document.getElementById('at-born').value || null,
+            society_id: societyId
+        }).select().single();
+
+        if (aErr) return alert("Errore Anagrafica: " + aErr.message);
+
+        // 2. Salvataggio Assegnazione Stagionale (Pivot)
+        const { error: assErr } = await client.from('athlete_team_seasons').upsert({
             id: editId || undefined,
             athlete_id: athlete.id,
             season_id: activeSeasonId,
-            category_id: category_id,
-            team_id: teamEl.value || null,
-            society_id: teamEl.options[teamEl.selectedIndex]?.getAttribute('data-soc') || editData?.society_id,
-            nickname: nickname, // Il soprannome va qui
-            jersey_number: jersey || null // Numero maglia stagionale [cite: 2026-03-28]
-        };
+            category_id: catId,
+            team_id: teamId,
+            society_id: societyId,
+            nickname: document.getElementById('at-nickname').value.trim(),
+            jersey_number: document.getElementById('at-jersey').value || null, //
+            role: document.getElementById('at-role').value.trim()
+        });
 
-        const { error: assErr } = await client.from('athlete_team_seasons').upsert(assignmentPayload);
-
-        if (!assErr) {
-            modal.close();
-            initAtleti();
-        } else {
-            console.error("Errore Assegnazione:", assErr);
-            alert("Errore Assegnazione: " + assErr.message);
-        }
+        if (!assErr) { modal.close(); initAtleti(); } else { alert(assErr.message); }
     };
 }
 // EXPORT
