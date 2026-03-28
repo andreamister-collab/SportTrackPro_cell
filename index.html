@@ -1047,12 +1047,45 @@ window.deleteAssignment = async (id) => {
 /* ============================================================
    GESTIONE ANAGRAFICA ATLETI - CODICE COMPLETO
    ============================================================ */
+/**
+ * Genera l'interfaccia HTML della pagina Atleti
+ */
+function templateAtleti() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>ANAGRAFICA ATLETI</h2>
+            <div class="actions" style="display: flex; gap: 10px;">
+                <button class="btn btn-outline" onclick="exportAtleti()">📤 Esporta</button>
+                <button class="btn btn-outline" onclick="document.getElementById('import-excel').click()">📥 Importa</button>
+                <input type="file" id="import-excel" hidden accept=".xlsx, .xls" onchange="importAtleti(event)">
+                <button class="btn" id="btn-add-atleta">+ Nuovo Atleta</button>
+            </div>
+        </div>
+        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb; padding:10px; background:#eff6ff; border-radius:6px;"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Atleta (Cognome Nome)</th>
+                    <th>Soprannome</th>
+                    <th>Squadra / Categoria</th>
+                    <th style="text-align:center">N° Maglia</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-atleti">
+                <tr><td colspan="5">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
 
 /**
- * Caricamento Iniziale Tabella
+ * Carica e visualizza i dati degli atleti
  */
 async function initAtleti() {
     const tbody = document.getElementById('list-atleti');
+    const infoBanner = document.getElementById('atleti-season-info');
     if (!tbody) return;
 
     // 1. Recupero stagione attiva
@@ -1061,8 +1094,9 @@ async function initAtleti() {
         tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva selezionata.</td></tr>';
         return;
     }
+    infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
 
-    // 2. Query con Join per mostrare i dati corretti
+    // 2. Query con Join per atleti e squadre
     const { data, error } = await client
         .from('athlete_team_seasons')
         .select(`
@@ -1076,30 +1110,31 @@ async function initAtleti() {
         .eq('season_id', activeSeason.id);
 
     if (error) {
-        console.error("Errore caricamento:", error);
+        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
         return;
     }
 
-    // 3. Render Tabella
-    tbody.innerHTML = data.map(row => `
+    // 3. Render righe tabella
+    tbody.innerHTML = data?.map(row => `
         <tr>
             <td><strong>${row.athletes?.surname || ''} ${row.athletes?.name || ''}</strong></td>
             <td style="color:#64748b; font-style:italic;">${row.nickname || '-'}</td>
             <td>${row.teams?.name || row.categories?.name || 'N/D'}</td>
-            <td style="text-align:center">${row.jersey_number || '-'}</td>
+            <td style="text-align:center">
+                ${row.jersey_number ? `<span class="badge-blue">${row.jersey_number}</span>` : '<span style="color:#9ca3af">N/D</span>'}
+            </td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="openAtletaModal('${activeSeason.id}', '${row.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteAtleta('${row.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="5">Nessun atleta in questa stagione.</td></tr>';
+    `).join('') || '<tr><td colspan="5">Nessun atleta registrato per questa stagione.</td></tr>';
 
-    // Listener tasto Nuovo
     document.getElementById('btn-add-atleta').onclick = () => openAtletaModal(activeSeason.id);
 }
 
 /**
- * Modale Nuovo / Modifica Atleta
+ * Gestione Modale Nuovo / Modifica
  */
 async function openAtletaModal(activeSeasonId, editId = null) {
     let editData = null;
@@ -1108,7 +1143,7 @@ async function openAtletaModal(activeSeasonId, editId = null) {
         editData = data;
     }
 
-    // Caricamento categorie (con società) e squadre
+    // Caricamento categorie (mostrando società per distinguere i duplicati)
     const [catRes, teamRes] = await Promise.all([
         client.from('categories').select('id, name, society_id, societies(name)').order('name'),
         client.from('teams').select('id, name, category_id').eq('season_id', activeSeasonId).order('name')
@@ -1116,7 +1151,7 @@ async function openAtletaModal(activeSeasonId, editId = null) {
 
     modal.open(editId ? 'Modifica Atleta' : 'Nuovo Atleta', `
         <div class="modal-section" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:20px;">
-            <h4 style="margin:0 0 10px 0; font-size:12px; color:#64748b;">📋 ASSEGNAZIONE</h4>
+            <h4 style="margin:0 0 10px 0; font-size:12px; color:#64748b; text-transform:uppercase;">📋 Assegnazione</h4>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
                 <div>
                     <label>Categoria *</label>
@@ -1141,76 +1176,50 @@ async function openAtletaModal(activeSeasonId, editId = null) {
             </div>
         </div>
 
-        <h4 style="margin:0 0 10px 0; font-size:12px; color:#64748b;">👤 DATI PERSONALI</h4>
+        <h4 style="margin:0 0 10px 0; font-size:12px; color:#64748b; text-transform:uppercase;">👤 Dati Personali</h4>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div>
-                <label>Cognome *</label>
-                <input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}" placeholder="es. Rossi">
-            </div>
-            <div>
-                <label>Nome *</label>
-                <input type="text" id="at-name" value="${editData?.athletes?.name || ''}" placeholder="es. Mario">
-            </div>
-            <div>
-                <label>Soprannome</label>
-                <input type="text" id="at-nickname" value="${editData?.nickname || ''}" placeholder="es. Bomber">
-            </div>
-            <div>
-                <label>Data di Nascita</label>
-                <input type="date" id="at-born" value="${editData?.athletes?.born_date || ''}">
-            </div>
-            <div>
-                <label>Numero Maglia</label>
-                <input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="N/D">
-            </div>
-            <div>
-                <label>Ruolo</label>
-                <input type="text" id="at-role" value="${editData?.role || ''}" placeholder="es. Difensore">
-            </div>
+            <div><label>Cognome *</label><input type="text" id="at-surname" value="${editData?.athletes?.surname || ''}"></div>
+            <div><label>Nome *</label><input type="text" id="at-name" value="${editData?.athletes?.name || ''}"></div>
+            <div><label>Soprannome</label><input type="text" id="at-nickname" value="${editData?.nickname || ''}"></div>
+            <div><label>Data di Nascita</label><input type="date" id="at-born" value="${editData?.athletes?.born_date || ''}"></div>
+            <div><label>Numero Maglia</label><input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="Vuoto se N/D"></div>
+            <div><label>Ruolo</label><input type="text" id="at-role" value="${editData?.role || ''}" placeholder="es. Difensore"></div>
         </div>
     `);
 
-    // LOGICA DI SALVATAGGIO
     document.getElementById('btn-modal-save').onclick = async () => {
         const catSelect = document.getElementById('at-category');
-        const selectedCat = catSelect.options[catSelect.selectedIndex];
-        
+        const catOption = catSelect.options[catSelect.selectedIndex];
         const category_id = catSelect.value;
-        const society_id = selectedCat?.getAttribute('data-soc'); // Recupero ID Società dall'attributo
-        const team_id = document.getElementById('at-team').value || null;
+        const society_id = catOption?.getAttribute('data-soc'); // Recupero Society ID
 
-        if (!category_id || !society_id) return alert("Seleziona una categoria valida per determinare la società!");
+        if (!category_id || !society_id) return alert("Scegli una categoria valida!");
 
-        // 1. Salvataggio Anagrafica (Athletes)
+        // 1. Salvataggio Athletes
         const { data: athlete, error: aErr } = await client.from('athletes').upsert({
             id: editData?.athletes?.id || undefined,
             name: document.getElementById('at-name').value.trim(),
             surname: document.getElementById('at-surname').value.trim(),
             born_date: document.getElementById('at-born').value || null,
-            society_id: society_id // Ora mai null
+            society_id: society_id
         }).select().single();
 
-        if (aErr) return alert("Errore Anagrafica: " + aErr.message);
+        if (aErr) return alert("Errore: " + aErr.message);
 
-        // 2. Salvataggio Assegnazione (Athlete_team_seasons)
+        // 2. Salvataggio Pivot Stagionale
         const { error: assErr } = await client.from('athlete_team_seasons').upsert({
             id: editId || undefined,
             athlete_id: athlete.id,
             season_id: activeSeasonId,
             category_id: category_id,
-            team_id: team_id,
+            team_id: document.getElementById('at-team').value || null,
             society_id: society_id,
             nickname: document.getElementById('at-nickname').value.trim(),
             jersey_number: document.getElementById('at-jersey').value || null,
             role: document.getElementById('at-role').value.trim()
         });
 
-        if (!assErr) {
-            modal.close();
-            initAtleti();
-        } else {
-            alert("Errore Assegnazione: " + assErr.message);
-        }
+        if (!assErr) { modal.close(); initAtleti(); } else { alert(assErr.message); }
     };
 }
 // EXPORT
