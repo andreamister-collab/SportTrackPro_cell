@@ -914,137 +914,208 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team) - UNICA
+   MODULO ASSEGNAZIONI TECNICHE - VERSIONE FINALE PULITA
    ============================================================ */
 
-function templateAssignments() {
-    return `
-    <div class="card">
-        <div class="header">
-            <h2>ASSEGNAZIONI TECNICHE</h2>
-            <button class="btn" id="btn-add-assignment">+ Assegna Staff a Squadra</button>
-        </div>
-        <div id="assign-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb;"></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Membro Staff</th>
-                    <th>Squadra (Team)</th>
-                    <th>Ruolo</th>
-                    <th style="text-align:right">Azioni</th>
-                </tr>
-            </thead>
-            <tbody id="list-assignments">
-                <tr><td colspan="4">Caricamento in corso...</td></tr>
-            </tbody>
-        </table>
-    </div>`;
-}
+(function() {
+    // Variabile "privata" per i dati
+    let _allStaffData = [];
 
-async function initAssignments() {
-    const tbody = document.getElementById('list-assignments');
-    const infoBanner = document.getElementById('assign-season-info');
-    if (!tbody) return;
+    // --- 1. IL TEMPLATE (Con Filtri e Intestazioni) ---
+    window.templateAssegnazioniTecniche = function() {
+        return `
+        <div class="card">
+            <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>ASSEGNAZIONI TECNICHE</h2>
+                <div class="actions">
+                    <button class="btn" onclick="openAssegnazioneStaffModal()">+ Assegna Staff a Squadra</button>
+                </div>
+            </div>
 
-    // 1. Recupero la Stagione Attiva
-    const { data: activeSeason, error: sErr } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                <div>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Membro</label>
+                    <input type="text" id="f-staff-name" placeholder="Cognome/Nome..." oninput="applyStaffFilters()" style="width:100%">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
+                    <select id="f-staff-soc" onchange="applyStaffFilters()" style="width:100%"><option value="">Tutte</option></select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Stagione</label>
+                    <select id="f-staff-sea" onchange="applyStaffFilters()" style="width:100%"></select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Squadra</label>
+                    <select id="f-staff-team" onchange="applyStaffFilters()" style="width:100%"><option value="">Tutte</option></select>
+                </div>
+            </div>
 
-    if (!activeSeason) {
-        if (infoBanner) infoBanner.innerHTML = "⚠️ Attivare una stagione nelle impostazioni.";
-        tbody.innerHTML = '<tr><td colspan="4">Nessuna stagione attiva trovata.</td></tr>';
-        return;
-    }
-    if (infoBanner) infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
-
-    // 2. Caricamento assegnazioni SOLO della stagione attiva
-    const { data, error } = await client
-        .from('user_category_seasons')
-        .select(`id, role, users!fk_staff_user (name), teams!fk_ucs_team (name)`)
-        .eq('season_id', activeSeason.id);
-
-    if (error) {
-        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = data?.map(a => `
-        <tr>
-            <td><strong>${a.users?.name || 'N/D'}</strong></td>
-            <td>${a.teams?.name || 'N/D'}</td>
-            <td><span class="badge badge-active">${a.role}</span></td>
-            <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
-                <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
-            </td>
-        </tr>
-    `).join('') || '<tr><td colspan="4">Nessuna assegnazione per questa stagione.</td></tr>';
-
-    document.getElementById('btn-add-assignment').onclick = () => openAssignmentModal(activeSeason.id);
-}
-
-async function openAssignmentModal(activeSeasonId, editData = null) {
-    const isEdit = !!editData;
-    const [sRes, uRes, tRes] = await Promise.all([
-        client.from('seasons').select('name').eq('id', activeSeasonId).single(),
-        client.from('users').select('id, name').neq('username', 'admin').order('name'),
-        client.from('teams').select('id, name, category_id, society_id').eq('season_id', activeSeasonId).order('name')
-    ]);
-
-    const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
-
-    modal.open(isEdit ? 'Modifica Assegnazione Staff' : 'Nuova Assegnazione Staff', `
-        <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.85em;">
-            <strong>Stagione Attiva:</strong> ${sRes.data?.name || 'Corrente'}
-        </div>
-        <label>Membro Staff</label>
-        <select id="as-user">
-            <option value="">-- Seleziona Staff --</option>
-            ${uRes.data?.map(u => `<option value="${u.id}" ${isEdit && editData.user_id === u.id ? 'selected' : ''}>${u.name}</option>`).join('')}
-        </select>
-        <label>Squadra (Team)</label>
-        <select id="as-team">
-            <option value="">-- Seleziona Squadra --</option>
-            ${tRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-        </select>
-        <label>Ruolo Tecnico</label>
-        <select id="as-role">
-            ${ruoliValidi.map(r => `<option value="${r}" ${isEdit && editData.role === r ? 'selected' : ''}>${r}</option>`).join('')}
-        </select>
-    `);
-
-    document.getElementById('btn-modal-save').onclick = async () => {
-        const teamSelect = document.getElementById('as-team');
-        const payload = {
-            user_id: document.getElementById('as-user').value,
-            team_id: teamSelect.value,
-            category_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-cat'),
-            society_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-soc'),
-            season_id: activeSeasonId,
-            role: document.getElementById('as-role').value
-        };
-
-        if (!payload.user_id || !payload.team_id) return alert("Compila tutti i campi!");
-
-        const { error } = isEdit 
-            ? await client.from('user_category_seasons').update(payload).eq('id', editData.id)
-            : await client.from('user_category_seasons').insert(payload);
-        
-        if (!error) { modal.close(); initAssignments(); } else { alert(error.message); }
+            <table>
+                <thead>
+                    <tr>
+                        <th>Membro Staff</th>
+                        <th>Società</th>
+                        <th>Stagione</th>
+                        <th>Squadra (Team)</th>
+                        <th>Ruolo</th>
+                        <th style="text-align:right">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="list-assegnazioni-staff">
+                    <tr><td colspan="6">Caricamento in corso...</td></tr>
+                </tbody>
+            </table>
+        </div>`;
     };
-}
 
-// FUNZIONI GLOBALI PER I BOTTONI
-window.handleEditAssignment = async (id) => {
-    const { data, error } = await client.from('user_category_seasons').select('*').eq('id', id).single();
-    if (!error) openAssignmentModal(data.season_id, data);
-};
+    // --- 2. INIZIALIZZAZIONE (Filtri e Dati) ---
+    window.initAssegnazioniTecniche = async function() {
+        const [socs, seas, teams] = await Promise.all([
+            client.from('societies').select('*').order('name'),
+            client.from('seasons').select('*').order('name'),
+            client.from('teams').select('*').order('name')
+        ]);
 
-window.deleteAssignment = async (id) => {
-    if (confirm("Rimuovere questo incarico dallo staff?")) {
-        const { error } = await client.from('user_category_seasons').delete().eq('id', id);
-        if (!error) initAssignments();
+        const fSoc = document.getElementById('f-staff-soc');
+        const fSea = document.getElementById('f-staff-sea');
+        const fTea = document.getElementById('f-staff-team');
+
+        if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        if(fSea) fSea.innerHTML = seas.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
+        if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+        await _fetchData();
+    };
+
+    // --- 3. LOGICA INTERNA ---
+    async function _fetchData() {
+        const { data, error } = await client
+            .from('staff_assignments')
+            .select(`
+                id, role, 
+                staff:staff_id (id, name, surname), 
+                societies:society_id (id, name), 
+                seasons:season_id (id, name), 
+                teams:team_id (id, name)
+            `);
+        
+        if (!error) {
+            _allStaffData = data || [];
+            window.applyStaffFilters(); 
+        }
     }
-};
+
+    window.applyStaffFilters = function() {
+        const name = document.getElementById('f-staff-name')?.value.toLowerCase();
+        const soc = document.getElementById('f-staff-soc')?.value;
+        const sea = document.getElementById('f-staff-sea')?.value;
+        const team = document.getElementById('f-staff-team')?.value;
+
+        const filtered = _allStaffData.filter(row => {
+            return (!name || `${row.staff?.surname} ${row.staff?.name}`.toLowerCase().includes(name)) &&
+                   (!soc || row.societies?.id == soc) &&
+                   (!sea || row.seasons?.id == sea) &&
+                   (!team || row.teams?.id == team);
+        });
+
+        const tbody = document.getElementById('list-assegnazioni-staff');
+        if (!tbody) return;
+
+        tbody.innerHTML = filtered.map(row => `
+            <tr>
+                <td><strong>${row.staff?.surname || ''} ${row.staff?.name || ''}</strong></td>
+                <td><span style="color: #2563eb; font-weight:500;">${row.societies?.name || '-'}</span></td>
+                <td>${row.seasons?.name || '-'}</td>
+                <td>${row.teams?.name || 'Staff Societario'}</td>
+                <td><span class="badge-role">${row.role || '-'}</span></td>
+                <td style="text-align:right">
+                    <button class="btn-sm btn-warning" onclick="openAssegnazioneStaffModal('${row.id}')" title="Modifica">✏️</button>
+                    <button class="btn-sm btn-danger" onclick="deleteAssegnazioneStaff('${row.id}')" title="Elimina">🗑️</button>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="6">Nessun risultato trovato.</td></tr>';
+    };
+
+    // --- 4. AZIONI (MODALE & ELIMINA) ---
+    window.openAssegnazioneStaffModal = async function(id = null) {
+        const [staffL, socs, seas, teams] = await Promise.all([
+            client.from('staff').select('*').order('surname'),
+            client.from('societies').select('*').order('name'),
+            client.from('seasons').select('*').order('name'),
+            client.from('teams').select('*').order('name')
+        ]);
+
+        let current = id ? _allStaffData.find(a => a.id === id) : null;
+
+        const modalHtml = `
+            <div class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+                <div class="modal">
+                    <h3>${id ? 'Modifica' : 'Nuova'} Assegnazione Staff</h3>
+                    <form id="form-staff-assign" style="display: grid; gap: 15px; margin-top: 20px;">
+                        <input type="hidden" name="id" value="${id || ''}">
+                        <div>
+                            <label>Membro Staff *</label>
+                            <select name="staff_id" required>
+                                <option value="">Seleziona...</option>
+                                ${staffL.data.map(s => `<option value="${s.id}" ${current?.staff?.id === s.id ? 'selected' : ''}>${s.surname} ${s.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div><label>Società *</label>
+                                <select name="society_id" required>
+                                    <option value="">Seleziona...</option>
+                                    ${socs.data.map(s => `<option value="${s.id}" ${current?.societies?.id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div><label>Stagione *</label>
+                                <select name="season_id" required>
+                                    ${seas.data.map(s => `<option value="${s.id}" ${(current?.seasons?.id === s.id || (!current && s.is_active)) ? 'selected' : ''}>${s.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div><label>Squadra (Opzionale)</label>
+                            <select name="team_id">
+                                <option value="">Staff Societario</option>
+                                ${teams.data.map(t => `<option value="${t.id}" ${current?.teams?.id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div><label>Ruolo</label>
+                            <input type="text" name="role" value="${current?.role || ''}" placeholder="es. Allenatore">
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                            <button type="button" class="btn btn-outline" onclick="closeModal()">Annulla</button>
+                            <button type="submit" class="btn">Salva</button>
+                        </div>
+                    </form>
+                </div>
+            </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('form-staff-assign').onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = Object.fromEntries(new FormData(e.target).entries());
+            if (!payload.team_id) payload.team_id = null;
+            const rowId = payload.id;
+            delete payload.id;
+
+            const { error } = rowId 
+                ? await client.from('staff_assignments').update(payload).eq('id', rowId)
+                : await client.from('staff_assignments').insert([payload]);
+
+            if (!error) { closeModal(); _fetchData(); }
+            else alert("Errore: " + error.message);
+        };
+    };
+
+    window.deleteAssegnazioneStaff = async function(id) {
+        if (!confirm("Vuoi rimuovere questa assegnazione?")) return;
+        const { error } = await client.from('staff_assignments').delete().eq('id', id);
+        if (!error) _fetchData();
+    };
+
+})();
 /* ============================================================
    MODULO ANAGRAFICA ATLETI - FIX GLOBALE
    ============================================================ */
