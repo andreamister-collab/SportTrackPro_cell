@@ -784,6 +784,134 @@ window.handleDeleteSquadra = async function(id) {
     }
 };
 /* ============================================================
+   SEZIONE: STAFF (Anagrafica Utenti / Personale)
+   ============================================================ */
+
+/**
+ * Template HTML per la gestione dell'anagrafica Staff
+ */
+function templateStaff() {
+    return `
+    <div class="card">
+        <div class="header">
+            <h2>ANAGRAFICA STAFF</h2>
+            <button class="btn" id="btn-add-staff">+ Nuovo Utente Staff</button>
+        </div>
+        <p style="font-size: 0.85em; color: #666; margin-bottom: 15px; background: #f9fafb; padding: 10px; border-radius: 4px;">
+            In questa sezione gestisci l'elenco generale delle persone. 
+            Per collegarli a una squadra, usa il menu <strong>Assegnazioni</strong>.
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome Completo</th>
+                    <th>Username / Email</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-staff">
+                <tr><td colspan="3">Caricamento in corso...</td></tr>
+            </tbody>
+        </table>
+    </div>`;
+}
+
+/**
+ * Inizializza la lista caricando i dati dalla tabella 'users'
+ */
+async function initStaff() {
+    const tbody = document.getElementById('list-staff');
+    if (!tbody) return;
+
+    // Recupero tutti gli utenti tranne l'admin
+    const { data, error } = await client
+        .from('users')
+        .select('*')
+        .neq('username', 'admin')
+        .order('name');
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data?.map(u => {
+        const safeName = u.name.replace(/'/g, "\\'");
+        return `
+        <tr>
+            <td><strong>${u.name}</strong></td>
+            <td>${u.username}</td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="3">Nessun utente in anagrafica.</td></tr>';
+
+    document.getElementById('btn-add-staff').onclick = () => openStaffModal();
+}
+
+/**
+ * Modale per inserimento e modifica Staff
+ */
+async function openStaffModal(editData = null) {
+    const isEdit = !!editData;
+
+    modal.open(isEdit ? 'Modifica Staff' : 'Nuovo Staff', `
+        <label>Nome e Cognome</label>
+        <input type="text" id="st-name" value="${editData ? editData.name : ''}" placeholder="es. Mario Rossi">
+        
+        <label>Username (Login)</label>
+        <input type="text" id="st-user" value="${editData ? editData.username : ''}" placeholder="es. m.rossi">
+        
+        ${!isEdit ? `
+        <label>Password Temporanea</label>
+        <input type="password" id="st-pass" placeholder="min. 6 caratteri">
+        ` : '<p style="font-size:0.8em; color:#6b7280; margin-top:10px;">La password può essere cambiata solo dall\'utente o dal database.</p>'}
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('st-name').value.trim();
+        const username = document.getElementById('st-user').value.trim();
+        
+        if(!name || !username) return alert("Nome e Username sono obbligatori!");
+
+        const payload = { name, username };
+        if(!isEdit) {
+            const pass = document.getElementById('st-pass').value;
+            if(pass.length < 6) return alert("La password deve avere almeno 6 caratteri.");
+            payload.password = pass;
+        }
+
+        const { error } = isEdit 
+            ? await client.from('users').update(payload).eq('id', editData.id)
+            : await client.from('users').insert(payload);
+
+        if (!error) {
+            modal.close();
+            initStaff();
+        } else {
+            alert("Errore salvataggio: " + error.message);
+        }
+    };
+}
+
+/* --- FUNZIONI GLOBALI (Window) --- */
+
+window.handleEditStaff = async function(id) {
+    const { data, error } = await client.from('users').select('*').eq('id', id).single();
+    if (!error && data) openStaffModal(data);
+};
+
+window.handleDeleteStaff = async function(id) {
+    if (confirm("Attenzione: eliminando l'utente verranno rimosse anche tutte le sue assegnazioni alle squadre. Procedere?")) {
+        const { error } = await client.from('users').delete().eq('id', id);
+        if (!error) initStaff();
+        else alert("Errore durante l'eliminazione: " + error.message);
+    }
+};
+
+/* ============================================================
    SEZIONE: ASSEGNAZIONI TECNICHE (Staff <-> Team) - UNICA
    ============================================================ */
 
