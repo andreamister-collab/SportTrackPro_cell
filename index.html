@@ -992,17 +992,32 @@ window.handleDeleteStaff = async function(id) {
     };
 
     // 3. RECUPERO DATI E FILTRI
+   // --- 3. RECUPERO DATI E FILTRI (CORRETTO) ---
     async function _fetchData() {
+        // La stringa di selezione deve puntare alle tabelle relazionate correttamente
         const { data, error } = await client
             .from('staff_assignments')
-            .select(`id, role, staff:staff_id(*), societies:society_id(*), seasons:season_id(*), teams:team_id(*)`);
+            .select(`
+                id, 
+                role, 
+                staff (id, name, surname), 
+                societies (id, name), 
+                seasons (id, name), 
+                teams (id, name)
+            `);
         
-        if (!error) {
-            _allStaffData = data || [];
+        if (error) {
+            console.error("Errore nel recupero dati:", error.message);
+            return;
+        }
+
+        if (data) {
+            _allStaffData = data;
+            // Chiamiamo i filtri per popolare la tabella
             window.applyStaffFilters(); 
         }
     }
-
+	// --- 3. RECUPERO DATI E FILTRI (CORRETTO) ---
     window.applyStaffFilters = function() {
         const name = document.getElementById('f-staff-name')?.value.toLowerCase();
         const soc = document.getElementById('f-staff-soc')?.value;
