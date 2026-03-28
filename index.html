@@ -1046,10 +1046,9 @@ window.deleteAssignment = async (id) => {
     }
 };
 /* ============================================================
-   ANAGRAFICA ATLETI - VERSIONE FINALE CON ELIMINA & EXPORT
+   GESTIONE ATLETI PRO - FILTRI, EXPORT & ELIMINA
    ============================================================ */
 
-// 1. TEMPLATE DELLA PAGINA
 window.templateAtleti = function() {
     return `
     <div class="card">
@@ -1057,93 +1056,146 @@ window.templateAtleti = function() {
             <h2>ANAGRAFICA ATLETI</h2>
             <div class="actions" style="display: flex; gap: 10px;">
                 <button class="btn btn-outline" onclick="exportAtleti()">📤 Esporta Excel</button>
-                <button class="btn btn-outline" onclick="document.getElementById('import-excel').click()">📥 Importa</button>
-                <input type="file" id="import-excel" hidden accept=".xlsx, .xls" onchange="importAtleti(event)">
                 <button class="btn" onclick="openAtletaModal()">+ Nuovo Atleta</button>
             </div>
         </div>
-        <div id="atleti-season-info" style="margin-bottom:1rem; font-weight:bold; color:#2563eb; padding:10px; background:#eff6ff; border-radius:6px;"></div>
+
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+            <div>
+                <label style="font-size: 12px; color: #64748b;">Cerca Atleta</label>
+                <input type="text" id="filter-name" placeholder="Cognome o Nome..." oninput="applyAtletiFilters()">
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #64748b;">Stagione</label>
+                <select id="filter-season" onchange="applyAtletiFilters()"></select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #64748b;">Categoria</label>
+                <select id="filter-category" onchange="applyAtletiFilters()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #64748b;">Squadra</label>
+                <select id="filter-team" onchange="applyAtletiFilters()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+        </div>
+
         <table>
             <thead>
                 <tr>
                     <th>Atleta</th>
-                    <th>Soprannome</th>
-                    <th>Squadra / Categoria</th>
+                    <th>Stagione</th>
+                    <th>Categoria</th>
+                    <th>Squadra</th>
                     <th>Ruolo</th>
                     <th style="text-align:center">N°</th>
                     <th style="text-align:right">Azioni</th>
                 </tr>
             </thead>
             <tbody id="list-atleti">
-                <tr><td colspan="6">Caricamento...</td></tr>
+                <tr><td colspan="7">Caricamento in corso...</td></tr>
             </tbody>
         </table>
     </div>`;
 };
 
-// 2. INIZIALIZZAZIONE TABELLA (Con Tasto Elimina)
+// Variabile globale per i dati caricati (necessaria per i filtri istantanei)
+let allAtletiData = [];
+
 window.initAtleti = async function() {
-    const tbody = document.getElementById('list-atleti');
-    if (!tbody) return;
+    const { data: seasons } = await client.from('seasons').select('*').order('name');
+    const { data: categories } = await client.from('categories').select('*').order('name');
+    const { data: teams } = await client.from('teams').select('*').order('name');
 
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
-    if (!activeSeason) return;
+    // Popola i filtri
+    const sFilter = document.getElementById('filter-season');
+    if (sFilter) {
+        sFilter.innerHTML = seasons.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
+    }
+    const cFilter = document.getElementById('filter-category');
+    if (cFilter) {
+        cFilter.innerHTML += categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+    const tFilter = document.getElementById('filter-team');
+    if (tFilter) {
+        tFilter.innerHTML += teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
 
+    await loadAtletiData();
+};
+
+async function loadAtletiData() {
     const { data, error } = await client
         .from('athlete_team_seasons')
         .select(`
-            id, nickname, jersey_number, role, 
+            id, nickname, jersey_number, role,
             athletes:athlete_id (id, name, surname),
-            teams:team_id (name),
-            categories:category_id (name)
-        `)
-        .eq('season_id', activeSeason.id);
+            seasons:season_id (name, id),
+            teams:team_id (name, id),
+            categories:category_id (name, id)
+        `);
 
     if (error) return console.error(error);
+    allAtletiData = data || [];
+    applyAtletiFilters();
+}
 
-    tbody.innerHTML = data?.map(row => `
+window.applyAtletiFilters = function() {
+    const nameVal = document.getElementById('filter-name')?.value.toLowerCase();
+    const seasonVal = document.getElementById('filter-season')?.value;
+    const catVal = document.getElementById('filter-category')?.value;
+    const teamVal = document.getElementById('filter-team')?.value;
+
+    const filtered = allAtletiData.filter(row => {
+        const matchesName = !nameVal || `${row.athletes?.surname} ${row.athletes?.name}`.toLowerCase().includes(nameVal);
+        const matchesSeason = !seasonVal || row.seasons?.id == seasonVal;
+        const matchesCat = !catVal || row.categories?.id == catVal;
+        const matchesTeam = !teamVal || row.teams?.id == teamVal;
+        return matchesName && matchesSeason && matchesCat && matchesTeam;
+    });
+
+    renderAtletiTable(filtered);
+};
+
+function renderAtletiTable(data) {
+    const tbody = document.getElementById('list-atleti');
+    if (!tbody) return;
+
+    tbody.innerHTML = data.map(row => `
         <tr>
             <td><strong>${row.athletes?.surname || ''} ${row.athletes?.name || ''}</strong></td>
-            <td style="color:#64748b;">${row.nickname || '-'}</td>
-            <td>${row.teams?.name || row.categories?.name || 'N/D'}</td>
+            <td>${row.seasons?.name || '-'}</td>
+            <td>${row.categories?.name || '-'}</td>
+            <td>${row.teams?.name || 'Categoria intera'}</td>
             <td><span class="badge-role">${row.role || '-'}</span></td>
             <td style="text-align:center">${row.jersey_number || '-'}</td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="openAtletaModal('${row.id}')" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger" onclick="deleteAtleta('${row.id}')" title="Elimina">🗑️</button>
+                <button class="btn-sm btn-warning" onclick="openAtletaModal('${row.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="deleteAtleta('${row.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="6">Nessun atleta in questa stagione.</td></tr>';
-};
-
-// 3. FUNZIONE ELIMINA (Rimuove solo l'assegnazione stagionale)
-window.deleteAtleta = async function(id) {
-    if (!confirm("Vuoi rimuovere l'atleta da questa stagione? L'anagrafica generale non verrà cancellata.")) return;
-    
-    const { error } = await client.from('athlete_team_seasons').delete().eq('id', id);
-    
-    if (error) {
-        alert("Errore: " + error.message);
-    } else {
-        initAtleti(); // Refresh automatico della tabella
-    }
-};
+    `).join('') || '<tr><td colspan="7">Nessun atleta trovato con i filtri selezionati.</td></tr>';
+}
 
 // 4. EXPORT EXCEL REALE (Richiede libreria SheetJS)
 window.exportAtleti = function() {
     const table = document.querySelector("table");
-    if (!table || table.rows.length <= 1) return alert("Nessun dato!");
+    if (!table || table.rows.length <= 1) return alert("Nessun dato da esportare!");
 
+    // Escludiamo la colonna "Azioni" dall'export
     const rows = Array.from(table.querySelectorAll("tr"));
-    const data = rows.map(tr => {
+    const cleanData = rows.map(tr => {
         const cells = Array.from(tr.querySelectorAll("th, td"));
-        return cells.slice(0, -1).map(c => c.innerText.trim()); // Esclude colonna azioni
+        return cells.slice(0, -1).map(c => c.innerText.trim());
     });
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, "Atleti");
-    XLSX.writeFile(wb, "Export_Atleti.xlsx");
+    const ws = XLSX.utils.aoa_to_sheet(cleanData);
+    XLSX.utils.book_append_sheet(wb, ws, "Anagrafica Atleti");
+    XLSX.writeFile(wb, "SportTrackPro_Atleti.xlsx");
 };
 
 // IMPORT
