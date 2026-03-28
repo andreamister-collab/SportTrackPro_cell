@@ -615,7 +615,7 @@ function templateSquadra() {
 }
 
 async function initSquadra() {
-    // Specifichiamo 'societies!society_id' per dire a Supabase di usare la colonna society_id
+    // Usiamo la sintassi Tabella!ColonnaChiaveEsterna
     const { data, error } = await client
         .from('teams')
         .select(`
@@ -649,6 +649,7 @@ async function initSquadra() {
         </tr>
     `).join('') || '<tr><td colspan="4">Nessuna squadra presente. Creane una!</td></tr>';
 
+    // Il resto della funzione (btn-add-squadra.onclick) rimane identico a prima
     // ... il resto della funzione (btn-add-squadra.onclick) rimane invariato ...
 
     // Gestione clic bottone "Nuova Squadra"
