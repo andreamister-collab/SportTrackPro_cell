@@ -1098,15 +1098,14 @@ async function initAtleti() {
     infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
 
   // Modifica la query dentro initAtleti così:
-    const { data, error } = await client
+    // Sostituisci la query esistente con questa
+// TEST: Prova a caricare SOLO la tabella principale senza join
+const { data, error } = await client
     .from('athlete_team_seasons')
-    .select(`
-        id,
-        jersey_number,
-        athletes:athlete_id (id, name, surname),
-        teams:team_id (name)
-    `)
+    .select('*') // Rimuovi i join temporaneamente per test
     .eq('season_id', activeSeason.id);
+
+if (error) console.error("Se vedi ancora 403 qui, la tua API KEY è invalida o RLS è ancora attiva");
 
     if (error) {
         tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
