@@ -914,11 +914,12 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   MODULO ASSEGNAZIONI TECNICHE - SOLUZIONE DEFINITIVA SENZA ERRORI JOIN
+   MODULO ASSEGNAZIONI TECNICHE - FILTRI PROGRESSIVI
    ============================================================ */
 
 (function() {
     let _allAssignments = [];
+    let _allTeams = []; // Memorizziamo tutte le squadre per il filtro progressivo
     let _lookupSocs = {};
     let _lookupSeas = {};
 
@@ -939,11 +940,11 @@ window.handleDeleteStaff = async function(id) {
                 </div>
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
-                    <select id="f-staff-soc" onchange="applyStaffFilters()" style="width:100%"><option value="">Tutte</option></select>
+                    <select id="f-staff-soc" onchange="updateTeamFilter(); applyStaffFilters();" style="width:100%"><option value="">Tutte</option></select>
                 </div>
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Stagione</label>
-                    <select id="f-staff-sea" onchange="applyStaffFilters()" style="width:100%"></select>
+                    <select id="f-staff-sea" onchange="updateTeamFilter(); applyStaffFilters();" style="width:100%"></select>
                 </div>
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Squadra</label>
@@ -977,31 +978,47 @@ window.handleDeleteStaff = async function(id) {
                 client.from('teams').select('*').order('name')
             ]);
 
-            // Creiamo i lookup table per evitare l'errore PGRST201 nel select
             _lookupSocs = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
             _lookupSeas = Object.fromEntries(seas.data.map(s => [s.id, s.name]));
+            _allTeams = teams.data || [];
 
             const fSoc = document.getElementById('f-staff-soc');
             const fSea = document.getElementById('f-staff-sea');
-            const fTea = document.getElementById('f-staff-team');
 
             if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             if(fSea) fSea.innerHTML = seas.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
-            if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
+            // Inizializza il filtro squadre in base alla stagione attiva
+            updateTeamFilter();
             await _fetchData();
         } catch (err) { console.error("Init Error:", err); }
     };
 
+    // --- LOGICA FILTRO PROGRESSIVO ---
+    window.updateTeamFilter = function() {
+        const selSoc = document.getElementById('f-staff-soc')?.value;
+        const selSea = document.getElementById('f-staff-sea')?.value;
+        const fTea = document.getElementById('f-staff-team');
+
+        if (!fTea) return;
+
+        // Filtriamo l'elenco delle squadre in base a Società e Stagione selezionate
+        const filteredTeams = _allTeams.filter(t => {
+            const matchSoc = !selSoc || t.society_id == selSoc;
+            const matchSea = !selSea || t.season_id == selSea;
+            return matchSoc && matchSea;
+        });
+
+        fTea.innerHTML = '<option value="">Tutte</option>' + 
+            filteredTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    };
+
     async function _fetchData() {
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
-        if (activeSeason) {
-            const btn = document.getElementById('btn-add-assignment');
-            if(btn) btn.onclick = () => openAssignmentModal(activeSeason.id);
+        if (activeSeason && document.getElementById('btn-add-assignment')) {
+            document.getElementById('btn-add-assignment').onclick = () => openAssignmentModal(activeSeason.id);
         }
 
-        // Recuperiamo solo le relazioni sicure che usavi già (fk_staff_user e fk_ucs_team)
-        // I nomi di società e stagioni li prendiamo dai lookup creati in init
         const { data, error } = await client
             .from('user_category_seasons')
             .select(`
@@ -1011,8 +1028,7 @@ window.handleDeleteStaff = async function(id) {
             `);
         
         if (error) {
-            console.error("Errore query UCS:", error);
-            document.getElementById('list-assignments').innerHTML = `<tr><td colspan="6">Errore: ${error.message}</td></tr>`;
+            console.error("Errore query:", error);
             return;
         }
 
@@ -1051,6 +1067,7 @@ window.handleDeleteStaff = async function(id) {
         `).join('') || '<tr><td colspan="6">Nessuna assegnazione trovata.</td></tr>';
     };
 
+    // --- LOGICA MODALE (Invariata) ---
     window.openAssignmentModal = async function(activeSeasonId, editData = null) {
         const isEdit = !!editData;
         const [sRes, uRes, tRes] = await Promise.all([
@@ -1091,13 +1108,10 @@ window.handleDeleteStaff = async function(id) {
                 season_id: activeSeasonId,
                 role: document.getElementById('as-role').value
             };
-
             if (!payload.user_id || !payload.team_id) return alert("Compila tutti i campi!");
-
             const { error } = isEdit 
                 ? await client.from('user_category_seasons').update(payload).eq('id', editData.id)
                 : await client.from('user_category_seasons').insert(payload);
-            
             if (!error) { modal.close(); _fetchData(); } else { alert(error.message); }
         };
     };
@@ -1113,7 +1127,6 @@ window.handleDeleteStaff = async function(id) {
             if (!error) _fetchData();
         }
     };
-
 })();
 /* ============================================================
    MODULO ANAGRAFICA ATLETI - FIX GLOBALE
