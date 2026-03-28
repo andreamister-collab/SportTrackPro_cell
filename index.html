@@ -1299,7 +1299,7 @@ window.applyAtletiFilters = function() {
     `).join('') || '<tr><td colspan="8">Nessun atleta trovato.</td></tr>';
 };
 /* ============================================================
-   LOGICA DI IMPORTAZIONE EXCEL PER ATLETI
+   FUNZIONE DI IMPORTAZIONE EXCEL CON MAPPATURA ID
    ============================================================ */
 
 window.importAtleti = async function(event) {
@@ -1308,20 +1308,15 @@ window.importAtleti = async function(event) {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-
-        console.log("Dati letti da Excel:", jsonData);
-
-        if (jsonData.length === 0) {
-            alert("Il file è vuoto!");
-            return;
-        }
-
         try {
-            // 1. Carichiamo tutti i riferimenti per mappare i nomi agli ID
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+            if (jsonData.length === 0) return alert("File vuoto!");
+
+            // 1. Recuperiamo tutte le tabelle di riferimento per ottenere gli ID
             const [socs, seas, cats, teams, aths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1330,64 +1325,70 @@ window.importAtleti = async function(event) {
                 client.from('athletes').select('id, name, surname')
             ]);
 
-            // Funzioni di utilità per trovare l'ID dal nome
-            const findId = (list, name) => list.find(item => 
-                item.name?.toString().trim().toLowerCase() === name?.toString().trim().toLowerCase()
-            )?.id;
+            // Helper per trovare l'ID tramite nome (case-insensitive)
+            const getID = (list, name) => {
+                if (!name) return null;
+                return list.find(item => 
+                    item.name?.toString().trim().toLowerCase() === name.toString().trim().toLowerCase()
+                )?.id;
+            };
 
-            const findAthleteId = (list, fullName) => {
-                // Gestisce "COGNOME NOME" o solo "COGNOME"
+            // Helper specifico per l'atleta (cerca nel formato "COGNOME NOME")
+            const getAthleteID = (list, fullName) => {
+                if (!fullName) return null;
+                const search = fullName.toString().trim().toLowerCase();
                 return list.find(a => {
                     const combined = `${a.surname} ${a.name}`.trim().toLowerCase();
-                    return combined === fullName?.toString().trim().toLowerCase() || 
-                           a.surname?.toLowerCase() === fullName?.toString().trim().toLowerCase();
+                    const reverse = `${a.name} ${a.surname}`.trim().toLowerCase();
+                    return combined === search || reverse === search || a.surname?.toLowerCase() === search;
                 })?.id;
             };
 
-            // 2. Prepariamo l'array per l'insert
+            // 2. Mappatura dei dati Excel -> ID Database
             const toInsert = jsonData.map(row => {
-                const athleteId = findAthleteId(aths.data, row.Atleta);
-                const societyId = findId(socs.data, row.Società);
-                const seasonId = findId(seas.data, row.Stagione);
-                const categoryId = findId(cats.data, row.Categoria);
-                const teamId = findId(teams.data, row.Squadra);
+                const aId = getAthleteID(aths.data, row.Atleta);
+                const sId = getID(socs.data, row.Società);
+                const seaId = getID(seas.data, row.Stagione);
+                const cId = getID(cats.data, row.Categoria);
+                const tId = getID(teams.data, row.Squadra);
 
-                // Validazione minima
-                if (!athleteId || !societyId || !seasonId) {
-                    console.warn("Salto riga per dati mancanti/errati:", row);
+                // Se mancano dati fondamentali, saltiamo la riga
+                if (!aId || !sId || !seaId) {
+                    console.warn("Riga saltata (ID non trovato):", row);
                     return null;
                 }
 
                 return {
-                    athlete_id: athleteId,
-                    society_id: societyId,
-                    season_id: seasonId,
-                    category_id: categoryId,
-                    team_id: teamId,
+                    athlete_id: aId,
+                    society_id: sId,
+                    season_id: seaId,
+                    category_id: cId,
+                    team_id: tId,
                     role: row.Ruolo || 'Atleta',
                     jersey_number: row['N°'] || row.Numero || null,
                     nickname: row.Nickname || null
                 };
-            }).filter(row => row !== null);
+            }).filter(r => r !== null);
 
             if (toInsert.length === 0) {
-                alert("Nessun dato valido trovato. Controlla che i nomi di Società, Stagione e Atleti corrispondano esattamente a quelli nel sistema.");
+                alert("Errore: Nessun match trovato. Assicurati che i nomi nell'Excel siano IDENTICI a quelli nel DB.");
                 return;
             }
 
-            // 3. Eseguiamo l'insert massivo
-            const { error } = await client
-                .from('athlete_team_seasons')
-                .insert(toInsert);
+            // 3. Inserimento nel Database
+            const { error } = await client.from('athlete_team_seasons').insert(toInsert);
 
             if (error) throw error;
 
-            alert(`Importazione completata! ${toInsert.length} atleti assegnati.`);
-            await window.loadAtletiData(); // Ricarica la tabella
+            alert(`Importazione riuscita! Inseriti ${toInsert.length} record.`);
+            
+            // Reset input file e ricarica tabella
+            event.target.value = "";
+            await window.loadAtletiData();
 
         } catch (err) {
-            console.error("Errore durante l'import:", err);
-            alert("Errore durante l'importazione: " + err.message);
+            console.error("Errore Import:", err);
+            alert("Errore durante l'importazione: " + (err.message || err.details));
         }
     };
     reader.readAsArrayBuffer(file);
