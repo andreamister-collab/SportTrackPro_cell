@@ -914,12 +914,13 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   MODULO ASSEGNAZIONI TECNICHE - FIX DEFINITIVO RELAZIONI
+   MODULO ASSEGNAZIONI TECNICHE - FIX DEFINITIVO PGRST201
    ============================================================ */
 
 (function() {
     let _allAssignments = [];
 
+    // --- 1. TEMPLATE ---
     window.templateAssignments = function() {
         return `
         <div class="card">
@@ -955,7 +956,7 @@ window.handleDeleteStaff = async function(id) {
                         <th>Membro Staff</th>
                         <th>Società</th>
                         <th>Stagione</th>
-                        <th>Squadra (Team)</th>
+                        <th>Squadra</th>
                         <th>Ruolo</th>
                         <th style="text-align:right">Azioni</th>
                     </tr>
@@ -967,6 +968,7 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
+    // --- 2. INIT ---
     window.initAssignments = async function() {
         try {
             const [socs, seas, teams] = await Promise.all([
@@ -984,9 +986,10 @@ window.handleDeleteStaff = async function(id) {
             if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
             await _fetchData();
-        } catch (err) { console.error("Init Error:", err); }
+        } catch (err) { console.error("Errore Inizializzazione:", err); }
     };
 
+    // --- 3. FETCH DATA (CORRETTO PER PGRST201) ---
     async function _fetchData() {
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
         if (activeSeason) {
@@ -994,31 +997,29 @@ window.handleDeleteStaff = async function(id) {
             if(btn) btn.onclick = () => openAssignmentModal(activeSeason.id);
         }
 
-        /* NOTA: Se ricevi ancora PGRST201, sostituisci 'societies' con il nome della FK.
-           Esempio: societies:user_category_seasons_society_id_fkey(name)
-        */
+        // Usiamo il nome della colonna society_id e season_id come "hint" per la relazione
         const { data, error } = await client
             .from('user_category_seasons')
             .select(`
                 id, role, season_id, team_id, user_id, society_id,
                 users!fk_staff_user (name),
                 teams!fk_ucs_team (name),
-                societies (name),
-                seasons (name)
+                societies!society_id (name),
+                seasons!season_id (name)
             `);
         
         if (error) {
             console.error("Errore query UCS:", error);
-            // Fallback: carichiamo senza le relazioni critiche per non bloccare l'app
-            const { data: fallbackData } = await client.from('user_category_seasons').select('*');
-            _allAssignments = fallbackData || [];
-        } else {
-            _allAssignments = data || [];
+            // Fallback: mostra errore in tabella
+            document.getElementById('list-assignments').innerHTML = `<tr><td colspan="6" style="color:red">Errore Database: ${error.message}</td></tr>`;
+            return;
         }
-        
+
+        _allAssignments = data || [];
         window.applyStaffFilters();
     }
 
+    // --- 4. FILTRI E RENDERING ---
     window.applyStaffFilters = function() {
         const name = document.getElementById('f-staff-name')?.value.toLowerCase();
         const soc = document.getElementById('f-staff-soc')?.value;
@@ -1026,11 +1027,10 @@ window.handleDeleteStaff = async function(id) {
         const team = document.getElementById('f-staff-team')?.value;
 
         const filtered = _allAssignments.filter(a => {
-            const matchName = !name || a.users?.name?.toLowerCase().includes(name);
-            const matchSoc = !soc || a.society_id == soc;
-            const matchSea = !sea || a.season_id == sea;
-            const matchTeam = !team || a.team_id == team;
-            return matchName && matchSoc && matchSea && matchTeam;
+            return (!name || a.users?.name?.toLowerCase().includes(name)) &&
+                   (!soc || a.society_id == soc) &&
+                   (!sea || a.season_id == sea) &&
+                   (!team || a.team_id == team);
         });
 
         const tbody = document.getElementById('list-assignments');
@@ -1051,7 +1051,7 @@ window.handleDeleteStaff = async function(id) {
         `).join('') || '<tr><td colspan="6">Nessuna assegnazione trovata.</td></tr>';
     };
 
-    // --- FUNZIONI MODALE ---
+    // --- 5. MODALE E AZIONI ---
     window.openAssignmentModal = async function(activeSeasonId, editData = null) {
         const isEdit = !!editData;
         const [sRes, uRes, tRes] = await Promise.all([
