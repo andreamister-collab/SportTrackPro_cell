@@ -1097,15 +1097,16 @@ async function initAtleti() {
     }
     infoBanner.innerText = `📅 Stagione Corrente: ${activeSeason.name}`;
 
+  // Modifica la query dentro initAtleti così:
     const { data, error } = await client
-        .from('athlete_team_seasons')
-        .select(`
-            id,
-            jersey_number,
-            athletes (id, name, surname),
-            teams (name)
-        `)
-        .eq('season_id', activeSeason.id);
+    .from('athlete_team_seasons')
+    .select(`
+        id,
+        jersey_number,
+        athletes:athlete_id (id, name, surname),
+        teams:team_id (name)
+    `)
+    .eq('season_id', activeSeason.id);
 
     if (error) {
         tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
