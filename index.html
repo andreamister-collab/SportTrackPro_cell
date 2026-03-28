@@ -1128,28 +1128,31 @@ window.handleDeleteStaff = async function(id) {
         }
     };
 })();
-/* ============================================================
-   SEZIONE: GESTIONE ATLETI - FILTRI PROGRESSIVI
+//* ============================================================
+   SEZIONE: GESTIONE ATLETI - FILTRI PROGRESSIVI & JERSEY
    ============================================================ */
 
 (function() {
-    let _allPlayers = [];
-    let _allTeams = []; 
-    let _lookupSocs = {};
-    let _lookupSeas = {};
+    let _allAssignments = []; // Dati della tabella di giunzione (atleti assegnati)
+    let _allTeams = [];       // Cache di tutte le squadre per filtri progressivi
+    let _lookupSocs = {};     // Vocabolario Società
+    let _lookupSeas = {};     // Vocabolario Stagioni
 
+    // --- 1. IL TEMPLATE (Interfaccia con Filtri) ---
     window.templatePlayers = function() {
         return `
         <div class="card">
             <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
                 <h2>ANAGRAFICA ATLETI</h2>
-                <button class="btn" id="btn-add-player">+ Nuovo Atleta</button>
+                <div class="actions">
+                    <button class="btn" id="btn-add-player-assignment">+ Assegna Atleta a Squadra</button>
+                </div>
             </div>
 
             <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
-                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Nome/Cognome</label>
-                    <input type="text" id="f-player-name" placeholder="Filtra testo..." oninput="applyPlayerFilters()" style="width:100%">
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Atleta</label>
+                    <input type="text" id="f-player-name" placeholder="Nome o Cognome..." oninput="applyPlayerFilters()" style="width:100%">
                 </div>
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
@@ -1175,18 +1178,20 @@ window.handleDeleteStaff = async function(id) {
                     <tr>
                         <th>Atleta</th>
                         <th>Società</th>
+                        <th>Stagione</th>
                         <th>Squadra</th>
-                        <th>N°</th>
+                        <th>N° Maglia</th>
                         <th style="text-align:right">Azioni</th>
                     </tr>
                 </thead>
                 <tbody id="list-players">
-                    <tr><td colspan="5">Caricamento atleti...</td></tr>
+                    <tr><td colspan="6">Caricamento in corso...</td></tr>
                 </tbody>
             </table>
         </div>`;
     };
 
+    // --- 2. INIZIALIZZAZIONE ---
     window.initPlayers = async function() {
         try {
             const [socs, seas, teams] = await Promise.all([
@@ -1205,13 +1210,15 @@ window.handleDeleteStaff = async function(id) {
             if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             if(fSea) fSea.innerHTML = seas.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
 
-            // Popola le squadre in base alla stagione predefinita
+            // Sincronizza subito il filtro squadre
             updatePlayerTeamFilter();
             await _fetchPlayerData();
-        } catch (err) { console.error("Errore Init Atleti:", err); }
+        } catch (err) {
+            console.error("Errore Inizializzazione Atleti:", err);
+        }
     };
 
-    // AGGIORNAMENTO PROGRESSIVO SQUADRE
+    // --- 3. LOGICA FILTRO PROGRESSIVO ---
     window.updatePlayerTeamFilter = function() {
         const selSoc = document.getElementById('f-player-soc')?.value;
         const selSea = document.getElementById('f-player-sea')?.value;
@@ -1229,56 +1236,122 @@ window.handleDeleteStaff = async function(id) {
             filteredTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     };
 
+    // --- 4. RECUPERO DATI ---
     async function _fetchPlayerData() {
-        // Supponendo che la tabella di giunzione sia 'player_assignments' o simile
-        // Se usi una struttura diversa, adatta il nome della tabella qui sotto
+        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
+        if (activeSeason && document.getElementById('btn-add-player-assignment')) {
+            document.getElementById('btn-add-player-assignment').onclick = () => openPlayerAssignmentModal(activeSeason.id);
+        }
+
+        // Query sulla tabella di giunzione tra Atleti e Squadre
         const { data, error } = await client
-            .from('player_assignments') 
+            .from('player_category_seasons') 
             .select(`
-                id, jersey_number, team_id, season_id, society_id,
-                players:player_id (name, surname),
-                teams:team_id (name)
+                id, jersey_number, season_id, team_id, player_id, society_id,
+                players!inner (name, surname),
+                teams!inner (name)
             `);
         
         if (error) {
-            console.error("Errore recupero atleti:", error);
+            console.error("Errore query atleti:", error.message);
             return;
         }
 
-        _allPlayers = data || [];
+        _allAssignments = data || [];
         window.applyPlayerFilters();
     }
 
+    // --- 5. FILTRAGGIO E RENDERING ---
     window.applyPlayerFilters = function() {
         const name = document.getElementById('f-player-name')?.value.toLowerCase();
         const soc = document.getElementById('f-player-soc')?.value;
         const sea = document.getElementById('f-player-sea')?.value;
         const team = document.getElementById('f-player-team')?.value;
 
-        const filtered = _allPlayers.filter(p => {
-            const fullName = `${p.players?.name} ${p.players?.surname}`.toLowerCase();
+        const filtered = _allAssignments.filter(a => {
+            const fullName = `${a.players?.surname} ${a.players?.name}`.toLowerCase();
             return (!name || fullName.includes(name)) &&
-                   (!soc || p.society_id == soc) &&
-                   (!sea || p.season_id == sea) &&
-                   (!team || p.team_id == team);
+                   (!soc || a.society_id == soc) &&
+                   (!sea || a.season_id == sea) &&
+                   (!team || a.team_id == team);
         });
 
         const tbody = document.getElementById('list-players');
         if (!tbody) return;
 
-        tbody.innerHTML = filtered.map(p => `
+        tbody.innerHTML = filtered.map(a => `
             <tr>
-                <td><strong>${p.players?.surname || ''} ${p.players?.name || 'N/D'}</strong></td>
-                <td>${_lookupSocs[p.society_id] || '-'}</td>
-                <td>${p.teams?.name || 'Svincolato'}</td>
-                <td><span class="badge" style="background:#f1f5f9; color:#475569;">${p.jersey_number || '-'}</span></td>
+                <td><strong>${a.players?.surname || ''} ${a.players?.name || 'N/D'}</strong></td>
+                <td><span style="color: #2563eb; font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
+                <td>${_lookupSeas[a.season_id] || '-'}</td>
+                <td>${a.teams?.name || 'N/D'}</td>
+                <td><span class="badge" style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:4px;">${a.jersey_number || '-'}</span></td>
                 <td style="text-align:right">
-                    <button class="btn-sm btn-warning" onclick="handleEditPlayer('${p.id}')">✏️</button>
-                    <button class="btn-sm btn-danger" onclick="deletePlayer('${p.id}')">🗑️</button>
+                    <button class="btn-sm btn-warning" onclick="handleEditPlayerAssignment('${a.id}')">✏️</button>
+                    <button class="btn-sm btn-danger" onclick="deletePlayerAssignment('${a.id}')">🗑️</button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="5">Nessun atleta trovato con questi filtri.</td></tr>';
+        `).join('') || '<tr><td colspan="6">Nessun atleta trovato.</td></tr>';
     };
+
+    // --- 6. GESTIONE MODALE (Assegnazione e Numero Maglia) ---
+    window.openPlayerAssignmentModal = async function(activeSeasonId, editData = null) {
+        const isEdit = !!editData;
+        const [uRes, tRes] = await Promise.all([
+            client.from('players').select('id, name, surname').order('surname'),
+            client.from('teams').select('id, name, category_id, society_id').eq('season_id', activeSeasonId).order('name')
+        ]);
+
+        modal.open(isEdit ? 'Modifica Assegnazione Atleta' : 'Nuova Assegnazione Atleta', `
+            <label>Atleta</label>
+            <select id="ap-player">
+                <option value="">-- Seleziona Atleta --</option>
+                ${uRes.data?.map(p => `<option value="${p.id}" ${isEdit && editData.player_id === p.id ? 'selected' : ''}>${p.surname} ${p.name}</option>`).join('')}
+            </select>
+            <label>Squadra</label>
+            <select id="ap-team">
+                <option value="">-- Seleziona Squadra --</option>
+                ${tRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+            </select>
+            <label>Numero di Maglia (opzionale)</label>
+            <input type="number" id="ap-jersey" placeholder="Esempio: 10" value="${isEdit ? (editData.jersey_number || '') : ''}">
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const teamSelect = document.getElementById('ap-team');
+            const jerseyValue = document.getElementById('ap-jersey').value;
+            
+            const payload = {
+                player_id: document.getElementById('ap-player').value,
+                team_id: teamSelect.value,
+                category_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-cat'),
+                society_id: teamSelect.options[teamSelect.selectedIndex]?.getAttribute('data-soc'),
+                season_id: activeSeasonId,
+                jersey_number: jerseyValue === "" ? null : parseInt(jerseyValue)
+            };
+
+            if (!payload.player_id || !payload.team_id) return alert("Atleta e Squadra sono obbligatori!");
+
+            const { error } = isEdit 
+                ? await client.from('player_category_seasons').update(payload).eq('id', editData.id)
+                : await client.from('player_category_seasons').insert(payload);
+            
+            if (!error) { modal.close(); _fetchPlayerData(); } else { alert(error.message); }
+        };
+    };
+
+    window.handleEditPlayerAssignment = async (id) => {
+        const { data, error } = await client.from('player_category_seasons').select('*').eq('id', id).single();
+        if (!error) openPlayerAssignmentModal(data.season_id, data);
+    };
+
+    window.deletePlayerAssignment = async (id) => {
+        if (confirm("Rimuovere l'atleta da questa squadra per questa stagione?")) {
+            const { error } = await client.from('player_category_seasons').delete().eq('id', id);
+            if (!error) _fetchPlayerData();
+        }
+    };
+
 })();
 // IMPORT EXCEL
 window.importAtleti = async function(event) {
