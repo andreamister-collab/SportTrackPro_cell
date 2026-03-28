@@ -914,14 +914,15 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   MODULO ASSEGNAZIONI TECNICHE - (Tabella: user_category_seasons)
+   MODULO ASSEGNAZIONI TECNICHE - VERSIONE DEFINITIVA
+   Tabella: user_category_seasons (Staff <-> Team)
    ============================================================ */
 
 (function() {
-    // Variabile privata per il filtraggio
+    // Variabile privata per i dati filtrabili
     let _allAssignments = [];
 
-    // --- 1. IL TEMPLATE (Include Filtri per Società e Stagione) ---
+    // --- 1. IL TEMPLATE (Interfaccia con Filtri) ---
     window.templateAssignments = function() {
         return `
         <div class="card">
@@ -934,7 +935,7 @@ window.handleDeleteStaff = async function(id) {
 
             <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
-                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Membro</label>
+                    <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Staff</label>
                     <input type="text" id="f-staff-name" placeholder="Nome..." oninput="applyStaffFilters()" style="width:100%">
                 </div>
                 <div>
@@ -972,7 +973,6 @@ window.handleDeleteStaff = async function(id) {
     // --- 2. INIZIALIZZAZIONE ---
     window.initAssignments = async function() {
         try {
-            // Caricamento opzioni filtri
             const [socs, seas, teams] = await Promise.all([
                 client.from('societies').select('*').order('name'),
                 client.from('seasons').select('*').order('name'),
@@ -989,32 +989,32 @@ window.handleDeleteStaff = async function(id) {
 
             await _fetchData();
         } catch (err) {
-            console.error("Errore init assignments:", err);
+            console.error("Errore Inizializzazione:", err);
         }
     };
 
-    // --- 3. RECUPERO DATI (Punta a user_category_seasons) ---
+    // --- 3. RECUPERO DATI (Fix PGRST201) ---
     async function _fetchData() {
-        // Recupero la stagione attiva per impostare il pulsante "Aggiungi"
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
         if (activeSeason) {
             const btn = document.getElementById('btn-add-assignment');
             if(btn) btn.onclick = () => openAssignmentModal(activeSeason.id);
         }
 
-        // Recupero tutti i dati con le relazioni corrette
+        // Utilizziamo !column_name per risolvere l'ambiguità delle relazioni multiple
         const { data, error } = await client
             .from('user_category_seasons')
             .select(`
-                id, role, season_id, team_id, user_id,
+                id, role, season_id, team_id, user_id, society_id,
                 users!fk_staff_user (name),
                 teams!fk_ucs_team (name),
-                societies:society_id (id, name),
-                seasons:season_id (id, name)
+                societies!society_id (name),
+                seasons!season_id (name)
             `);
         
         if (error) {
-            console.error("Errore query UCS:", error);
+            console.error("Errore query UCS:", error.message);
+            document.getElementById('list-assignments').innerHTML = `<tr><td colspan="6">Errore: ${error.message}</td></tr>`;
             return;
         }
 
@@ -1031,8 +1031,8 @@ window.handleDeleteStaff = async function(id) {
 
         const filtered = _allAssignments.filter(a => {
             return (!name || a.users?.name?.toLowerCase().includes(name)) &&
-                   (!soc || a.societies?.id == soc) &&
-                   (!sea || a.seasons?.id == sea) &&
+                   (!soc || a.society_id == soc) &&
+                   (!sea || a.season_id == sea) &&
                    (!team || a.team_id == team);
         });
 
@@ -1045,16 +1045,16 @@ window.handleDeleteStaff = async function(id) {
                 <td><span style="color: #2563eb; font-weight:500;">${a.societies?.name || '-'}</span></td>
                 <td>${a.seasons?.name || '-'}</td>
                 <td>${a.teams?.name || 'N/D'}</td>
-                <td><span class="badge badge-active">${a.role}</span></td>
+                <td><span class="badge badge-active" style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-size:0.85em;">${a.role}</span></td>
                 <td style="text-align:right">
-                    <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
-                    <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
+                    <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')" title="Modifica">✏️</button>
+                    <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')" title="Elimina">🗑️</button>
                 </td>
             </tr>
         `).join('') || '<tr><td colspan="6">Nessuna assegnazione trovata.</td></tr>';
     };
 
-    // --- 5. LOGICA MODALE (Adattata dal tuo codice) ---
+    // --- 5. GESTIONE MODALE (Salvataggio e Modifica) ---
     window.openAssignmentModal = async function(activeSeasonId, editData = null) {
         const isEdit = !!editData;
         const [sRes, uRes, tRes] = await Promise.all([
@@ -1065,8 +1065,8 @@ window.handleDeleteStaff = async function(id) {
 
         const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
 
-        modal.open(isEdit ? 'Modifica Staff' : 'Nuova Assegnazione Staff', `
-            <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.85em;">
+        modal.open(isEdit ? 'Modifica Incarico' : 'Nuovo Incarico Staff', `
+            <div style="margin-bottom:15px; padding:10px; background:#f0f7ff; border-radius:5px; color:#2563eb; border:1px solid #dbeafe; font-size:0.85em;">
                 <strong>Stagione Attiva:</strong> ${sRes.data?.name || 'Corrente'}
             </div>
             <label>Membro Staff</label>
@@ -1096,13 +1096,13 @@ window.handleDeleteStaff = async function(id) {
                 role: document.getElementById('as-role').value
             };
 
-            if (!payload.user_id || !payload.team_id) return alert("Compila tutti i campi!");
+            if (!payload.user_id || !payload.team_id) return alert("Compila i campi obbligatori!");
 
             const { error } = isEdit 
                 ? await client.from('user_category_seasons').update(payload).eq('id', editData.id)
                 : await client.from('user_category_seasons').insert(payload);
             
-            if (!error) { modal.close(); _fetchData(); } else { alert(error.message); }
+            if (!error) { modal.close(); _fetchData(); } else { alert("Errore: " + error.message); }
         };
     };
 
@@ -1112,7 +1112,7 @@ window.handleDeleteStaff = async function(id) {
     };
 
     window.deleteAssignment = async (id) => {
-        if (confirm("Rimuovere questo incarico?")) {
+        if (confirm("Rimuovere questo incarico dallo staff?")) {
             const { error } = await client.from('user_category_seasons').delete().eq('id', id);
             if (!error) _fetchData();
         }
