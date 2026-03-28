@@ -742,7 +742,7 @@ window.deleteTeam = async (id) => {
     }
 };
 /* ============================================================
-   SEZIONE: STAFF (Anagrafica Utenti basata su SQL Table)
+   SEZIONE: STAFF (Solo Anagrafica DB - Senza Password)
    ============================================================ */
 
 function templateStaff() {
@@ -771,7 +771,6 @@ function templateStaff() {
 async function initStaff() {
     const tbody = document.getElementById('list-staff-users');
     
-    // 1. Recupero dati (Escludiamo l'admin tecnico)
     const { data, error } = await client
         .from('users')
         .select('*')
@@ -783,50 +782,39 @@ async function initStaff() {
         return;
     }
 
-    // 2. Rendering Tabella
     tbody.innerHTML = data?.map(u => `
         <tr>
             <td><strong>${u.name}</strong></td>
             <td>${u.email || '-'}</td>
             <td><span class="badge badge-inactive" style="text-transform: uppercase; font-size: 0.75rem;">${u.role}</span></td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}', '${u.name.replace(/'/g, "\\'")}', '${u.role}')">✏️</button>
+                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4">Nessun membro dello staff registrato.</td></tr>';
 
-    // 3. Gestione Nuovo Inserimento
     document.getElementById('btn-add-staff-user').onclick = () => openStaffModal();
 }
 
-/* --- MODALE UNICA PER INSERIMENTO E MODIFICA --- */
 async function openStaffModal(editData = null) {
-    // Ruoli permessi dal tuo vincolo CHECK SQL
     const validRoles = ['responsabile', 'presidente', 'dirigente', 'segretario', 'allenatore', 'professionista'];
-    
     const isEdit = !!editData;
-    const title = isEdit ? 'Modifica Staff' : 'Registra Nuovo Staff';
 
-    modal.open(title, `
+    modal.open(isEdit ? 'Modifica Staff' : 'Registra Nuovo Staff', `
         <label>Nome e Cognome</label>
-        <input type="text" id="s-name" value="${editData?.name || ''}" placeholder="es. Mario Rossi">
+        <input type="text" id="s-name" value="${editData?.name || ''}">
         
         <label>Username (Univoco)</label>
-        <input type="text" id="s-username" value="${editData?.username || ''}" ${isEdit ? 'disabled' : ''} placeholder="es. m.rossi">
+        <input type="text" id="s-username" value="${editData?.username || ''}" ${isEdit ? 'disabled' : ''}>
+        
+        <label>Email</label>
+        <input type="email" id="s-email" value="${editData?.email || ''}">
         
         <label>Ruolo</label>
         <select id="s-role">
             ${validRoles.map(r => `<option value="${r}" ${editData?.role === r ? 'selected' : ''}>${r.toUpperCase()}</option>`).join('')}
         </select>
-
-        <label>Email (Login)</label>
-        <input type="email" id="s-email" value="${editData?.email || ''}" placeholder="mario@email.it">
-        
-        ${!isEdit ? `
-            <label>Password</label>
-            <input type="password" id="s-pass" placeholder="••••••••">
-        ` : ''}
     `);
 
     document.getElementById('btn-modal-save').onclick = async () => {
@@ -837,46 +825,34 @@ async function openStaffModal(editData = null) {
             email: document.getElementById('s-email').value
         };
 
-        if(!payload.name || !payload.username) return alert("Nome e Username sono obbligatori!");
+        if(!payload.name || !payload.username) return alert("Nome e Username obbligatori!");
 
+        let result;
         if (isEdit) {
-            // AZIONE: MODIFICA
-            const { error } = await client.from('users').update(payload).eq('id', editData.id);
-            if (!error) { modal.close(); initStaff(); } else { alert("Errore: " + error.message); }
+            result = await client.from('users').update(payload).eq('id', editData.id);
         } else {
-            // AZIONE: NUOVO (Auth + DB)
-            const password = document.getElementById('s-pass').value;
-            if(!password) return alert("Inserisci una password!");
+            result = await client.from('users').insert(payload);
+        }
 
-            const { data: auth, error: authErr } = await client.auth.signUp({ 
-                email: payload.email, 
-                password: password 
-            });
-
-            if (authErr) return alert("Errore registrazione: " + authErr.message);
-
-            const { error: dbErr } = await client.from('users').insert({
-                id: auth.user.id,
-                ...payload
-            });
-
-            if (!dbErr) { modal.close(); initStaff(); } else { alert("Errore database: " + dbErr.message); }
+        if (!result.error) {
+            modal.close();
+            initStaff();
+        } else {
+            alert("Errore: " + result.error.message);
         }
     };
 }
 
-/* --- FUNZIONI GLOBALI AZIONI --- */
-window.handleEditStaff = (id, name, role) => {
-    // Recuperiamo i dati completi per la modifica
+window.handleEditStaff = (id) => {
     client.from('users').select('*').eq('id', id).single().then(({data}) => {
         if(data) openStaffModal(data);
     });
 };
 
 window.handleDeleteStaff = async (id) => {
-    if (confirm("Sei sicuro di voler eliminare questo profilo? Verrà rimosso anche dalle assegnazioni squadre.")) {
+    if (confirm("Eliminare definitivamente questo profilo?")) {
         const { error } = await client.from('users').delete().eq('id', id);
-        if (!error) initStaff(); else alert(error.message);
+        if (!error) initStaff();
     }
 };
 /* ============================================================
