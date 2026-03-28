@@ -914,13 +914,14 @@ window.handleDeleteStaff = async function(id) {
 };
 
 /* ============================================================
-   MODULO ASSEGNAZIONI TECNICHE - FIX DEFINITIVO PGRST201
+   MODULO ASSEGNAZIONI TECNICHE - SOLUZIONE DEFINITIVA SENZA ERRORI JOIN
    ============================================================ */
 
 (function() {
     let _allAssignments = [];
+    let _lookupSocs = {};
+    let _lookupSeas = {};
 
-    // --- 1. TEMPLATE ---
     window.templateAssignments = function() {
         return `
         <div class="card">
@@ -968,7 +969,6 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
-    // --- 2. INIT ---
     window.initAssignments = async function() {
         try {
             const [socs, seas, teams] = await Promise.all([
@@ -976,6 +976,10 @@ window.handleDeleteStaff = async function(id) {
                 client.from('seasons').select('*').order('name'),
                 client.from('teams').select('*').order('name')
             ]);
+
+            // Creiamo i lookup table per evitare l'errore PGRST201 nel select
+            _lookupSocs = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
+            _lookupSeas = Object.fromEntries(seas.data.map(s => [s.id, s.name]));
 
             const fSoc = document.getElementById('f-staff-soc');
             const fSea = document.getElementById('f-staff-sea');
@@ -986,10 +990,9 @@ window.handleDeleteStaff = async function(id) {
             if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
             await _fetchData();
-        } catch (err) { console.error("Errore Inizializzazione:", err); }
+        } catch (err) { console.error("Init Error:", err); }
     };
 
-    // --- 3. FETCH DATA (CORRETTO PER PGRST201) ---
     async function _fetchData() {
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
         if (activeSeason) {
@@ -997,21 +1000,19 @@ window.handleDeleteStaff = async function(id) {
             if(btn) btn.onclick = () => openAssignmentModal(activeSeason.id);
         }
 
-        // Usiamo il nome della colonna society_id e season_id come "hint" per la relazione
+        // Recuperiamo solo le relazioni sicure che usavi già (fk_staff_user e fk_ucs_team)
+        // I nomi di società e stagioni li prendiamo dai lookup creati in init
         const { data, error } = await client
             .from('user_category_seasons')
             .select(`
                 id, role, season_id, team_id, user_id, society_id,
                 users!fk_staff_user (name),
-                teams!fk_ucs_team (name),
-                societies!society_id (name),
-                seasons!season_id (name)
+                teams!fk_ucs_team (name)
             `);
         
         if (error) {
             console.error("Errore query UCS:", error);
-            // Fallback: mostra errore in tabella
-            document.getElementById('list-assignments').innerHTML = `<tr><td colspan="6" style="color:red">Errore Database: ${error.message}</td></tr>`;
+            document.getElementById('list-assignments').innerHTML = `<tr><td colspan="6">Errore: ${error.message}</td></tr>`;
             return;
         }
 
@@ -1019,7 +1020,6 @@ window.handleDeleteStaff = async function(id) {
         window.applyStaffFilters();
     }
 
-    // --- 4. FILTRI E RENDERING ---
     window.applyStaffFilters = function() {
         const name = document.getElementById('f-staff-name')?.value.toLowerCase();
         const soc = document.getElementById('f-staff-soc')?.value;
@@ -1039,10 +1039,10 @@ window.handleDeleteStaff = async function(id) {
         tbody.innerHTML = filtered.map(a => `
             <tr>
                 <td><strong>${a.users?.name || 'N/D'}</strong></td>
-                <td><span style="color: #2563eb; font-weight:500;">${a.societies?.name || '-'}</span></td>
-                <td>${a.seasons?.name || '-'}</td>
+                <td><span style="color: #2563eb; font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
+                <td>${_lookupSeas[a.season_id] || '-'}</td>
                 <td>${a.teams?.name || 'N/D'}</td>
-                <td><span class="badge badge-active">${a.role}</span></td>
+                <td><span class="badge badge-active" style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-size:0.85em;">${a.role}</span></td>
                 <td style="text-align:right">
                     <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
                     <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
@@ -1051,7 +1051,6 @@ window.handleDeleteStaff = async function(id) {
         `).join('') || '<tr><td colspan="6">Nessuna assegnazione trovata.</td></tr>';
     };
 
-    // --- 5. MODALE E AZIONI ---
     window.openAssignmentModal = async function(activeSeasonId, editData = null) {
         const isEdit = !!editData;
         const [sRes, uRes, tRes] = await Promise.all([
