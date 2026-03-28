@@ -1299,12 +1299,8 @@ window.applyAtletiFilters = function() {
     `).join('') || '<tr><td colspan="8">Nessun atleta trovato.</td></tr>';
 };
 /* ============================================================
-   IMPORTAZIONE ATLETI CON CREAZIONE ANAGRAFICA E MAPPATURA ID
+   FUNZIONE IMPORT DEFINITIVA: CREA ATLETA + MAPPATURA UUID
    ============================================================ */
-/* ============================================================
-   IMPORTAZIONE ATLETI - MAPPING ID E CREAZIONE AUTOMATICA
-   ============================================================ */
-
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1318,7 +1314,7 @@ window.importAtleti = async function(event) {
 
             if (jsonData.length === 0) return alert("Il file Excel è vuoto.");
 
-            // 1. Recupero TUTTI i riferimenti dal DB per mappare i nomi agli ID
+            // 1. Scarichiamo tutti i riferimenti per trasformare i nomi in ID
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1331,18 +1327,18 @@ window.importAtleti = async function(event) {
                 i.name?.toString().trim().toLowerCase() === name?.toString().trim().toLowerCase()
             )?.id;
 
-            const finalAssignments = [];
-            let countNewAthletes = 0;
+            const toInsert = [];
+            let newAthletesCreated = 0;
 
-            // 2. Elaborazione riga per riga
+            // 2. Elaborazione ciclica delle righe
             for (const row of jsonData) {
-                // Pulizia Nome/Cognome (Es: 'Trimboli Maciste' -> Surname: Trimboli, Name: Maciste)
+                // Pulizia Nome/Cognome (Gestisce 'Trimboli Maciste' -> Surname: Trimboli, Name: Maciste)
                 let fullStr = row.Atleta?.toString().trim() || "";
                 let parts = fullStr.split(" ");
                 let surname = parts[0] || "Cognome";
                 let name = parts.slice(1).join(" ") || "Nome";
 
-                // A. Controllo o Creazione Atleta nell'anagrafica
+                // A. CERCHIAMO O CREIAMO L'ATLETA (Necessario per avere l'ID)
                 let athleteId = existingAths.data.find(a => 
                     a.surname.toLowerCase() === surname.toLowerCase() && 
                     a.name.toLowerCase() === name.toLowerCase()
@@ -1356,24 +1352,24 @@ window.importAtleti = async function(event) {
                         .single();
                     
                     if (errA) {
-                        console.error("Errore creazione atleta:", surname, errA);
+                        console.error("Errore creazione anagrafica:", surname, errA);
                         continue; 
                     }
                     athleteId = newAth.id;
-                    countNewAthletes++;
-                    // Aggiorniamo la cache locale per evitare duplicati nello stesso file
-                    existingAths.data.push({ id: athleteId, name, surname });
+                    newAthletesCreated++;
+                    // Aggiorniamo la cache locale per non ricrearlo se duplicato nel file
+                    existingAths.data.push({ id: athleteId, name: name, surname: surname });
                 }
 
-                // B. Trasformazione nomi testuali in ID UUID
+                // B. MAPPIAMO I NOMI TESTUALI IN ID UUID
                 const sId = findId(socs.data, row.Società);
                 const seaId = findId(seas.data, row.Stagione);
                 const cId = findId(cats.data, row.Categoria);
                 const tId = findId(teams.data, row.Squadra);
 
-                // C. Preparazione record per athlete_team_seasons
+                // C. PREPARIAMO IL RECORD PER athlete_team_seasons
                 if (athleteId && sId && seaId) {
-                    finalAssignments.push({
+                    toInsert.push({
                         athlete_id: athleteId,
                         society_id: sId,
                         season_id: seaId,
@@ -1384,21 +1380,18 @@ window.importAtleti = async function(event) {
                         nickname: row.Nickname || null
                     });
                 } else {
-                    console.warn("Riga saltata. Società o Stagione non trovate nel DB:", row);
+                    console.warn("Riga ignorata (Società o Stagione non trovate):", row);
                 }
             }
 
-            // 3. Inserimento finale su Supabase
-            if (finalAssignments.length > 0) {
-                const { error: errIns } = await client
-                    .from('athlete_team_seasons')
-                    .insert(finalAssignments);
-
+            // 3. INVIO MASSIVO AL DATABASE
+            if (toInsert.length > 0) {
+                const { error: errIns } = await client.from('athlete_team_seasons').insert(toInsert);
                 if (errIns) throw errIns;
                 
-                alert(`Import riuscito!\n- Nuovi atleti creati: ${countNewAthletes}\n- Assegnazioni totali: ${finalAssignments.length}`);
+                alert(`Import riuscito!\n- Nuovi atleti creati: ${newAthletesCreated}\n- Assegnazioni inserite: ${toInsert.length}`);
             } else {
-                alert("Nessun dato valido da importare. Verifica i nomi di Società e Stagione.");
+                alert("Nessun dato valido. Controlla che i nomi delle Società e Stagioni corrispondano al DB.");
             }
 
             await window.loadAtletiData();
