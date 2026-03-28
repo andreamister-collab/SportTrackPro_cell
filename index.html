@@ -1301,19 +1301,24 @@ window.applyAtletiFilters = function() {
 /* ============================================================
    FUNZIONE IMPORT ATLETI - FIX MAPPING ID E CREAZIONE ANAGRAFICA
    ============================================================ */
+/* ============================================================
+   FUNZIONE IMPORT ATLETI CON DIAGNOSTICA CHIARA
+   ============================================================ */
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        console.group("🚀 Log Processo Importazione");
+        console.group("🚀 Debug Importazione Atleti");
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-            // 1. Carichiamo i riferimenti dal DB per mappare i nomi agli ID
+            console.log("Righe totali rilevate nell'Excel:", jsonData.length);
+
+            // 1. Recupero tabelle di riferimento (Mapping Nomi -> ID)
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1325,77 +1330,87 @@ window.importAtleti = async function(event) {
             const findId = (list, name, context) => {
                 if (!name) return null;
                 const match = list.find(i => i.name?.toString().trim().toLowerCase() === name.toString().trim().toLowerCase());
-                if (!match) console.warn(`⚠️ Riferimento mancante: "${name}" non trovato in ${context}`);
+                if (!match) console.warn(`⚠️ Riga Excel: "${name}" non trovato nel database (${context})`);
                 return match?.id;
             };
 
-            const assignments = [];
+            const finalAssignments = [];
             let newAthletesCreated = 0;
 
-            // 2. Elaborazione righe
+            // 2. Elaborazione riga per riga
             for (let i = 0; i < jsonData.length; i++) {
                 const row = jsonData[i];
-                const riga = i + 2; // Per riferimento Excel
+                const nRiga = i + 2; // Riferimento riga Excel
 
-                // Gestione Nome/Cognome (Es: 'Amorelli ')
+                // Gestione Nome/Cognome (es: 'Amorelli ')
                 let fullStr = row.Atleta?.toString().trim() || "";
+                if (!fullStr) continue;
+
                 let parts = fullStr.split(" ");
                 let surname = parts[0];
                 let name = parts.slice(1).join(" ") || " ";
 
-                // A. Controllo Anagrafica
+                // A. Cerchiamo o creiamo l'atleta nell'anagrafica
                 let athleteId = existingAths.data.find(a => 
                     a.surname.toLowerCase() === surname.toLowerCase() && 
                     a.name.toLowerCase() === name.toLowerCase()
                 )?.id;
 
                 if (!athleteId) {
-                    console.log(`👤 Riga ${riga}: Atleta nuovo (${fullStr}), creazione in corso...`);
-                    const { data: newAth, error: errA } = await client.from('athletes')
+                    console.log(`👤 Riga ${nRiga}: Atleta nuovo (${fullStr}). Creazione in corso...`);
+                    const { data: newA, error: errA } = await client.from('athletes')
                         .insert([{ name, surname }]).select('id').single();
                     
                     if (errA) {
-                        console.error(`❌ Riga ${riga}: Errore creazione atleta:`, errA.message);
+                        console.error(`❌ Errore creazione atleta riga ${nRiga}:`, errA.message);
                         continue;
                     }
-                    athleteId = newAth.id;
+                    athleteId = newA.id;
                     newAthletesCreated++;
                     existingAths.data.push({ id: athleteId, name, surname });
                 }
 
-                // B. Mapping ID
+                // B. Trasformazione Nomi -> ID (UUID)
                 const sId = findId(socs.data, row.Società, "Società");
                 const seaId = findId(seas.data, row.Stagione, "Stagioni");
                 const cId = findId(cats.data, row.Categoria, "Categorie");
                 const tId = findId(teams.data, row.Squadra, "Squadre");
 
                 if (athleteId && sId && seaId) {
-                    assignments.push({
+                    finalAssignments.push({
                         athlete_id: athleteId,
                         society_id: sId,
                         season_id: seaId,
                         category_id: cId || null,
                         team_id: tId || null,
                         role: row.Ruolo || 'Atleta',
-                        jersey_number: row['N°'] || row.Numero || null
+                        jersey_number: row['N°'] || row.Numero || null,
+                        nickname: row.Nickname || null
                     });
                 } else {
-                    console.error(`❌ Riga ${riga}: Dati obbligatori mancanti (Società o Stagione errate).`);
+                    console.error(`❌ Riga ${nRiga}: Impossibile procedere. Società o Stagione mancanti o errate.`);
                 }
             }
 
-            // 3. Inserimento massivo
-            if (assignments.length > 0) {
-                const { error: errIns } = await client.from('athlete_team_seasons').insert(assignments);
-                if (errIns) throw errIns;
-                alert(`✅ Import riuscito!\n- Nuovi atleti: ${newAthletesCreated}\n- Assegnazioni create: ${assignments.length}`);
+            // 3. Inserimento massivo finale
+            if (finalAssignments.length > 0) {
+                console.log(`📤 Invio di ${finalAssignments.length} record a Supabase...`);
+                const { error: errIns } = await client.from('athlete_team_seasons').insert(finalAssignments);
+
+                if (errIns) {
+                    console.error("❌ ERRORE DATABASE:", errIns.message);
+                    alert("Errore Database: " + errIns.message);
+                } else {
+                    console.log("✅ Importazione completata con successo!");
+                    alert(`Import riuscito!\n- Nuovi atleti creati: ${newAthletesCreated}\n- Totale righe inserite: ${finalAssignments.length}`);
+                }
             } else {
-                alert("❌ Nessun dato valido da importare. Controlla la console.");
+                alert("Nessun dato valido da importare. Controlla la console (F12) per i dettagli.");
             }
 
         } catch (err) {
-            console.error("🔥 Errore critico:", err);
-            alert("Errore: " + err.message);
+            console.error("🔥 Errore critico script:", err);
+            alert("Errore tecnico: " + err.message);
         }
         console.groupEnd();
         if (window.loadAtletiData) await window.loadAtletiData();
