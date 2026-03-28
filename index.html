@@ -7,144 +7,139 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
 :root {
-    --primary: #4f46e5;      /* Blu Moderno */
-    --primary-hover: #4338ca;
-    --sidebar-bg: #1e293b;   /* Grigio Blu Scuro */
-    --bg-app: #f1f5f9;       /* Grigio chiarissimo per lo sfondo */
-    --card-bg: #ffffff;
-    --text-main: #0f172a;
+    --primary: #4f46e5;
+    --sidebar-bg: #0f172a;
+    --bg-main: #f1f5f9;
     --text-muted: #64748b;
-    --radius: 12px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-main); }
 
-body { 
-    font-family: 'Inter', system-ui, sans-serif; 
-    background-color: var(--bg-app); 
-    color: var(--text-main);
-    display: flex;
-    min-height: 100vh;
-}
+#app { display: flex; min-height: 100vh; }
 
-/* Sidebar Laterale */
-nav {
+/* SIDEBAR FISSA A SINISTRA */
+#sidebar {
     width: 260px;
     background: var(--sidebar-bg);
-    padding: 2rem 1rem;
+    color: white;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    padding: 20px;
     position: fixed;
     height: 100vh;
+    z-index: 100;
 }
 
-nav h1 { 
-    color: white; 
-    font-size: 1.5rem; 
-    margin-bottom: 2rem; 
-    padding: 0 1rem;
-    text-align: center;
-}
+#sidebar h3 { margin-bottom: 30px; text-align: center; font-size: 1.4rem; color: #fff; }
 
-nav a {
-    color: #cbd5e1;
+#sidebar a {
+    color: #94a3b8;
     text-decoration: none;
-    padding: 12px 16px;
+    padding: 12px 15px;
     border-radius: 8px;
-    font-weight: 500;
-    transition: 0.2s;
+    margin-bottom: 5px;
+    cursor: pointer;
+    display: block;
+    transition: 0.3s;
 }
 
-nav a:hover {
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-
-nav a.active {
+#sidebar a:hover, #sidebar a.active {
     background: var(--primary);
     color: white;
 }
 
-/* Contenuto Principale */
-#main-container {
-    margin-left: 260px; /* Lascia spazio alla sidebar */
-    padding: 2rem;
-    width: 100%;
+/* AREA CONTENUTO A DESTRA */
+#content {
+    margin-left: 260px; /* Cruciale per non finire sotto la sidebar */
+    flex: 1;
+    padding: 40px;
 }
 
-/* Bottoni Moderni */
+/* ELEMENTI CARD */
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* BOTTONI */
 .btn {
     background: var(--primary);
     color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
     border: none;
-    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: 0.3s ease;
+    font-weight: 600;
 }
 
-.btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-sm { padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; color: white; }
 
-/* Card e Tabelle */
-.card {
-    background: white;
-    border-radius: var(--radius);
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    padding: 2rem;
+/* TABELLE */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 2px solid #edf2f7; }
+td { padding: 15px 12px; border-bottom: 1px solid #edf2f7; }
+#login-wrap input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0 16px 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: block;
 }
 
-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
-th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 2px solid #f1f5f9; }
-td { padding: 16px 12px; border-bottom: 1px solid #f1f5f9; }
-
-/* Modal Moderno */
-#modal {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 2rem;
-    border-radius: 16px;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-    z-index: 1000;
-    width: 450px;
+#login-wrap label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
     </style>
 </head>
 <body>
 
-<div id="login-wrap">
-    <h2 style="text-align:center; margin-bottom:1.5rem;">SportTrackPro</h2>
-    <form id="login-form">
-        <label>Username</label>
-        <input type="text" id="username" placeholder="Inserisci username" required>
-        <label>Password</label>
-        <input type="password" id="password" placeholder="••••••••" required>
-        <button type="submit" class="btn" style="width:100%">Accedi</button>
-        <div id="error-msg" style="color:red; margin-top:10px; display:none; font-size:0.9rem;"></div>
-    </form>
+<div id="login-screen" style="display: flex; align-items: center; justify-content: center; height: 100vh;">
+    <div id="login-wrap" class="card" style="width: 100%; max-width: 400px;">
+        <h2 style="text-align:center; margin-bottom:1.5rem; color: var(--primary);">SportTrackPro</h2>
+        <form id="login-form">
+            <label>Username</label>
+            <input type="text" id="username" placeholder="Inserisci username" required>
+            
+            <label>Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+            
+            <button type="submit" class="btn" style="width:100%; margin-top: 1rem;">Accedi</button>
+            <div id="error-msg" style="color:#ef4444; margin-top:10px; display:none; font-size:0.9rem; text-align:center;"></div>
+        </form>
+    </div>
 </div>
 
-// Dentro il caricamento o nel file HTML
-document.body.innerHTML = `
+<div id="app" style="display: none;">
     <nav id="sidebar">
-        <h1>SportTrackPro</h1>
-        <a href="#" onclick="loadPage('dashboard')">🏠 Dashboard</a>
-        <a href="#" onclick="loadPage('stagioni')">📅 Stagioni</a>
-        <a href="#" onclick="loadPage('sport')">⚽ Sport</a>
-        <a href="#" onclick="loadPage('societa')">🏢 Società</a>
-        <a href="#" onclick="loadPage('categoria')">🏷️ Categorie</a>
-        <a href="#" onclick="loadPage('squadra')">👥 Squadre</a>
-        <a href="#" onclick="loadPage('staff')">👔 Staff</a>
-        <a href="#" onclick="loadPage('atleti')">🏃 Atleti</a>
-        <div style="margin-top:auto">
-            <button class="btn" onclick="logout()" style="width:100%; background:#ef4444">Esci</button>
-        </div>
+        <h3>SportTrackPro</h3>
+        <a href="#" data-section="dashboard">🏠 Dashboard</a>
+        <a href="#" data-section="stagioni">📅 Stagioni</a>
+        <a href="#" data-section="sport">⚽ Sport</a>
+        <a href="#" data-section="societa">🏢 Società</a>
+        <a href="#" data-section="categoria">🏷️ Categorie</a>
+        <a href="#" data-section="squadra">👥 Squadre</a>
+        <a href="#" data-section="staff">👔 Staff</a>
+        <a href="#" data-section="atleti">🏃 Atleti</a>
+        
+        <button class="btn-logout" onclick="logout()" style="margin-top:auto;">Esci</button>
     </nav>
-    <main id="main-container">
+
+    <main id="content">
         </main>
+</div>
     <div id="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999"></div>
     <div id="modal" style="display:none"></div>
 `;
@@ -710,31 +705,22 @@ async function initSquadra() {
 
     const tbody = document.getElementById('list-squadra');
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="5">Errore caricamento</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5">Errore query: ${error.message}</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data?.map(t => `
         <tr>
-            <td>
-                <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary)">${t.name}</div>
-                <div class="badge-soc">🏢 ${t.societies?.name || 'Indipendente'}</div>
-            </td>
-            <td>
-                <span class="badge-cat">${t.categories?.name || 'Generica'}</span>
-            </td>
-            <td>
-                <div style="font-size: 1.2rem">${t.sports?.icon || '🚩'}</div>
-                <div style="font-size: 0.7rem; color: #94a3b8">${t.sports?.name || 'Sport'}</div>
-            </td>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.societies?.name || '-'}</td>
+            <td><span style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-size:0.8rem">${t.categories?.name || '-'}</span></td>
+            <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a" 
-                    onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️ Modifica</button>
-                <button class="btn-sm" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; margin-left:8px" 
-                    onclick="deleteTeam('${t.id}')">🗑️ Elimina</button>
+                <button class="btn-sm" style="background:#f59e0b" onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️</button>
+                <button class="btn-sm" style="background:#ef4444; margin-left:5px" onclick="deleteTeam('${t.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="5">Nessuna squadra trovata.</td></tr>';
+    `).join('') || '<tr><td colspan="5">Nessuna squadra.</td></tr>';
 
     document.getElementById('btn-add-squadra').onclick = () => openTeamModal();
 }
