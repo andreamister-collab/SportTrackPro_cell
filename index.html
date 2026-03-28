@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportTrackPro - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
+        * { box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
+        
+        /* LOGIN */
+        #login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
+        
+        /* APP LAYOUT */
+        #app { display:none; flex-direction:row; min-height:100vh; }
+        #sidebar { width:260px; background:var(--sidebar); color:#cbd5e1; padding:1rem; display:flex; flex-direction:column; position:fixed; height:100vh; }
+        #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
+        #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
+        #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
+        #content { flex:1; margin-left:260px; padding:2rem; overflow-x:auto; }
+
+        /* COMPONENTS */
+        .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #eee; padding-bottom:10px; }
+        .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-logout { background:var(--danger); margin-top:auto; padding:0.7rem; border-radius:6px; border:none; color:white; cursor:pointer; }
+        
+        /* TABLE & MODAL */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:0.8rem; border-bottom:1px solid #e2e8f0; text-align:left; }
+        th { background:#f8fafc; font-size:0.85rem; color:#64748b; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:white; padding:2rem; border-radius:12px; width:90%; max-width:450px; }
+        .modal-active { display:flex; }
+        input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:1rem; margin-top:0.3rem; }
+        .badge { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; }
+        .badge-active { background:#dcfce7; color:#166534; }
+        .badge-inactive { background:#f1f5f9; color:#475569; }
+    </style>
+</head>
+<body>
+
+<div id="login-wrap">
+    <h2 style="text-align:center; margin-bottom:1.5rem;">SportTrackPro</h2>
+    <form id="login-form">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Inserisci username" required>
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+        <button type="submit" class="btn" style="width:100%">Accedi</button>
+        <div id="error-msg" style="color:red; margin-top:10px; display:none; font-size:0.9rem;"></div>
+    </form>
+</div>
+
+<div id="app">
+    <nav id="sidebar">
+        <h3>SportTrackPro</h3>
+        <a data-section="dashboard">DASHBOARD</a>
+        <a data-section="stagioni">STAGIONI</a>
+        <a data-section="sport">SPORT</a>
+        <a data-section="societa">SOCIETÀ</a>
+        <a data-section="categoria">CATEGORIA</a>
+        <a data-section="squadra">SQUADRA</a>
+        <a data-section="staff">STAFF ASSEGNATO</a>
+        <a data-section="atleti">ATLETI</a>
+        <a data-section="sessioni">SESSIONI E PARTITE</a>
+        <button id="btn-logout" class="btn-logout">Esci</button>
+    </nav>
+
+    <main id="content">
+        </main>
+</div>
+
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" style="margin-top:0">Titolo Modal</h3>
+        <div id="modal-body"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+            <button class="btn" id="btn-modal-save">Salva</button>
+            <button class="btn" id="btn-modal-close" style="background:#64748b">Annulla</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { client } from './db.js';
+
+    let CURRENT_USER = null;
+
+    /* --- LOGICA MODAL --- */
+    const modal = {
+        el: document.getElementById('modal-overlay'),
+        title: document.getElementById('modal-title'),
+        body: document.getElementById('modal-body'),
+        open(title, html) {
+            this.title.innerText = title;
+            this.body.innerHTML = html;
+            this.el.classList.add('modal-active');
+        },
+        close() { this.el.classList.remove('modal-active'); }
+    };
+    document.getElementById('btn-modal-close').onclick = () => modal.close();
+
+    /* --- GESTIONE LOGIN / LOGOUT --- */
+    document.getElementById('login-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const errDiv = document.getElementById('error-msg');
+
+        const { data: userRow, error: userErr } = await client.from('users').select('*').eq('username', username).maybeSingle();
+        if (userErr || !userRow) { errDiv.innerText = "Utente non trovato"; errDiv.style.display="block"; return; }
+
+        const { data: auth, error: authErr } = await client.auth.signInWithPassword({ email: userRow.email, password });
+        if (authErr) { errDiv.innerText = "Password errata"; errDiv.style.display="block"; return; }
+
+        CURRENT_USER = userRow;
+        document.getElementById('login-wrap').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        loadPage('dashboard');
+    };
+
+    document.getElementById('btn-logout').onclick = () => location.reload();
+
+    /* --- NAVIGAZIONE (LOADER PAGINE) --- */
+    const loadPage = (section) => {
+        document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+        const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
+        if (link) link.classList.add('active');
+
+        const content = document.getElementById('content');
+
+        switch(section) {
+            case 'dashboard': 
+                content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
+                break;
+            
+            case 'stagioni': 
+                content.innerHTML = templateStagioni(); 
+                initStagioni(); 
+                break;
+				case 'sport':
+                content.innerHTML = templateSport();
+                initSport();
+                break;
+
+            case 'societa':
+                content.innerHTML = templateSocieta();
+                initSocieta();
+                break;
+
+            case 'categoria':
+                content.innerHTML = templateCategoria();
+                initCategoria();
+                break;
+
+            case 'squadra':
+                content.innerHTML = templateSquadra();
+                initSquadra();
+                break;
+            /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
+
+            default: 
+                content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>In fase di sviluppo...</p></div>`;
+        }
+    };
+
+    document.querySelectorAll('#sidebar a').forEach(a => {
+        a.onclick = () => loadPage(a.dataset.section);
+    });
+
+    /* ============================================================
+       PAGINA: STAGIONI (Esempio già integrato)
+       ============================================================ */
+    function templateStagioni() {
+        return `
+        <div class="card">
+            <div class="header">
+                <h2>GESTIONE STAGIONI</h2>
+                <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
+            </div>
+            <table>
+                <thead><tr><th>Nome</th><th>Inizio</th><th>Fine</th><th>Stato</th></tr></thead>
+                <tbody id="list-stagioni"></tbody>
+            </table>
+        </div>`;
+    }
+
+    async function initStagioni() {
+        const { data } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+        const tbody = document.getElementById('list-stagioni');
+        tbody.innerHTML = data?.map(s => `
+            <tr>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.start_date}</td>
+                <td>${s.end_date}</td>
+                <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+            </tr>
+        `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
+
+        // Bottone aggiunta
+        document.getElementById('btn-add-stagione').onclick = () => {
+            modal.open('Nuova Stagione', `
+                <label>Nome (es. 2025/2026)</label><input type="text" id="s-name">
+                <label>Data Inizio</label><input type="date" id="s-start">
+                <label>Data Fine</label><input type="date" id="s-end">
+            `);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                const name = document.getElementById('s-name').value;
+                const start = document.getElementById('s-start').value;
+                const end = document.getElementById('s-end').value;
+                await client.from('seasons').insert({ name, start_date: start, end_date: end });
+                modal.close();
+                initStagioni();
+            };
+        };
+    }
+/* --- SOCIETÀ --- */
+    function templateSocieta() {
+        return `<div class="card"><div class="header"><h2>SOCIETÀ</h2><button class="btn" id="btn-add-soc">+ Nuova Società</button></div>
+                <table><thead><tr><th>Nome</th></tr></thead><tbody id="list-soc"></tbody></table></div>`;
+    }
+    async function initSocieta() {
+        const { data } = await client.from('societies').select('*').order('name');
+        document.getElementById('list-soc').innerHTML = data?.map(s => `<tr><td><strong>${s.name}</strong></td></tr>`).join('') || '';
+        document.getElementById('btn-add-soc').onclick = () => {
+            modal.open('Nuova Società', `<label>Nome Società</label><input type="text" id="soc-name">`);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                await client.from('societies').insert({ name: document.getElementById('soc-name').value });
+                modal.close(); initSocieta();
+            };
+        };
+    }
+	/* --- SPORT --- */
+    function templateSport() {
+        return `<div class="card"><div class="header"><h2>SPORT</h2><button class="btn" id="btn-add-sport">+ Nuovo Sport</button></div>
+                <table><thead><tr><th>Icona</th><th>Nome</th></tr></thead><tbody id="list-sport"></tbody></table></div>`;
+    }
+    async function initSport() {
+        const { data } = await client.from('sports').select('*').order('name');
+        document.getElementById('list-sport').innerHTML = data?.map(s => `<tr><td>${s.icon}</td><td>${s.name}</td></tr>`).join('') || '';
+        document.getElementById('btn-add-sport').onclick = () => {
+            modal.open('Nuovo Sport', `<label>Nome</label><input type="text" id="sp-name"><label>Icona (Emoji)</label><input type="text" id="sp-icon">`);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                await client.from('sports').insert({ name: document.getElementById('sp-name').value, icon: document.getElementById('sp-icon').value });
+                modal.close(); initSport();
+            };
+        };
+    }
+	/* --- CATEGORIA --- */
+    function templateCategoria() {
+        return `<div class="card"><div class="header"><h2>CATEGORIE</h2><button class="btn" id="btn-add-cat">+ Nuova Categoria</button></div>
+                <table><thead><tr><th>Nome</th></tr></thead><tbody id="list-cat"></tbody></table></div>`;
+    }
+    async function initCategoria() {
+        const { data } = await client.from('categories').select('*').order('name');
+        document.getElementById('list-cat').innerHTML = data?.map(c => `<tr><td><strong>${c.name}</strong></td></tr>`).join('') || '';
+        document.getElementById('btn-add-cat').onclick = () => {
+            modal.open('Nuova Categoria', `<label>Nome Categoria</label><input type="text" id="cat-name">`);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                await client.from('categories').insert({ name: document.getElementById('cat-name').value });
+                modal.close(); initCategoria();
+            };
+        };
+    }
+	/* --- SQUADRA --- */
+    function templateSquadra() {
+        return `<div class="card"><div class="header"><h2>SQUADRE</h2><button class="btn" id="btn-add-team">+ Nuova Squadra</button></div>
+                <table><thead><tr><th>Nome</th><th>Società</th><th>Categoria</th><th>Sport</th></tr></thead><tbody id="list-team"></tbody></table></div>`;
+    }
+
+    async function initSquadra() {
+        const { data } = await client.from('teams').select(`
+            id, name, 
+            societies!rel_team_society(name), 
+            categories!rel_team_category(name), 
+            sports!rel_team_sport(name, icon)
+        `).order('name');
+
+        document.getElementById('list-team').innerHTML = data?.map(t => `
+            <tr>
+                <td><strong>${t.name}</strong></td>
+                <td>${t.societies?.name || '-'}</td>
+                <td><span class="badge badge-inactive">${t.categories?.name || '-'}</span></td>
+                <td>${t.sports?.icon || ''} ${t.sports?.name || '-'}</td>
+            </tr>
+        `).join('') || '';
+
+        document.getElementById('btn-add-team').onclick = async () => {
+            // Carichiamo le liste per i select del modal
+            const [soc, cat, spr] = await Promise.all([
+                client.from('societies').select('*'),
+                client.from('categories').select('*'),
+                client.from('sports').select('*')
+            ]);
+
+            modal.open('Nuova Squadra', `
+                <label>Nome Squadra</label><input type="text" id="t-name">
+                <label>Società</label><select id="t-soc">${soc.data.map(s=>`<option value="${s.id}">${s.name}</option>`)}</select>
+                <label>Categoria</label><select id="t-cat">${cat.data.map(c=>`<option value="${c.id}">${c.name}</option>`)}</select>
+                <label>Sport</label><select id="t-spr">${spr.data.map(sp=>`<option value="${sp.id}">${sp.icon} ${sp.name}</option>`)}</select>
+            `);
+
+            document.getElementById('btn-modal-save').onclick = async () => {
+                await client.from('teams').insert({
+                    name: document.getElementById('t-name').value,
+                    society_id: document.getElementById('t-soc').value,
+                    category_id: document.getElementById('t-cat').value,
+                    sport_id: document.getElementById('t-spr').value
+                });
+                modal.close(); initSquadra();
+            };
+        };
+    }
+    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+
+</script>
+</body>
+</html>
