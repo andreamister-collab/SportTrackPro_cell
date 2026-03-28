@@ -595,7 +595,7 @@ async function handleCategoriaDelete(id) {
     }
 }
 /* ============================================================
-   SEZIONE: SQUADRA (Gestione Teams)
+   SEZIONE: SQUADRA (Versione Definitiva con Modifica e Colonne Separate)
    ============================================================ */
 
 function templateSquadra() {
@@ -620,8 +620,9 @@ function templateSquadra() {
             </tbody>
         </table>
     </div>`;
+}
+
 async function initSquadra() {
-    // 1. Caricamento dati con JOIN esplicite
     const { data, error } = await client
         .from('teams')
         .select(`
@@ -642,7 +643,6 @@ async function initSquadra() {
         return;
     }
 
-    // 2. Rendering della tabella
     tbody.innerHTML = data?.map(t => `
         <tr>
             <td><strong>${t.name}</strong></td>
@@ -657,13 +657,10 @@ async function initSquadra() {
         </tr>
     `).join('') || '<tr><td colspan="5">Nessuna squadra presente.</td></tr>';
 
-    // 3. Bottone aggiungi
     document.getElementById('btn-add-squadra').onclick = () => openTeamModal();
 }
 
-// Funzione per aprire il Modal (sia per Nuovo che per Modifica)
 async function openTeamModal(editData = null) {
-    // Carichiamo le liste per le select
     const [resSoc, resCat, resSport] = await Promise.all([
         client.from('societies').select('id, name').order('name'),
         client.from('categories').select('id, name').order('name'),
@@ -718,12 +715,10 @@ async function openTeamModal(editData = null) {
     };
 }
 
-// Handler per il tasto modifica (chiamato dall'onclick della tabella)
 window.handleEditTeam = (id, name, socId, catId, sportId) => {
     openTeamModal({ id, name, socId, catId, sportId });
 };
 
-// Handler per eliminazione
 window.deleteTeam = async (id) => {
     if (confirm("Eliminare definitivamente questa squadra?")) {
         const { error } = await client.from('teams').delete().eq('id', id);
