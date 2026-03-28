@@ -615,15 +615,15 @@ function templateSquadra() {
 }
 
 async function initSquadra() {
-    // Grazie alle Foreign Keys, possiamo scaricare i nomi delle tabelle collegate
+    // Specifichiamo 'societies!society_id' per dire a Supabase di usare la colonna society_id
     const { data, error } = await client
         .from('teams')
         .select(`
             id,
             name,
-            societies (name),
-            categories (name),
-            sports (name, icon)
+            societies!society_id (name),
+            categories!category_id (name),
+            sports!sport_id (name, icon)
         `)
         .order('name');
 
@@ -648,6 +648,9 @@ async function initSquadra() {
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4">Nessuna squadra presente. Creane una!</td></tr>';
+
+    // ... il resto della funzione (btn-add-squadra.onclick) rimane invariato ...
+}
 
     // Gestione clic bottone "Nuova Squadra"
     document.getElementById('btn-add-squadra').onclick = async () => {
