@@ -768,7 +768,13 @@ function templateStaff() {
 }
 
 async function initStaff() {
-    const { data, error } = await client.from('users').select('*').order('username');
+    // Carichiamo tutto tranne l'utente con username 'admin'
+    const { data, error } = await client
+        .from('users')
+        .select('*')
+        .neq('username', 'admin') // Nasconde l'Admin dall'elenco
+        .order('name'); // Ordiniamo per Nome reale
+
     const tbody = document.getElementById('list-staff-users');
     
     if (error) {
@@ -778,70 +784,57 @@ async function initStaff() {
 
     tbody.innerHTML = data?.map(u => `
         <tr>
-            <td><strong>${u.username}</strong></td>
-            <td>${u.email}</td>
+            <td><strong>${u.name || u.username}</strong></td> <td>${u.email}</td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}', '${u.username}')">✏️</button>
+                <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}', '${u.name || u.username}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="3">Nessun membro dello staff registrato.</td></tr>';
 
-    // Evento per aggiungere nuovo staff
+    // Gestione Bottone Aggiunta
     document.getElementById('btn-add-staff-user').onclick = () => {
         modal.open('Registra Nuovo Staff', `
-            <label>Username (Nome e Cognome)</label>
-            <input type="text" id="new-u-name" placeholder="es. Mario Rossi">
-            <label>Email (Necessaria per il Login)</label>
-            <input type="email" id="new-u-email" placeholder="mario.rossi@email.it">
-            <label>Password Temporanea</label>
+            <label>Nome e Cognome</label>
+            <input type="text" id="new-u-full-name" placeholder="es. Mario Rossi">
+            <label>Username (per identificazione interna)</label>
+            <input type="text" id="new-u-username" placeholder="es. mario.rossi">
+            <label>Email (Login)</label>
+            <input type="email" id="new-u-email" placeholder="mario@email.it">
+            <label>Password</label>
             <input type="password" id="new-u-pass" placeholder="••••••••">
-            <p style="font-size:0.8rem; color:#666">L'utente potrà cambiare la password al primo accesso.</p>
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const username = document.getElementById('new-u-name').value;
+            const name = document.getElementById('new-u-full-name').value;
+            const username = document.getElementById('new-u-username').value;
             const email = document.getElementById('new-u-email').value;
             const password = document.getElementById('new-u-pass').value;
 
-            if(!username || !email || !password) return alert("Tutti i campi sono obbligatori!");
+            const { data: authData, error: authErr } = await client.auth.signUp({ email, password });
+            if (authErr) return alert(authErr.message);
 
-            // 1. Creazione utente in Supabase AUTH
-            const { data: authData, error: authErr } = await client.auth.signUp({
-                email: email,
-                password: password,
-            });
-
-            if (authErr) return alert("Errore registrazione: " + authErr.message);
-
-            // 2. Salvataggio dati nella nostra tabella 'users'
-            // Usiamo l'ID generato dall'Auth per tenere i dati sincronizzati
-            const { error: dbErr } = await client.from('users').insert({
+            await client.from('users').insert({
                 id: authData.user.id,
-                username: username,
+                name: name,         // Salviamo il Nome Reale
+                username: username, // Salviamo lo Username
                 email: email
             });
 
-            if (dbErr) {
-                alert("Errore salvataggio database: " + dbErr.message);
-            } else {
-                modal.close();
-                initStaff();
-            }
+            modal.close();
+            initStaff();
         };
     };
 }
-
 // Funzioni Globali per Azioni Staff
-window.handleEditStaff = async (id, currentUsername) => {
-    const newUsername = prompt("Modifica Username:", currentUsername);
-    if (newUsername && newUsername !== currentUsername) {
-        const { error } = await client.from('users').update({ username: newUsername }).eq('id', id);
+window.handleEditStaff = async (id, currentName) => {
+    const newName = prompt("Modifica Nome e Cognome:", currentName);
+    if (newName && newName !== currentName) {
+        const { error } = await client.from('users').update({ name: newName }).eq('id', id);
         if (!error) initStaff();
         else alert(error.message);
     }
 };
-
 window.handleDeleteStaff = async (id) => {
     if (confirm("Attenzione: eliminando l'utente lo rimuoverai anche da tutte le assegnazioni. Procedere?")) {
         const { error } = await client.from('users').delete().eq('id', id);
