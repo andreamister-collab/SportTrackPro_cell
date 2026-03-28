@@ -1046,13 +1046,14 @@ window.deleteAssignment = async (id) => {
     }
 };
 /* ============================================================
-   GESTIONE ATLETI - VERSIONE DEFINITIVA (SOCIETÀ + IMPORT)
+   MODULO ANAGRAFICA ATLETI - FIX DEFINITIVO
    ============================================================ */
 
+// 1. TEMPLATE (Include Società e Tasto Import)
 window.templateAtleti = function() {
     return `
     <div class="card">
-        <div class="header">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
             <h2>ANAGRAFICA ATLETI</h2>
             <div class="actions" style="display: flex; gap: 10px;">
                 <button class="btn btn-outline" onclick="exportAtleti()">📤 Esporta Excel</button>
@@ -1062,32 +1063,26 @@ window.templateAtleti = function() {
             </div>
         </div>
 
-        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
             <div>
-                <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Atleta</label>
-                <input type="text" id="filter-name" placeholder="Cognome/Nome..." oninput="applyAtletiFilters()">
+                <label style="font-size: 11px; font-weight:bold;">Cerca Atleta</label>
+                <input type="text" id="filter-name" placeholder="Cognome..." oninput="applyAtletiFilters()" style="width:100%">
             </div>
             <div>
-                <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
-                <select id="filter-society" onchange="applyAtletiFilters()">
-                    <option value="">Tutte</option>
-                </select>
+                <label style="font-size: 11px; font-weight:bold;">Società</label>
+                <select id="filter-society" onchange="applyAtletiFilters()" style="width:100%"><option value="">Tutte</option></select>
             </div>
             <div>
-                <label style="font-size: 11px; color: #64748b; font-weight:bold;">Stagione</label>
-                <select id="filter-season" onchange="applyAtletiFilters()"></select>
+                <label style="font-size: 11px; font-weight:bold;">Stagione</label>
+                <select id="filter-season" onchange="applyAtletiFilters()" style="width:100%"></select>
             </div>
             <div>
-                <label style="font-size: 11px; color: #64748b; font-weight:bold;">Categoria</label>
-                <select id="filter-category" onchange="applyAtletiFilters()">
-                    <option value="">Tutte</option>
-                </select>
+                <label style="font-size: 11px; font-weight:bold;">Categoria</label>
+                <select id="filter-category" onchange="applyAtletiFilters()" style="width:100%"><option value="">Tutte</option></select>
             </div>
             <div>
-                <label style="font-size: 11px; color: #64748b; font-weight:bold;">Squadra</label>
-                <select id="filter-team" onchange="applyAtletiFilters()">
-                    <option value="">Tutte</option>
-                </select>
+                <label style="font-size: 11px; font-weight:bold;">Squadra</label>
+                <select id="filter-team" onchange="applyAtletiFilters()" style="width:100%"><option value="">Tutte</option></select>
             </div>
         </div>
 
@@ -1111,8 +1106,37 @@ window.templateAtleti = function() {
     </div>`;
 };
 
-// Funzione per il caricamento dei dati (Assicurati di includere 'societies' nella select)
-async function loadAtletiData() {
+// 2. LOGICA DI INIZIALIZZAZIONE (FIX ReferenceError)
+window.allAtletiData = []; // Variabile globale per i dati
+
+window.initAtleti = async function() {
+    try {
+        // Caricamento dati per i filtri
+        const [socs, seas, cats, teams] = await Promise.all([
+            client.from('societies').select('*').order('name'),
+            client.from('seasons').select('*').order('name'),
+            client.from('categories').select('*').order('name'),
+            client.from('teams').select('*').order('name')
+        ]);
+
+        // Popolamento select filtri
+        const fSoc = document.getElementById('filter-society');
+        const fSea = document.getElementById('filter-season');
+        const fCat = document.getElementById('filter-category');
+        const fTea = document.getElementById('filter-team');
+
+        if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        if(fSea) fSea.innerHTML = seas.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
+        if(fCat) fCat.innerHTML = '<option value="">Tutte</option>' + cats.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        if(fTea) fTea.innerHTML = '<option value="">Tutte</option>' + teams.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+        await window.loadAtletiData();
+    } catch (err) {
+        console.error("Errore inizializzazione:", err);
+    }
+};
+
+window.loadAtletiData = async function() {
     const { data, error } = await client
         .from('athlete_team_seasons')
         .select(`
@@ -1125,31 +1149,64 @@ async function loadAtletiData() {
         `);
 
     if (error) return console.error(error);
-    allAtletiData = data || [];
-    applyAtletiFilters();
-}
+    window.allAtletiData = data || [];
+    window.applyAtletiFilters();
+};
 
-// Rendering della tabella con la colonna Società
-function renderAtletiTable(data) {
+// 3. FILTRI E RENDERING
+window.applyAtletiFilters = function() {
+    const nameVal = document.getElementById('filter-name')?.value.toLowerCase();
+    const socVal = document.getElementById('filter-society')?.value;
+    const seaVal = document.getElementById('filter-season')?.value;
+    const catVal = document.getElementById('filter-category')?.value;
+    const teamVal = document.getElementById('filter-team')?.value;
+
+    const filtered = window.allAtletiData.filter(row => {
+        return (!nameVal || `${row.athletes?.surname} ${row.athletes?.name}`.toLowerCase().includes(nameVal)) &&
+               (!socVal || row.societies?.id == socVal) &&
+               (!seaVal || row.seasons?.id == seaVal) &&
+               (!catVal || row.categories?.id == catVal) &&
+               (!teamVal || row.teams?.id == teamVal);
+    });
+
     const tbody = document.getElementById('list-atleti');
     if (!tbody) return;
 
-    tbody.innerHTML = data.map(row => `
+    tbody.innerHTML = filtered.map(row => `
         <tr>
             <td><strong>${row.athletes?.surname || ''} ${row.athletes?.name || ''}</strong></td>
-            <td><span style="color: #2563eb; font-weight: 500;">${row.societies?.name || '-'}</span></td>
+            <td><small>${row.societies?.name || '-'}</small></td>
             <td>${row.seasons?.name || '-'}</td>
             <td>${row.categories?.name || '-'}</td>
-            <td>${row.teams?.name || 'Intera Categoria'}</td>
+            <td>${row.teams?.name || 'Intera Cat.'}</td>
             <td><span class="badge-role">${row.role || '-'}</span></td>
-            <td style="text-align:center"><b>${row.jersey_number || '-'}</b></td>
+            <td style="text-align:center">${row.jersey_number || '-'}</td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="openAtletaModal('${row.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="deleteAtleta('${row.id}')">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="8">Nessun atleta trovato.</td></tr>';
-}
+};
+
+// 4. EXPORT E ELIMINA (Inclusa Società)
+window.exportAtleti = function() {
+    const table = document.querySelector("table");
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll("tr")).map(tr => 
+        Array.from(tr.querySelectorAll("th, td")).slice(0, -1).map(td => td.innerText.trim())
+    );
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Atleti");
+    XLSX.writeFile(wb, "SportTrackPro_Atleti.xlsx");
+};
+
+window.deleteAtleta = async function(id) {
+    if (!confirm("Rimuovere l'atleta dalla stagione?")) return;
+    const { error } = await client.from('athlete_team_seasons').delete().eq('id', id);
+    if (!error) window.loadAtletiData();
+};
 // 4. EXPORT EXCEL REALE (Richiede libreria SheetJS)
 window.exportAtleti = function() {
     const table = document.querySelector("table");
