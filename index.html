@@ -1135,6 +1135,7 @@ if (error) console.error("Se vedi ancora 403 qui, la tua API KEY è invalida o R
 async function openAtletaModal(activeSeasonId, editId = null) {
     let editData = null;
     if (editId) {
+        // Recuperiamo i dati: nickname è in athlete_team_seasons
         const { data } = await client.from('athlete_team_seasons').select('*, athletes(*)').eq('id', editId).single();
         editData = data;
     }
@@ -1177,7 +1178,7 @@ async function openAtletaModal(activeSeasonId, editId = null) {
             </div>
             <div>
                 <label>Soprannome</label>
-                <input type="text" id="at-nickname" value="${editData?.athletes?.nickname || ''}" placeholder="es. Lucone">
+                <input type="text" id="at-nickname" value="${editData?.nickname || ''}" placeholder="es. Lucone">
             </div>
             <div>
                 <label>Data di Nascita</label>
@@ -1186,10 +1187,6 @@ async function openAtletaModal(activeSeasonId, editId = null) {
             <div>
                 <label>Numero Maglia</label>
                 <input type="number" id="at-jersey" value="${editData?.jersey_number || ''}" placeholder="Lascia vuoto se N/D">
-            </div>
-            <div>
-                <label>Ruolo</label>
-                <input type="text" id="at-role" value="${editData?.role || ''}" placeholder="Attaccante">
             </div>
         </div>
     `);
@@ -1200,32 +1197,48 @@ async function openAtletaModal(activeSeasonId, editId = null) {
         const nickname = document.getElementById('at-nickname').value.trim();
         const category_id = document.getElementById('at-category').value;
         const teamEl = document.getElementById('at-team');
+        const born_date = document.getElementById('at-born').value;
+        const jersey = document.getElementById('at-jersey').value;
 
-        if (!surname || !name || !category_id) return alert("Compila i campi obbligatori!");
+        if (!surname || !name || !category_id) return alert("Cognome, Nome e Categoria sono obbligatori!");
 
-        // 1. Upsert Atleta
-        const { data: athlete, error: aErr } = await client.from('athletes').upsert({
+        // 1. SALVATAGGIO ANAGRAFICA (Tabella: athletes)
+        // Inviamo solo le colonne che esistono sicuramente in athletes
+        const athletePayload = {
             id: editData?.athletes?.id || undefined,
-            name, surname, nickname,
-            born_date: document.getElementById('at-born').value || null,
-            society_id: teamEl.options[teamEl.selectedIndex]?.getAttribute('data-soc') || editData?.society_id
-        }).select().single();
+            surname: surname,
+            name: name,
+            born_date: born_date || null
+        };
 
-        if (aErr) return alert("Errore Anagrafica: " + aErr.message);
+        const { data: athlete, error: aErr } = await client.from('athletes').upsert(athletePayload).select().single();
+        
+        if (aErr) {
+            console.error("Errore Athletes:", aErr);
+            return alert("Errore Anagrafica: " + aErr.message);
+        }
 
-        // 2. Upsert Assegnazione
-        const { error: assErr } = await client.from('athlete_team_seasons').upsert({
+        // 2. SALVATAGGIO ASSEGNAZIONE (Tabella: athlete_team_seasons)
+        const assignmentPayload = {
             id: editId || undefined,
             athlete_id: athlete.id,
             season_id: activeSeasonId,
-            category_id,
+            category_id: category_id,
             team_id: teamEl.value || null,
-            society_id: athlete.society_id,
-            jersey_number: document.getElementById('at-jersey').value || null,
-            role: document.getElementById('at-role').value
-        });
+            society_id: teamEl.options[teamEl.selectedIndex]?.getAttribute('data-soc') || editData?.society_id,
+            nickname: nickname, // Il soprannome va qui
+            jersey_number: jersey || null // Numero maglia stagionale [cite: 2026-03-28]
+        };
 
-        if (!assErr) { modal.close(); initAtleti(); } else { alert(assErr.message); }
+        const { error: assErr } = await client.from('athlete_team_seasons').upsert(assignmentPayload);
+
+        if (!assErr) {
+            modal.close();
+            initAtleti();
+        } else {
+            console.error("Errore Assegnazione:", assErr);
+            alert("Errore Assegnazione: " + assErr.message);
+        }
     };
 }
 // EXPORT
