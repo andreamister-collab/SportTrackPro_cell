@@ -603,7 +603,7 @@ window.handleCategoriaDelete = async function(id) {
     }
 };
 /* ============================================================
-   SEZIONE: SQUADRA (Anagrafica Team)
+   SEZIONE: SQUADRA (Anagrafica Team) - CORRETTA
    ============================================================ */
 
 function templateSquadra() {
@@ -636,55 +636,146 @@ async function initSquadra() {
     const infoBanner = document.getElementById('team-season-info');
     if (!tbody) return;
 
-    const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
+    // 1. Recupero la Stagione Attiva
+    const { data: activeSeason, error: sErr } = await client
+        .from('seasons')
+        .select('*')
+        .eq('is_active', true)
+        .maybeSingle();
     
     if (!activeSeason) {
-        if (infoBanner) infoBanner.innerHTML = "⚠️ Seleziona una stagione attiva.";
-        tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva.</td></tr>';
+        if (infoBanner) infoBanner.innerHTML = "⚠️ Seleziona una stagione attiva nelle impostazioni.";
+        tbody.innerHTML = '<tr><td colspan="5">Nessuna stagione attiva trovata.</td></tr>';
         return;
     }
     if (infoBanner) infoBanner.innerText = `📅 Stagione Attiva: ${activeSeason.name}`;
 
+    // 2. Query con join semplici sulle tabelle al plurale
     const { data, error } = await client
         .from('teams')
-        .select('*, societies(name), categories(name), sports(name, icon)')
+        .select(`
+            id,
+            name,
+            season_id,
+            society_id,
+            category_id,
+            sport_id,
+            societies (name),
+            categories (name),
+            sports (name, icon)
+        `)
         .eq('season_id', activeSeason.id)
         .order('name');
 
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
+        console.error("Errore dettagliato query teams:", error);
+        tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}. Verifica i nomi delle tabelle nel DB.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = data?.map(t => `
+    tbody.innerHTML = data?.map(t => {
+        // Protezione per i nomi con apostrofi nelle funzioni onclick
+        const safeName = t.name.replace(/'/g, "\\'");
+        return `
         <tr>
             <td><strong>${t.name}</strong></td>
             <td>${t.societies?.name || '-'}</td>
             <td>${t.categories?.name || '-'}</td>
-            <td>${t.sports?.icon || ''} ${t.sports?.name || '-'}</td>
+            <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="handleEditSquadra('${t.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteSquadra('${t.id}')">🗑️</button>
             </td>
-        </tr>
-    `).join('') || '<tr><td colspan="5">Nessuna squadra per questa stagione.</td></tr>';
+        </tr>`;
+    }).join('') || '<tr><td colspan="5">Nessuna squadra presente per questa stagione.</td></tr>';
 
     document.getElementById('btn-add-squadra').onclick = () => openSquadraModal(activeSeason.id);
 }
 
-// Funzioni Globali Squadra
-window.handleEditSquadra = async (id) => {
-    const { data } = await client.from('teams').select('*').eq('id', id).single();
-    if (data) openSquadraModal(data.season_id, data);
-};
+/* --- FUNZIONI GLOBALI SQUADRA --- */
 
-window.handleDeleteSquadra = async (id) => {
-    if (confirm("Eliminare la squadra?")) {
-        await client.from('teams').delete().eq('id', id);
-        initSquadra();
+window.handleEditSquadra = async function(id) {
+    const { data, error } = await client.from('teams').select('*').eq('id', id).single();
+    if (!error && data) {
+        openSquadraModal(data.season_id, data);
+    } else {
+        alert("Errore nel recupero dati squadra.");
     }
 };
 
+window.handleDeleteSquadra = async function(id) {
+    if (confirm("Sei sicuro di voler eliminare questa squadra?")) {
+        const { error } = await client.from('teams').delete().eq('id', id);
+        if (!error) {
+            initSquadra();
+        } else {
+            alert("Errore durante l'eliminazione: " + error.message);
+        }
+    }
+};
+
+/**
+ * Modale per Nuova/Modifica Squadra
+ */
+async function openSquadraModal(activeSeasonId, editData = null) {
+    const isEdit = !!editData;
+
+    // Caricamento liste per le tendine
+    const [socRes, catRes, spoRes] = await Promise.all([
+        client.from('societies').select('id, name').order('name'),
+        client.from('categories').select('id, name').order('name'),
+        client.from('sports').select('id, name, icon').order('name')
+    ]);
+
+    modal.open(isEdit ? 'Modifica Squadra' : 'Nuova Squadra', `
+        <div style="margin-bottom:15px; padding:10px; background:#ecfdf5; border-radius:6px; color:#065f46; font-size:0.85em; border:1px solid #d1fae5;">
+            Salvataggio in stagione: <strong>Selezionata/Attiva</strong>
+        </div>
+        
+        <label>Nome Squadra</label>
+        <input type="text" id="tm-name" value="${editData ? editData.name : ''}" placeholder="es. Esordienti 2012">
+        
+        <label>Società</label>
+        <select id="tm-soc">
+            <option value="">-- Seleziona Società --</option>
+            ${socRes.data?.map(s => `<option value="${s.id}" ${editData?.society_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+        </select>
+
+        <label>Categoria</label>
+        <select id="tm-cat">
+            <option value="">-- Seleziona Categoria --</option>
+            ${catRes.data?.map(c => `<option value="${c.id}" ${editData?.category_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        </select>
+
+        <label>Sport</label>
+        <select id="tm-spo">
+            <option value="">-- Seleziona Sport --</option>
+            ${spoRes.data?.map(p => `<option value="${p.id}" ${editData?.sport_id === p.id ? 'selected' : ''}>${p.icon} ${p.name}</option>`).join('')}
+        </select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('tm-name').value.trim();
+        const society_id = document.getElementById('tm-soc').value;
+        const category_id = document.getElementById('tm-cat').value;
+        const sport_id = document.getElementById('tm-spo').value;
+
+        if(!name || !society_id || !category_id || !sport_id) return alert("Tutti i campi sono obbligatori!");
+
+        const payload = { name, society_id, category_id, sport_id, season_id: activeSeasonId };
+
+        const { error } = isEdit 
+            ? await client.from('teams').update(payload).eq('id', editData.id)
+            : await client.from('teams').insert(payload);
+
+        if (!error) { 
+            modal.close(); 
+            initSquadra(); 
+        } else { 
+            alert("Errore nel salvataggio: " + error.message); 
+        }
+    };
+}
 // Modale (Vedi messaggio precedente per logica openSquadraModal con activeSeasonId)
 /* ============================================================
    SEZIONE: STAFF (Anagrafica Utenti)
