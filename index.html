@@ -6,38 +6,63 @@
     <title>SportTrackPro - Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
-        * { box-sizing:border-box; }
-        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
-        
-        /* LOGIN */
-        #login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
-        
-        /* APP LAYOUT */
-        #app { display:none; flex-direction:row; min-height:100vh; }
-        #sidebar { width:260px; background:var(--sidebar); color:#cbd5e1; padding:1rem; display:flex; flex-direction:column; position:fixed; height:100vh; }
-        #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
-        #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
-        #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
-        #content { flex:1; margin-left:260px; padding:2rem; overflow-x:auto; }
+ :root {
+    --primary: #4f46e5;
+    --bg-main: #f8fafc;
+    --card-bg: #ffffff;
+    --text-main: #1e293b;
+    --border: #e2e8f0;
+    --radius: 12px;
+}
 
-        /* COMPONENTS */
-        .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
-        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #eee; padding-bottom:10px; }
-        .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
-        .btn-logout { background:var(--danger); margin-top:auto; padding:0.7rem; border-radius:6px; border:none; color:white; cursor:pointer; }
-        
-        /* TABLE & MODAL */
-        table { width:100%; border-collapse:collapse; }
-        th, td { padding:0.8rem; border-bottom:1px solid #e2e8f0; text-align:left; }
-        th { background:#f8fafc; font-size:0.85rem; color:#64748b; }
-        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
-        .modal-content { background:white; padding:2rem; border-radius:12px; width:90%; max-width:450px; }
-        .modal-active { display:flex; }
-        input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:1rem; margin-top:0.3rem; }
-        .badge { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; }
-        .badge-active { background:#dcfce7; color:#166534; }
-        .badge-inactive { background:#f1f5f9; color:#475569; }
+body { background-color: var(--bg-main); color: var(--text-main); font-family: 'Inter', sans-serif; }
+
+/* Card Moderna */
+.card {
+    border: none;
+    border-radius: var(--radius);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    background: var(--card-bg);
+}
+
+/* Tabella Moderna */
+table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+th { 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+    letter-spacing: 0.05em; 
+    color: #64748b; 
+    padding: 12px;
+}
+tr { background: #ffffff; transition: transform 0.2s; }
+tr:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+
+td { 
+    padding: 16px; 
+    border-top: 1px solid var(--border); 
+    border-bottom: 1px solid var(--border);
+}
+td:first-child { border-left: 1px solid var(--border); border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+td:last-child { border-right: 1px solid var(--border); border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+/* Badge Moderni */
+.badge-cat {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge-soc {
+    color: #64748b;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
     </style>
 </head>
 <body>
@@ -626,11 +651,7 @@ async function initSquadra() {
     const { data, error } = await client
         .from('teams')
         .select(`
-            id,
-            name,
-            society_id,
-            category_id,
-            sport_id,
+            id, name, society_id, category_id, sport_id,
             societies!rel_team_society (name),
             categories!rel_team_category (name),
             sports!rel_team_sport (name, icon)
@@ -639,27 +660,34 @@ async function initSquadra() {
 
     const tbody = document.getElementById('list-squadra');
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color:red">Errore: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5">Errore caricamento</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data?.map(t => `
         <tr>
-            <td><strong>${t.name}</strong></td>
-            <td>${t.societies?.name || '-'}</td>
-            <td><span class="badge badge-inactive">${t.categories?.name || '-'}</span></td>
-            <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
+            <td>
+                <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary)">${t.name}</div>
+                <div class="badge-soc">🏢 ${t.societies?.name || 'Indipendente'}</div>
+            </td>
+            <td>
+                <span class="badge-cat">${t.categories?.name || 'Generica'}</span>
+            </td>
+            <td>
+                <div style="font-size: 1.2rem">${t.sports?.icon || '🚩'}</div>
+                <div style="font-size: 0.7rem; color: #94a3b8">${t.sports?.name || 'Sport'}</div>
+            </td>
             <td style="text-align:right">
-                <button class="btn-sm" style="background:var(--warning); margin-right:5px" 
-                    onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️</button>
-                <button class="btn-sm" style="background:var(--danger)" onclick="deleteTeam('${t.id}')">🗑️</button>
+                <button class="btn-sm" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a" 
+                    onclick="handleEditTeam('${t.id}', '${t.name.replace(/'/g, "\\'")}', '${t.society_id}', '${t.category_id}', '${t.sport_id}')">✏️ Modifica</button>
+                <button class="btn-sm" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; margin-left:8px" 
+                    onclick="deleteTeam('${t.id}')">🗑️ Elimina</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="5">Nessuna squadra presente.</td></tr>';
+    `).join('') || '<tr><td colspan="5">Nessuna squadra trovata.</td></tr>';
 
     document.getElementById('btn-add-squadra').onclick = () => openTeamModal();
 }
-
 async function openTeamModal(editData = null) {
     const [resSoc, resCat, resSport] = await Promise.all([
         client.from('societies').select('id, name').order('name'),
