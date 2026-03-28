@@ -1129,7 +1129,7 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ATLETI - FILTRI PROGRESSIVI E JERSEY NUMBER
+   MODULO ATLETI - FIX REFERENCE ERROR & FILTRI PROGRESSIVI
    ============================================================ */
 
 (function() {
@@ -1138,8 +1138,8 @@ window.handleDeleteStaff = async function(id) {
     let _lookupSocs = {};     
     let _lookupSeas = {};     
 
-    // --- 1. IL TEMPLATE ---
-    window.templatePlayers = function() {
+    // --- 1. IL TEMPLATE (Rinominato in templateAtleti per loadPage) ---
+    window.templateAtleti = function() {
         return `
         <div class="card">
             <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1191,8 +1191,8 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
-    // --- 2. INIZIALIZZAZIONE ---
-    window.initPlayers = async function() {
+    // --- 2. INIZIALIZZAZIONE (Rinominato in initAtleti) ---
+    window.initAtleti = async function() {
         try {
             const [socs, seas, teams] = await Promise.all([
                 client.from('societies').select('*').order('name'),
@@ -1267,7 +1267,7 @@ window.handleDeleteStaff = async function(id) {
         const team = document.getElementById('f-player-team')?.value;
 
         const filtered = _allAssignments.filter(a => {
-            const fullName = `${a.players?.surname} ${a.players?.name}`.toLowerCase();
+            const fullName = `${a.players?.surname || ''} ${a.players?.name || ''}`.toLowerCase();
             return (!name || fullName.includes(name)) &&
                    (!soc || a.society_id == soc) &&
                    (!sea || a.season_id == sea) &&
@@ -1311,7 +1311,7 @@ window.handleDeleteStaff = async function(id) {
                 <option value="">-- Seleziona Squadra --</option>
                 ${tRes.data?.map(t => `<option value="${t.id}" data-cat="${t.category_id}" data-soc="${t.society_id}" ${isEdit && editData.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
-            <label>N° Maglia</label>
+            <label>N° Maglia (Opzionale)</label>
             <input type="number" id="ap-jersey" value="${isEdit ? (editData.jersey_number || '') : ''}">
         `);
 
