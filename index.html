@@ -1303,25 +1303,23 @@ window.applyAtletiFilters = function() {
    IMPORTAZIONE ATLETI: LOGICA DI MAPPATURA E CREAZIONE
    ============================================================ */
 /* ============================================================
-   IMPORTAZIONE ATLETI CON LOG DI ERRORE DETTAGLIATO
+   IMPORTAZIONE ATLETI CON DIAGNOSTICA IN TEMPO REALE
    ============================================================ */
-/* ============================================================
-   IMPORTAZIONE ATLETI CON DIAGNOSTICA AVANZATA
-   ============================================================ */
-
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        console.group("🚀 START IMPORT");
+        console.group("🚀 Debug Importazione Atleti");
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-            // 1. Carichiamo le anagrafiche per mappare i nomi agli ID
+            console.log("1. Righe trovate nell'Excel:", jsonData.length);
+
+            // Carichiamo le tabelle di riferimento per mappare i nomi agli ID
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1332,42 +1330,49 @@ window.importAtleti = async function(event) {
 
             const findId = (list, name, label) => {
                 if (!name) return null;
-                const match = list.find(i => i.name?.trim().toLowerCase() === name.toString().trim().toLowerCase());
-                if (!match) console.error(`❌ MAPPING FALLITO: "${name}" non trovato in tabella ${label}`);
+                const match = list.find(i => i.name?.toString().trim().toLowerCase() === name.toString().trim().toLowerCase());
+                if (!match) console.warn(`⚠️ MAPPING FALLITO: "${name}" non trovato nella tabella ${label}`);
                 return match?.id;
             };
 
             const toInsert = [];
-            let nuoviAtleti = 0;
+            let newAthletesCount = 0;
 
-            for (const row of jsonData) {
-                // Pulizia Atleta (Esempio: "Amorelli " -> Surname: Amorelli, Name: "")
+            for (let i = 0; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                const rigaLog = `Riga ${i + 2}`;
+
+                // --- 1. GESTIONE ATLETA (CREA SE NON ESISTE) ---
                 let fullStr = row.Atleta?.toString().trim() || "";
                 let parts = fullStr.split(" ");
                 let surname = parts[0];
                 let name = parts.slice(1).join(" ") || " ";
 
-                // A. Cerchiamo o Creiamo l'atleta
                 let athleteId = existingAths.data.find(a => 
                     a.surname.toLowerCase() === surname.toLowerCase() && a.name.toLowerCase() === name.toLowerCase()
                 )?.id;
 
                 if (!athleteId) {
-                    console.log(`👤 Creazione nuovo atleta: ${surname} ${name}`);
-                    const { data: nA, error: eA } = await client.from('athletes')
+                    console.log(`👤 ${rigaLog}: Atleta nuovo "${fullStr}". Lo creo...`);
+                    const { data: newA, error: errA } = await client.from('athletes')
                         .insert([{ name, surname }]).select('id').single();
-                    if (eA) { console.error("Errore creazione atleta:", eA); continue; }
-                    athleteId = nA.id;
-                    nuoviAtleti++;
+                    
+                    if (errA) {
+                        console.error(`❌ ${rigaLog}: Errore creazione atleta:`, errA.message);
+                        continue;
+                    }
+                    athleteId = newA.id;
+                    newAthletesCount++;
                     existingAths.data.push({ id: athleteId, name, surname });
                 }
 
-                // B. Mapping dei nomi in ID (UUID)
+                // --- 2. MAPPING UUID (DA TESTO A CODICE ID) ---
                 const sId = findId(socs.data, row.Società, "SOCIETÀ");
-                const seaId = findId(seas.data, row.Stagione, "STAGIONE");
-                const cId = findId(cats.data, row.Categoria, "CATEGORIA");
-                const tId = findId(teams.data, row.Squadra, "SQUADRA");
+                const seaId = findId(seas.data, row.Stagione, "STAGIONI");
+                const cId = findId(cats.data, row.Categoria, "CATEGORIE");
+                const tId = findId(teams.data, row.Squadra, "SQUADRE");
 
+                // Controllo dati minimi obbligatori
                 if (athleteId && sId && seaId) {
                     toInsert.push({
                         athlete_id: athleteId,
@@ -1376,24 +1381,32 @@ window.importAtleti = async function(event) {
                         category_id: cId || null,
                         team_id: tId || null,
                         role: row.Ruolo || 'Atleta',
-                        jersey_number: row['N°'] || row.Numero || null
+                        jersey_number: row['N°'] || row.Numero || null,
+                        nickname: row.Nickname || null
                     });
+                } else {
+                    console.error(`❌ ${rigaLog}: Impossibile inserire. Mancano Società o Stagione corrispondenti nel DB.`);
                 }
             }
 
-            // 2. Inserimento massivo
+            // --- 3. INSERIMENTO FINALE ---
             if (toInsert.length > 0) {
-                console.log("📤 Inviando dati a Supabase...", toInsert);
-                const { error: errIns } = await client.from('athlete_team_seasons').insert(toInsert);
-                if (errIns) throw errIns;
-                alert(`✅ Import completato!\n- Nuovi atleti: ${nuoviAtleti}\n- Record inseriti: ${toInsert.length}`);
+                console.log(`📤 Invio ${toInsert.length} record a Supabase...`);
+                const { error: finalErr } = await client.from('athlete_team_seasons').insert(toInsert);
+
+                if (finalErr) {
+                    console.error("❌ ERRORE DATABASE:", finalErr.message);
+                    alert("Errore Supabase: " + finalErr.message);
+                } else {
+                    console.log("✅ IMPORT COMPLETATO!");
+                    alert(`Import riuscito!\n- Creati ${newAthletesCount} nuovi atleti\n- Inserite ${toInsert.length} assegnazioni.`);
+                }
             } else {
-                alert("❌ Nessun dato valido trovato. Apri la console (F12) per i dettagli.");
+                alert("Nessun dato valido da importare. Apri la console (F12) per vedere gli errori rossi.");
             }
 
         } catch (err) {
-            console.error("🔥 Errore Import:", err);
-            alert("Errore critico: " + err.message);
+            console.error("🔥 ERRORE SCRIPT:", err);
         }
         console.groupEnd();
         if (window.loadAtletiData) await window.loadAtletiData();
