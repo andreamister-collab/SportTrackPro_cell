@@ -613,29 +613,45 @@ function templateSquadra() {
 }
 
 async function initSquadra() {
-    // Carichiamo le squadre con i dati di categorie (e società collegate) e stagioni
+    // Usiamo i nomi esatti delle tue tabelle e colonne
+    // Nota: categories(name) e seasons(name) funzionano se hai le Foreign Keys impostate
     const { data, error } = await client
         .from('teams')
         .select(`
             *,
-            categories (name, societies (name)),
-            seasons (name)
+            categories(name),
+            seasons(name),
+            societies(name),
+            sports(name, icon)
         `)
         .order('created_at', { ascending: false });
 
     const tbody = document.getElementById('list-squadra');
-    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
+    if (error) { 
+        console.error("Errore query:", error);
+        tbody.innerHTML = `<tr><td colspan="4">Errore caricamento: ${error.message}</td></tr>`; 
+        return; 
+    }
 
     tbody.innerHTML = data?.map(t => `
         <tr>
-            <td><strong>${t.name}</strong></td>
-            <td>${t.categories?.name} <br><small>${t.categories?.societies?.name}</small></td>
-            <td><span class="badge badge-inactive">${t.seasons?.name}</span></td>
+            <td>
+                <strong>${t.name}</strong><br>
+                <small>${t.sports?.icon || ''} ${t.sports?.name || ''}</small>
+            </td>
+            <td>
+                ${t.categories?.name || 'N/A'}<br>
+                <small>${t.societies?.name || 'N/A'}</small>
+            </td>
+            <td><span class="badge badge-inactive">${t.seasons?.name || 'N/A'}</span></td>
             <td style="text-align:right">
                 <button class="btn-sm btn-team-delete" data-id="${t.id}" style="background:var(--danger)">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">Nessuna squadra creata per questa stagione.</td></tr>';
+    `).join('') || '<tr><td colspan="4">Nessuna squadra trovata.</td></tr>';
+
+    // ... (restanti listener per eliminazione) ...
+}
 
     // Listener Elimina
     tbody.querySelectorAll('.btn-team-delete').forEach(btn => {
@@ -644,43 +660,44 @@ async function initSquadra() {
 
     // Bottone Nuova Squadra
     document.getElementById('btn-add-squadra').onclick = async () => {
-        // Carichiamo Categorie e Stagioni per le tendine
-        const [resCat, resSeas] = await Promise.all([
-            client.from('categories').select('*, societies(name)').order('name'),
-            client.from('seasons').select('*').order('start_date', {ascending: false})
-        ]);
+    // Carichiamo tutto il necessario per le tendine
+    const [resSoc, resCat, resSeas, resSport] = await Promise.all([
+        client.from('societies').select('*').order('name'),
+        client.from('categories').select('*').order('name'),
+        client.from('seasons').select('*').order('start_date', {ascending: false}),
+        client.from('sports').select('*').order('name')
+    ]);
 
-        const catOptions = resCat.data?.map(c => 
-            `<option value="${c.id}">${c.name} (${c.societies?.name})</option>`
-        ).join('');
-        
-        const seasOptions = resSeas.data?.map(s => 
-            `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name} ${s.is_active ? '(Attiva)' : ''}</option>`
-        ).join('');
+    modal.open('Crea Nuova Squadra', `
+        <label>Nome Squadra (es. Under 15 Blu)</label>
+        <input type="text" id="t-name">
 
-        modal.open('Crea Nuova Squadra', `
-            <label>Nome Squadra (es. Under 15 Regionale)</label>
-            <input type="text" id="team-name" placeholder="Inserisci nome...">
-            
-            <label>Associa a Categoria</label>
-            <select id="team-cat-id">${catOptions}</select>
-            
-            <label>Stagione Riferimento</label>
-            <select id="team-sea-id">${seasOptions}</select>
-        `);
+        <label>Società</label>
+        <select id="t-soc">${resSoc.data.map(s => `<option value="${s.id}">${s.name}</option>`)}</select>
 
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const name = document.getElementById('team-name').value;
-            const category_id = document.getElementById('team-cat-id').value;
-            const season_id = document.getElementById('team-sea-id').value;
+        <label>Categoria</label>
+        <select id="t-cat">${resCat.data.map(c => `<option value="${c.id}">${c.name}</option>`)}</select>
 
-            if(!name) return alert("Inserisci un nome per la squadra");
+        <label>Sport</label>
+        <select id="t-sport">${resSport.data.map(sp => `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`)}</select>
 
-            await client.from('teams').insert({ name, category_id, season_id });
-            modal.close();
-            initSquadra();
+        <label>Stagione</label>
+        <select id="t-sea">${resSeas.data.map(s => `<option value="${s.id}" ${s.is_active?'selected':''}>${s.name}</option>`)}</select>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const payload = {
+            name: document.getElementById('t-name').value,
+            society_id: document.getElementById('t-soc').value,
+            category_id: document.getElementById('t-cat').value,
+            sport_id: document.getElementById('t-sport').value,
+            season_id: document.getElementById('t-sea').value
         };
+
+        const { error } = await client.from('teams').insert(payload);
+        if(!error) { modal.close(); initSquadra(); } else { alert(error.message); }
     };
+};
 }
 
 async function handleSquadraDelete(id) {
