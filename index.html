@@ -1302,7 +1302,7 @@ window.applyAtletiFilters = function() {
    FUNZIONE IMPORT ATLETI - FIX MAPPING ID E CREAZIONE ANAGRAFICA
    ============================================================ */
 /* ============================================================
-   FUNZIONE IMPORT ATLETI CON DIAGNOSTICA CHIARA
+   FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
@@ -1316,9 +1316,9 @@ window.importAtleti = async function(event) {
             const workbook = XLSX.read(data, { type: 'array' });
             const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-            console.log("Righe totali rilevate nell'Excel:", jsonData.length);
+            console.log("Righe rilevate nell'Excel:", jsonData.length);
 
-            // 1. Recupero tabelle di riferimento (Mapping Nomi -> ID)
+            // 1. Scarichiamo i riferimenti dal DB per trasformare i NOMI in ID
             const [socs, seas, cats, teams, existingAths] = await Promise.all([
                 client.from('societies').select('id, name'),
                 client.from('seasons').select('id, name'),
@@ -1330,14 +1330,14 @@ window.importAtleti = async function(event) {
             const findId = (list, name, context) => {
                 if (!name) return null;
                 const match = list.find(i => i.name?.toString().trim().toLowerCase() === name.toString().trim().toLowerCase());
-                if (!match) console.warn(`⚠️ Riga Excel: "${name}" non trovato nel database (${context})`);
+                if (!match) console.warn(`⚠️ Riga Excel: "${name}" non trovato nel DB (${context})`);
                 return match?.id;
             };
 
             const finalAssignments = [];
             let newAthletesCreated = 0;
 
-            // 2. Elaborazione riga per riga
+            // 2. Elaborazione righe
             for (let i = 0; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 const nRiga = i + 2; // Riferimento riga Excel
@@ -1410,7 +1410,6 @@ window.importAtleti = async function(event) {
 
         } catch (err) {
             console.error("🔥 Errore critico script:", err);
-            alert("Errore tecnico: " + err.message);
         }
         console.groupEnd();
         if (window.loadAtletiData) await window.loadAtletiData();
