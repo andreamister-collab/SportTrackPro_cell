@@ -393,25 +393,29 @@ function templateSocieta() {
 }
 
 async function initSocieta() {
-    // Recuperiamo le società includendo i dati della tabella sports (Join)
+    // Specifichiamo di usare la colonna sport_id per il join
     const { data, error } = await client
         .from('societies')
-        .select('*, sports(name, icon)')
+        .select('*, sports!sport_id(name, icon)')
         .order('name');
 
     const tbody = document.getElementById('list-societa');
-    if (error) { tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; return; }
+    if (error) { 
+        console.error(error);
+        tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
+        return; 
+    }
 
     tbody.innerHTML = data?.map(s => `
         <tr>
             <td><strong>${s.name}</strong></td>
-            <td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '<span style="color:red">Sport non assegnato</span>'}</td>
+            <td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '-'}</td>
             <td style="text-align:right">
-                <button class="btn-sm btn-soc-edit" data-id="${s.id}" data-name="${s.name}" data-sport="${s.sport_id}" style="background:var(--warning)">✏️</button>
-                <button class="btn-sm btn-soc-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+                <button class="btn-sm" style="background:var(--warning)" onclick="handleSocietaEdit('${s.id}', '${s.name}', '${s.sport_id}')">✏️</button>
+                <button class="btn-sm" style="background:var(--danger)" onclick="handleSocietaDelete('${s.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="3">Nessuna società registrata.</td></tr>';
+    `).join('') || '<tr><td colspan="3">Nessuna società.</td></tr>';
 
     // --- Aggancio Eventi ai bottoni della tabella ---
     tbody.querySelectorAll('.btn-soc-edit').forEach(btn => {
@@ -504,25 +508,28 @@ function templateCategoria() {
 }
 
 async function initCategoria() {
-    // Recuperiamo categorie e la società a cui appartengono
+    // Specifichiamo di usare la colonna society_id
     const { data, error } = await client
         .from('categories')
-        .select('*, societies(name)')
+        .select('*, societies!society_id(name)')
         .order('name');
 
     const tbody = document.getElementById('list-categoria');
-    if (error) { tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; return; }
+    if (error) { 
+        tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
+        return; 
+    }
 
     tbody.innerHTML = data?.map(c => `
         <tr>
             <td><strong>${c.name}</strong></td>
-            <td>${c.societies ? c.societies.name : 'Indipendente'}</td>
+            <td>${c.societies ? c.societies.name : 'N/A'}</td>
             <td style="text-align:right">
-                <button class="btn-sm btn-cat-edit" data-id="${c.id}" data-name="${c.name}" data-soc="${c.society_id}" style="background:var(--warning)">✏️</button>
-                <button class="btn-sm btn-cat-delete" data-id="${c.id}" style="background:var(--danger)">🗑️</button>
+                <button class="btn-sm" style="background:var(--warning)" onclick="handleCategoriaEdit('${c.id}', '${c.name}', '${c.society_id}')">✏️</button>
+                <button class="btn-sm" style="background:var(--danger)" onclick="handleCategoriaDelete('${c.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="3">Nessuna categoria trovata.</td></tr>';
+    `).join('') || '<tr><td colspan="3">Nessuna categoria.</td></tr>';
 
     // Listener bottoni tabella
     tbody.querySelectorAll('.btn-cat-edit').forEach(btn => {
@@ -615,7 +622,7 @@ function templateSquadra() {
 }
 
 async function initSquadra() {
-    // Usiamo la sintassi Tabella!ColonnaChiaveEsterna
+    // Qui le relazioni sono multiple, specifichiamole tutte
     const { data, error } = await client
         .from('teams')
         .select(`
@@ -628,30 +635,22 @@ async function initSquadra() {
         .order('name');
 
     const tbody = document.getElementById('list-squadra');
-    
     if (error) {
-        console.error("Errore query squadre:", error);
-        tbody.innerHTML = `<tr><td colspan="4" style="color:red">Errore: ${error.message}</td></tr>`;
+        console.error(error);
+        tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
         return;
     }
 
     tbody.innerHTML = data?.map(t => `
         <tr>
             <td><strong>${t.name}</strong></td>
-            <td>
-                ${t.societies?.name || '<small>Nessuna Società</small>'} <br>
-                <small style="color:var(--secondary)">${t.categories?.name || 'Nessuna Categoria'}</small>
-            </td>
+            <td>${t.societies?.name || '-'}<br><small>${t.categories?.name || '-'}</small></td>
             <td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td>
             <td style="text-align:right">
                 <button class="btn-sm" style="background:var(--danger)" onclick="deleteTeam('${t.id}')">🗑️</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">Nessuna squadra presente. Creane una!</td></tr>';
-
-    // Il resto della funzione (btn-add-squadra.onclick) rimane identico a prima
-    // ... il resto della funzione (btn-add-squadra.onclick) rimane invariato ...
-
+    `).join('') || '<tr><td colspan="4">Nessuna squadra.</td></tr>';
     // Gestione clic bottone "Nuova Squadra"
     document.getElementById('btn-add-squadra').onclick = async () => {
         // Carichiamo i dati per le tendine del modulo
