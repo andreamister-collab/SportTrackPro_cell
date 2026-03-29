@@ -1505,7 +1505,7 @@ window.importAtleti = async function(event) {
                 <h2>📋 Anagrafica Squadra</h2>
                 <div class="actions">
                     <button class="btn" onclick="window.openAtletaModal()">+ Nuovo Atleta</button>
-                    <button class="btn" style="background:#059669; margin-right:8px;" onclick="window.openAssociaGiocatoreModal()">🔗 Associa Giocatori</button>
+                    <button class="btn" style="background:#059669; margin-right:8px;" onclick="window.openAssociaAtletiASquadra()">🔗 Associa Giocatori</button>
                 </div>
             </div>
 
@@ -1577,7 +1577,7 @@ window.importAtleti = async function(event) {
     };
 
     // --- LOGICA ASSOCIAZIONE (SOLO PER CHI NON È ANCORA ASSOCIATO) ---
-    window.openAssociaGiocatoreModal = async function() {
+    window.openAssociaAtletiASquadra = async function() {
         const activeSeasonId = document.getElementById('f-atleta-sea').value;
         const activeSocId = document.getElementById('f-atleta-soc').value;
 
@@ -1601,7 +1601,7 @@ window.importAtleti = async function(event) {
                 client.from('teams').select('id, name').eq('season_id', activeSeasonId).eq('society_id', activeSocId).order('name')
             ]);
 
-            modal.open('🔗 Associa Atleti Esistenti', `
+            modal.open('🔗 Aggiungi Atleti alla Stagione', `
                 <div style="display:grid; gap:15px; padding:10px 0;">
                     <div>
                         <label style="font-weight:bold; font-size:11px;">ATLETA *</label>
