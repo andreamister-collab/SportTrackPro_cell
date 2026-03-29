@@ -1401,7 +1401,7 @@ window.handleDeleteStaff = async function(id) {
    ============================================================ */
 
 window.openAssociaGiocatoreModal = async function() {
-    // 1. Identificazione Stagione Attiva dai filtri
+    // 1. Identificazione Stagione Attiva dai filtri della tabella
     const seasonSelect = document.getElementById('f-at-sea') || 
                          document.getElementById('f-sea') || 
                          document.querySelector('select[id*="sea"]');
@@ -1413,7 +1413,7 @@ window.openAssociaGiocatoreModal = async function() {
     const activeSea = seasonSelect.value;
 
     try {
-        // 2. Recupero Società, Atleti totali e chi è già associato (in parallelo per velocità)
+        // 2. Recupero Società, Atleti totali e chi è già associato (in parallelo)
         const [socsRes, atletiRes, assocRes] = await Promise.all([
             client.from('societies').select('id, name').order('name'),
             client.from('athletes').select('id, surname, name').order('surname'),
@@ -1506,29 +1506,66 @@ window.openAssociaGiocatoreModal = async function() {
     }
 };
 
-// --- HELPER: Caricamento Categorie a cascata ---
+// --- HELPER 1: Caricamento Categorie ---
 window.updateAsModCat = async function(socId) {
     const mCat = document.getElementById('m-ass-cat');
     if (!mCat) return;
+    
     mCat.innerHTML = '<option value="">-- Categoria --</option>';
+    // Svuota anche le squadre se cambio società
+    const mTea = document.getElementById('m-ass-tea');
+    if (mTea) mTea.innerHTML = '<option value="">Intera Cat.</option>';
+
     if (!socId) return;
 
-    const { data } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-    if (data) data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    try {
+        const { data, error } = await client
+            .from('categories')
+            .select('id, name')
+            .eq('society_id', socId)
+            .order('name');
+
+        if (error) throw error;
+        if (data) data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    } catch (e) {
+        console.error("Errore categorie:", e);
+    }
 };
 
-// --- HELPER: Caricamento Squadre a cascata ---
+// --- HELPER 2: Caricamento Squadre ---
 window.updateAsModTea = async function(catId) {
     const mTea = document.getElementById('m-ass-tea');
     if (!mTea) return;
+
     mTea.innerHTML = '<option value="">Intera Cat.</option>';
     if (!catId) return;
 
-    const seasonSelect = document.getElementById('f-at-sea') || document.getElementById('f-sea');
+    // Recupero Stagione (cerchiamo tutti i possibili ID della tua Build 1)
+    const seasonSelect = document.getElementById('f-at-sea') || 
+                         document.getElementById('f-sea') || 
+                         document.querySelector('select[id*="sea"]');
+    
     const activeSea = seasonSelect ? seasonSelect.value : null;
 
-    const { data } = await client.from('teams').select('id, name').eq('category_id', catId).eq('season_id', activeSea).order('name');
-    if (data) data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    // CRITICO: Se activeSea è nullo, non facciamo la chiamata a Supabase
+    if (!activeSea) {
+        console.warn("Impossibile caricare le squadre: season_id non trovato nei filtri.");
+        return; 
+    }
+
+    try {
+        const { data, error } = await client
+            .from('teams')
+            .select('id, name')
+            .eq('category_id', catId)
+            .eq('season_id', activeSea) // Ora siamo certi che non sia null
+            .order('name');
+
+        if (error) throw error;
+        if (data) data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    } catch (e) {
+        console.error("Errore squadre:", e);
+    }
 };
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
