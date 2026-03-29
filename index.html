@@ -1129,7 +1129,7 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI - DOPPIO INSERIMENTO (FIX DEFINITIVO)
+   MODULO ANAGRAFICA ATLETI - LOGICA ROBUSTA (NO ERROR 400)
    ============================================================ */
 (function() {
     let _allAtletiAssignments = []; 
@@ -1138,7 +1138,6 @@ window.handleDeleteStaff = async function(id) {
     let _lookupSocs = {};
     let _lookupSeas = {};
 
-    // 1. TEMPLATE DELLA PAGINA
     window.templateAtleti = function() {
         return `
         <div class="card">
@@ -1185,13 +1184,12 @@ window.handleDeleteStaff = async function(id) {
                     </tr>
                 </thead>
                 <tbody id="list-atleti-body">
-                    <tr><td colspan="7">Caricamento in corso...</td></tr>
+                    <tr><td colspan="7">Caricamento...</td></tr>
                 </tbody>
             </table>
         </div>`;
     };
 
-    // 2. INIZIALIZZAZIONE DATI
     window.initAtleti = async function() {
         try {
             const [socs, seas, cats, teams] = await Promise.all([
@@ -1217,7 +1215,6 @@ window.handleDeleteStaff = async function(id) {
         } catch (err) { console.error("Init Atleti Error:", err); }
     };
 
-    // 3. LOGICA FILTRI (Invariata)
     window.updateAtletaCategoryFilter = function() {
         const selSoc = document.getElementById('f-atleta-soc')?.value;
         const fCat = document.getElementById('f-atleta-cat');
@@ -1237,7 +1234,6 @@ window.handleDeleteStaff = async function(id) {
         fTea.innerHTML = '<option value="">Tutte</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     };
 
-    // 4. FETCH DATA
     async function _fetchAtletiData() {
         const { data, error } = await client.from('athlete_team_seasons').select(`
             id, nickname, jersey_number, role, season_id, team_id, athlete_id, society_id, category_id,
@@ -1269,7 +1265,7 @@ window.handleDeleteStaff = async function(id) {
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
                 <td>${a.categories?.name || '-'}</td>
                 <td>${a.teams?.name || 'Intera Cat.'}</td>
-                <td style="text-align:center">${a.jersey_number || '-'}</td>
+                <td style="text-align:center; font-weight:bold;">${a.jersey_number || '-'}</td>
                 <td style="text-align:right">
                     <button class="btn-sm btn-warning" onclick="window.handleEditAtleta('${a.id}')">✏️</button>
                     <button class="btn-sm btn-danger" onclick="window.deleteAtletaAssignment('${a.id}')">🗑️</button>
@@ -1277,7 +1273,6 @@ window.handleDeleteStaff = async function(id) {
             </tr>`).join('') || '<tr><td colspan="7">Nessun atleta trovato.</td></tr>';
     };
 
-    // 5. GESTIONE MODALE (CON NOME E COGNOME E DOPPIO SALVATAGGIO)
     window.openAtletaModal = async function(editId = null) {
         let editData = editId ? _allAtletiAssignments.find(x => x.id == editId) : null;
         const isEdit = !!editData;
@@ -1327,24 +1322,32 @@ window.handleDeleteStaff = async function(id) {
 
             if (!cognome || !nome || !socId) return alert("Compila i campi obbligatori!");
 
-            // 1. SALVATAGGIO IN 'athletes' (Anagrafica + Società)
-            // Usiamo sia surname che name per il conflitto
-            const payloadAth = { 
-                surname: cognome,
-                name: nome, 
-                born_date: birthDate, 
-                society_id: socId 
-            };
+            let athleteId = null;
 
-            const { data: ath, error: errAth } = await client.from('athletes')
-                .upsert([payloadAth], { onConflict: 'surname,name' }) 
-                .select().single();
+            // 1. LOGICA SICURA: CERCA PRIMA SE ESISTE (Evita 400 Upsert)
+            const { data: existingAth } = await client.from('athletes')
+                .select('id')
+                .eq('surname', cognome)
+                .eq('name', nome)
+                .eq('society_id', socId)
+                .maybeSingle();
 
-            if (errAth) return alert("Errore Tabella Athletes: " + errAth.message);
+            if (existingAth) {
+                athleteId = existingAth.id;
+                // Aggiorniamo solo la data di nascita se necessario
+                await client.from('athletes').update({ born_date: birthDate }).eq('id', athleteId);
+            } else {
+                // Inserimento pulito
+                const { data: newAth, error: errNew } = await client.from('athletes')
+                    .insert([{ surname: cognome, name: nome, born_date: birthDate, society_id: socId }])
+                    .select().single();
+                if (errNew) return alert("Errore inserimento atleta: " + errNew.message);
+                athleteId = newAth.id;
+            }
 
-            // 2. SALVATAGGIO IN 'athlete_team_seasons'
+            // 2. SALVATAGGIO ASSEGNAZIONE
             const payloadAss = {
-                athlete_id: ath.id,
+                athlete_id: athleteId,
                 society_id: socId, 
                 season_id: activeSeasonId,
                 category_id: document.getElementById('m-atleta-cat').value || null,
