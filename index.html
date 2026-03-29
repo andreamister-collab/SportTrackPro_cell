@@ -1405,23 +1405,24 @@ window.handleDeleteStaff = async function(id) {
    MODULO ANAGRAFICA ATLETI (GESTIONE COMPLETA)
    ============================================================ */
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI (COMPLETO DI ASSOCIAZIONE E ARCHIVIO)
+   MODULO ANAGRAFICA ATLETI - FIX ERRORI SCOPE
    ============================================================ */
 (function() {
     let _atletiBase = [];
     let _socLook = {};
 
-    // 1. STILE BOTTONI (Incluso il nuovo bottone Associa)
+    // 1. CSS INTERNO
     const style = document.createElement('style');
     style.innerHTML = `
-        .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: all 0.2s; margin-left: 4px; }
+        .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-left: 4px; }
         .btn-icon-atleta.edit { background-color: #eff6ff; color: #2563eb; }
         .btn-icon-atleta.delete { background-color: #fef2f2; color: #ef4444; }
-        .btn-icon-atleta.link { background-color: #f0fdf4; color: #16a34a; } /* Verde per associazione */
+        .btn-icon-atleta.link { background-color: #f0fdf4; color: #16a34a; }
         .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     `;
     document.head.appendChild(style);
 
+    // 2. TEMPLATE PRINCIPALE
     window.templateAnagraficaPura = function() {
         return `
         <div class="card">
@@ -1452,6 +1453,7 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
+    // 3. CARICAMENTO DATI
     window.initAnagraficaPura = async function() {
         const [socs, atleti] = await Promise.all([
             client.from('societies').select('id, name').order('name'),
@@ -1459,11 +1461,14 @@ window.handleDeleteStaff = async function(id) {
         ]);
         _socLook = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
         _atletiBase = atleti.data || [];
+        
         const fSoc = document.getElementById('f-bp-soc');
         if(fSoc) fSoc.innerHTML = '<option value="">Tutte le Società</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        
         renderAnagraficaTable(_atletiBase);
     };
 
+    // 4. RENDER TABELLA (Nota il nome funzione corretto nel pulsante 🔗)
     function renderAnagraficaTable(data) {
         const body = document.getElementById('list-anagrafica-body');
         if(!body) return;
@@ -1474,35 +1479,33 @@ window.handleDeleteStaff = async function(id) {
                     <div style="color:#64748b; font-size:13px;">${a.name}</div>
                 </td>
                 <td style="padding:15px;">${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}</td>
-                <td style="padding:15px;"><span class="badge-soc-atleta" style="background:#f1f5f9; padding:5px 10px; border-radius:15px; font-size:11px;">${_socLook[a.society_id] || 'N.D.'}</span></td>
+                <td style="padding:15px;"><span style="background:#f1f5f9; padding:5px 10px; border-radius:15px; font-size:11px;">${_socLook[a.society_id] || 'N.D.'}</span></td>
                 <td style="padding:15px; text-align:right; white-space:nowrap;">
-                    <button class="btn-icon-atleta link" onclick="window.openAssociaAtletaModal('${a.id}')" title="Associa a Squadra">🔗</button>
+                    <button class="btn-icon-atleta link" onclick="window.openAssociaGiocatoreModal('${a.id}')" title="Associa">🔗</button>
                     <button class="btn-icon-atleta edit" onclick="window.openAtletaBaseModal('${a.id}')" title="Modifica">✏️</button>
-                    <button class="btn-icon-atleta delete" onclick="window.deleteAtletaBase('${a.id}')" title="Sposta in Archivio">🗑️</button>
+                    <button class="btn-icon-atleta delete" onclick="window.deleteAtletaBase('${a.id}')" title="Archivia">🗑️</button>
                 </td>
             </tr>
         `).join('');
     }
 
-    // --- NUOVA FUNZIONE: ASSOCIA GIOCATORE A SQUADRA/STAGIONE ---
-    window.openAssociaAtletaModal = async function(atletaId) {
+    // 5. FUNZIONE ASSOCIA (Quella che dava l'errore)
+    window.openAssociaGiocatoreModal = async function(atletaId) {
         const atleta = _atletiBase.find(a => a.id === atletaId);
-        
-        // Carichiamo i dati necessari (Stagioni, Categorie, Team)
+        if(!atleta) return;
+
         const [seasons, categories, teams] = await Promise.all([
             client.from('seasons').select('*').order('name', { ascending: false }),
             client.from('categories').select('*').order('name'),
             client.from('teams').select('*').order('name')
         ]);
 
-        modal.open(`Associa ${atleta.surname} a una Squadra`, `
+        modal.open(`Associa ${atleta.surname}`, `
             <div style="display:grid; gap:15px; padding:10px 0;">
-                <div>
-                    <label style="font-weight:700; font-size:11px;">STAGIONE *</label>
-                    <select id="m-ass-season" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                        ${seasons.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                    </select>
-                </div>
+                <label style="font-weight:700; font-size:11px;">STAGIONE *</label>
+                <select id="m-ass-season" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    ${seasons.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                </select>
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label style="font-weight:700; font-size:11px;">CATEGORIA</label>
@@ -1520,24 +1523,25 @@ window.handleDeleteStaff = async function(id) {
                     </div>
                 </div>
                 <div>
-                    <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA (Lascia vuoto se N.D.)</label>
-                    <input type="number" id="m-ass-jersey" placeholder="es. 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA</label>
+                    <input type="number" id="m-ass-jersey" placeholder="Lascia vuoto se N.D." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
                 </div>
             </div>
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
+            const num = document.getElementById('m-ass-jersey').value;
             const payload = {
                 athlete_id: atletaId,
                 season_id: document.getElementById('m-ass-season').value,
                 category_id: document.getElementById('m-ass-cat').value || null,
                 team_id: document.getElementById('m-ass-team').value || null,
-                jersey_number: document.getElementById('m-ass-jersey').value || null // Gestione NULL richiesta
+                jersey_number: num === "" ? null : parseInt(num) // Gestione NULL rigorosa
             };
 
             const { error } = await client.from('athlete_seasons').insert([payload]);
             if(!error) {
-                alert("Associazione salvata nello storico.");
+                alert("Associazione completata!");
                 modal.close();
             } else {
                 alert("Errore: " + error.message);
@@ -1545,50 +1549,7 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 
-    // --- LOGICA DI ARCHIVIAZIONE (SPOSTAMENTO) ---
-    window.deleteAtletaBase = async function(id) {
-        const atleta = _atletiBase.find(a => a.id === id);
-        if(!atleta || !confirm(`Spostare ${atleta.surname} e tutto il suo storico nell'archivio?`)) return;
-
-        try {
-            // 1. Recupero stagioni attuali
-            const { data: stagioni } = await client.from('athlete_seasons').select('*').eq('athlete_id', id);
-
-            // 2. Inserimento in Archivio Anagrafica
-            const { data: archAtleta, error: errA } = await client.from('athletes_archive').insert([{
-                original_athlete_id: atleta.id,
-                surname: atleta.surname,
-                name: atleta.name,
-                born_date: atleta.born_date,
-                society_name: _socLook[atleta.society_id]
-            }]).select().single();
-
-            if(errA) throw errA;
-
-            // 3. Migrazione stagioni nell'archivio dedicato
-            if(stagioni && stagioni.length > 0) {
-                const stagioniArchivio = stagioni.map(s => ({
-                    athlete_archive_id: archAtleta.id,
-                    season_id: s.season_id,
-                    team_id: s.team_id,
-                    jersey_number: s.jersey_number
-                }));
-                await client.from('athlete_seasons_archive').insert(stagioniArchivio);
-            }
-
-            // 4. Delete fisico (CASCADE pulirà athlete_seasons attiva)
-            await client.from('athletes').delete().eq('id', id);
-            
-            await window.initAnagraficaPura();
-            alert("Atleta e storico spostati in archivio.");
-
-        } catch (e) {
-            console.error(e);
-            alert("Errore durante l'archiviazione: " + e.message);
-        }
-    };
-
-    // Altre funzioni (Filtri, Modifica) rimangono come prima...
+    // 6. ALTRE FUNZIONI (Filtri, Modifica, Delete)
     window.applyAnagraficaFilters = function() {
         const search = document.getElementById('f-bp-search').value.toLowerCase();
         const socId = document.getElementById('f-bp-soc').value;
@@ -1602,17 +1563,15 @@ window.handleDeleteStaff = async function(id) {
         renderAnagraficaTable(filtered);
     };
 
-    window.openAtletaBaseModal = async function(id = null) {
+    window.openAtletaBaseModal = function(id = null) {
         let atleta = id ? _atletiBase.find(a => a.id === id) : { name: '', surname: '', born_date: '', society_id: '' };
         modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', `
-            <div style="display:grid; gap:15px; padding: 10px 0;">
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>COGNOME *</label><input type="text" id="m-bp-surname" value="${atleta.surname}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-                    <div style="flex:1;"><label>NOME *</label><input type="text" id="m-bp-name" value="${atleta.name}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-                </div>
-                <label>DATA DI NASCITA</label><input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                <label>SOCIETÀ *</label><select id="m-bp-soc" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                    <option value="">-- Seleziona --</option>
+            <div style="display:grid; gap:15px;">
+                <input type="text" id="m-bp-surname" value="${atleta.surname}" placeholder="COGNOME" style="padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <input type="text" id="m-bp-name" value="${atleta.name}" placeholder="NOME" style="padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <select id="m-bp-soc" style="padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    <option value="">-- Seleziona Società --</option>
                     ${Object.entries(_socLook).map(([sid, name]) => `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`).join('')}
                 </select>
             </div>
@@ -1622,6 +1581,24 @@ window.handleDeleteStaff = async function(id) {
             const { error } = id ? await client.from('athletes').update(data).eq('id', id) : await client.from('athletes').insert([data]);
             if(!error) { modal.close(); await window.initAnagraficaPura(); }
         };
+    };
+
+    window.deleteAtletaBase = async function(id) {
+        const atleta = _atletiBase.find(a => a.id === id);
+        if(!atleta || !confirm(`Archiviare ${atleta.surname}?`)) return;
+        try {
+            const { data: stagioni } = await client.from('athlete_seasons').select('*').eq('athlete_id', id);
+            const { data: arch } = await client.from('athletes_archive').insert([{
+                original_athlete_id: atleta.id, surname: atleta.surname, name: atleta.name, born_date: atleta.born_date, society_name: _socLook[atleta.society_id]
+            }]).select().single();
+            if(stagioni?.length > 0) {
+                await client.from('athlete_seasons_archive').insert(stagioni.map(s => ({
+                    athlete_archive_id: arch.id, season_id: s.season_id, team_id: s.team_id, jersey_number: s.jersey_number
+                })));
+            }
+            await client.from('athletes').delete().eq('id', id);
+            await window.initAnagraficaPura();
+        } catch (e) { alert("Errore: " + e.message); }
     };
 
 })();
