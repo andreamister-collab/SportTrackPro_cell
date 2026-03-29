@@ -1400,22 +1400,28 @@ window.handleDeleteStaff = async function(id) {
    MODAL per giocatori non associati ad una squdara
    ============================================================ */
 window.openAssociaGiocatoreModal = async function() {
-    // Cerchiamo l'elemento provando i due ID possibili (quello della tua Build e quello standard)
-    const seasonSelect = document.getElementById('f-sea') || document.getElementById('f-at-sea');
+    // Cerchiamo il selettore della stagione provando ogni possibile ID usato nel tuo progetto
+    const seasonSelect = document.getElementById('f-at-sea') || 
+                         document.getElementById('f-sea') || 
+                         document.querySelector('select[onchange*="updateAtCatFilter"]');
     
+    // LOG DI DEBUG: Se ancora non lo trova, vediamo cosa c'è nel DOM
     if (!seasonSelect) {
-        console.error("Elemento stagione non trovato nel DOM");
-        return alert("Errore tecnico: non riesco a trovare il selettore della stagione. Verifica i filtri.");
+        console.error("DOM attuale:", document.body.innerHTML); // Questo ci aiuterà a capire se il DOM è vuoto
+        return alert("Errore: Non trovo il filtro della Stagione. Assicurati che la pagina sia caricata correttamente.");
     }
 
     const activeSea = seasonSelect.value;
     
     if (!activeSea) {
-        return alert("Per favore, seleziona una Stagione dai filtri prima di procedere con l'associazione.");
+        return alert("Seleziona una Stagione dal menu a tendina prima di associare un giocatore.");
     }
 
     try {
-        // 1. Recupero atleti dall'anagrafica (Tabella athletes)
+        // Mostriamo un caricamento (opzionale)
+        console.log("Stagione attiva identificata:", activeSea);
+
+        // 1. Recupero atleti dall'anagrafica
         const { data: tuttiAtleti, error: errA } = await client
             .from('athletes')
             .select('id, surname, name')
@@ -1423,7 +1429,7 @@ window.openAssociaGiocatoreModal = async function() {
         
         if (errA) throw errA;
 
-        // 2. Recupero chi è già associato in QUESTA stagione (Tabella athlete_team_seasons)
+        // 2. Recupero chi è già associato
         const { data: giaAssociati, error: errB } = await client
             .from('athlete_team_seasons')
             .select('athlete_id')
@@ -1433,66 +1439,47 @@ window.openAssociaGiocatoreModal = async function() {
 
         const idsGiaAssociati = giaAssociati.map(a => a.athlete_id);
 
-        // 3. Filtro gli atleti: prendo solo chi NON è nella lista dei già associati
+        // 3. Filtro gli atleti orfani
         const orfani = tuttiAtleti.filter(at => !idsGiaAssociati.includes(at.id));
 
         if (orfani.length === 0) {
-            return alert("Non ci sono atleti in anagrafica disponibili per l'associazione in questa stagione.");
+            return alert("Non ci sono atleti in anagrafica da associare (tutti i presenti hanno già una squadra in questa stagione).");
         }
 
-        // Apertura Modale (Usando i tuoi stili e classi)
+        // Apertura Modale
         modal.open('Associa Atleta a Squadra', `
             <div style="display:grid; gap:12px;">
-                <p style="font-size:13px; color:#64748b;">L'atleta selezionato verrà collegato alla stagione selezionata nei filtri.</p>
-                
-                <label>Seleziona Atleta *</label>
-                <select id="m-ass-ath" required style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                <label>Atleta da associare *</label>
+                <select id="m-ass-ath" required style="width:100%; padding:8px;">
                     <option value="">-- Scegli Atleta --</option>
                     ${orfani.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
                 </select>
                 
                 <label>Società *</label>
-                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
+                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px;">
                     <option value="">-- Seleziona Società --</option>
-                    ${Object.entries(_lookupSocs).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
+                    ${Object.entries(_lookupSocs || {}).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
                 </select>
                 
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label>Categoria</label>
-                        <select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                            <option value="">--</option>
-                        </select>
-                    </div>
-                    <div style="flex:1;">
-                        <label>Squadra</label>
-                        <select id="m-ass-tea" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                            <option value="">Intera Cat.</option>
-                        </select>
-                    </div>
+                    <div style="flex:1;"><label>Categoria</label><select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px;"><option value="">--</option></select></div>
+                    <div style="flex:1;"><label>Squadra</label><select id="m-ass-tea" style="width:100%; padding:8px;"><option value="">Intera Cat.</option></select></div>
                 </div>
 
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label>N° Maglia</label>
-                        <input type="number" id="m-ass-num" placeholder="Esempio: 10" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    </div>
-                    <div style="flex:1;">
-                        <label>Ruolo</label>
-                        <input type="text" id="m-ass-role" placeholder="Esempio: Ala" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    </div>
+                    <div style="flex:1;"><label>N° Maglia</label><input type="number" id="m-ass-num" style="width:100%; padding:8px;"></div>
+                    <div style="flex:1;"><label>Ruolo</label><input type="text" id="m-ass-role" style="width:100%; padding:8px;"></div>
                 </div>
             </div>
         `);
 
-        // Gestione Salvataggio
         document.getElementById('btn-modal-save').onclick = async () => {
             const athId = document.getElementById('m-ass-ath').value;
             const socId = document.getElementById('m-ass-soc').value;
 
-            if(!athId || !socId) return alert("Atleta e Società sono campi obbligatori!");
+            if(!athId || !socId) return alert("Atleta e Società sono obbligatori!");
 
-            const payload = {
+            const { error } = await client.from('athlete_team_seasons').insert([{
                 athlete_id: athId,
                 society_id: socId,
                 season_id: activeSea,
@@ -1500,22 +1487,19 @@ window.openAssociaGiocatoreModal = async function() {
                 team_id: document.getElementById('m-ass-tea').value || null,
                 jersey_number: document.getElementById('m-ass-num').value || null,
                 role: document.getElementById('m-ass-role').value.trim() || null
-            };
+            }]);
 
-            const { error } = await client.from('athlete_team_seasons').insert([payload]);
             if(!error) { 
                 modal.close(); 
-                // Chiamata alla funzione di fetch per aggiornare la tabella senza ricaricare
-                if (typeof _fetchAtleti === 'function') await _fetchAtleti();
-                else if (typeof window.initAtleti === 'function') await window.initAtleti();
+                if (window.initAtleti) await window.initAtleti();
             } else {
-                alert("Errore durante l'associazione: " + error.message);
+                alert(error.message);
             }
         };
 
     } catch (e) {
-        console.error("Errore critico nella modale:", e);
-        alert("Errore nel caricamento dei dati. Controlla la console.");
+        console.error(e);
+        alert("Errore durante il caricamento.");
     }
 };
 /* ============================================================
