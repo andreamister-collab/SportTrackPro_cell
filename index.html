@@ -969,40 +969,49 @@ async function openStaffModal(editData = null) {
     };
     toggleSocietySelect(); // Esegui subito
 
-    document.getElementById('btn-modal-save').onclick = async () => {
-        const name = document.getElementById('st-name').value.trim();
-        const username = document.getElementById('st-user').value.trim();
-        const role = document.getElementById('st-role').value;
-        const management_role = document.getElementById('st-mrole').value;
-        const society_id = document.getElementById('st-society').value;
-        
-        if(!name || !username) return alert("Nome e Username sono obbligatori!");
+document.getElementById('btn-modal-save').onclick = async () => {
+    const name = document.getElementById('st-name').value.trim();
+    const username = document.getElementById('st-user').value.trim();
+    const selectedRole = document.getElementById('st-role').value; // 'user' o 'manager'
+    const management_role = document.getElementById('st-mrole').value;
+    const society_id = document.getElementById('st-society').value;
+    
+    if(!name || !username) return alert("Nome e Username sono obbligatori!");
 
-        const payload = { 
-            name, 
-            username, 
-            role,
-            management_role: role === 'manager' ? 'Gestore Sistema' : (management_role || null),
-            society_id: role === 'manager' ? null : society_id 
-        };
-
-        if(!isEdit) {
-            const pass = document.getElementById('st-pass').value;
-            if(pass.length < 6) return alert("Password troppo corta.");
-            payload.password = pass;
-        }
-
-        const { error } = isEdit 
-            ? await client.from('users').update(payload).eq('id', editData.id)
-            : await client.from('users').insert(payload);
-
-        if (!error) {
-            modal.close();
-            initStaff();
-        } else {
-            alert("Errore: " + error.message);
-        }
+    // Costruzione del payload coerente con i vincoli SQL
+    const payload = { 
+        name, 
+        username, 
+        role: selectedRole, // Assicura che sia 'user' o 'manager'
+        management_role: selectedRole === 'manager' ? 'Gestore Sistema' : (management_role || null),
+        // Se è manager DEVE essere null, altrimenti usa l'ID selezionato
+        society_id: selectedRole === 'manager' ? null : (society_id || null) 
     };
+
+    if(!isEdit) {
+        const pass = document.getElementById('st-pass').value;
+        if(!pass || pass.length < 6) return alert("La password deve avere almeno 6 caratteri.");
+        payload.password = pass;
+        
+        // Se non è manager e non abbiamo una società, blocchiamo l'invio (evita errore 400)
+        if (selectedRole === 'user' && !payload.society_id) {
+            return alert("Errore: Seleziona una società per lo staff!");
+        }
+    }
+
+    const { error } = isEdit 
+        ? await client.from('users').update(payload).eq('id', editData.id)
+        : await client.from('users').insert([payload]); // Usiamo array per insert
+
+    if (!error) {
+        modal.close();
+        // Piccola attesa per dare tempo al DB di aggiornare gli indici prima del refresh
+        setTimeout(initStaff, 300);
+    } else {
+        console.error("Dettaglio Errore Supabase:", error);
+        alert("Errore salvataggio: " + error.message);
+    }
+};
 }
 
 window.handleEditStaff = async function(id) {
