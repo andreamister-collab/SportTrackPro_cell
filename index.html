@@ -1129,7 +1129,7 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI - VERSIONE DEFINITIVA
+   MODULO ANAGRAFICA ATLETI - VERSIONE COERENTE CON DB (Solo 'name')
    ============================================================ */
 (function() {
     let _allAtletiAssignments = []; 
@@ -1138,7 +1138,7 @@ window.handleDeleteStaff = async function(id) {
     let _lookupSocs = {};
     let _lookupSeas = {};
 
-    // 1. TEMPLATE DELLA PAGINA (TABELLA E FILTRI)
+    // 1. TEMPLATE DELLA PAGINA
     window.templateAtleti = function() {
         return `
         <div class="card">
@@ -1152,7 +1152,7 @@ window.handleDeleteStaff = async function(id) {
             <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Cerca Atleta</label>
-                    <input type="text" id="f-atleta-name" placeholder="Cognome..." oninput="window.applyAtletiFilters()" style="width:100%">
+                    <input type="text" id="f-atleta-name" placeholder="Cerca nome..." oninput="window.applyAtletiFilters()" style="width:100%">
                 </div>
                 <div>
                     <label style="font-size: 11px; color: #64748b; font-weight:bold;">Società</label>
@@ -1191,7 +1191,7 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
-    // 2. INIZIALIZZAZIONE DATI
+    // 2. INIZIALIZZAZIONE
     window.initAtleti = async function() {
         try {
             const [socs, seas, cats, teams] = await Promise.all([
@@ -1217,7 +1217,7 @@ window.handleDeleteStaff = async function(id) {
         } catch (err) { console.error("Init Atleti Error:", err); }
     };
 
-    // 3. LOGICA FILTRI PROGRESSIVI (PAGINA)
+    // 3. LOGICA FILTRI (Invariata)
     window.updateAtletaCategoryFilter = function() {
         const selSoc = document.getElementById('f-atleta-soc')?.value;
         const fCat = document.getElementById('f-atleta-cat');
@@ -1237,11 +1237,11 @@ window.handleDeleteStaff = async function(id) {
         fTea.innerHTML = '<option value="">Tutte</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     };
 
-    // 4. FETCH E FILTRO TABELLA
+    // 4. FETCH DATA
     async function _fetchAtletiData() {
         const { data, error } = await client.from('athlete_team_seasons').select(`
             id, nickname, jersey_number, role, season_id, team_id, athlete_id, society_id, category_id,
-            athletes!inner (name, surname, born_date),
+            athletes!inner (name),
             teams (name), categories (name)
         `);
         if (error) return console.error(error);
@@ -1257,14 +1257,14 @@ window.handleDeleteStaff = async function(id) {
         const team = document.getElementById('f-atleta-team')?.value;
 
         const filtered = _allAtletiAssignments.filter(a => {
-            const fullName = `${a.athletes?.surname} ${a.athletes?.name}`.toLowerCase();
-            return (!name || fullName.includes(name)) && (!soc || a.society_id == soc) && (!sea || a.season_id == sea) && (!cat || a.category_id == cat) && (!team || a.team_id == team);
+            const athleteName = (a.athletes?.name || "").toLowerCase();
+            return (!name || athleteName.includes(name)) && (!soc || a.society_id == soc) && (!sea || a.season_id == sea) && (!cat || a.category_id == cat) && (!team || a.team_id == team);
         });
 
         const tbody = document.getElementById('list-atleti-body');
         if (tbody) tbody.innerHTML = filtered.map(a => `
             <tr>
-                <td><strong>${a.athletes.surname} ${a.athletes.name}</strong></td>
+                <td><strong>${a.athletes?.name || 'N.D.'}</strong></td>
                 <td><span style="color:#2563eb;">${_lookupSocs[a.society_id] || '-'}</span></td>
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
                 <td>${a.categories?.name || '-'}</td>
@@ -1277,7 +1277,7 @@ window.handleDeleteStaff = async function(id) {
             </tr>`).join('') || '<tr><td colspan="7">Nessun atleta trovato.</td></tr>';
     };
 
-    // 5. GESTIONE MODALE (INSERIMENTO / MODIFICA)
+    // 5. GESTIONE MODALE (ADATTATA A COLONNA UNICA 'NAME')
     window.openAtletaModal = async function(editId = null) {
         let editData = editId ? _allAtletiAssignments.find(x => x.id == editId) : null;
         const isEdit = !!editData;
@@ -1298,12 +1298,13 @@ window.handleDeleteStaff = async function(id) {
                         <div style="flex:1;"><label>Squadra</label><select id="m-atleta-team"><option value="">Intera Categoria</option></select></div>
                     </div>
                 </div>
-                <div><label>Cognome *</label><input type="text" id="m-atleta-surname" value="${editData?.athletes?.surname || ''}" required></div>
-                <div><label>Nome *</label><input type="text" id="m-atleta-name" value="${editData?.athletes?.name || ''}" required></div>
-                <div><label>Data di Nascita</label><input type="date" id="m-atleta-born" value="${editData?.athletes?.born_date || ''}"></div>
+                <div style="grid-column: span 2;">
+                    <label>Cognome e Nome *</label>
+                    <input type="text" id="m-atleta-full-name" value="${editData?.athletes?.name || ''}" placeholder="es. Rossi Mario" required>
+                </div>
                 <div><label>Soprannome</label><input type="text" id="m-atleta-nick" value="${editData?.nickname || ''}"></div>
                 <div><label>N° Maglia</label><input type="number" id="m-atleta-jersey" value="${editData?.jersey_number || ''}"></div>
-                <div><label>Ruolo</label><input type="text" id="m-atleta-role" value="${editData?.role || ''}"></div>
+                <div style="grid-column: span 2;"><label>Ruolo</label><input type="text" id="m-atleta-role" value="${editData?.role || ''}"></div>
             </div>
         `);
 
@@ -1320,11 +1321,15 @@ window.handleDeleteStaff = async function(id) {
         }
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const athleteObj = { surname: document.getElementById('m-atleta-surname').value.trim(), name: document.getElementById('m-atleta-name').value.trim(), born_date: document.getElementById('m-atleta-born').value || null };
-            if (!athleteObj.surname || !athleteObj.name || !mSoc.value) return alert("Compila i campi obbligatori!");
+            const fullName = document.getElementById('m-atleta-full-name').value.trim();
+            if (!fullName || !mSoc.value) return alert("Compila i campi obbligatori!");
 
-            const { data: ath, error: errAth } = await client.from('athletes').upsert([athleteObj], { onConflict: 'surname, name' }).select().single();
-            if (errAth) return alert(errAth.message);
+            // FIX: Invio solo 'name' alla tabella athletes
+            const { data: ath, error: errAth } = await client.from('athletes')
+                .upsert([{ name: fullName }], { onConflict: 'name' })
+                .select().single();
+
+            if (errAth) return alert("Errore Tabella Athletes: " + errAth.message);
 
             const payloadAss = {
                 athlete_id: ath.id, society_id: mSoc.value, season_id: activeSeasonId,
@@ -1340,6 +1345,7 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 
+    // FUNZIONI SUPPORTO MODALE (Invariate)
     window.updateModalCategories = async function(socId) {
         const mCat = document.getElementById('m-atleta-cat');
         mCat.innerHTML = '<option value="">-- Seleziona --</option>';
