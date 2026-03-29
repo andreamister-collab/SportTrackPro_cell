@@ -1156,7 +1156,7 @@ window.deleteAtletaBase = async function(id) {
     if (!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
 
     try {
-        // 1. Recupera le stagioni associate prima di fare qualsiasi cosa
+        // 1. Recupero dati attuali (da athlete_team_seasons)
         const { data: stagioni, error: errFetch } = await client
             .from('athlete_team_seasons')
             .select('*')
@@ -1164,7 +1164,7 @@ window.deleteAtletaBase = async function(id) {
         
         if (errFetch) throw new Error("Errore recupero stagioni: " + errFetch.message);
 
-        // 2. Inserimento in Archivio (Senza .select() per evitare il 403 di lettura)
+        // 2. Inserimento in Archivio Anagrafica
         const { error: errArch } = await client
             .from('athletes_archive')
             .insert([{
@@ -1175,41 +1175,43 @@ window.deleteAtletaBase = async function(id) {
                 society_name: _socLook[atleta.society_id] || 'N.D.'
             }]);
 
-        if (errArch) {
-            console.error("Errore 403/42501:", errArch);
-            throw new Error("Permessi negati su athletes_archive. Verifica le Policy SQL.");
+        if (errArch) throw new Error("Errore inserimento archivio atleti: " + errArch.message);
+
+        // 3. Inserimento in Archivio Stagioni (usando i nomi colonne definiti nell'SQL sopra)
+        if (stagioni && stagioni.length > 0) {
+            const payloadStagioni = stagioni.map(s => ({
+                original_athlete_id: id,
+                season_id: s.season_id,
+                team_id: s.team_id,
+                category_id: s.category_id,
+                jersey_number: s.jersey_number,
+                role: s.role
+            }));
+
+            const { error: errStag } = await client
+                .from('athlete_seasons_archive')
+                .insert(payloadStagioni);
+            
+            if (errStag) {
+                console.error("Dettaglio errore stagioni:", errStag);
+                console.warn("Lo storico stagioni non è stato migrato.");
+            }
         }
 
-        // 3. Archivia le stagioni (Usiamo l'ID originale dell'atleta come riferimento)
-           // ... dentro window.deleteAtletaBase ...
-           if (stagioni && stagioni.length > 0) {
-               const { error: errStag } = await client
-                   .from('athlete_seasons_archive')
-                   .insert(stagioni.map(s => ({
-                       original_athlete_id: atleta.id, // Adesso la colonna esiste!
-                       season_id: s.season_id,
-                       team_id: s.team_id,
-                       jersey_number: s.jersey_number
-                   })));
-               
-               if (errStag) console.warn("Nota: Storico stagioni non migrato:", errStag.message);
-           }
-// ... resto del codice ...
-
-        // 4. Cancellazione finale dall'anagrafica attiva
+        // 4. Cancellazione finale
         const { error: errDel } = await client
             .from('athletes')
             .delete()
             .eq('id', id);
 
-        if (errDel) throw new Error("Atleta archiviato ma errore nella rimozione: " + errDel.message);
+        if (errDel) throw new Error("Errore durante la cancellazione finale: " + errDel.message);
 
-        alert("Atleta archiviato con successo.");
+        alert("Atleta archiviato correttamente.");
         await window.initAnagraficaPura();
 
     } catch (e) {
-        console.error("Procedura interrotta:", e);
-        alert("ERRORE: " + e.message);
+        console.error("Errore procedura:", e);
+        alert("Impossibile completare: " + e.message);
     }
 };
 })();
