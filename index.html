@@ -132,75 +132,73 @@
     document.getElementById('btn-logout').onclick = () => location.reload();
 
     /* --- NAVIGAZIONE (LOADER PAGINE) --- */
-    const loadPage = (section) => {
-        document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
-        const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
-        if (link) link.classList.add('active');
+/* --- NAVIGAZIONE (LOADER PAGINE) --- */
+const loadPage = (section) => {
+    document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+    const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
+    if (link) link.classList.add('active');
 
-        const content = document.getElementById('content');
+    const content = document.getElementById('content');
 
-        switch(section) {
-            case 'dashboard': 
-                content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
-                break;
-            
-            case 'stagioni': 
-                content.innerHTML = templateStagioni(); 
-                initStagioni(); 
-                break;
-				case 'sport':
-                content.innerHTML = templateSport();
-                initSport();
-                break;
+    switch(section) {
+        case 'dashboard': 
+            content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
+            break;
+        
+        case 'stagioni': 
+            content.innerHTML = templateStagioni(); 
+            initStagioni(); 
+            break;
 
-            case 'societa':
-                content.innerHTML = templateSocieta();
-                initSocieta();
-                break;
+        case 'sport':
+            content.innerHTML = templateSport();
+            initSport();
+            break;
 
-            case 'categoria':
-                content.innerHTML = templateCategoria();
-                initCategoria();
-                break;
+        case 'societa':
+            content.innerHTML = templateSocieta();
+            initSocieta();
+            break;
 
-            case 'squadra':
-                content.innerHTML = templateSquadra();
-                initSquadra();
-                break;
-		case 'staff': // Anagrafica Utenti (tabella users)
+        case 'categoria':
+            content.innerHTML = templateCategoria();
+            initCategoria();
+            break;
+
+        case 'squadra':
+            content.innerHTML = templateSquadra();
+            initSquadra();
+            break;
+
+        case 'staff': 
             content.innerHTML = templateStaff();
             initStaff();
             break;
 
-        case 'assegnazioni': // Relazione Staff <-> Categoria <-> Stagione
+        case 'assegnazioni': 
             content.innerHTML = templateAssignments();
             initAssignments();
             break;
 
-        case 'anagrafica-pura':// Questo ora è ANAGRAFICA ATLETI
-             content.innerHTML = templateAnagraficaPura();
-             initAnagraficaPura();
-             break;
-        case 'atleti': // Questo ora è "Associazioni Squadre"
-             content.innerHTML = templateAtleti();
-             initAtleti();
-             break;
-			
-        case 'sessioni': // Futura gestione Allenamenti/Partite
+        case 'anagrafica-pura': // ANAGRAFICA ATLETI (Dati Base)
+            content.innerHTML = templateAnagraficaPura();
+            initAnagraficaPura();
+            break;
+
+        case 'atleti': // ASSOCIAZIONI SQUADRE (Legame Stagionale)
             content.innerHTML = templateAtleti();
-			initAtleti();
-             break;
+            initAtleti();
+            break;
             
-            /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
+        case 'sessioni': 
+            content.innerHTML = templateAtleti(); // Segnaposto attuale
+            initAtleti();
+            break;
 
-            default: 
-                content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>In fase di sviluppo...</p></div>`;
-        }
-    };
-
-    document.querySelectorAll('#sidebar a').forEach(a => {
-        a.onclick = () => loadPage(a.dataset.section);
-    });
+        default: 
+            content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>In fase di sviluppo...</p></div>`;
+    }
+};
 
 /* ============================================================
    PAGINA: STAGIONI (Versione Aggiornata)
