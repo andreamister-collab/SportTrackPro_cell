@@ -1402,46 +1402,46 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI (DATI BASE - Tabella athletes)
+   MODULO ANAGRAFICA ATLETI (GESTIONE COMPLETA TABELLA: athletes)
    ============================================================ */
 (function() {
     let _atletiBase = [];
     let _socLook = {};
 
+    // 1. TEMPLATE HTML
     window.templateAnagraficaPura = function() {
         return `
         <div class="card">
             <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
-                <h2>👤 Anagrafica Atleti (Dati Base)</h2>
+                <h2>👤 Anagrafica Atleti</h2>
                 <button class="btn" onclick="window.openAtletaBaseModal()">+ Nuovo Atleta</button>
             </div>
 
-            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #f8fafc; padding: 15px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
-                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b;">Cerca Nome/Cognome</label>
-                    <input type="text" id="f-bp-search" placeholder="Filtra..." oninput="window.applyAnagraficaFilters()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b; font-weight:600;">Cerca Nome/Cognome</label>
+                    <input type="text" id="f-bp-search" placeholder="Es. Mario Rossi" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b;">Società</label>
-                    <select id="f-bp-soc" onchange="window.applyAnagraficaFilters()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                        <option value="">Tutte</option>
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b; font-weight:600;">Società</label>
+                    <select id="f-bp-soc" onchange="window.applyAnagraficaFilters()" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:8px;">
+                        <option value="">Tutte le Società</option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b;">Anno di Nascita</label>
-                    <input type="number" id="f-bp-year" placeholder="es. 2010" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                    <label style="display:block; font-size:12px; margin-bottom:4px; color:#64748b; font-weight:600;">Anno di Nascita</label>
+                    <input type="number" id="f-bp-year" placeholder="Es. 2012" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
             </div>
 
             <div style="overflow-x:auto;">
-                <table>
+                <table style="width:100%; border-collapse: collapse;">
                     <thead>
-                        <tr>
-                            <th>Cognome</th>
-                            <th>Nome</th>
-                            <th>Data Nascita</th>
-                            <th>Società</th>
-                            <th style="text-align:right">Azioni</th>
+                        <tr style="border-bottom: 2px solid #f1f5f9;">
+                            <th style="text-align:left; padding:12px;">Cognome e Nome</th>
+                            <th style="text-align:left; padding:12px;">Data Nascita</th>
+                            <th style="text-align:left; padding:12px;">Società</th>
+                            <th style="text-align:right; padding:12px;">Azioni</th>
                         </tr>
                     </thead>
                     <tbody id="list-anagrafica-body"></tbody>
@@ -1450,48 +1450,65 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
+    // 2. LOGICA DI INIZIALIZZAZIONE
     window.initAnagraficaPura = async function() {
-        const [socs, atleti] = await Promise.all([
-            client.from('societies').select('*').order('name'),
-            client.from('athletes').select('*').order('surname')
-        ]);
+        try {
+            const [socs, atleti] = await Promise.all([
+                client.from('societies').select('*').order('name'),
+                client.from('athletes').select('*').order('surname')
+            ]);
 
-        _socLook = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
-        _atletiBase = atleti.data || [];
+            _socLook = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
+            _atletiBase = atleti.data || [];
 
-        const fSoc = document.getElementById('f-bp-soc');
-        if(fSoc) {
-            fSoc.innerHTML = '<option value="">Tutte</option>' + 
-                socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            const fSoc = document.getElementById('f-bp-soc');
+            if(fSoc) {
+                fSoc.innerHTML = '<option value="">Tutte le Società</option>' + 
+                    socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            }
+
+            renderAnagraficaTable(_atletiBase);
+        } catch (err) {
+            console.error("Errore inizializzazione Anagrafica Atleti:", err);
         }
-
-        renderAnagraficaTable(_atletiBase);
     };
 
+    // 3. RENDERIZZAZIONE TABELLA (Con i bottoni richiesti)
     function renderAnagraficaTable(data) {
         const body = document.getElementById('list-anagrafica-body');
         if(!body) return;
+        
         body.innerHTML = data.map(a => `
-            <tr>
-                <td><b>${a.surname.toUpperCase()}</b></td>
-                <td>${a.name}</td>
-                <td>${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}</td>
-                <td>${_socLook[a.society_id] || 'N.D.'}</td>
-                <td style="text-align:right">
-                    <button class="btn-icon" onclick="window.openAtletaBaseModal('${a.id}')" title="Modifica">✏️</button>
-                    <button class="btn-icon" onclick="window.deleteAtletaBase('${a.id}')" style="color:var(--danger)" title="Elimina">🗑️</button>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding:12px;">
+                    <div style="font-weight:600; color:#1e293b;">${a.surname.toUpperCase()}</div>
+                    <div style="font-size:13px; color:#64748b;">${a.name}</div>
+                </td>
+                <td style="padding:12px; color:#475569;">
+                    ${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}
+                </td>
+                <td style="padding:12px;">
+                    <span class="badge-soc" style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:500;">
+                        ${_socLook[a.society_id] || 'N.D.'}
+                    </span>
+                </td>
+                <td style="padding:12px; text-align:right;">
+                    <button class="btn-icon edit" onclick="window.openAtletaBaseModal('${a.id}')" title="Modifica">✏️</button>
+                    <button class="btn-icon delete" onclick="window.deleteAtletaBase('${a.id}')" title="Elimina">🗑️</button>
                 </td>
             </tr>
         `).join('');
     }
 
+    // 4. FUNZIONE FILTRI
     window.applyAnagraficaFilters = function() {
         const search = document.getElementById('f-bp-search').value.toLowerCase();
         const socId = document.getElementById('f-bp-soc').value;
         const year = document.getElementById('f-bp-year').value;
 
         const filtered = _atletiBase.filter(a => {
-            const matchesName = (a.name + ' ' + a.surname).toLowerCase().includes(search);
+            const fullName = (a.surname + ' ' + a.name).toLowerCase();
+            const matchesName = fullName.includes(search);
             const matchesSoc = !socId || a.society_id === socId;
             const matchesYear = !year || (a.born_date && a.born_date.startsWith(year));
             return matchesName && matchesSoc && matchesYear;
@@ -1499,21 +1516,28 @@ window.handleDeleteStaff = async function(id) {
         renderAnagraficaTable(filtered);
     };
 
+    // 5. GESTIONE MODALE (SALVATAGGIO)
     window.openAtletaBaseModal = async function(id = null) {
         let atleta = { name: '', surname: '', born_date: '', society_id: '' };
         if(id) atleta = _atletiBase.find(a => a.id === id);
 
-        modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', `
+        modal.open(id ? '✏️ Modifica Anagrafica' : '👤 Nuovo Atleta', `
             <div style="display:grid; gap:12px;">
-                <label>Cognome *</label>
-                <input type="text" id="m-bp-surname" value="${atleta.surname}" required>
-                <label>Nome *</label>
-                <input type="text" id="m-bp-name" value="${atleta.name}" required>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Cognome *</label>
+                        <input type="text" id="m-bp-surname" value="${atleta.surname}" placeholder="ROSSI" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Nome *</label>
+                        <input type="text" id="m-bp-name" value="${atleta.name}" placeholder="Mario" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    </div>
+                </div>
                 <label>Data di Nascita</label>
-                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}">
+                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
                 <label>Società di appartenenza *</label>
-                <select id="m-bp-soc" required>
-                    <option value="">-- Seleziona --</option>
+                <select id="m-bp-soc" required style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="">-- Seleziona Società --</option>
                     ${Object.entries(_socLook).map(([sid, name]) => 
                         `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`
                     ).join('')}
@@ -1535,17 +1559,27 @@ window.handleDeleteStaff = async function(id) {
                 ? await client.from('athletes').update(data).eq('id', id)
                 : await client.from('athletes').insert([data]);
 
-            if(!error) { modal.close(); initAnagraficaPura(); }
-            else alert(error.message);
+            if(!error) { 
+                modal.close(); 
+                await window.initAnagraficaPura(); 
+            } else {
+                alert("Errore salvataggio: " + error.message);
+            }
         };
     };
 
+    // 6. GESTIONE ELIMINAZIONE
     window.deleteAtletaBase = async function(id) {
-        if(!confirm("Eliminando l'atleta verrà rimosso anche da tutte le squadre. Confermi?")) return;
+        if(!confirm("Sei sicuro di voler eliminare questo atleta dall'anagrafica?")) return;
+        
         const { error } = await client.from('athletes').delete().eq('id', id);
-        if(!error) initAnagraficaPura();
-        else alert(error.message);
+        if(!error) {
+            await window.initAnagraficaPura();
+        } else {
+            alert("Impossibile eliminare l'atleta. Potrebbe essere legato a dati storici.");
+        }
     };
+
 })();
 /* ============================================================
    FUNZIONI PER ASSOCIAZIONE ATLETI (DA ANAGRAFICA A SQUADRA)
