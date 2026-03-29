@@ -1137,9 +1137,8 @@ function templateAtleti() {
         <div class="header">
             <h2>🏃 ANAGRAFICA ATLETI</h2>
             <div style="display:flex; gap:10px;">
-                <button class="btn" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📥 Import Excel</button>
+                <button class="btn" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📥 Import</button>
                 <input type="file" id="import-excel" hidden onchange="importAtleti(event)" accept=".xlsx, .xls">
-                <button class="btn" style="background:#059669" onclick="exportAtleti()">📤 Export Excel</button>
                 <button class="btn" onclick="openAtletaModal()">+ Nuovo Atleta</button>
             </div>
         </div>
@@ -1167,10 +1166,7 @@ function templateAtleti() {
             </thead>
             <tbody id="list-atleti"></tbody>
         </table>
-    </div>
-
-    <div id="modal-atleta-wrap"></div>
-    `;
+    </div>`;
 }
 
 // Template per il contenuto della modale (da passare a modal.open)
@@ -1203,89 +1199,78 @@ function htmlModaleAtleta(isEdit = false) {
     </form>`;
 }
 /* ============================================================
-   LOGICA ANAGRAFICA ATLETI
+   LOGICA POPOLAMENTO E FILTRI
    ============================================================ */
 
-async function initAtleti() {
-    // 1. Carica Società e Stagioni per i filtri
-    const [socs, seas] = await Promise.all([
+// Questa funzione popola le select dei filtri principali
+async function inizializzaSelectFiltri() {
+    const [resSoc, resSea] = await Promise.all([
         client.from('societies').select('id, name').order('name'),
         client.from('seasons').select('id, name, is_active').order('name')
     ]);
 
-    popolaSelect('filter-society', socs.data, "Tutte");
-    popolaSelect('filter-season', seas.data, null);
-    
-    // Imposta stagione attiva di default
-    const activeSea = seas.data?.find(s => s.is_active);
-    if(activeSea) document.getElementById('filter-season').value = activeSea.id;
-
-    // 2. Carica i dati della tabella
-    await loadAtletiData();
+    if (resSoc.data) popolaSelect('filter-society', resSoc.data, "Tutte");
+    if (resSea.data) {
+        popolaSelect('filter-season', resSea.data, null);
+        const active = resSea.data.find(s => s.is_active);
+        if (active) document.getElementById('filter-season').value = active.id;
+    }
 }
 
-window.loadAtletiData = async function() {
-    const { data, error } = await client
-        .from('athlete_team_seasons')
-        .select(`
-            id, nickname, jersey_number, role, society_id, season_id, category_id, team_id,
-            athletes:athlete_id (id, name, surname, birth_date),
-            societies:society_id (name),
-            seasons:season_id (name),
-            teams:team_id (name),
-            categories:category_id (name)
-        `);
-
-    if (!error) {
-        window.allAtletiData = data || [];
-        window.applyAtletiFilters();
-    }
-};
-
-window.saveAtleta = async function() {
-    const id = document.getElementById('editAssignmentId').value;
-    const athleteData = {
-        surname: document.getElementById('atletaSurname').value.trim(),
-        name: document.getElementById('atletaName').value.trim(),
-        birth_date: document.getElementById('atletaBirth').value || null
-    };
-
-    // A. Upsert dell'atleta (Anagrafica base)
-    const { data: ath, error: errA } = await client.from('athletes')
-        .upsert([athleteData], { onConflict: 'surname, name' }).select().single();
-
-    if (errA) return alert("Errore Anagrafica: " + errA.message);
-
-    // B. Salvataggio Assegnazione (athlete_team_seasons)
-    const assignmentData = {
-        athlete_id: ath.id,
-        society_id: document.getElementById('atletaSociety').value,
-        season_id: document.getElementById('filter-season').value,
-        category_id: document.getElementById('atletaCategory').value || null,
-        team_id: document.getElementById('atletaTeam').value || null,
-        role: document.getElementById('atletaRole').value,
-        jersey_number: document.getElementById('atletaJersey').value,
-        nickname: document.getElementById('atletaNickname').value
-    };
-
-    const { error: errS } = id 
-        ? await client.from('athlete_team_seasons').update(assignmentData).eq('id', id)
-        : await client.from('athlete_team_seasons').insert([assignmentData]);
-
-    if (!errS) {
-        modal.close();
-        loadAtletiData();
+// Gestisce i filtri a cascata (Società -> Categoria)
+window.updateProgressiveFilters = async function() {
+    const socId = document.getElementById('filter-society').value;
+    
+    // Se è selezionata una società specifica, carichiamo le sue categorie
+    if (socId !== 'all') {
+        const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+        popolaSelect('filter-category', cats, "Tutte");
     } else {
-        alert("Errore salvataggio: " + errS.message);
+        // Se "Tutte", resetta categoria e squadra
+        document.getElementById('filter-category').innerHTML = '<option value="all">Tutte</option>';
+        document.getElementById('filter-team').innerHTML = '<option value="all">Tutte</option>';
     }
+    
+    window.applyAtletiFilters();
 };
+
+/* ============================================================
+   GESTIONE MODALE (COSTRUZIONE DINAMICA)
+   ============================================================ */
 
 window.openAtletaModal = async function(id = null) {
-    modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', htmlModaleAtleta(!!id));
-    
-    // Popola società nella modale
+    // 1. Apriamo la modale con il form vuoto
+    modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', `
+        <form id="atletaForm">
+            <input type="hidden" id="editAssignmentId">
+            <div style="background:#f0f7ff; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #cfe2ff;">
+                <p style="font-size:11px; font-weight:bold; color:#0d6efd; margin-bottom:10px; text-transform:uppercase;">Assegnazione</p>
+                <div style="margin-bottom:10px">
+                    <label>Società *</label>
+                    <select id="atletaSociety" required onchange="rinfrescaFiltriModale(this.value)">
+                        <option value="">Seleziona società...</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1"><label>Categoria *</label><select id="atletaCategory" required><option value="">Seleziona...</option></select></div>
+                    <div style="flex:1"><label>Squadra</label><select id="atletaTeam"><option value="">Intera categoria</option></select></div>
+                </div>
+            </div>
+            <p style="font-size:11px; font-weight:bold; color:#64748b; margin-bottom:10px; text-transform:uppercase;">Dati Personali</p>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <div style="flex:1"><label>Cognome *</label><input type="text" id="atletaSurname" required></div>
+                <div style="flex:1"><label>Nome *</label><input type="text" id="atletaName" required></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1"><label>N° Maglia</label><input type="number" id="atletaJersey"></div>
+                <div style="flex:1"><label>Ruolo</label><input type="text" id="atletaRole" placeholder="es. Portiere"></div>
+            </div>
+        </form>
+    `);
+
+    // 2. Popoliamo la select Società nella modale
     const { data: socs } = await client.from('societies').select('id, name').order('name');
-    popolaSelect('atletaSociety', socs, "Seleziona...");
+    popolaSelect('atletaSociety', socs, "Seleziona società...");
 
     if (id) {
         const item = window.allAtletiData.find(a => a.id == id);
@@ -1293,44 +1278,37 @@ window.openAtletaModal = async function(id = null) {
             document.getElementById('editAssignmentId').value = id;
             document.getElementById('atletaSurname').value = item.athletes.surname;
             document.getElementById('atletaName').value = item.athletes.name;
-            document.getElementById('atletaBirth').value = item.athletes.birth_date || "";
-            document.getElementById('atletaNickname').value = item.nickname || "";
             document.getElementById('atletaJersey').value = item.jersey_number || "";
             document.getElementById('atletaRole').value = item.role || "";
+            
+            // Settiamo la società e carichiamo le categorie per quella società
             document.getElementById('atletaSociety').value = item.society_id;
             await rinfrescaFiltriModale(item.society_id);
             document.getElementById('atletaCategory').value = item.category_id || "";
-            document.getElementById('atletaTeam').value = item.team_id || "";
         }
     }
 
-    // Collega il tasto salva della modale globale
+    // Colleghiamo il tasto Salva
     document.getElementById('btn-modal-save').onclick = () => window.saveAtleta();
 };
 
-window.deleteAtleta = async function(id) {
-    if(confirm("Rimuovere questo atleta dalla stagione corrente?")) {
-        await client.from('athlete_team_seasons').delete().eq('id', id);
-        loadAtletiData();
-    }
-};
+async function rinfrescaFiltriModale(socId) {
+    if (!socId) return;
+    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    popolaSelect('atletaCategory', cats, "Seleziona categoria...");
+}
 
-// Funzione helper per popolare le select
+// Helper universale per popolare le select
 function popolaSelect(id, data, defaultTxt) {
     const sel = document.getElementById(id);
     if (!sel) return;
     let html = defaultTxt ? `<option value="all">${defaultTxt}</option>` : '';
-    data?.forEach(d => html += `<option value="${d.id}">${d.name}</option>`);
+    if (id === 'atletaSociety' || id === 'atletaCategory') html = `<option value="">${defaultTxt}</option>`;
+    
+    data?.forEach(d => {
+        html += `<option value="${d.id}">${d.name}</option>`;
+    });
     sel.innerHTML = html;
-}
-
-async function rinfrescaFiltriModale(socId) {
-    const [cats, teams] = await Promise.all([
-        client.from('categories').select('id, name').eq('society_id', socId).order('name'),
-        client.from('teams').select('id, name').eq('society_id', socId).order('name')
-    ]);
-    popolaSelect('atletaCategory', cats.data, "Seleziona...");
-    popolaSelect('atletaTeam', teams.data, "Categoria intera");
 }
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
