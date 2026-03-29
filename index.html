@@ -1151,12 +1151,12 @@ window.handleDeleteStaff = async function(id) {
             await window.initAnagraficaPura();
         } catch (e) { alert("Errore: " + e.message); }
     }; ===== VECCHIO BLOCCO====== */
-	window.deleteAtletaBase = async function(id) {
+window.deleteAtletaBase = async function(id) {
     const atleta = _atletiBase.find(a => a.id === id);
     if (!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
 
     try {
-        // 1. Recupera le stagioni associate
+        // 1. Recupera le stagioni associate prima di fare qualsiasi cosa
         const { data: stagioni, error: errFetch } = await client
             .from('athlete_team_seasons')
             .select('*')
@@ -1164,63 +1164,54 @@ window.handleDeleteStaff = async function(id) {
         
         if (errFetch) throw new Error("Errore recupero stagioni: " + errFetch.message);
 
-        // 2. Inserimento in Archivio
-        // NOTA: Se ricevi ancora 403 qui, assicurati che le colonne 
-        // original_athlete_id, surname, name, born_date, society_name esistano esattamente così.
-// MODIFICA QUESTA PARTE NEL TUO JS
-const { error: errArch } = await client
-    .from('athletes_archive')
-    .insert([{
-        original_athlete_id: atleta.id,
-        surname: atleta.surname,
-        name: atleta.name,
-        born_date: atleta.born_date,
-        society_name: _socLook[atleta.society_id] || 'N.D.'
-    }]); 
-	
-	// <--- Tolto .select().single()
+        // 2. Inserimento in Archivio (Senza .select() per evitare il 403 di lettura)
+        const { error: errArch } = await client
+            .from('athletes_archive')
+            .insert([{
+                original_athlete_id: atleta.id,
+                surname: atleta.surname,
+                name: atleta.name,
+                born_date: atleta.born_date,
+                society_name: _socLook[atleta.society_id] || 'N.D.'
+            }]);
 
-if (errArch) {
-    console.error("Errore 403 persistente:", errArch);
-    throw new Error("Permessi negati: " + errArch.message);
-}
+        if (errArch) {
+            console.error("Errore 403/42501:", errArch);
+            throw new Error("Permessi negati su athletes_archive. Verifica le Policy SQL.");
+        }
 
-// Poiché non abbiamo più 'arch.id', dobbiamo recuperare l'ID appena creato 
-// o usare l'original_athlete_id se la tabella stagioni_archive lo permette.
-// OPZIONE B: Se ti serve l'ID, lascia .select() ma assicurati che le policy di SELECT siano attive.
-
-        // 3. Archivia le stagioni se presenti
+        // 3. Archivia le stagioni (Usiamo l'ID originale dell'atleta come riferimento)
         if (stagioni && stagioni.length > 0) {
             const { error: errStag } = await client
                 .from('athlete_seasons_archive')
                 .insert(stagioni.map(s => ({
-                    athlete_archive_id: arch.id,
+                    // NOTA: Assicurati che athlete_seasons_archive accetti original_athlete_id 
+                    // o gestisca il puntamento correttamente
+                    original_athlete_id: atleta.id, 
                     season_id: s.season_id,
                     team_id: s.team_id,
                     jersey_number: s.jersey_number
                 })));
             
-            if (errStag) console.warn("Nota: Stagioni non archiviate:", errStag.message);
+            if (errStag) console.warn("Nota: Storico stagioni non migrato:", errStag.message);
         }
 
-        // 4. CANCELLAZIONE REALE (Solo se i punti precedenti sono OK)
+        // 4. Cancellazione finale dall'anagrafica attiva
         const { error: errDel } = await client
             .from('athletes')
             .delete()
             .eq('id', id);
 
-        if (errDel) throw new Error("Atleta archiviato ma non rimosso: " + errDel.message);
+        if (errDel) throw new Error("Atleta archiviato ma errore nella rimozione: " + errDel.message);
 
-        // 5. Successo
         alert("Atleta archiviato con successo.");
         await window.initAnagraficaPura();
 
     } catch (e) {
-        console.error("Procedura fallita:", e);
-        alert("Impossibile completare l'operazione: " + e.message);
+        console.error("Procedura interrotta:", e);
+        alert("ERRORE: " + e.message);
     }
 };
-
 })();
 /* ============================================================
    EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
