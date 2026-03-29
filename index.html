@@ -1181,20 +1181,20 @@ window.deleteAtletaBase = async function(id) {
         }
 
         // 3. Archivia le stagioni (Usiamo l'ID originale dell'atleta come riferimento)
-        if (stagioni && stagioni.length > 0) {
-            const { error: errStag } = await client
-                .from('athlete_seasons_archive')
-                .insert(stagioni.map(s => ({
-                    // NOTA: Assicurati che athlete_seasons_archive accetti original_athlete_id 
-                    // o gestisca il puntamento correttamente
-                    original_athlete_id: atleta.id, 
-                    season_id: s.season_id,
-                    team_id: s.team_id,
-                    jersey_number: s.jersey_number
-                })));
-            
-            if (errStag) console.warn("Nota: Storico stagioni non migrato:", errStag.message);
-        }
+           // ... dentro window.deleteAtletaBase ...
+           if (stagioni && stagioni.length > 0) {
+               const { error: errStag } = await client
+                   .from('athlete_seasons_archive')
+                   .insert(stagioni.map(s => ({
+                       original_athlete_id: atleta.id, // Adesso la colonna esiste!
+                       season_id: s.season_id,
+                       team_id: s.team_id,
+                       jersey_number: s.jersey_number
+                   })));
+               
+               if (errStag) console.warn("Nota: Storico stagioni non migrato:", errStag.message);
+           }
+// ... resto del codice ...
 
         // 4. Cancellazione finale dall'anagrafica attiva
         const { error: errDel } = await client
