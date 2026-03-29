@@ -1150,7 +1150,7 @@ window.handleDeleteStaff = async function(id) {
             await client.from('athletes').delete().eq('id', id);
             await window.initAnagraficaPura();
         } catch (e) { alert("Errore: " + e.message); }
-    };*/
+    }; ===== VECCHIO BLOCCO====== */
 	window.deleteAtletaBase = async function(id) {
     const atleta = _atletiBase.find(a => a.id === id);
     if (!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
@@ -1167,22 +1167,27 @@ window.handleDeleteStaff = async function(id) {
         // 2. Inserimento in Archivio
         // NOTA: Se ricevi ancora 403 qui, assicurati che le colonne 
         // original_athlete_id, surname, name, born_date, society_name esistano esattamente così.
-        const { data: arch, error: errArch } = await client
-            .from('athletes_archive')
-            .insert([{
-                original_athlete_id: atleta.id,
-                surname: atleta.surname,
-                name: atleta.name,
-                born_date: atleta.born_date,
-                society_name: _socLook[atleta.society_id] || 'N.D.'
-            }])
-            .select()
-            .single();
+// MODIFICA QUESTA PARTE NEL TUO JS
+const { error: errArch } = await client
+    .from('athletes_archive')
+    .insert([{
+        original_athlete_id: atleta.id,
+        surname: atleta.surname,
+        name: atleta.name,
+        born_date: atleta.born_date,
+        society_name: _socLook[atleta.society_id] || 'N.D.'
+    }]); 
+	
+	// <--- Tolto .select().single()
 
-        if (errArch) {
-            console.error("Errore dettaglio 403:", errArch);
-            throw new Error("Errore archiviazione (RLS/Permessi): " + errArch.message);
-        }
+if (errArch) {
+    console.error("Errore 403 persistente:", errArch);
+    throw new Error("Permessi negati: " + errArch.message);
+}
+
+// Poiché non abbiamo più 'arch.id', dobbiamo recuperare l'ID appena creato 
+// o usare l'original_athlete_id se la tabella stagioni_archive lo permette.
+// OPZIONE B: Se ti serve l'ID, lascia .select() ma assicurati che le policy di SELECT siano attive.
 
         // 3. Archivia le stagioni se presenti
         if (stagioni && stagioni.length > 0) {
