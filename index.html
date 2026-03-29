@@ -1300,8 +1300,6 @@ window.applyAtletiFilters = function() {
 };
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
-/* ============================================================
-   FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
 window.importAtleti = async function(event) {
     const file = event.target.files[0];
@@ -1341,22 +1339,18 @@ window.importAtleti = async function(event) {
                 const row = jsonData[i];
                 const nRiga = i + 2;
 
-                // Gestione Nome/Cognome con split robusto
-                let fullStr = row.Atleta?.toString().trim() || "";
-                if (!fullStr) continue;
+                // Il campo Atleta contiene solo il cognome (anche composto es. "Trimboli Maciste")
+                let surname = row.Atleta?.toString().trim() || "";
+                if (!surname) continue;
+                let name = null;
 
-                let parts = fullStr.trim().split(/\s+/);
-                let surname = parts[0];
-                let name = parts.slice(1).join(" ") || "";
-
-                // A. Cerchiamo l'atleta nell'anagrafica con confronto robusto
+                // A. Cerchiamo l'atleta nell'anagrafica
                 let athleteId = existingAths.data.find(a =>
-                    a.surname?.trim().toLowerCase() === surname.toLowerCase() &&
-                    (a.name?.trim() || "").toLowerCase() === name.toLowerCase()
+                    a.surname?.trim().toLowerCase() === surname.toLowerCase()
                 )?.id;
 
                 if (!athleteId) {
-                    console.log(`👤 Riga ${nRiga}: Atleta nuovo (${fullStr}). Creazione in corso...`);
+                    console.log(`👤 Riga ${nRiga}: Atleta nuovo (${surname}). Creazione in corso...`);
                     const { data: newA, error: errA } = await client.from('athletes')
                         .insert([{ name, surname }]).select('id').single();
 
@@ -1387,7 +1381,7 @@ window.importAtleti = async function(event) {
                         nickname: row.Nickname || null
                     });
                 } else {
-                    console.error(`❌ Riga ${nRiga}: Impossibile procedere. Atleta, Società o Stagione mancanti o errati.`);
+                    console.error(`❌ Riga ${nRiga}: Impossibile procedere. Società o Stagione mancanti o errate.`);
                 }
             }
 
