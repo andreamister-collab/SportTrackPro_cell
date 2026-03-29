@@ -1142,9 +1142,10 @@ window.handleDeleteStaff = async function(id) {
         return `
         <div class="card">
             <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
-                <h2>🏃 ANAGRAFICA ATLETI</h2>
+                <h2>📋 Anagrafica Squadra</h2>
                 <div class="actions">
                     <button class="btn" onclick="window.openAtletaModal()">+ Nuovo Atleta</button>
+					<button class="btn" style="background:#059669; margin-right:8px;" onclick="window.openAssociaGiocatoreModal()">🔗 Associa Giocatori</button>
                 </div>
             </div>
 
@@ -1395,6 +1396,93 @@ window.handleDeleteStaff = async function(id) {
         }
     };
 })();
+/* ============================================================
+   MODAL per giocatori non associati ad una squdara
+   ============================================================ */
+ window.openAssociaGiocatoreModal = async function() {
+    const activeSea = document.getElementById('f-at-sea').value;
+    if(!activeSea) return alert("Seleziona prima una stagione dai filtri.");
+
+    // 1. Recupero tutti gli atleti in anagrafica
+    const { data: tuttiAtleti } = await client.from('athletes').select('id, surname, name').order('surname');
+    
+    // 2. Recupero chi è già associato in QUESTA stagione
+    const { data: giaAssociati } = await client.from('athlete_team_seasons').select('athlete_id').eq('season_id', activeSea);
+    const idsGiaAssociati = giaAssociati.map(a => a.athlete_id);
+
+    // 3. Filtro gli "orfani" (presenti in anagrafica ma non in squadra questa stagione)
+    const orfani = tuttiAtleti.filter(at => !idsGiaAssociati.includes(at.id));
+
+    if (orfani.length === 0) {
+        return alert("Tutti gli atleti in anagrafica sono già associati a una squadra per questa stagione.");
+    }
+
+    modal.open('Associa Atleta a Squadra', `
+        <div style="display:grid; gap:12px;">
+            <label>Seleziona Atleta da Anagrafica *</label>
+            <select id="m-ass-ath" required>
+                <option value="">-- Scegli Atleta --</option>
+                ${orfani.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
+            </select>
+            
+            <label>Società *</label>
+            <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)">
+                <option value="">-- Seleziona Società --</option>
+                ${Object.entries(_lookupSocs).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
+            </select>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Categoria</label><select id="m-ass-cat" onchange="window.updateAsModTea(this.value)"><option value="">--</option></select></div>
+                <div style="flex:1;"><label>Squadra</label><select id="m-ass-tea"><option value="">Intera Cat.</option></select></div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>N° Maglia</label><input type="number" id="m-ass-num"></div>
+                <div style="flex:1;"><label>Ruolo</label><input type="text" id="m-ass-role" placeholder="es. Pivot"></div>
+            </div>
+        </div>
+    `);
+
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const payload = {
+            athlete_id: document.getElementById('m-ass-ath').value,
+            society_id: document.getElementById('m-ass-soc').value,
+            season_id: activeSea,
+            category_id: document.getElementById('m-ass-cat').value || null,
+            team_id: document.getElementById('m-ass-tea').value || null,
+            jersey_number: document.getElementById('m-ass-num').value || null,
+            role: document.getElementById('m-ass-role').value.trim() || null
+        };
+
+        if(!payload.athlete_id || !payload.society_id) return alert("Atleta e Società obbligatori!");
+
+        const { error } = await client.from('athlete_team_seasons').insert([payload]);
+        if(!error) { 
+            modal.close(); 
+            _fetchAtleti(); 
+        } else {
+            alert(error.message);
+        }
+    };
+};
+
+// Helper per i filtri a cascata nella modale (se non già presenti)
+window.updateAsModCat = async function(socId) {
+    const mCat = document.getElementById('m-ass-cat');
+    mCat.innerHTML = '<option value="">-- Categoria --</option>';
+    if (!socId) return;
+    const { data } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+};
+
+window.updateAsModTea = async function(catId) {
+    const mTea = document.getElementById('m-ass-tea');
+    mTea.innerHTML = '<option value="">Intera Cat.</option>';
+    if (!catId) return;
+    const activeSea = document.getElementById('f-at-sea').value;
+    const { data } = await client.from('teams').select('id, name').eq('category_id', catId).eq('season_id', activeSea).order('name');
+    data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+};  
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
