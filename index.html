@@ -1408,46 +1408,17 @@ window.handleDeleteStaff = async function(id) {
     let _atletiBase = [];
     let _socLook = {};
 
-    // 1. INSERIMENTO CSS DINAMICO (Per isolare lo stile dei bottoni)
+    // CSS INIETTATO
     const style = document.createElement('style');
     style.innerHTML = `
-        .btn-icon-atleta {
-            border: none;
-            width: 38px;
-            height: 38px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-left: 6px;
-        }
-        .btn-icon-atleta.edit { 
-            background-color: #eff6ff; 
-            color: #2563eb; 
-        }
-        .btn-icon-atleta.delete { 
-            background-color: #fef2f2; 
-            color: #ef4444; 
-        }
-        .btn-icon-atleta:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .badge-soc-atleta {
-            background: #f1f5f9;
-            color: #475569;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+        .btn-icon-atleta { border: none; width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; margin-left: 6px; }
+        .btn-icon-atleta.edit { background-color: #eff6ff; color: #2563eb; }
+        .btn-icon-atleta.delete { background-color: #fef2f2; color: #ef4444; }
+        .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .badge-soc-atleta { background: #f1f5f9; color: #475569; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
     `;
     document.head.appendChild(style);
 
-    // 2. TEMPLATE HTML
     window.templateAnagraficaPura = function() {
         return `
         <div class="card">
@@ -1455,24 +1426,20 @@ window.handleDeleteStaff = async function(id) {
                 <h2>👤 Anagrafica Atleti</h2>
                 <button class="btn" onclick="window.openAtletaBaseModal()">+ Nuovo Atleta</button>
             </div>
-
             <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <div>
-                    <label style="display:block; font-size:11px; margin-bottom:5px; color:#64748b; font-weight:700;">NOME / COGNOME</label>
-                    <input type="text" id="f-bp-search" placeholder="Cerca..." oninput="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                    <label style="font-size:11px; font-weight:700; color:#64748b;">NOME / COGNOME</label>
+                    <input type="text" id="f-bp-search" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; margin-bottom:5px; color:#64748b; font-weight:700;">SOCIETÀ</label>
-                    <select id="f-bp-soc" onchange="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
-                        <option value="">Tutte</option>
-                    </select>
+                    <label style="font-size:11px; font-weight:700; color:#64748b;">SOCIETÀ</label>
+                    <select id="f-bp-soc" onchange="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;"></select>
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; margin-bottom:5px; color:#64748b; font-weight:700;">ANNO NASCITA</label>
-                    <input type="number" id="f-bp-year" placeholder="Es. 2010" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                    <label style="font-size:11px; font-weight:700; color:#64748b;">ANNO NASCITA</label>
+                    <input type="number" id="f-bp-year" oninput="window.applyAnagraficaFilters()" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
             </div>
-
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse: collapse;">
                     <thead>
@@ -1489,43 +1456,30 @@ window.handleDeleteStaff = async function(id) {
         </div>`;
     };
 
-    // 3. INIZIALIZZAZIONE DATI
     window.initAnagraficaPura = async function() {
         const [socs, atleti] = await Promise.all([
             client.from('societies').select('id, name').order('name'),
             client.from('athletes').select('*').order('surname')
         ]);
-
         _socLook = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
         _atletiBase = atleti.data || [];
-
         const fSoc = document.getElementById('f-bp-soc');
-        if(fSoc) {
-            fSoc.innerHTML = '<option value="">Tutte le Società</option>' + 
-                socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        }
-
+        if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         renderAnagraficaTable(_atletiBase);
     };
 
-    // 4. RENDER TABELLA (Utilizza le classi definite nello stile interno)
     function renderAnagraficaTable(data) {
         const body = document.getElementById('list-anagrafica-body');
         if(!body) return;
-        
         body.innerHTML = data.map(a => `
             <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding:15px;">
                     <div style="font-weight:800; color:#1e293b; text-transform: uppercase;">${a.surname}</div>
                     <div style="color:#64748b; font-size:13px;">${a.name}</div>
                 </td>
-                <td style="padding:15px; color:#475569;">
-                    ${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}
-                </td>
-                <td style="padding:15px;">
-                    <span class="badge-soc-atleta">${_socLook[a.society_id] || 'N.D.'}</span>
-                </td>
-                <td style="padding:15px; text-align:right; white-space:nowrap;">
+                <td style="padding:15px;">${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}</td>
+                <td style="padding:15px;"><span class="badge-soc-atleta">${_socLook[a.society_id] || 'N.D.'}</span></td>
+                <td style="padding:15px; text-align:right;">
                     <button class="btn-icon-atleta edit" onclick="window.openAtletaBaseModal('${a.id}')">✏️</button>
                     <button class="btn-icon-atleta delete" onclick="window.deleteAtletaBase('${a.id}')">🗑️</button>
                 </td>
@@ -1533,15 +1487,12 @@ window.handleDeleteStaff = async function(id) {
         `).join('');
     }
 
-    // 5. FILTRI
     window.applyAnagraficaFilters = function() {
         const search = document.getElementById('f-bp-search').value.toLowerCase();
         const socId = document.getElementById('f-bp-soc').value;
         const year = document.getElementById('f-bp-year').value;
-
         const filtered = _atletiBase.filter(a => {
-            const fullName = (a.surname + ' ' + a.name).toLowerCase();
-            const matchesName = fullName.includes(search);
+            const matchesName = (a.surname + ' ' + a.name).toLowerCase().includes(search);
             const matchesSoc = !socId || a.society_id === socId;
             const matchesYear = !year || (a.born_date && a.born_date.startsWith(year));
             return matchesName && matchesSoc && matchesYear;
@@ -1549,255 +1500,72 @@ window.handleDeleteStaff = async function(id) {
         renderAnagraficaTable(filtered);
     };
 
-    // 6. MODALE E SALVATAGGIO
     window.openAtletaBaseModal = async function(id = null) {
-        let atleta = { name: '', surname: '', born_date: '', society_id: '' };
-        if(id) atleta = _atletiBase.find(a => a.id === id);
-
+        let atleta = id ? _atletiBase.find(a => a.id === id) : { name: '', surname: '', born_date: '', society_id: '' };
         modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', `
             <div style="display:grid; gap:15px; padding: 10px 0;">
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-weight:700; font-size:11px;">COGNOME *</label>
-                        <input type="text" id="m-bp-surname" value="${atleta.surname}" placeholder="ROSSI" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-top:5px;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-weight:700; font-size:11px;">NOME *</label>
-                        <input type="text" id="m-bp-name" value="${atleta.name}" placeholder="MARIO" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-top:5px;">
-                    </div>
+                    <div style="flex:1;"><label>COGNOME *</label><input type="text" id="m-bp-surname" value="${atleta.surname}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
+                    <div style="flex:1;"><label>NOME *</label><input type="text" id="m-bp-name" value="${atleta.name}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
                 </div>
-                <label style="font-weight:700; font-size:11px;">DATA DI NASCITA</label>
-                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                <label style="font-weight:700; font-size:11px;">SOCIETÀ DI APPARTENENZA *</label>
-                <select id="m-bp-soc" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <label>DATA DI NASCITA</label><input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <label>SOCIETÀ *</label><select id="m-bp-soc" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
                     <option value="">-- Seleziona --</option>
-                    ${Object.entries(_socLook).map(([sid, name]) => 
-                        `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`
-                    ).join('')}
+                    ${Object.entries(_socLook).map(([sid, name]) => `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`).join('')}
                 </select>
             </div>
         `);
-
         document.getElementById('btn-modal-save').onclick = async () => {
-            const data = {
-                name: document.getElementById('m-bp-name').value.trim(),
-                surname: document.getElementById('m-bp-surname').value.trim(),
-                born_date: document.getElementById('m-bp-date').value || null,
-                society_id: document.getElementById('m-bp-soc').value
-            };
-
-            if(!data.name || !data.surname || !data.society_id) return alert("Compila i campi obbligatori!");
-
-            const { error } = id 
-                ? await client.from('athletes').update(data).eq('id', id)
-                : await client.from('athletes').insert([data]);
-
-            if(!error) { 
-                modal.close(); 
-                await window.initAnagraficaPura(); 
-            } else {
-                alert("Errore: " + error.message);
-            }
+            const data = { name: document.getElementById('m-bp-name').value.trim(), surname: document.getElementById('m-bp-surname').value.trim(), born_date: document.getElementById('m-bp-date').value || null, society_id: document.getElementById('m-bp-soc').value };
+            const { error } = id ? await client.from('athletes').update(data).eq('id', id) : await client.from('athletes').insert([data]);
+            if(!error) { modal.close(); await window.initAnagraficaPura(); }
         };
     };
 
-    // 7. ELIMINAZIONE CON ARCHIVIO STORICO
+    // --- LOGICA DI SPOSTAMENTO DATI (ARCHIVIAZIONE) ---
     window.deleteAtletaBase = async function(id) {
         const atleta = _atletiBase.find(a => a.id === id);
-        if (!atleta) return;
-
-        if(!confirm(`Confermi l'eliminazione di ${atleta.surname} ${atleta.name}?\nI dati base verranno salvati nell'archivio storico.`)) return;
+        if(!atleta || !confirm(`Spostare ${atleta.surname} e tutto il suo storico nell'archivio? Verrà rimosso dalle liste attive.`)) return;
 
         try {
-            // Salvataggio record rimosso per memoria storica
-            await client.from('athletes_deleted_archive').insert([{
-                original_athlete_id: atleta.id,
-                full_name: `${atleta.surname.toUpperCase()} ${atleta.name}`,
-                born_date: atleta.born_date,
-                last_society_name: _socLook[atleta.society_id] || 'N.D.'
-            }]);
+            // 1. Recupero le stagioni attuali dell'atleta
+            const { data: stagioni } = await client.from('athlete_seasons').select('*').eq('athlete_id', id);
 
-            const { error } = await client.from('athletes').delete().eq('id', id);
-            if(!error) await window.initAnagraficaPura();
-            else throw error;
+            // 2. Sposto l'Anagrafica
+            const { data: archAtleta, error: errA } = await client.from('athletes_archive').insert([{
+                original_athlete_id: atleta.id,
+                surname: atleta.surname,
+                name: atleta.name,
+                born_date: atleta.born_date,
+                society_name: _socLook[atleta.society_id]
+            }]).select().single();
+
+            if(errA) throw errA;
+
+            // 3. Se ci sono stagioni, sposto anche quelle nell'archivio stagioni
+            if(stagioni && stagioni.length > 0) {
+                const stagioniArchivio = stagioni.map(s => ({
+                    athlete_archive_id: archAtleta.id,
+                    season_name: s.season_name, // Assicurati che questi nomi colonna siano corretti nel tuo DB
+                    team_name: s.team_name,
+                    jersey_number: s.jersey_number, // Può essere null come da tua richiesta
+                    role: s.role
+                }));
+                await client.from('athlete_seasons_archive').insert(stagioniArchivio);
+            }
+
+            // 4. Ora che tutto è archiviato, elimino l'originale (il CASCADE farà il resto)
+            await client.from('athletes').delete().eq('id', id);
+            
+            await window.initAnagraficaPura();
+            alert("Spostamento completato con successo.");
 
         } catch (e) {
-            alert("Errore durante l'eliminazione: " + e.message);
+            console.error(e);
+            alert("Errore durante lo spostamento: " + e.message);
         }
     };
-
 })();
-/* ============================================================
-   FUNZIONI PER ASSOCIAZIONE ATLETI (DA ANAGRAFICA A SQUADRA)
-   ============================================================ */
-
-window.openAssociaGiocatoreModal = async function() {
-    // 1. Identificazione Stagione Attiva dai filtri della tabella
-    const seasonSelect = document.getElementById('f-at-sea') || 
-                         document.getElementById('f-sea') || 
-                         document.querySelector('select[id*="sea"]');
-
-    if (!seasonSelect || !seasonSelect.value) {
-        return alert("Per favore, seleziona una Stagione dai filtri della tabella prima di procedere.");
-    }
-
-    const activeSea = seasonSelect.value;
-
-    try {
-        // 2. Recupero Società, Atleti totali e chi è già associato (in parallelo)
-        const [socsRes, atletiRes, assocRes] = await Promise.all([
-            client.from('societies').select('id, name').order('name'),
-            client.from('athletes').select('id, surname, name').order('surname'),
-            client.from('athlete_team_seasons').select('athlete_id').eq('season_id', activeSea)
-        ]);
-
-        if (socsRes.error) throw socsRes.error;
-        if (atletiRes.error) throw atletiRes.error;
-        if (assocRes.error) throw assocRes.error;
-
-        const idsGiaAssociati = assocRes.data.map(a => a.athlete_id);
-        const orfani = atletiRes.data.filter(at => !idsGiaAssociati.includes(at.id));
-
-        if (orfani.length === 0) {
-            return alert("Tutti i giocatori in anagrafica sono già associati a questa stagione.");
-        }
-
-        // 3. Apertura Modale
-        modal.open('Associa Giocatore a Squadra', `
-            <div style="display:grid; gap:12px;">
-                <label>Atleta (da Anagrafica Base) *</label>
-                <select id="m-ass-ath" required style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    <option value="">-- Scegli Atleta --</option>
-                    ${orfani.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
-                </select>
-                
-                <label>Società *</label>
-                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    <option value="">-- Seleziona Società --</option>
-                    ${socsRes.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-                </select>
-                
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label>Categoria</label>
-                        <select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                            <option value="">--</option>
-                        </select>
-                    </div>
-                    <div style="flex:1;">
-                        <label>Squadra</label>
-                        <select id="m-ass-tea" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                            <option value="">Intera Cat.</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label>N° Maglia</label>
-                        <input type="number" id="m-ass-num" placeholder="Es: 10" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    </div>
-                    <div style="flex:1;">
-                        <label>Ruolo</label>
-                        <input type="text" id="m-ass-role" placeholder="Es: Pivot" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                    </div>
-                </div>
-            </div>
-        `);
-
-        // 4. Gestione Salvataggio
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const athId = document.getElementById('m-ass-ath').value;
-            const socId = document.getElementById('m-ass-soc').value;
-
-            if(!athId || !socId) return alert("Atleta e Società sono obbligatori!");
-
-            const payload = {
-                athlete_id: athId,
-                society_id: socId,
-                season_id: activeSea,
-                category_id: document.getElementById('m-ass-cat').value || null,
-                team_id: document.getElementById('m-ass-tea').value || null,
-                jersey_number: document.getElementById('m-ass-num').value || null,
-                role: document.getElementById('m-ass-role').value.trim() || null
-            };
-
-            const { error } = await client.from('athlete_team_seasons').insert([payload]);
-            if(!error) { 
-                modal.close(); 
-                if (window.initAtleti) await window.initAtleti(); 
-            } else {
-                alert("Errore durante il salvataggio: " + error.message);
-            }
-        };
-
-    } catch (e) {
-        console.error("Errore Modale Associazione:", e);
-        alert("Si è verificato un errore nel caricamento dei dati.");
-    }
-};
-
-// --- HELPER 1: Caricamento Categorie ---
-window.updateAsModCat = async function(socId) {
-    const mCat = document.getElementById('m-ass-cat');
-    if (!mCat) return;
-    
-    mCat.innerHTML = '<option value="">-- Categoria --</option>';
-    // Svuota anche le squadre se cambio società
-    const mTea = document.getElementById('m-ass-tea');
-    if (mTea) mTea.innerHTML = '<option value="">Intera Cat.</option>';
-
-    if (!socId) return;
-
-    try {
-        const { data, error } = await client
-            .from('categories')
-            .select('id, name')
-            .eq('society_id', socId)
-            .order('name');
-
-        if (error) throw error;
-        if (data) data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-    } catch (e) {
-        console.error("Errore categorie:", e);
-    }
-};
-
-// --- HELPER 2: Caricamento Squadre ---
-window.updateAsModTea = async function(catId) {
-    const mTea = document.getElementById('m-ass-tea');
-    if (!mTea) return;
-
-    mTea.innerHTML = '<option value="">Intera Cat.</option>';
-    if (!catId) return;
-
-    // Recupero Stagione (cerchiamo tutti i possibili ID della tua Build 1)
-    const seasonSelect = document.getElementById('f-at-sea') || 
-                         document.getElementById('f-sea') || 
-                         document.querySelector('select[id*="sea"]');
-    
-    const activeSea = seasonSelect ? seasonSelect.value : null;
-
-    // CRITICO: Se activeSea è nullo, non facciamo la chiamata a Supabase
-    if (!activeSea) {
-        console.warn("Impossibile caricare le squadre: season_id non trovato nei filtri.");
-        return; 
-    }
-
-    try {
-        const { data, error } = await client
-            .from('teams')
-            .select('id, name')
-            .eq('category_id', catId)
-            .eq('season_id', activeSea) // Ora siamo certi che non sia null
-            .order('name');
-
-        if (error) throw error;
-        if (data) data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
-    } catch (e) {
-        console.error("Errore squadre:", e);
-    }
-};
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
