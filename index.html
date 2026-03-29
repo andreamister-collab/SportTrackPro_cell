@@ -1397,84 +1397,65 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODAL per giocatori non associati ad una squdara
+   FUNZIONI PER ASSOCIAZIONE ATLETI (DA ANAGRAFICA A SQUADRA)
    ============================================================ */
+
 window.openAssociaGiocatoreModal = async function() {
-    // 1. Cerchiamo il selettore della stagione. 
-    // Proviamo tutti gli ID possibili usati nella tua Build 1 e nelle integrazioni
+    // 1. Identificazione Stagione Attiva dai filtri
     const seasonSelect = document.getElementById('f-at-sea') || 
                          document.getElementById('f-sea') || 
                          document.querySelector('select[id*="sea"]');
 
-    if (!seasonSelect) {
-        return alert("Errore: Non trovo il selettore della stagione nel DOM. Ricarica la pagina 'Anagrafica Squadra'.");
+    if (!seasonSelect || !seasonSelect.value) {
+        return alert("Per favore, seleziona una Stagione dai filtri della tabella prima di procedere.");
     }
 
     const activeSea = seasonSelect.value;
-    
-    if (!activeSea) {
-        return alert("Per favore, seleziona una Stagione dai filtri prima di associare un atleta.");
-    }
 
     try {
-        // Recupero Società (per la modale) - usiamo quelle già caricate globalmente o le carichiamo al volo
-        if (Object.keys(_lookupSocs || {}).length === 0) {
-            const { data: socs } = await client.from('societies').select('id, name');
-            _lookupSocs = Object.fromEntries(socs.map(s => [s.id, s.name]));
-        }
+        // 2. Recupero Società, Atleti totali e chi è già associato (in parallelo per velocità)
+        const [socsRes, atletiRes, assocRes] = await Promise.all([
+            client.from('societies').select('id, name').order('name'),
+            client.from('athletes').select('id, surname, name').order('surname'),
+            client.from('athlete_team_seasons').select('athlete_id').eq('season_id', activeSea)
+        ]);
 
-        // 2. Recupero TUTTI gli atleti dall'anagrafica base
-        const { data: tuttiAtleti, error: errA } = await client
-            .from('athletes')
-            .select('id, surname, name')
-            .order('surname');
-        
-        if (errA) throw errA;
+        if (socsRes.error) throw socsRes.error;
+        if (atletiRes.error) throw atletiRes.error;
+        if (assocRes.error) throw assocRes.error;
 
-        // 3. Recupero chi è già in squadra in questa stagione
-        const { data: giaAssociati, error: errB } = await client
-            .from('athlete_team_seasons')
-            .select('athlete_id')
-            .eq('season_id', activeSea);
-        
-        if (errB) throw errB;
-
-        const idsGiaAssociati = giaAssociati.map(a => a.athlete_id);
-
-        // 4. Filtro: prendo solo chi NON è ancora associato a questa stagione
-        const orfani = tuttiAtleti.filter(at => !idsGiaAssociati.includes(at.id));
+        const idsGiaAssociati = assocRes.data.map(a => a.athlete_id);
+        const orfani = atletiRes.data.filter(at => !idsGiaAssociati.includes(at.id));
 
         if (orfani.length === 0) {
-            return alert("Tutti i giocatori presenti in anagrafica sono già associati a una squadra per questa stagione.");
+            return alert("Tutti i giocatori in anagrafica sono già associati a questa stagione.");
         }
 
-        // Apertura Modale
-        modal.open('Associa Giocatore all\'Anagrafica Squadra', `
+        // 3. Apertura Modale
+        modal.open('Associa Giocatore a Squadra', `
             <div style="display:grid; gap:12px;">
-                <p style="font-size:12px; color:#64748b; margin-bottom:8px;">Stai associando un atleta alla stagione selezionata nei filtri.</p>
-                
-                <label>Atleta da associare *</label>
-                <select id="m-ass-ath" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <label>Atleta (da Anagrafica Base) *</label>
+                <select id="m-ass-ath" required style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                     <option value="">-- Scegli Atleta --</option>
                     ${orfani.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
                 </select>
                 
                 <label>Società *</label>
-                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                     <option value="">-- Seleziona Società --</option>
-                    ${Object.entries(_lookupSocs).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
+                    ${socsRes.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
                 </select>
                 
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label>Categoria</label>
-                        <select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                             <option value="">--</option>
                         </select>
                     </div>
                     <div style="flex:1;">
                         <label>Squadra</label>
-                        <select id="m-ass-tea" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <select id="m-ass-tea" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                             <option value="">Intera Cat.</option>
                         </select>
                     </div>
@@ -1483,24 +1464,24 @@ window.openAssociaGiocatoreModal = async function() {
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label>N° Maglia</label>
-                        <input type="number" id="m-ass-num" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="number" id="m-ass-num" placeholder="Es: 10" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                     </div>
                     <div style="flex:1;">
                         <label>Ruolo</label>
-                        <input type="text" id="m-ass-role" placeholder="es. Ala" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        <input type="text" id="m-ass-role" placeholder="Es: Pivot" style="width:100%; padding:8px; border-radius:4px; border:1px solid #ddd;">
                     </div>
                 </div>
             </div>
         `);
 
-        // Gestione Salvataggio
+        // 4. Gestione Salvataggio
         document.getElementById('btn-modal-save').onclick = async () => {
             const athId = document.getElementById('m-ass-ath').value;
             const socId = document.getElementById('m-ass-soc').value;
 
             if(!athId || !socId) return alert("Atleta e Società sono obbligatori!");
 
-            const { error } = await client.from('athlete_team_seasons').insert([{
+            const payload = {
                 athlete_id: athId,
                 society_id: socId,
                 season_id: activeSea,
@@ -1508,20 +1489,46 @@ window.openAssociaGiocatoreModal = async function() {
                 team_id: document.getElementById('m-ass-tea').value || null,
                 jersey_number: document.getElementById('m-ass-num').value || null,
                 role: document.getElementById('m-ass-role').value.trim() || null
-            }]);
+            };
 
+            const { error } = await client.from('athlete_team_seasons').insert([payload]);
             if(!error) { 
                 modal.close(); 
                 if (window.initAtleti) await window.initAtleti(); 
             } else {
-                alert("Errore: " + error.message);
+                alert("Errore durante il salvataggio: " + error.message);
             }
         };
 
     } catch (e) {
-        console.error("Errore Modale:", e);
-        alert("Errore tecnico durante il caricamento.");
+        console.error("Errore Modale Associazione:", e);
+        alert("Si è verificato un errore nel caricamento dei dati.");
     }
+};
+
+// --- HELPER: Caricamento Categorie a cascata ---
+window.updateAsModCat = async function(socId) {
+    const mCat = document.getElementById('m-ass-cat');
+    if (!mCat) return;
+    mCat.innerHTML = '<option value="">-- Categoria --</option>';
+    if (!socId) return;
+
+    const { data } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    if (data) data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+};
+
+// --- HELPER: Caricamento Squadre a cascata ---
+window.updateAsModTea = async function(catId) {
+    const mTea = document.getElementById('m-ass-tea');
+    if (!mTea) return;
+    mTea.innerHTML = '<option value="">Intera Cat.</option>';
+    if (!catId) return;
+
+    const seasonSelect = document.getElementById('f-at-sea') || document.getElementById('f-sea');
+    const activeSea = seasonSelect ? seasonSelect.value : null;
+
+    const { data } = await client.from('teams').select('id, name').eq('category_id', catId).eq('season_id', activeSea).order('name');
+    if (data) data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
 };
 /* ============================================================
    FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
