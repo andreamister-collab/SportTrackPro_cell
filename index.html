@@ -113,7 +113,9 @@
 
 <script type="module">
     import { client } from './db.js';
-
+    let _currentUserId = null;
+    let _currentSocietyId = null;
+    let _userRole = 'user'; // Imposta un default
     let CURRENT_USER = null;
 
     /* --- LOGICA MODAL --- */
@@ -1886,7 +1888,7 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   BUILD 1.2 - GESTIONE SESSIONI (SECURITY & AUTO-SEASON)
+   BUILD 1.2 - GESTIONE SESSIONI (CORRETTA)
    ============================================================ */
 
 window.templateSessioni = function() {
@@ -1895,8 +1897,8 @@ window.templateSessioni = function() {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0;">📅 Sessioni e Partite</h2>
             <div style="display:flex; gap:10px; align-items:center;">
-                <select id="filter-society-sess" onchange="window.initSessioni()" style="padding:8px; border-radius:8px; display:none;">
-                    <option value="">Caricamento Società...</option>
+                <select id="filter-society-sess" onchange="window.initSessioni()" style="padding:8px; border-radius:8px; border:2px solid #2563eb; display:none;">
+                    <option value="">Cambia Società...</option>
                 </select>
                 <button class="btn" onclick="window.openSessionModal()">+ Nuova Sessione</button>
             </div>
@@ -1922,30 +1924,33 @@ window.templateSessioni = function() {
 
     window.initSessioni = async function() {
         const selSoc = document.getElementById('filter-society-sess');
+        const userRole = window._userRole || 'user'; // Fallback se non definita
         
-        // --- LOGICA FILTRO SOCIETÀ (SECURITY CHECK) ---
-        if (_userRole === 'admin' && selSoc) {
+        // Se Admin, mostra il selettore società
+        if (userRole === 'admin' && selSoc) {
             selSoc.style.display = 'block';
             if (selSoc.options.length <= 1) {
                 const { data: societies } = await client.from('societies').select('id, name').order('name');
-                selSoc.innerHTML = societies.map(s => 
-                    `<option value="${s.id}" ${s.id === _currentSocietyId ? 'selected' : ''}>🏢 ${s.name}</option>`
-                ).join('');
+                if(societies) {
+                    selSoc.innerHTML = societies.map(s => 
+                        `<option value="${s.id}" ${s.id === window._currentSocietyId ? 'selected' : ''}>🏢 ${s.name}</option>`
+                    ).join('');
+                }
             }
         }
         
-        // Se non è admin, usa forzatamente la sua società
-        const targetSociety = (_userRole === 'admin' && selSoc?.value) ? selSoc.value : _currentSocietyId;
+        // Identifica la società da interrogare
+        const targetSociety = (userRole === 'admin' && selSoc?.value) ? selSoc.value : window._currentSocietyId;
 
         const { data, error } = await client.from('sessions').select(`
             *,
             session_types(name),
-            teams(id, name, season_id, category_id, categories(name))
+            teams(id, name, season_id, categories(name))
         `)
         .eq('society_id', targetSociety)
         .order('session_date', { ascending: false });
 
-        if (error) return console.error("Errore caricamento sessioni:", error);
+        if (error) { console.error(error); return; }
         window._sessions = data || [];
         
         const body = document.getElementById('list-sessioni-body');
@@ -1957,8 +1962,8 @@ window.templateSessioni = function() {
                     <div style="font-weight:700;">${s.title}</div>
                     <div style="font-size:11px; color:#64748b;">${new Date(s.session_date).toLocaleDateString('it-IT')}</div>
                 </td>
-                <td style="padding:12px;"><span class="badge badge-default">${s.session_types?.name || 'Allenamento'}</span></td>
-                <td style="padding:12px; font-size:13px;">${s.teams?.categories?.name || ''} - <strong>${s.teams?.name || 'Tutta'}</strong></td>
+                <td style="padding:12px;"><span class="badge badge-default">${s.session_types?.name || 'N.D.'}</span></td>
+                <td style="padding:12px; font-size:13px;">${s.teams?.categories?.name || ''} - <strong>${s.teams?.name || ''}</strong></td>
                 <td style="padding:12px; text-align:right;">
                     <button class="btn-icon-atleta link" onclick="window.openAttendanceModal('${s.id}')" title="Appello" style="background:#ecfdf5; color:#059669; border:1px solid #10b981;">📋 Appello</button>
                     <button class="btn-icon-atleta edit" onclick="window.openSessionModal('${s.id}')" style="margin:0 4px;">✏️</button>
@@ -1970,9 +1975,9 @@ window.templateSessioni = function() {
 
     window.openSessionModal = async function(id = null) {
         const sess = id ? window._sessions.find(s => s.id === id) : null;
-        // Determinazione società bersaglio
         const selSoc = document.getElementById('filter-society-sess');
-        const targetSociety = (_userRole === 'admin' && selSoc?.value) ? selSoc.value : _currentSocietyId;
+        const userRole = window._userRole || 'user';
+        const targetSociety = (userRole === 'admin' && selSoc?.value) ? selSoc.value : window._currentSocietyId;
 
         const [typesRes, teamsRes] = await Promise.all([
             client.from('session_types').select('*').order('name'),
@@ -1981,53 +1986,37 @@ window.templateSessioni = function() {
 
         modal.open(id ? "Modifica Sessione" : "Nuova Sessione", `
             <div style="display:grid; gap:15px;">
-                <div>
-                    <label style="font-size:11px; font-weight:700;">TITOLO</label>
-                    <input type="text" id="m-s-title" value="${sess?.title || ''}" placeholder="es. Allenamento 1" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                </div>
+                <input type="text" id="m-s-title" value="${sess?.title || ''}" placeholder="Titolo (es. Allenamento 1)" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:700;">DATA</label>
-                        <input type="date" id="m-s-date" value="${sess?.session_date || new Date().toISOString().split('T')[0]}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:700;">TIPOLOGIA</label>
-                        <select id="m-s-type" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                            ${(typesRes.data || []).map(t => `<option value="${t.id}" ${sess?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label style="font-size:11px; font-weight:700;">SQUADRA</label>
-                    <select id="m-s-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                        ${(teamsRes.data || []).map(t => `
-                            <option value="${t.id}" data-season="${t.season_id}" ${sess?.team_id === t.id ? 'selected' : ''}>
-                                ${t.categories?.name} - ${t.name}
-                            </option>`).join('')}
+                    <input type="date" id="m-s-date" value="${sess?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    <select id="m-s-type" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                        ${(typesRes.data || []).map(t => `<option value="${t.id}" ${sess?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
                     </select>
                 </div>
+                <select id="m-s-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    ${(teamsRes.data || []).map(t => `
+                        <option value="${t.id}" data-season="${t.season_id}" ${sess?.team_id === t.id ? 'selected' : ''}>
+                            ${t.categories?.name || ''} - ${t.name}
+                        </option>`).join('')}
+                </select>
             </div>
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
             const teamEl = document.getElementById('m-s-team');
             const selectedOpt = teamEl.options[teamEl.selectedIndex];
-            
-            if(!selectedOpt) return alert("Seleziona una squadra valida");
+            if(!selectedOpt) return alert("Seleziona una squadra.");
 
             const payload = {
                 title: document.getElementById('m-s-title').value,
                 session_date: document.getElementById('m-s-date').value,
                 type_id: document.getElementById('m-s-type').value,
                 team_id: teamEl.value,
-                season_id: selectedOpt.dataset.season, // Stagione auto-caricata
+                season_id: selectedOpt.dataset.season, // Presa automatica
                 society_id: targetSociety
             };
 
-            const { error } = id 
-                ? await client.from('sessions').update(payload).eq('id', id) 
-                : await client.from('sessions').insert([payload]);
-            
+            const { error } = id ? await client.from('sessions').update(payload).eq('id', id) : await client.from('sessions').insert([payload]);
             if(!error) { modal.close(); window.initSessioni(); } else { alert(error.message); }
         };
     };
@@ -2036,7 +2025,7 @@ window.templateSessioni = function() {
         const sess = window._sessions.find(s => s.id === sessionId);
         const [attRes, playRes] = await Promise.all([
             client.from('attendances').select('*').eq('session_id', sessionId),
-            client.from('athlete_team_seasons').select('athlete_id, is_justified, athletes(name, surname)').eq('team_id', sess.team_id).eq('season_id', sess.season_id)
+            client.from('athlete_team_seasons').select('athlete_id, athletes(name, surname)').eq('team_id', sess.team_id).eq('season_id', sess.season_id)
         ]);
 
         modal.open(`Appello: ${sess.title}`, `
@@ -2046,7 +2035,7 @@ window.templateSessioni = function() {
                         const a = (attRes.data || []).find(x => x.athlete_id === p.athlete_id) || { status: 'presente', rating: 0, is_justified: false };
                         return `
                         <tr style="border-bottom:1px solid #eee;" class="att-row-data" data-aid="${p.athlete_id}">
-                            <td style="padding:10px;"><strong>${p.athletes?.surname}</strong> ${p.athletes?.name}</td>
+                            <td style="padding:10px;"><strong>${p.athletes?.surname || ''}</strong> ${p.athletes?.name || ''}</td>
                             <td style="padding:10px;">
                                 <select class="in-status" style="padding:5px; border-radius:6px; font-size:12px; border:1px solid #ccc;">
                                     <option value="presente" ${a.status==='presente'?'selected':''}>✅</option>
@@ -2055,8 +2044,8 @@ window.templateSessioni = function() {
                                 </select>
                                 <label style="font-size:10px; margin-left:5px;"><input type="checkbox" class="in-just" ${a.is_justified?'checked':''}> Giust.</label>
                             </td>
-                            <td style="padding:10px;">
-                                <div class="star-rating" data-rating="${a.rating || 0}">
+                            <td style="padding:10px; text-align:right;">
+                                <div class="star-rating" data-rating="${a.rating || 0}" style="justify-content:flex-end;">
                                     ${[1,2,3,4,5].map(n => `<span class="star ${n<=(a.rating||0)?'active':''}" onclick="window.setRating(this, ${n})">★</span>`).join('')}
                                 </div>
                             </td>
@@ -2067,7 +2056,8 @@ window.templateSessioni = function() {
         `);
 
         document.getElementById('btn-modal-save').onclick = async () => {
-            const payload = Array.from(document.querySelectorAll('.att-row-data')).map(row => ({
+            const rows = document.querySelectorAll('.att-row-data');
+            const payload = Array.from(rows).map(row => ({
                 session_id: sessionId,
                 athlete_id: row.dataset.aid,
                 status: row.querySelector('.in-status').value,
@@ -2075,7 +2065,7 @@ window.templateSessioni = function() {
                 rating: parseInt(row.querySelector('.star-rating').dataset.rating) || 0
             }));
             const { error } = await client.from('attendances').upsert(payload, { onConflict: 'session_id, athlete_id' });
-            if(!error) { modal.close(); alert("Appello e performance salvati!"); }
+            if(!error) { modal.close(); alert("Salvato!"); }
         };
     };
 
@@ -2086,7 +2076,7 @@ window.templateSessioni = function() {
     };
 
     window.deleteSession = async (id) => {
-        if(confirm("Eliminare questa sessione e tutte le relative presenze?")) {
+        if(confirm("Eliminare?")) {
             await client.from('sessions').delete().eq('id', id);
             window.initSessioni();
         }
