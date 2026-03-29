@@ -1132,7 +1132,9 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 
-    window.deleteAtletaBase = async function(id) {
+ /*   ===== VECCHIO BLOCCO======
+ 
+ window.deleteAtletaBase = async function(id) {
         const atleta = _atletiBase.find(a => a.id === id);
         if(!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
         try {
@@ -1148,7 +1150,72 @@ window.handleDeleteStaff = async function(id) {
             await client.from('athletes').delete().eq('id', id);
             await window.initAnagraficaPura();
         } catch (e) { alert("Errore: " + e.message); }
-    };
+    };*/
+	window.deleteAtletaBase = async function(id) {
+    const atleta = _atletiBase.find(a => a.id === id);
+    if (!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
+
+    try {
+        // 1. Recupera le stagioni associate
+        const { data: stagioni, error: errFetch } = await client
+            .from('athlete_team_seasons')
+            .select('*')
+            .eq('athlete_id', id);
+        
+        if (errFetch) throw new Error("Errore recupero stagioni: " + errFetch.message);
+
+        // 2. Inserimento in Archivio
+        // NOTA: Se ricevi ancora 403 qui, assicurati che le colonne 
+        // original_athlete_id, surname, name, born_date, society_name esistano esattamente così.
+        const { data: arch, error: errArch } = await client
+            .from('athletes_archive')
+            .insert([{
+                original_athlete_id: atleta.id,
+                surname: atleta.surname,
+                name: atleta.name,
+                born_date: atleta.born_date,
+                society_name: _socLook[atleta.society_id] || 'N.D.'
+            }])
+            .select()
+            .single();
+
+        if (errArch) {
+            console.error("Errore dettaglio 403:", errArch);
+            throw new Error("Errore archiviazione (RLS/Permessi): " + errArch.message);
+        }
+
+        // 3. Archivia le stagioni se presenti
+        if (stagioni && stagioni.length > 0) {
+            const { error: errStag } = await client
+                .from('athlete_seasons_archive')
+                .insert(stagioni.map(s => ({
+                    athlete_archive_id: arch.id,
+                    season_id: s.season_id,
+                    team_id: s.team_id,
+                    jersey_number: s.jersey_number
+                })));
+            
+            if (errStag) console.warn("Nota: Stagioni non archiviate:", errStag.message);
+        }
+
+        // 4. CANCELLAZIONE REALE (Solo se i punti precedenti sono OK)
+        const { error: errDel } = await client
+            .from('athletes')
+            .delete()
+            .eq('id', id);
+
+        if (errDel) throw new Error("Atleta archiviato ma non rimosso: " + errDel.message);
+
+        // 5. Successo
+        alert("Atleta archiviato con successo.");
+        await window.initAnagraficaPura();
+
+    } catch (e) {
+        console.error("Procedura fallita:", e);
+        alert("Impossibile completare l'operazione: " + e.message);
+    }
+};
+
 })();
 /* ============================================================
    EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
