@@ -1312,6 +1312,193 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 })();
+/* ============================================================
+   MODULO ASSOCIAZIONI SQUADRE (atleti)
+   ============================================================ */
+(function() {
+    let _allAssoc = []; 
+    let _allTeams = [];             
+    let _allCategories = []; 
+    let _lookupSocs = {};
+    let _lookupSeas = {};
+
+    window.templateAtleti = function() {
+        return `
+        <div class="card">
+            <div class="header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>🔗 ASSOCIAZIONI SQUADRE</h2>
+                <button class="btn" onclick="window.openGestioneAssociazioni()">⚙️ GESTISCI ASSOCIAZIONI</button>
+            </div>
+
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                <div><label>Atleta</label><input type="text" id="f-at-name" placeholder="Cerca..." oninput="window.applyAtletiFilters()" style="width:100%"></div>
+                <div><label>Società</label><select id="f-at-soc" onchange="window.updateAtCatFilter(); window.applyAtletiFilters();" style="width:100%"><option value="">Tutte</option></select></div>
+                <div><label>Stagione</label><select id="f-at-sea" onchange="window.updateAtCatFilter(); window.applyAtletiFilters();" style="width:100%"></select></div>
+                <div><label>Categoria</label><select id="f-at-cat" onchange="window.updateAtTeaFilter(); window.applyAtletiFilters();" style="width:100%"><option value="">Tutte</option></select></div>
+                <div><label>Squadra</label><select id="f-at-team" onchange="window.applyAtletiFilters()" style="width:100%"><option value="">Tutte</option></select></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Atleta</th>
+                        <th>Società</th>
+                        <th>Stagione</th>
+                        <th>Categoria</th>
+                        <th>Squadra</th>
+                        <th style="text-align:center">N°</th>
+                        <th style="text-align:right">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="list-atleti-body"></tbody>
+            </table>
+        </div>`;
+    };
+
+    window.initAtleti = async function() {
+        const [socs, seas, cats, teams] = await Promise.all([
+            client.from('societies').select('*').order('name'),
+            client.from('seasons').select('*').order('name'),
+            client.from('categories').select('*').order('name'),
+            client.from('teams').select('*').order('name')
+        ]);
+        
+        _lookupSocs = Object.fromEntries(socs.data.map(s => [s.id, s.name]));
+        _lookupSeas = Object.fromEntries(seas.data.map(s => [s.id, s.name]));
+        _allCategories = cats.data || [];
+        _allTeams = teams.data || [];
+
+        const fSoc = document.getElementById('f-at-soc');
+        const fSea = document.getElementById('f-at-sea');
+        if(fSoc) fSoc.innerHTML = '<option value="">Tutte</option>' + socs.data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        if(fSea) fSea.innerHTML = seas.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('');
+
+        window.updateAtCatFilter();
+        await _fetchAssociazioni();
+    };
+
+    async function _fetchAssociazioni() {
+        // Usiamo l'inner join (atleti!inner) così se l'anagrafica è stata cancellata, l'associazione sparisce dalla vista
+        const { data } = await client.from('athlete_team_seasons').select(`
+            *, 
+            athletes!inner(name, surname), 
+            teams(name), 
+            categories(name)
+        `);
+        _allAssoc = data || [];
+        window.applyAtletiFilters();
+    }
+
+    window.applyAtletiFilters = function() {
+        const name = document.getElementById('f-at-name')?.value.toLowerCase();
+        const soc = document.getElementById('f-at-soc')?.value;
+        const sea = document.getElementById('f-at-sea')?.value;
+        const cat = document.getElementById('f-at-cat')?.value;
+        const team = document.getElementById('f-at-team')?.value;
+
+        const filtered = _allAssoc.filter(a => {
+            const full = `${a.athletes?.surname} ${a.athletes?.name}`.toLowerCase();
+            return (!name || full.includes(name)) && (!soc || a.society_id == soc) && (!sea || a.season_id == sea) && (!cat || a.category_id == cat) && (!team || a.team_id == team);
+        });
+
+        document.getElementById('list-atleti-body').innerHTML = filtered.map(a => `
+            <tr>
+                <td><strong>${a.athletes?.surname.toUpperCase()} ${a.athletes?.name}</strong></td>
+                <td>${_lookupSocs[a.society_id]}</td>
+                <td>${_lookupSeas[a.season_id]}</td>
+                <td>${a.categories?.name || '-'}</td>
+                <td>${a.teams?.name || 'Intera Cat.'}</td>
+                <td style="text-align:center">#${a.jersey_number || '-'}</td>
+                <td style="text-align:right">
+                    <button class="btn-sm btn-danger" onclick="window.deleteAssoc('${a.id}')" title="Scollega">🗑️</button>
+                </td>
+            </tr>`).join('') || '<tr><td colspan="7">Nessuna associazione trovata.</td></tr>';
+    };
+
+    window.openGestioneAssociazioni = async function() {
+        const activeSea = document.getElementById('f-at-sea').value;
+        const { data: atletiAnag } = await client.from('athletes').select('id, surname, name').order('surname');
+
+        modal.open('Gestisci Associazioni Team', `
+            <div style="display:grid; gap:12px;">
+                <label>Seleziona Atleta (da Anagrafica) *</label>
+                <select id="m-as-ath" required>
+                    <option value="">-- Scegli Atleta --</option>
+                    ${atletiAnag.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
+                </select>
+                
+                <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; display:grid; gap:10px;">
+                    <label>Società *</label>
+                    <select id="m-as-soc" onchange="window.updateAsModCat(this.value)">
+                        <option value="">-- Seleziona Società --</option>
+                        ${Object.entries(_lookupSocs).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
+                    </select>
+                    
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;"><label>Categoria</label><select id="m-as-cat" onchange="window.updateAsModTea(this.value)"><option value="">--</option></select></div>
+                        <div style="flex:1;"><label>Squadra</label><select id="m-as-tea"><option value="">Intera Cat.</option></select></div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label>N° Maglia</label><input type="number" id="m-as-num"></div>
+                    <div style="flex:1;"><label>Ruolo</label><input type="text" id="m-as-role" placeholder="es. Ala"></div>
+                </div>
+            </div>
+        `);
+
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const athId = document.getElementById('m-as-ath').value;
+            const socId = document.getElementById('m-as-soc').value;
+
+            if(!athId || !socId) return alert("Atleta e Società sono obbligatori!");
+
+            const payload = {
+                athlete_id: athId,
+                society_id: socId,
+                season_id: activeSea,
+                category_id: document.getElementById('m-as-cat').value || null,
+                team_id: document.getElementById('m-as-tea').value || null,
+                jersey_number: document.getElementById('m-as-num').value || null,
+                role: document.getElementById('m-as-role').value.trim() || null
+            };
+
+            const { error } = await client.from('athlete_team_seasons').insert([payload]);
+            if(!error) { 
+                modal.close(); 
+                await _fetchAssociazioni(); 
+            } else {
+                alert("Errore associazione: " + error.message);
+            }
+        };
+    };
+
+    window.deleteAssoc = async function(id) {
+        if(confirm("Vuoi scollegare l'atleta da questa squadra? L'anagrafica rimarrà salvata nel sistema.")) {
+            const { error } = await client.from('athlete_team_seasons').delete().eq('id', id);
+            if(!error) await _fetchAssociazioni();
+        }
+    };
+
+    // Filtri a cascata per la modale
+    window.updateAsModCat = async function(socId) {
+        const mCat = document.getElementById('m-as-cat');
+        mCat.innerHTML = '<option value="">-- Categoria --</option>';
+        if (!socId) return;
+        const { data } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+        data.forEach(c => mCat.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    };
+
+    window.updateAsModTea = async function(catId) {
+        const mTea = document.getElementById('m-as-tea');
+        mTea.innerHTML = '<option value="">Intera Cat.</option>';
+        if (!catId) return;
+        const activeSea = document.getElementById('f-at-sea').value;
+        const { data } = await client.from('teams').select('id, name').eq('category_id', catId).eq('season_id', activeSea).order('name');
+        data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    };
+
+})();
 	/* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
