@@ -70,7 +70,7 @@
         <a data-section="squadra">SQUADRA</a>
         <a data-section="staff">👥 ANAGRAFICA STAFF</a>
         <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
-        <a data-section="atleti">🏃 ANAGRAFICA ATLETI</a>
+        <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 SESSIONI E PARTITE</a> <button id="btn-logout" class="btn-logout">Esci</button>
         <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
@@ -176,7 +176,7 @@
             initAssignments();
             break;
 
-        case 'atleti':
+        case 'atleti'://  Ora Anagrafica Squadra
             content.innerHTML = templateAtleti();
             initAtleti();
             break;
@@ -1129,7 +1129,7 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI - FIX 400 & DOPPIO INSERIMENTO
+   MODULO ANAGRAFICA Squadra
    ============================================================ */
 (function() {
     let _allAtletiAssignments = []; 
