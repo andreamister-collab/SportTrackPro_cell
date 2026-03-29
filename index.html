@@ -1129,7 +1129,7 @@ window.handleDeleteStaff = async function(id) {
     };
 })();
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI - LOGICA ROBUSTA (NO ERROR 400)
+   MODULO ANAGRAFICA ATLETI - FIX 400 & DOPPIO INSERIMENTO
    ============================================================ */
 (function() {
     let _allAtletiAssignments = []; 
@@ -1184,7 +1184,7 @@ window.handleDeleteStaff = async function(id) {
                     </tr>
                 </thead>
                 <tbody id="list-atleti-body">
-                    <tr><td colspan="7">Caricamento...</td></tr>
+                    <tr><td colspan="7">Caricamento in corso...</td></tr>
                 </tbody>
             </table>
         </div>`;
@@ -1246,7 +1246,7 @@ window.handleDeleteStaff = async function(id) {
     }
 
     window.applyAtletiFilters = function() {
-        const name = document.getElementById('f-atleta-name')?.value.toLowerCase();
+        const nameFilter = document.getElementById('f-atleta-name')?.value.toLowerCase();
         const soc = document.getElementById('f-atleta-soc')?.value;
         const sea = document.getElementById('f-atleta-sea')?.value;
         const cat = document.getElementById('f-atleta-cat')?.value;
@@ -1254,7 +1254,7 @@ window.handleDeleteStaff = async function(id) {
 
         const filtered = _allAtletiAssignments.filter(a => {
             const fullName = `${a.athletes?.surname || ""} ${a.athletes?.name || ""}`.toLowerCase();
-            return (!name || fullName.includes(name)) && (!soc || a.society_id == soc) && (!sea || a.season_id == sea) && (!cat || a.category_id == cat) && (!team || a.team_id == team);
+            return (!nameFilter || fullName.includes(nameFilter)) && (!soc || a.society_id == soc) && (!sea || a.season_id == sea) && (!cat || a.category_id == cat) && (!team || a.team_id == team);
         });
 
         const tbody = document.getElementById('list-atleti-body');
@@ -1265,7 +1265,7 @@ window.handleDeleteStaff = async function(id) {
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
                 <td>${a.categories?.name || '-'}</td>
                 <td>${a.teams?.name || 'Intera Cat.'}</td>
-                <td style="text-align:center; font-weight:bold;">${a.jersey_number || '-'}</td>
+                <td style="text-align:center">${a.jersey_number || '-'}</td>
                 <td style="text-align:right">
                     <button class="btn-sm btn-warning" onclick="window.handleEditAtleta('${a.id}')">✏️</button>
                     <button class="btn-sm btn-danger" onclick="window.deleteAtletaAssignment('${a.id}')">🗑️</button>
@@ -1281,7 +1281,7 @@ window.handleDeleteStaff = async function(id) {
         modal.open(isEdit ? 'Modifica Atleta' : 'Nuova Anagrafica Atleta', `
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div style="grid-column: span 2; background:#f0f7ff; padding:10px; border-radius:6px; border:1px solid #dbeafe; color:#0369a1; font-size:0.9em;">
-                    <strong>📍 Stagione:</strong> ${_lookupSeas[activeSeasonId] || 'Selezionata'}
+                    <strong>📍 Stagione in Trattazione:</strong> ${_lookupSeas[activeSeasonId] || 'Selezionata'}
                 </div>
                 <div style="grid-column: span 2; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-top:5px;">
                     <label>Società *</label>
@@ -1296,7 +1296,7 @@ window.handleDeleteStaff = async function(id) {
                 <div><label>Cognome *</label><input type="text" id="m-atleta-surname" value="${editData?.athletes?.surname || ''}" required></div>
                 <div><label>Nome *</label><input type="text" id="m-atleta-name" value="${editData?.athletes?.name || ''}" required></div>
                 <div><label>Data di Nascita</label><input type="date" id="m-atleta-born" value="${editData?.athletes?.born_date || ''}"></div>
-                <div><label>Soprannome</label><input type="text" id="m-atleta-nick" value="${editData?.nickname || ''}"></div>
+                <div><label>Soprannome (Nickname)</label><input type="text" id="m-atleta-nick" value="${editData?.nickname || ''}"></div>
                 <div><label>N° Maglia</label><input type="number" id="m-atleta-jersey" value="${editData?.jersey_number || ''}"></div>
                 <div><label>Ruolo</label><input type="text" id="m-atleta-role" value="${editData?.role || ''}"></div>
             </div>
@@ -1320,34 +1320,40 @@ window.handleDeleteStaff = async function(id) {
             const birthDate = document.getElementById('m-atleta-born').value || null;
             const socId = mSoc.value;
 
-            if (!cognome || !nome || !socId) return alert("Compila i campi obbligatori!");
+            if (!cognome || !nome || !socId) return alert("Compila i campi obbligatori (Società, Cognome, Nome)!");
 
-            let athleteId = null;
+            let targetAthleteId = null;
 
-            // 1. LOGICA SICURA: CERCA PRIMA SE ESISTE (Evita 400 Upsert)
-            const { data: existingAth } = await client.from('athletes')
-                .select('id')
-                .eq('surname', cognome)
-                .eq('name', nome)
-                .eq('society_id', socId)
-                .maybeSingle();
-
-            if (existingAth) {
-                athleteId = existingAth.id;
-                // Aggiorniamo solo la data di nascita se necessario
-                await client.from('athletes').update({ born_date: birthDate }).eq('id', athleteId);
+            // --- LOGICA ANTI-400 (Cerca o Inserisci) ---
+            if (isEdit) {
+                // In modifica aggiorniamo l'atleta esistente
+                await client.from('athletes').update({ 
+                    surname: cognome, name: nome, born_date: birthDate, society_id: socId 
+                }).eq('id', editData.athlete_id);
+                targetAthleteId = editData.athlete_id;
             } else {
-                // Inserimento pulito
-                const { data: newAth, error: errNew } = await client.from('athletes')
-                    .insert([{ surname: cognome, name: nome, born_date: birthDate, society_id: socId }])
-                    .select().single();
-                if (errNew) return alert("Errore inserimento atleta: " + errNew.message);
-                athleteId = newAth.id;
+                // In inserimento cerchiamo se esiste già uno con stesso nome/cognome/società
+                const { data: existing } = await client.from('athletes')
+                    .select('id')
+                    .eq('surname', cognome)
+                    .eq('name', nome)
+                    .eq('society_id', socId)
+                    .maybeSingle();
+
+                if (existing) {
+                    targetAthleteId = existing.id;
+                } else {
+                    const { data: neu, error: errNeu } = await client.from('athletes')
+                        .insert([{ surname: cognome, name: nome, born_date: birthDate, society_id: socId }])
+                        .select().single();
+                    if (errNeu) return alert("Errore Tabella Athletes: " + errNeu.message);
+                    targetAthleteId = neu.id;
+                }
             }
 
-            // 2. SALVATAGGIO ASSEGNAZIONE
+            // --- SALVATAGGIO IN athlete_team_seasons ---
             const payloadAss = {
-                athlete_id: athleteId,
+                athlete_id: targetAthleteId,
                 society_id: socId, 
                 season_id: activeSeasonId,
                 category_id: document.getElementById('m-atleta-cat').value || null,
@@ -1361,7 +1367,7 @@ window.handleDeleteStaff = async function(id) {
                 ? await client.from('athlete_team_seasons').update(payloadAss).eq('id', editData.id) 
                 : await client.from('athlete_team_seasons').insert(payloadAss);
 
-            if (!errAss) { modal.close(); _fetchAtletiData(); } else { alert(errAss.message); }
+            if (!errAss) { modal.close(); _fetchAtletiData(); } else { alert("Errore Assegnazione: " + errAss.message); }
         };
     };
 
