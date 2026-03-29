@@ -132,8 +132,7 @@
     document.getElementById('btn-logout').onclick = () => location.reload();
 
     /* --- NAVIGAZIONE (LOADER PAGINE) --- */
-/* --- NAVIGAZIONE (LOADER PAGINE) --- */
- const loadPage = (section) => {
+    const loadPage = (section) => {
         document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
         const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
         if (link) link.classList.add('active');
@@ -141,43 +140,46 @@
         const content = document.getElementById('content');
 
         switch(section) {
-        case 'dashboard': 
-            content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
-            break;
-        
-        case 'stagioni': 
-            content.innerHTML = templateStagioni(); 
-            initStagioni(); 
-            break;
+            case 'dashboard': 
+                content.innerHTML = `<div class="card"><h2>Benvenuto, ${CURRENT_USER.name}</h2><p>Seleziona una voce dal menu per iniziare.</p></div>`; 
+                break;
+            
+            case 'stagioni': 
+                content.innerHTML = templateStagioni(); 
+                initStagioni(); 
+                break;
+				case 'sport':
+                content.innerHTML = templateSport();
+                initSport();
+                break;
 
-        case 'sport':
-            content.innerHTML = templateSport();
-            initSport();
-            break;
+            case 'societa':
+                content.innerHTML = templateSocieta();
+                initSocieta();
+                break;
 
-        case 'societa':
-            content.innerHTML = templateSocieta();
-            initSocieta();
-            break;
+            case 'categoria':
+                content.innerHTML = templateCategoria();
+                initCategoria();
+                break;
 
-        case 'categoria':
-            content.innerHTML = templateCategoria();
-            initCategoria();
-            break;
-
-        case 'squadra':
-            content.innerHTML = templateSquadra();
-            initSquadra();
-            break;
-
-        case 'staff': 
+            case 'squadra':
+                content.innerHTML = templateSquadra();
+                initSquadra();
+                break;
+		case 'staff': // Anagrafica Utenti (tabella users)
             content.innerHTML = templateStaff();
             initStaff();
             break;
 
-        case 'assegnazioni': 
+        case 'assegnazioni': // Relazione Staff <-> Categoria <-> Stagione
             content.innerHTML = templateAssignments();
             initAssignments();
+            break;
+
+        case 'atleti':// Anagarfica pura atleti
+            content.innerHTML = templateAtleti();
+            initAtleti();
             break;
 
         case 'anagrafica-pura': // ANAGRAFICA ATLETI (Dati Base)
@@ -185,11 +187,6 @@
             initAnagraficaPura();
             break;
 
-        case 'atleti': // ASSOCIAZIONI SQUADRE (Legame Stagionale)
-            content.innerHTML = templateAtleti();
-            initAtleti();
-            break;
-            
         case 'sessioni': 
             content.innerHTML = templateAtleti(); // Segnaposto attuale
             initAtleti();
