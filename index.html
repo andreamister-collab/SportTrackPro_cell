@@ -1400,28 +1400,30 @@ window.handleDeleteStaff = async function(id) {
    MODAL per giocatori non associati ad una squdara
    ============================================================ */
 window.openAssociaGiocatoreModal = async function() {
-    // Cerchiamo il selettore della stagione provando ogni possibile ID usato nel tuo progetto
+    // 1. Cerchiamo il selettore della stagione. 
+    // Proviamo tutti gli ID possibili usati nella tua Build 1 e nelle integrazioni
     const seasonSelect = document.getElementById('f-at-sea') || 
                          document.getElementById('f-sea') || 
-                         document.querySelector('select[onchange*="updateAtCatFilter"]');
-    
-    // LOG DI DEBUG: Se ancora non lo trova, vediamo cosa c'è nel DOM
+                         document.querySelector('select[id*="sea"]');
+
     if (!seasonSelect) {
-        console.error("DOM attuale:", document.body.innerHTML); // Questo ci aiuterà a capire se il DOM è vuoto
-        return alert("Errore: Non trovo il filtro della Stagione. Assicurati che la pagina sia caricata correttamente.");
+        return alert("Errore: Non trovo il selettore della stagione nel DOM. Ricarica la pagina 'Anagrafica Squadra'.");
     }
 
     const activeSea = seasonSelect.value;
     
     if (!activeSea) {
-        return alert("Seleziona una Stagione dal menu a tendina prima di associare un giocatore.");
+        return alert("Per favore, seleziona una Stagione dai filtri prima di associare un atleta.");
     }
 
     try {
-        // Mostriamo un caricamento (opzionale)
-        console.log("Stagione attiva identificata:", activeSea);
+        // Recupero Società (per la modale) - usiamo quelle già caricate globalmente o le carichiamo al volo
+        if (Object.keys(_lookupSocs || {}).length === 0) {
+            const { data: socs } = await client.from('societies').select('id, name');
+            _lookupSocs = Object.fromEntries(socs.map(s => [s.id, s.name]));
+        }
 
-        // 1. Recupero atleti dall'anagrafica
+        // 2. Recupero TUTTI gli atleti dall'anagrafica base
         const { data: tuttiAtleti, error: errA } = await client
             .from('athletes')
             .select('id, surname, name')
@@ -1429,7 +1431,7 @@ window.openAssociaGiocatoreModal = async function() {
         
         if (errA) throw errA;
 
-        // 2. Recupero chi è già associato
+        // 3. Recupero chi è già in squadra in questa stagione
         const { data: giaAssociati, error: errB } = await client
             .from('athlete_team_seasons')
             .select('athlete_id')
@@ -1439,40 +1441,59 @@ window.openAssociaGiocatoreModal = async function() {
 
         const idsGiaAssociati = giaAssociati.map(a => a.athlete_id);
 
-        // 3. Filtro gli atleti orfani
+        // 4. Filtro: prendo solo chi NON è ancora associato a questa stagione
         const orfani = tuttiAtleti.filter(at => !idsGiaAssociati.includes(at.id));
 
         if (orfani.length === 0) {
-            return alert("Non ci sono atleti in anagrafica da associare (tutti i presenti hanno già una squadra in questa stagione).");
+            return alert("Tutti i giocatori presenti in anagrafica sono già associati a una squadra per questa stagione.");
         }
 
         // Apertura Modale
-        modal.open('Associa Atleta a Squadra', `
+        modal.open('Associa Giocatore all\'Anagrafica Squadra', `
             <div style="display:grid; gap:12px;">
+                <p style="font-size:12px; color:#64748b; margin-bottom:8px;">Stai associando un atleta alla stagione selezionata nei filtri.</p>
+                
                 <label>Atleta da associare *</label>
-                <select id="m-ass-ath" required style="width:100%; padding:8px;">
+                <select id="m-ass-ath" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
                     <option value="">-- Scegli Atleta --</option>
                     ${orfani.map(at => `<option value="${at.id}">${at.surname.toUpperCase()} ${at.name}</option>`).join('')}
                 </select>
                 
                 <label>Società *</label>
-                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px;">
+                <select id="m-ass-soc" onchange="window.updateAsModCat(this.value)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
                     <option value="">-- Seleziona Società --</option>
-                    ${Object.entries(_lookupSocs || {}).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
+                    ${Object.entries(_lookupSocs).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}
                 </select>
                 
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>Categoria</label><select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px;"><option value="">--</option></select></div>
-                    <div style="flex:1;"><label>Squadra</label><select id="m-ass-tea" style="width:100%; padding:8px;"><option value="">Intera Cat.</option></select></div>
+                    <div style="flex:1;">
+                        <label>Categoria</label>
+                        <select id="m-ass-cat" onchange="window.updateAsModTea(this.value)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                            <option value="">--</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>Squadra</label>
+                        <select id="m-ass-tea" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                            <option value="">Intera Cat.</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>N° Maglia</label><input type="number" id="m-ass-num" style="width:100%; padding:8px;"></div>
-                    <div style="flex:1;"><label>Ruolo</label><input type="text" id="m-ass-role" style="width:100%; padding:8px;"></div>
+                    <div style="flex:1;">
+                        <label>N° Maglia</label>
+                        <input type="number" id="m-ass-num" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Ruolo</label>
+                        <input type="text" id="m-ass-role" placeholder="es. Ala" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                    </div>
                 </div>
             </div>
         `);
 
+        // Gestione Salvataggio
         document.getElementById('btn-modal-save').onclick = async () => {
             const athId = document.getElementById('m-ass-ath').value;
             const socId = document.getElementById('m-ass-soc').value;
@@ -1491,15 +1512,15 @@ window.openAssociaGiocatoreModal = async function() {
 
             if(!error) { 
                 modal.close(); 
-                if (window.initAtleti) await window.initAtleti();
+                if (window.initAtleti) await window.initAtleti(); 
             } else {
-                alert(error.message);
+                alert("Errore: " + error.message);
             }
         };
 
     } catch (e) {
-        console.error(e);
-        alert("Errore durante il caricamento.");
+        console.error("Errore Modale:", e);
+        alert("Errore tecnico durante il caricamento.");
     }
 };
 /* ============================================================
