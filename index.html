@@ -177,7 +177,7 @@
             initAssignments();
             break;
 
-        case 'anagrafica-pura':
+        case 'anagrafica-pura':// Questo ora è ANAGRAFICA ATLETI
              content.innerHTML = templateAnagraficaPura();
              initAnagraficaPura();
              break;
@@ -187,8 +187,10 @@
              break;
 			
         case 'sessioni': // Futura gestione Allenamenti/Partite
-            content.innerHTML = `<div class="card"><h2>Calendario Sessioni</h2><p>In fase di sviluppo...</p></div>`;
-            break;
+            content.innerHTML = templateAtleti();
+			initAtleti();
+             break;
+            
             /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
             default: 
