@@ -96,6 +96,7 @@
         <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
         <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
+		<a data-section="partite"> 🏆GESTIONE PARTITE</a>
         <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
 
@@ -274,6 +275,10 @@ document.getElementById('login-form').onsubmit = async (e) => {
        case 'sessioni':
            content.innerHTML = templateSessioni();
            initSessioni();
+           break;
+	  case 'partite':
+           content.innerHTML = templatePartite();
+           initPartite();
            break;
 /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
@@ -2561,6 +2566,184 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+/* ============================================================
+   MODULO: GESTIONE PARTITE - BUILD 2.1
+   ============================================================ */
+
+/**
+ * 1. TEMPLATE TABELLA PARTITE
+ */
+function templatePartite() {
+    return `
+    <div class="card">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
+            <button class="btn" onclick="openMatchModal()" style="background:#059669; color:white;">+ Nuova Partita</button>
+        </div>
+        
+        <div id="match-filters-container" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+                <select id="f-match-soc" onchange="reloadMatchFilters()" style="display:none;"></select>
+                <select id="f-match-cat" onchange="reloadMatchTeams()"><option value="">Tutte Categorie</option></select>
+                <select id="f-match-team" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="text-align:left; background:#f1f5f9; color:#475569;">
+                        <th style="padding:12px;">Data / Match</th>
+                        <th style="padding:12px;">Squadra</th>
+                        <th style="padding:12px; text-align:center;">Risultato</th>
+                        <th style="padding:12px;">Avversario</th>
+                        <th style="padding:12px; text-align:right;">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="list-partite-body"></tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+/**
+ * 2. INIZIALIZZAZIONE PARTITE (Filtra solo Gare)
+ */
+async function initPartite() {
+    const tbody = document.getElementById('list-partite-body');
+    if (!tbody) return;
+
+    let targetSociety = window._currentSocietyId;
+    
+    // Recuperiamo l'ID del tipo "Gara" per filtrare
+    const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'gara').single();
+    const garaTypeId = typeData?.id;
+
+    let query = client.from('sessions').select(`
+        *,
+        teams(name),
+        match_details(*)
+    `).eq('society_id', targetSociety);
+
+    if (garaTypeId) query = query.eq('type_id', garaTypeId);
+
+    const fTeam = document.getElementById('f-match-team')?.value;
+    if (fTeam) query = query.eq('team_id', fTeam);
+
+    const { data, error } = await query.order('session_date', { ascending: false });
+
+    if (error) return console.error(error);
+
+    tbody.innerHTML = (data || []).map(m => {
+        const d = m.match_details?.[0] || {};
+        const score = d.goals_for !== undefined ? `${d.goals_for} - ${d.goals_against}` : 'N.D.';
+        const amichevoleBadge = d.is_friendly ? '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:5px;">AMICHEVOLE</span>' : '';
+
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString()}</strong><br><small>${m.title}</small></td>
+            <td style="padding:10px;"><strong>${m.teams?.name}</strong></td>
+            <td style="padding:10px; text-align:center;"><span style="background:#e2e8f0; padding:4px 8px; border-radius:6px; font-weight:bold;">${score}</span></td>
+            <td style="padding:10px;">${d.opponent_name || '---'} ${amichevoleBadge}</td>
+            <td style="padding:10px; text-align:right;">
+                <button class="btn-sm" style="background:#8b5cf6; color:white;" onclick="openAttendanceModal('${m.id}')">📋 Convocati</button>
+                <button class="btn-sm" onclick="openMatchEditModal('${m.id}')">⚽ Dettagli</button>
+                <button class="btn-sm" style="background:#64748b; color:white;" onclick="exportConvocatiSocial('${m.id}')">📸</button>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna partita trovata.</td></tr>';
+}
+
+/**
+ * 3. MODALE DETTAGLI MATCH (Aggiunge Arbitro, Marcatori, Amichevole)
+ */
+async function openMatchEditModal(sessionId) {
+    const m = getModal();
+    const { data: session } = await client.from('sessions').select('*, match_details(*)').eq('id', sessionId).single();
+    const match = session.match_details?.[0] || {};
+
+    m.open("Dettagli Partita", `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+            <div style="grid-column: span 2;">
+                <label style="display:block; font-size:12px; margin-bottom:5px;">Avversario</label>
+                <input type="text" id="m-opponent" value="${match.opponent_name || ''}" placeholder="Nome Squadra Avversaria" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; margin-bottom:5px;">Gol Fatti</label>
+                <input type="number" id="m-gf" value="${match.goals_for || 0}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; margin-bottom:5px;">Gol Subiti</label>
+                <input type="number" id="m-ga" value="${match.goals_against || 0}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; margin-bottom:5px;">Arbitro (Opzionale)</label>
+                <input type="text" id="m-referee" value="${match.referee || ''}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; padding-top:20px;">
+                <input type="checkbox" id="m-friendly" ${match.is_friendly ? 'checked' : ''}>
+                <label for="m-friendly">Amichevole</label>
+            </div>
+        </div>
+        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+        <button onclick="saveMatchDetailedData('${sessionId}')" style="width:100%; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA DETTAGLI E SINCRONIZZA</button>
+    `);
+}
+
+/**
+ * 4. SALVATAGGIO E LOGICA SINCRONIZZAZIONE (Non convocato = Giustificato)
+ */
+async function saveMatchDetailedData(sessionId) {
+    const gf = parseInt(document.getElementById('m-gf').value) || 0;
+    const ga = parseInt(document.getElementById('m-ga').value) || 0;
+    const isFriendly = document.getElementById('m-friendly').checked;
+    
+    const matchData = {
+        session_id: sessionId,
+        opponent_name: document.getElementById('m-opponent').value,
+        goals_for: gf,
+        goals_against: ga,
+        referee: document.getElementById('m-referee').value,
+        is_friendly: isFriendly,
+        points: isFriendly ? 0 : (gf > ga ? 3 : (gf === ga ? 1 : 0))
+    };
+
+    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
+    
+    if (!error) {
+        // Logica Automatica: Chi non è convocato diventa "Giustificato"
+        await syncNonCalledAsJustified(sessionId);
+        getModal().close();
+        initPartite();
+        alert("Dati salvati e presenze sincronizzate!");
+    }
+}
+
+async function syncNonCalledAsJustified(sessionId) {
+    const { data: session } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
+    const { data: allTeam } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', session.team_id).eq('season_id', session.season_id);
+    const { data: currentAtt } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
+
+    const calledIds = (currentAtt || []).filter(a => a.is_called_up).map(a => a.athlete_id);
+    const toUpdate = (allTeam || []).filter(a => !calledIds.includes(a.athlete_id));
+
+    if (toUpdate.length > 0) {
+        const records = toUpdate.map(a => ({
+            session_id: sessionId,
+            athlete_id: a.athlete_id,
+            status: 'giustificato',
+            is_called_up: false
+        }));
+        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
+    }
+}
+
+// Esposizione globale
+window.templatePartite = templatePartite;
+window.initPartite = initPartite;
+window.openMatchEditModal = openMatchEditModal;
+window.saveMatchDetailedData = saveMatchDetailedData;
+
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
