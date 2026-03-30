@@ -2567,9 +2567,12 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - BUILD 2.2 (FIX 403 & FILTERS)
+   MODULO: GESTIONE PARTITE - BUILD 2.2 (COMPLETE & SYNCED)
    ============================================================ */
 
+/**
+ * 1. TEMPLATE HTML
+ */
 function templatePartite() {
     return `
     <div class="card">
@@ -2583,8 +2586,8 @@ function templatePartite() {
                 <div id="wrapper-match-soc" style="display:none;">
                     <select id="f-match-soc" onchange="reloadMatchSubFilters()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;"></select>
                 </div>
-                <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Scegli Categoria...</option></select>
-                <select id="f-match-team" onchange="initPartite()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Scegli Squadra...</option></select>
+                <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Tutte Categorie</option></select>
+                <select id="f-match-team" onchange="initPartite()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Tutte Squadre</option></select>
             </div>
         </div>
 
@@ -2605,6 +2608,9 @@ function templatePartite() {
     </div>`;
 }
 
+/**
+ * 2. CARICAMENTO DATI E TABELLA
+ */
 async function initPartite() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
@@ -2612,30 +2618,34 @@ async function initPartite() {
     let targetSociety = window._currentSocietyId;
     const myRole = (window._userRole || '').toLowerCase();
 
-    // Inizializzazione Filtro Società per Admin (una sola volta)
+    // Init Filtro Società per Admin/Manager
     const selSoc = document.getElementById('f-match-soc');
     if (selSoc && selSoc.options.length === 0) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
         if (socs) {
             selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id === targetSociety ? 'selected' : ''}>${s.name}</option>`).join('');
-            if (['admin', 'manager'].includes(myRole)) document.getElementById('wrapper-match-soc').style.display = 'block';
+            if (['admin', 'manager'].includes(myRole)) {
+                document.getElementById('wrapper-match-soc').style.display = 'block';
+            }
             await reloadMatchSubFilters();
             return;
         }
     }
     targetSociety = selSoc?.value || targetSociety;
 
+    // Recupero ID tipo "Gara"
     const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita,name.eq.gara').maybeSingle();
     
+    // Query con Join su match_details e teams
     let query = client.from('sessions').select(`
         id, title, session_date, type_id, category_id, team_id,
         teams ( id, name ),
-        match_details ( opponent_name, goals_for, goals_against, is_friendly, scorers )
+        match_details ( opponent_name, goals_for, goals_against, is_friendly, scorers, referee )
     `).eq('society_id', targetSociety);
 
     if (typeData) query = query.eq('type_id', typeData.id);
 
-    // APPLICAZIONE FILTRI
+    // Applica Filtri UI
     const fCat = document.getElementById('f-match-cat')?.value;
     const fTeam = document.getElementById('f-match-team')?.value;
     if (fCat) query = query.eq('category_id', fCat);
@@ -2644,46 +2654,46 @@ async function initPartite() {
     const { data, error } = await query.order('session_date', { ascending: false });
 
     if (error) {
-        console.error("Errore Caricamento Partite:", error);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">Errore 403: Permesso negato su match_details. <br><small>Esegui SQL Policy su Supabase.</small></td></tr>`;
+        console.error("Errore Partite:", error);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">Errore 403: Verifica RLS su match_details</td></tr>`;
         return;
     }
 
     tbody.innerHTML = (data || []).map(m => {
-        const d = (m.match_details && m.match_details[0]) ? m.match_details[0] : {};
-        const score = (d.goals_for !== undefined && d.goals_for !== null) ? `${d.goals_for} - ${d.goals_against}` : 'N.D.';
+        const d = (m.match_details && m.match_details.length > 0) ? m.match_details[0] : {};
+        const score = (d.goals_for !== undefined && d.goals_for !== null) ? `${d.goals_for} - ${d.goals_against}` : '<span style="color:#94a3b8">N.D.</span>';
+        const amichevole = d.is_friendly ? '<br><span style="color:#f59e0b; font-size:10px; font-weight:bold;">AMICHEVOLE</span>' : '';
+
         return `
         <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString()}</strong><br><small>${m.title || ''}</small></td>
+            <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString('it-IT')}</strong><br><small>${m.title || ''}</small></td>
             <td style="padding:10px;"><strong>${m.teams?.name || '---'}</strong></td>
             <td style="padding:10px; text-align:center;"><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px; font-weight:bold;">${score}</span></td>
-            <td style="padding:10px;">${d.opponent_name || '---'}</td>
+            <td style="padding:10px;">${d.opponent_name || '---'}${amichevole}</td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" onclick="openAttendanceModal('${m.id}')">👥</button>
-                <button class="btn-sm" onclick="openMatchEditModal('${m.id}')">⚽</button>
+                <div style="display:flex; gap:5px; justify-content:flex-end;">
+                    <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="openAttendanceModal('${m.id}')" title="Convocati">👥</button>
+                    <button class="btn-sm" onclick="openMatchEditModal('${m.id}')" title="Risultato">⚽</button>
+                    <button class="btn-sm" style="background:#64748b; color:white; border:none;" onclick="exportConvocatiSocial('${m.id}')" title="Social">📸</button>
+                </div>
             </td>
         </tr>`;
     }).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
 }
 
 /**
- * 6. LOGICA FILTRI (Copiata da Gestione Sessioni)
+ * 3. LOGICA FILTRI (Sincronizzata con Sessioni)
  */
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc').value;
     
-    // Reset select
-    document.getElementById('f-match-cat').innerHTML = '<option value="">Caricamento...</option>';
-    document.getElementById('f-match-team').innerHTML = '<option value="">Scegli Squadra...</option>';
-
-    // Carica Categorie della Società
+    // Carica Categorie
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-    
-    let options = '<option value="">Tutte Categorie</option>';
-    if (cats) options += cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    document.getElementById('f-match-cat').innerHTML = options;
+    let catOpts = '<option value="">Tutte Categorie</option>';
+    if (cats) catOpts += cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    document.getElementById('f-match-cat').innerHTML = catOpts;
 
-    // Carica tutte le squadre per questa società (per window._matchTeams)
+    // Carica Squadre per window._matchTeams
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
 
@@ -2695,31 +2705,27 @@ function reloadMatchTeamsOnly() {
     const selTeam = document.getElementById('f-match-team');
     
     let filtered = window._matchTeams || [];
-    if (catId) {
-        filtered = filtered.filter(t => t.category_id === catId);
-    }
+    if (catId) filtered = filtered.filter(t => t.category_id === catId);
 
-    let options = '<option value="">Tutte Squadre</option>';
-    options += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    selTeam.innerHTML = options;
+    let teamOpts = '<option value="">Tutte Squadre</option>';
+    teamOpts += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    selTeam.innerHTML = teamOpts;
 
-    initPartite(); // Aggiorna la tabella
+    initPartite();
 }
 
-// ... (Le funzioni openMatchEditModal, saveMatchDetailedData e openMatchModal rimangono le stesse dell'invio precedente)
-
 /**
- * 3. MODALE DETTAGLI (Risultato, Arbitro, Marcatori)
+ * 4. MODALE EDIT RISULTATO
  */
 async function openMatchEditModal(sessionId) {
     const m = getModal();
     const { data: session } = await client.from('sessions').select('*, match_details(*)').eq('id', sessionId).single();
     const match = (session.match_details && session.match_details.length > 0) ? session.match_details[0] : {};
 
-    m.open("⚽ Risultato e Dettagli Match", `
+    m.open("⚽ Dettagli Partita", `
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div style="grid-column:span 2;">
-                <label style="font-size:12px; color:#64748b;">Squadra Avversaria</label>
+                <label style="font-size:12px; color:#64748b;">Avversario</label>
                 <input type="text" id="m-opponent" value="${match.opponent_name || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div>
@@ -2732,7 +2738,7 @@ async function openMatchEditModal(sessionId) {
             </div>
             <div>
                 <label style="font-size:12px; color:#64748b;">Arbitro</label>
-                <input type="text" id="m-referee" value="${match.referee || ''}" placeholder="Nome arbitro" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                <input type="text" id="m-referee" value="${match.referee || ''}" placeholder="Nome" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div style="display:flex; align-items:center; gap:8px; padding-top:20px;">
                 <input type="checkbox" id="m-friendly" ${match.is_friendly ? 'checked' : ''}>
@@ -2743,26 +2749,25 @@ async function openMatchEditModal(sessionId) {
             <label style="display:block; font-size:12px; color:#64748b; margin-bottom:5px;">Marcatori</label>
             <textarea id="m-scorers" placeholder="Es: Rossi (2), Bianchi" style="width:100%; height:60px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">${match.scorers || ''}</textarea>
         </div>
-        <button onclick="saveMatchDetailedData('${sessionId}')" style="width:100%; margin-top:15px; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA RISULTATI</button>
+        <button onclick="saveMatchDetailedData('${sessionId}')" style="width:100%; margin-top:15px; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold;">SALVA</button>
     `);
 }
 
 /**
- * 4. SALVATAGGIO E SINCRONIZZAZIONE ISOLATA
+ * 5. SALVATAGGIO E SYNC GIUSTIFICATI
  */
 async function saveMatchDetailedData(sessionId) {
     const gf = parseInt(document.getElementById('m-gf').value) || 0;
     const ga = parseInt(document.getElementById('m-ga').value) || 0;
     const isFriendly = document.getElementById('m-friendly').checked;
     
-    // Calcolo automatico punti
     let pts = 0;
     if (!isFriendly) {
         if (gf > ga) pts = 3;
         else if (gf === ga) pts = 1;
     }
 
-    const matchData = {
+    const { error } = await client.from('match_details').upsert({
         session_id: sessionId,
         opponent_name: document.getElementById('m-opponent').value,
         goals_for: gf,
@@ -2772,29 +2777,23 @@ async function saveMatchDetailedData(sessionId) {
         scorers: document.getElementById('m-scorers').value,
         points: pts,
         status: 'giocata'
-    };
-
-    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
+    }, { onConflict: 'session_id' });
     
     if (!error) {
-        await syncMatchJustified(sessionId); // Logica Automatica: chi non gioca è giustificato
+        await syncMatchJustified(sessionId);
         getModal().close();
         initPartite();
-        alert("Partita aggiornata correttamente!");
+        alert("Salvato!");
     } else {
-        alert("Errore salvataggio: " + error.message);
+        alert("Errore: " + error.message);
     }
 }
 
 async function syncMatchJustified(sessionId) {
     const { data: sess } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
     if (!sess) return;
-
-    // Recupera tutti gli atleti della squadra nella stagione
     const { data: allAth } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', sess.team_id).eq('season_id', sess.season_id);
-    // Recupera chi è stato effettivamente convocato
     const { data: currAtt } = await client.from('attendances').select('athlete_id').eq('session_id', sessionId).eq('is_called_up', true);
-
     const calledIds = (currAtt || []).map(a => a.athlete_id);
     const notCalled = (allAth || []).filter(a => !calledIds.includes(a.athlete_id));
 
@@ -2807,7 +2806,7 @@ async function syncMatchJustified(sessionId) {
 }
 
 /**
- * 5. CREAZIONE PARTITA RAPIDA
+ * 6. NUOVA PARTITA
  */
 async function openMatchModal() {
     const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita,name.eq.gara').maybeSingle();
@@ -2819,36 +2818,7 @@ async function openMatchModal() {
     }
 }
 
-/**
- * 6. FILTRI PROGRESSIVI ISOLATI
- */
-async function reloadMatchSubFilters() {
-    const socId = document.getElementById('f-match-soc').value;
-    const { data: teams } = await client.from('teams').select('id, name, category_id, categories(id, name)').eq('society_id', socId).order('name');
-    window._matchSocTeams = teams || [];
-    
-    const catMap = new Map();
-    const cats = [];
-    teams?.forEach(t => { 
-        if(t.categories && !catMap.has(t.categories.id)) { 
-            catMap.set(t.categories.id, true); 
-            cats.push(t.categories); 
-        }
-    });
-    
-    document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    reloadMatchTeamsOnly();
-}
-
-async function reloadMatchTeamsOnly() {
-    const catId = document.getElementById('f-match-cat').value;
-    let filtered = window._matchSocTeams || [];
-    if (catId) filtered = filtered.filter(t => t.category_id === catId);
-    document.getElementById('f-match-team').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    initPartite();
-}
-
-// Esponi globalmente
+// Export Globali
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.openMatchEditModal = openMatchEditModal;
