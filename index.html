@@ -2055,11 +2055,7 @@ window.importAtleti = async function(event) {
    MODULO SESSIONI E PRESENZE - FIX ATHLETE_TEAM_SEASONS
    ============================================================ */
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - LOGICA UNIFORMATA (BUILD 1.2)
-   ============================================================ */
-
-/* ============================================================
-   MODULO: SESSIONI E PRESENZE - LOGICA UNIFORMATA (BUILD 1.3)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.4 (STELLE & SAFE-MODE)
    ============================================================ */
 
 /**
@@ -2162,7 +2158,6 @@ async function initSessioni() {
  * 3. LOGICA FILTRI E MODALI
  */
 
-// Gestore interattivo delle stelle
 window.setRating = function(el, value) {
     const container = el.parentElement;
     const stars = container.querySelectorAll('span');
@@ -2203,7 +2198,6 @@ async function openAttendanceModal(sessionId) {
         <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
             ${athletesList.map(ath => {
                 const r = attMap[ath.id] || {};
-                // Recupero performance o default a 0
                 const p = r.performance_data || { vel:0, tec:0, fis:0, res:0, com:0 };
                 
                 return `
@@ -2241,7 +2235,6 @@ async function openAttendanceModal(sessionId) {
         </div>
     `;
 
-    // Pulizia: Passiamo "" come parametri finali per rimuovere i bottoni duplicati della modale
     modal.open(isGara ? "Convocazioni" : "Registro Presenze", modalBody, "", "");
 }
 
@@ -2274,12 +2267,15 @@ async function saveAttendances(sessionId, isGara) {
         initSessioni(); 
         alert("Registro salvato!"); 
     } else {
-        alert("Errore: " + error.message);
+        alert("Errore nel salvataggio: " + error.message);
     }
 }
 
 async function reloadSubFilters() {
-    const socId = document.getElementById('filter-society-sess').value;
+    const socEl = document.getElementById('filter-society-sess');
+    if (!socEl) return;
+    const socId = socEl.value;
+
     const [cats, teams, types] = await Promise.all([
         client.from('categories').select('id, name').order('name'),
         client.from('teams').select('id, name').eq('society_id', socId).order('name'),
@@ -2331,16 +2327,29 @@ async function openSessionModal(id = null) {
 }
 
 async function saveSession(id) {
-    const team = window._teamsList.find(t => t.id === document.getElementById('sess-team').value);
+    const elTeam = document.getElementById('sess-team');
+    if (!elTeam || !elTeam.value) return alert("Scegli una squadra!");
+
+    const team = window._teamsList.find(t => t.id === elTeam.value);
     if (!team) return alert("Squadra obbligatoria!");
+
     const p = {
-        title: document.getElementById('sess-title').value || "Allenamento",
-        session_date: document.getElementById('sess-date').value,
+        title: document.getElementById('sess-title')?.value || "Allenamento",
+        session_date: document.getElementById('sess-date')?.value,
         society_id: document.getElementById('filter-society-sess')?.value || window._currentSocietyId,
-        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type').value
+        team_id: team.id, 
+        category_id: team.category_id, 
+        season_id: team.season_id, 
+        type_id: document.getElementById('sess-type')?.value
     };
+
     const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { modal.close(); initSessioni(); }
+    if (!error) { 
+        modal.close(); 
+        initSessioni(); 
+    } else {
+        alert("Errore: " + error.message);
+    }
 }
 
 async function deleteSession(id, title) {
