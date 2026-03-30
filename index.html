@@ -138,7 +138,8 @@
     };
     document.getElementById('btn-modal-close').onclick = () => modal.close();
 
-    /* --- GESTIONE LOGIN / LOGOUT --- */
+
+  /* --- GESTIONE LOGIN / LOGOUT --- 
     document.getElementById('login-form').onsubmit = async (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value.trim();
@@ -155,8 +156,60 @@
         document.getElementById('login-wrap').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
         loadPage('dashboard');
-    };
+    };*/
+/* NUOVA MODIFICA LOGIN */
 
+/* --- GESTIONE LOGIN / LOGOUT --- */
+document.getElementById('login-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errDiv = document.getElementById('error-msg');
+
+    // 1. Recupero dati utente dal DB
+    const { data: userRow, error: userErr } = await client
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle();
+
+    if (userErr || !userRow) { 
+        errDiv.innerText = "Utente non trovato"; 
+        errDiv.style.display="block"; 
+        return; 
+    }
+
+    // 2. Autenticazione Supabase
+    const { data: auth, error: authErr } = await client.auth.signInWithPassword({ 
+        email: userRow.email, 
+        password 
+    });
+
+    if (authErr) { 
+        errDiv.innerText = "Password errata"; 
+        errDiv.style.display="block"; 
+        return; 
+    }
+
+    // 3. POPOLAMENTO VARIABILI GLOBALI (Fondamentale!)
+    window._userRole = userRow.role;            // Es: 'admin', 'manager', 'user'
+    window._currentSocietyId = userRow.society_id; // UUID o null
+    window._userName = userRow.name;           // Comodo per i messaggi di benvenuto
+    
+    // Se vuoi mantenere anche la tua vecchia variabile per compatibilità
+    CURRENT_USER = userRow;
+
+    // 4. UI Switch
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    
+    // Se hai un elemento per mostrare il nome dell'utente loggato:
+    const userLabel = document.getElementById('user-display-name');
+    if(userLabel) userLabel.innerText = userRow.name;
+
+    loadPage('dashboard');
+};
+/* --- FINE GESTIONE LOGIN / LOGOUT --- */
     document.getElementById('btn-logout').onclick = () => location.reload();
 
     /* --- NAVIGAZIONE (LOADER PAGINE) --- */
