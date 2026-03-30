@@ -2644,7 +2644,12 @@ async function initPartite() {
     }
 
     // Recupero ID tipo "Gara"
-    const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'gara').single();
+   // const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'gara').single();
+   const { data: typeData } = await client
+    .from('session_types')
+    .select('id')
+    .or('name.eq.Gara,name.eq.Partita,name.eq.Match')
+    .maybeSingle();
     
     let query = client.from('sessions').select(`
         *,
