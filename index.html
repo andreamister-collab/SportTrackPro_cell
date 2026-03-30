@@ -2052,29 +2052,22 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.7 (FIX ELIMINA & MODAL)
-   ============================================================ */
-/* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.8 (EMERGENCY FIX)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.9 (FIX 400 BAD REQUEST)
    ============================================================ */
 
 /**
- * 0. GESTORE MODALE UNIVERSALE (Risolve l'errore "undefined open")
+ * 0. GESTORE MODALE UNIVERSALE
  */
 function getModal() {
-    // Prova a recuperare il gestore originale del tuo sito
     let m = window.modal || window.appModal || window.uiModal || window.ui;
-    
-    // Se non lo trova, crea un sistema di emergenza per non bloccare i tasti
     if (!m) {
-        console.warn("Sostituisco il gestore mancante con Emergency Modal");
         m = {
             open: (title, html) => {
                 const overlay = document.createElement('div');
                 overlay.id = 'emergency-modal';
                 overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px;";
                 overlay.innerHTML = `
-                    <div style="background:white; width:100%; max-width:500px; border-radius:12px; padding:20px; position:relative; color:#333;">
+                    <div style="background:white; width:100%; max-width:500px; border-radius:12px; padding:20px; position:relative; color:#333; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
                         <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">${title}</h3>
                         <div style="margin-bottom:20px; max-height:70vh; overflow-y:auto;">${html}</div>
                         <button onclick="document.getElementById('emergency-modal').remove()" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
@@ -2130,7 +2123,7 @@ function templateSessioni() {
 }
 
 /**
- * 2. INIZIALIZZAZIONE E LOGICA TABELLA
+ * 2. INIZIALIZZAZIONE
  */
 async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
@@ -2169,17 +2162,14 @@ async function initSessioni() {
             else if(a.status === 'infortunato') acc.i++;
             return acc;
         }, {p:0, a:0, g:0, i:0});
-
         const total = att.length;
         const perc = total > 0 ? Math.round((stats.p / total) * 100) : 0;
-        const hasNotes = s.notes && s.notes.trim().length > 0;
-
         return `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;"><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()}</small></td>
-            <td style="padding:10px;"><small>${s.session_types?.name}</small><br><strong>${s.teams?.name}</strong></td>
+            <td style="padding:10px;"><small>${s.session_types?.name || 'Sessione'}</small><br><strong>${s.teams?.name || 'N/D'}</strong></td>
             <td style="padding:10px; text-align:center;">
-                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${hasNotes ? '1' : '0.3'}">📝</button>
+                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${s.notes ? '1' : '0.3'}">📝</button>
             </td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#10b981;">${stats.p}</td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#ef4444;">${stats.a}</td>
@@ -2202,12 +2192,15 @@ async function openSessionModal(id = null) {
     const m = getModal();
     const isEdit = !!id;
     let editData = null;
-    let targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
+    
+    // Recupero forzato della società corrente
+    const targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
 
     const [typesRes, teamsRes] = await Promise.all([
         client.from('session_types').select('*').order('name'),
         client.from('teams').select('id, name, category_id, season_id').eq('society_id', targetSoc).order('name')
     ]);
+    
     window._teamsList = teamsRes.data || [];
 
     if (isEdit) {
@@ -2230,54 +2223,73 @@ async function openSessionModal(id = null) {
             </select>
             <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA</button>
         </div>
-    `, "", "");
+    `);
 }
 
 async function saveSession(id) {
     const teamId = document.getElementById('sess-team')?.value;
     const team = window._teamsList.find(t => t.id === teamId);
-    if (!team) return alert("Scegli una squadra!");
+    
+    if (!team) return alert("Errore: Seleziona una squadra valida!");
 
-    const p = {
-        title: document.getElementById('sess-title').value || "Allenamento",
+    // Prepariamo l'oggetto con controlli sui null per evitare il 400
+    const payload = {
+        title: document.getElementById('sess-title').value || "Sessione",
         session_date: document.getElementById('sess-date').value,
         society_id: window._currentSocietyId,
-        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type').value
+        team_id: team.id,
+        category_id: team.category_id,
+        season_id: team.season_id,
+        type_id: document.getElementById('sess-type').value
     };
-    const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { getModal().close(); initSessioni(); }
+
+    // Verifica finale dati obbligatori
+    if (!payload.society_id || !payload.season_id) {
+        console.error("Dati mancanti:", payload);
+        return alert("Errore interno: ID Società o Stagione mancante. Ricarica la pagina.");
+    }
+
+    const { error } = id ? 
+        await client.from('sessions').update(payload).eq('id', id) : 
+        await client.from('sessions').insert([payload]);
+
+    if (!error) {
+        getModal().close();
+        initSessioni();
+    } else {
+        alert("Errore Supabase: " + error.message);
+    }
 }
 
 async function openAttendanceModal(sessionId) {
     const m = getModal();
     const { data: session } = await client.from('sessions').select('*, session_types(name), teams(id, name, season_id)').eq('id', sessionId).single();
+    if(!session) return;
+
     const isGara = session.session_types?.name.toLowerCase().includes('gara');
     const { data: relations } = await client.from('athlete_team_seasons').select(`jersey_number, athletes(id, name, surname)`).eq('team_id', session.team_id).eq('season_id', session.season_id);
     const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
     const attMap = {}; existing?.forEach(a => attMap[a.athlete_id] = a);
 
     m.open(isGara ? "Convocazioni" : "Registro Presenze", `
-        <div style="max-height:400px; overflow-y:auto; padding-right:5px;">
+        <div style="max-height:400px; overflow-y:auto;">
             ${(relations || []).map(r => {
                 const ath = r.athletes;
                 const reg = attMap[ath.id] || {};
-                const p = reg.performance_data || {vel:0, tec:0, fis:0, res:0, com:0};
                 return `
-                <div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong>${ath.surname} ${ath.name} <small>#${r.jersey_number || ''}</small></strong>
-                        <select class="att-status" data-ath="${ath.id}" style="padding:5px; border-radius:4px;">
-                            <option value="presente" ${reg.status==='presente'?'selected':''}>Presente</option>
-                            <option value="assente" ${reg.status==='assente'?'selected':''}>Assente</option>
-                            <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>Giustificato</option>
-                            <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>Infortunato</option>
-                        </select>
-                    </div>
+                <div style="border-bottom:1px solid #eee; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span><strong>${ath.surname}</strong> ${ath.name}</span>
+                    <select class="att-status" data-ath="${ath.id}" style="padding:5px; border-radius:4px;">
+                        <option value="presente" ${reg.status==='presente'?'selected':''}>P</option>
+                        <option value="assente" ${reg.status==='assente'?'selected':''}>A</option>
+                        <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>G</option>
+                        <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>I</option>
+                    </select>
                 </div>`;
             }).join('')}
-            <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:14px; border:none; border-radius:8px; font-weight:bold; margin-top:10px; cursor:pointer;">SALVA REGISTRO</button>
+            <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:14px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA</button>
         </div>
-    `, "", "");
+    `);
 }
 
 async function saveAttendances(sessionId, isGara) {
@@ -2294,8 +2306,8 @@ async function saveAttendances(sessionId, isGara) {
 
 async function deleteSession(id, title) {
     if (confirm(`Eliminare la sessione "${title}"?`)) {
-        const { error } = await client.from('sessions').delete().eq('id', id);
-        if (!error) initSessioni();
+        await client.from('sessions').delete().eq('id', id);
+        initSessioni();
     }
 }
 
@@ -2304,7 +2316,7 @@ async function openSessionNotesModal(id, title) {
     getModal().open(`Note: ${title}`, `
         <textarea id="temp-notes" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">${data?.notes || ''}</textarea>
         <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:10px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; cursor:pointer;">SALVA</button>
-    `, "", "");
+    `);
 }
 
 async function saveSessionNotes(id) {
