@@ -122,7 +122,9 @@
 	window._currentUserId = null;
     window._currentSocietyId = null;
     window._userRole = 'user'; 
-    window.CURRENT_USER = null;
+    //window.CURRENT_USER = null;
+	window._userName = null;
+    let CURRENT_USER = null;
 
     /* --- LOGICA MODAL --- */
     const modal = {
@@ -2050,220 +2052,150 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   BUILD 1.2 - GESTIONE SESSIONI (AUTO-SEASON & SECURITY)
+   SEZIONE: SESSIONI E PARTITE - BUILD 2.0 (SQL COMPLIANT)
    ============================================================ */
 
-window.templateSessioni = function() {
-    return `
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0;">📅 Sessioni e Partite</h2>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <select id="filter-society-sess" onchange="window.initSessioni()" style="display:none;"></select>
-                <button class="btn" onclick="window.openSessionModal()">+ Nuova Sessione</button>
-            </div>
-        </div>
-        <div class="table-container">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="text-align:left; background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:12px;">Sessione / Data</th>
-                        <th style="padding:12px;">Tipo</th>
-                        <th style="padding:12px;">Squadra</th>
-                        <th style="padding:12px; text-align:right;">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody id="list-sessioni-body"></tbody>
-            </table>
-        </div>
-    </div>`;
-};
+window.initSessioni = async function() {
+    const selSoc = document.getElementById('filter-society-sess');
+    const body = document.getElementById('list-sessioni-body');
+    const role = window._userRole || 'user';
+    
+    const hasGlobalAccess = (role === 'admin' || role === 'manager');
+    let targetSociety = window._currentSocietyId;
 
-(function() {
-    window._sessions = [];
-
-    window.initSessioni = async function() {
-        // PROTEZIONE: Se l'ID società non è ancora caricato, riprova tra poco
-        if (!window._currentSocietyId && window._userRole !== 'admin') {
-            console.warn("Dati sessione in attesa...");
-            setTimeout(window.initSessioni, 300);
-            return;
-        }
-
-        const selSoc = document.getElementById('filter-society-sess');
-        const role = window._userRole || 'user';
-        
-        // Configurazione selettore per Admin
-        if (role === 'admin' && selSoc) {
-            selSoc.style.display = 'block';
-            if (selSoc.options.length === 0) {
-                const { data: societies } = await client.from('societies').select('id, name').order('name');
-                if(societies) {
-                    selSoc.innerHTML = societies.map(s => 
-                        `<option value="${s.id}" ${s.id === window._currentSocietyId ? 'selected' : ''}>🏢 ${s.name}</option>`
-                    ).join('');
-                }
+    // Gestione Dropdown Società per Admin
+    if (hasGlobalAccess && selSoc) {
+        selSoc.style.display = 'block';
+        if (selSoc.options.length === 0) {
+            const { data: societies } = await client.from('societies').select('id, name').order('name');
+            if (societies) {
+                selSoc.innerHTML = societies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                targetSociety = societies[0].id;
             }
+        } else {
+            targetSociety = selSoc.value;
         }
-        
-        const targetSociety = (role === 'admin' && selSoc?.value) ? selSoc.value : window._currentSocietyId;
+    }
 
-        // Se dopo i controlli non abbiamo ancora un ID valido, evitiamo la chiamata al DB
-        if (!targetSociety) return;
+    if (!targetSociety) return;
 
-        const { data, error } = await client.from('sessions').select(`
-            *,
-            session_types(name),
-            teams(id, name, season_id, categories(name))
-        `)
-        .eq('society_id', targetSociety)
-        .order('session_date', { ascending: false });
+    const { data, error } = await client.from('sessions').select(`
+        *,
+        session_types(name),
+        teams(name, categories(name))
+    `)
+    .eq('society_id', targetSociety)
+    .order('session_date', { ascending: false });
 
-        if (error) return console.error("Errore DB:", error.message);
+    if (!error && body) {
         window._sessions = data || [];
-        
-        const body = document.getElementById('list-sessioni-body');
-        if (!body) return;
-
         body.innerHTML = window._sessions.map(s => `
-            <tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:12px;">
-                    <div style="font-weight:700;">${s.title}</div>
-                    <div style="font-size:11px; color:#64748b;">${new Date(s.session_date).toLocaleDateString('it-IT')}</div>
-                </td>
-                <td style="padding:12px;"><span class="badge badge-default">${s.session_types?.name || 'Sessione'}</span></td>
-                <td style="padding:12px; font-size:13px;">${s.teams?.categories?.name || ''} - <strong>${s.teams?.name || ''}</strong></td>
-                <td style="padding:12px; text-align:right;">
-                    <button class="btn-icon-atleta link" onclick="window.openAttendanceModal('${s.id}')" title="Appello" style="background:#ecfdf5; color:#059669; border:1px solid #10b981;">📋 Appello</button>
-                    <button class="btn-icon-atleta edit" onclick="window.openSessionModal('${s.id}')" style="margin:0 4px;">✏️</button>
-                    <button class="btn-icon-atleta delete" onclick="window.deleteSession('${s.id}')">🗑️</button>
+            <tr>
+                <td><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString('it-IT')}</small></td>
+                <td><span class="badge">${s.session_types?.name || 'Gara'}</span></td>
+                <td>${s.teams?.categories?.name || ''} - <strong>${s.teams?.name || ''}</strong></td>
+                <td style="text-align:right;">
+                    <button class="btn-sm" onclick="window.openSessionModal('${s.id}')">✏️</button>
+                    <button class="btn-sm btn-danger" onclick="window.deleteSession('${s.id}')">🗑️</button>
                 </td>
             </tr>
         `).join('');
-    };
+    }
+};
 
-    window.openSessionModal = async function(id = null) {
-        const sess = id ? window._sessions.find(s => s.id === id) : null;
-        const selSoc = document.getElementById('filter-society-sess');
-        const targetSociety = (window._userRole === 'admin' && selSoc?.value) ? selSoc.value : window._currentSocietyId;
+window.openSessionModal = async function(id = null) {
+    const isEdit = !!id;
+    let editData = null;
 
-        const [typesRes, teamsRes] = await Promise.all([
-            client.from('session_types').select('*').order('name'),
-            client.from('teams').select('*, categories(name)').eq('society_id', targetSociety).order('name')
-        ]);
+    // 1. Recupero Società Target
+    let targetSociety = window._currentSocietyId;
+    if (window._userRole === 'admin' || window._userRole === 'manager') {
+        targetSociety = document.getElementById('filter-society-sess').value;
+    }
 
-        modal.open(id ? "Modifica Sessione" : "Nuova Sessione", `
-            <div style="display:grid; gap:15px;">
-                <div>
-                    <label style="font-size:11px; font-weight:700;">TITOLO</label>
-                    <input type="text" id="m-s-title" value="${sess?.title || ''}" placeholder="es. Allenamento tecnico" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+    // 2. Caricamento Dati necessari (Tipi e Squadre con Categorie)
+    const [typesRes, teamsRes] = await Promise.all([
+        client.from('session_types').select('*').order('name'),
+        client.from('teams').select('id, name, category_id, season_id').eq('society_id', targetSociety)
+    ]);
+
+    window._teamsList = teamsRes.data || []; // Salvataggio per recupero category_id in fase di save
+
+    if (isEdit) {
+        const { data } = await client.from('sessions').select('*').eq('id', id).single();
+        editData = data;
+    }
+
+    modal.open(isEdit ? 'Modifica Sessione' : 'Nuova Sessione', `
+        <div style="display:grid; gap:15px;">
+            <div>
+                <label>TITOLO</label>
+                <input type="text" id="sess-title" value="${editData?.title || ''}" style="width:100%; padding:8px;">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>DATA</label>
+                    <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="width:100%; padding:8px;">
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:700;">DATA</label>
-                        <input type="date" id="m-s-date" value="${sess?.session_date || new Date().toISOString().split('T')[0]}" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:11px; font-weight:700;">TIPO</label>
-                        <select id="m-s-type" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                            ${(typesRes.data || []).map(t => `<option value="${t.id}" ${sess?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label style="font-size:11px; font-weight:700;">SQUADRA</label>
-                    <select id="m-s-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                        <option value="">Seleziona Squadra...</option>
-                        ${(teamsRes.data || []).map(t => `
-                            <option value="${t.id}" data-season="${t.season_id}" ${sess?.team_id === t.id ? 'selected' : ''}>
-                                ${t.categories?.name || ''} - ${t.name}
-                            </option>`).join('')}
+                <div style="flex:1;">
+                    <label>TIPO</label>
+                    <select id="sess-type" style="width:100%; padding:8px;">
+                        ${typesRes.data.map(t => `<option value="${t.id}" ${editData?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
                     </select>
                 </div>
             </div>
-        `);
-
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const teamEl = document.getElementById('m-s-team');
-            const selectedOpt = teamEl.options[teamEl.selectedIndex];
-            if(!selectedOpt.value) return alert("Scegli una squadra!");
-
-            const payload = {
-                title: document.getElementById('m-s-title').value,
-                session_date: document.getElementById('m-s-date').value,
-                type_id: document.getElementById('m-s-type').value,
-                team_id: teamEl.value,
-                season_id: selectedOpt.dataset.season, // ASSEGNAZIONE AUTOMATICA STAGIONE
-                society_id: targetSociety
-            };
-
-            const { error } = id ? await client.from('sessions').update(payload).eq('id', id) : await client.from('sessions').insert([payload]);
-            if(!error) { modal.close(); window.initSessioni(); }
-        };
-    };
-
-    window.openAttendanceModal = async function(sessionId) {
-        const sess = window._sessions.find(s => s.id === sessionId);
-        const [attRes, playRes] = await Promise.all([
-            client.from('attendances').select('*').eq('session_id', sessionId),
-            client.from('athlete_team_seasons').select('athlete_id, athletes(name, surname)').eq('team_id', sess.team_id).eq('season_id', sess.season_id)
-        ]);
-
-        modal.open(`Appello: ${sess.title}`, `
-            <div style="max-height:60vh; overflow-y:auto;">
-                <table style="width:100%; border-collapse:collapse;">
-                    ${(playRes.data || []).map(p => {
-                        const a = (attRes.data || []).find(x => x.athlete_id === p.athlete_id) || { status: 'presente', rating: 0, is_justified: false };
-                        return `
-                        <tr style="border-bottom:1px solid #eee;" class="att-row-data" data-aid="${p.athlete_id}">
-                            <td style="padding:10px;"><strong>${p.athletes?.surname || ''}</strong> ${p.athletes?.name || ''}</td>
-                            <td style="padding:10px;">
-                                <select class="in-status" style="padding:5px; border-radius:6px; font-size:12px; border:1px solid #ccc;">
-                                    <option value="presente" ${a.status==='presente'?'selected':''}>✅</option>
-                                    <option value="assente" ${a.status==='assente'?'selected':''}>❌</option>
-                                    <option value="infortunato" ${a.status==='infortunato'?'selected':''}>🏥</option>
-                                </select>
-                                <label style="font-size:10px; margin-left:5px;"><input type="checkbox" class="in-just" ${a.is_justified?'checked':''}> Giust.</label>
-                            </td>
-                            <td style="padding:10px; text-align:right;">
-                                <div class="star-rating" data-rating="${a.rating || 0}" style="justify-content:flex-end;">
-                                    ${[1,2,3,4,5].map(n => `<span class="star ${n<=(a.rating||0)?'active':''}" onclick="window.setRating(this, ${n})">★</span>`).join('')}
-                                </div>
-                            </td>
-                        </tr>`;
-                    }).join('')}
-                </table>
+            <div>
+                <label>SQUADRA</label>
+                <select id="sess-team" style="width:100%; padding:8px;">
+                    <option value="">Seleziona Squadra...</option>
+                    ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                </select>
             </div>
-        `);
+            <button class="btn" id="btn-save-session" style="width:100%; margin-top:10px;">Salva Sessione</button>
+        </div>
+    `);
 
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const rows = document.querySelectorAll('.att-row-data');
-            const payload = Array.from(rows).map(row => ({
-                session_id: sessionId,
-                athlete_id: row.dataset.aid,
-                status: row.querySelector('.in-status').value,
-                is_justified: row.querySelector('.in-just').checked,
-                rating: parseInt(row.querySelector('.star-rating').dataset.rating) || 0
-            }));
-            await client.from('attendances').upsert(payload, { onConflict: 'session_id, athlete_id' });
-            modal.close();
-            alert("Appello salvato!");
-        };
+    document.getElementById('btn-save-session').onclick = () => window.saveSession(id);
+};
+
+window.saveSession = async function(id = null) {
+    const title = document.getElementById('sess-title').value.trim();
+    const date = document.getElementById('sess-date').value;
+    const typeId = document.getElementById('sess-type').value;
+    const teamId = document.getElementById('sess-team').value;
+
+    if (!title || !teamId) return alert("Compila i campi obbligatori.");
+
+    // Trovo il team per estrarre categoria e stagione (NOT NULL nel DB)
+    const team = window._teamsList.find(t => t.id === teamId);
+    
+    // Identifico società
+    let targetSociety = window._currentSocietyId;
+    if (window._userRole === 'admin' || window._userRole === 'manager') {
+        targetSociety = document.getElementById('filter-society-sess').value;
+    }
+
+    const payload = {
+        title,
+        session_date: date,
+        society_id: targetSociety,
+        team_id: teamId,
+        category_id: team.category_id, // Risolve l'errore 400
+        season_id: team.season_id,     // Risolve l'errore 400
+        type_id: typeId
     };
 
-    window.setRating = (el, val) => {
-        const container = el.parentElement;
-        container.dataset.rating = val;
-        Array.from(container.children).forEach((star, i) => star.classList.toggle('active', i < val));
-    };
+    const { error } = id 
+        ? await client.from('sessions').update(payload).eq('id', id)
+        : await client.from('sessions').insert([payload]);
 
-    window.deleteSession = async (id) => {
-        if(confirm("Eliminare la sessione?")) {
-            await client.from('sessions').delete().eq('id', id);
-            window.initSessioni();
-        }
-    };
-})();
+    if (!error) {
+        modal.close();
+        window.initSessioni();
+    } else {
+        alert("Errore: " + error.message);
+    }
+};
 	/* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
