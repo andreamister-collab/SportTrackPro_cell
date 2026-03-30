@@ -2052,7 +2052,7 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.9 (FULL RESTORE)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.9.2 (PROGRESSIVE FILTERS)
    ============================================================ */
 
 /**
@@ -2093,7 +2093,7 @@ function templateSessioni() {
         <div id="sess-filters-container" style="display:none; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
                 <div id="wrapper-soc-filter" style="display:none;"><select id="filter-society-sess" onchange="reloadSubFilters()"></select></div>
-                <select id="filter-category-sess" onchange="initSessioni()"><option value="">Tutte Categorie</option></select>
+                <select id="filter-category-sess" onchange="reloadTeamsOnly()"><option value="">Tutte Categorie</option></select>
                 <select id="filter-team-sess" onchange="initSessioni()"><option value="">Tutte Squadre</option></select>
                 <select id="filter-type-sess" onchange="initSessioni()"><option value="">Tutti i Tipi</option></select>
             </div>
@@ -2146,7 +2146,15 @@ async function initSessioni() {
     }
 
     let query = client.from('sessions').select(`*, session_types(name), teams(id, name, categories(name)), attendances(status)`).eq('society_id', targetSociety);
-    if (document.getElementById('filter-team-sess')?.value) query = query.eq('team_id', document.getElementById('filter-team-sess').value);
+    
+    // Applica filtri se selezionati
+    const fCat = document.getElementById('filter-category-sess')?.value;
+    const fTeam = document.getElementById('filter-team-sess')?.value;
+    const fType = document.getElementById('filter-type-sess')?.value;
+
+    if (fCat) query = query.eq('category_id', fCat);
+    if (fTeam) query = query.eq('team_id', fTeam);
+    if (fType) query = query.eq('type_id', fType);
 
     const { data } = await query.order('session_date', { ascending: false });
 
@@ -2186,7 +2194,67 @@ async function initSessioni() {
 }
 
 /**
- * 3. LOGICA MODALI E SALVATAGGIO
+ * 3. LOGICA FILTRI PROGRESSIVI
+ */
+async function reloadSubFilters() {
+    const socId = document.getElementById('filter-society-sess').value;
+    if (!socId) return;
+
+    // Recupera squadre e categorie collegate per la società
+    const { data: teamsInSoc } = await client
+        .from('teams')
+        .select('id, name, category_id, categories(id, name)')
+        .eq('society_id', socId)
+        .order('name');
+
+    window._currentSocTeams = teamsInSoc || [];
+
+    // Filtra categorie uniche
+    const uniqueCats = [];
+    const catMap = new Map();
+    teamsInSoc?.forEach(t => {
+        if (t.categories && !catMap.has(t.categories.id)) {
+            catMap.set(t.categories.id, true);
+            uniqueCats.push(t.categories);
+        }
+    });
+
+    const { data: types } = await client.from('session_types').select('id, name').order('name');
+
+    // Popola select categorie
+    const selCat = document.getElementById('filter-category-sess');
+    if (selCat) {
+        selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
+            uniqueCats.sort((a,b) => a.name.localeCompare(b.name))
+                      .map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+
+    // Popola tipi sessione
+    const selType = document.getElementById('filter-type-sess');
+    if (selType) {
+        selType.innerHTML = '<option value="">Tutti i Tipi</option>' + 
+            (types || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    await reloadTeamsOnly();
+}
+
+async function reloadTeamsOnly() {
+    const catId = document.getElementById('filter-category-sess').value;
+    const selTeam = document.getElementById('filter-team-sess');
+    if (!selTeam) return;
+
+    let filtered = window._currentSocTeams || [];
+    if (catId) filtered = filtered.filter(t => t.category_id === catId);
+
+    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
+        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    initSessioni();
+}
+
+/**
+ * 4. LOGICA MODALI E SALVATAGGIO (Note: openSessionModal NON toccata)
  */
 async function openSessionModal(id = null) {
     const m = getModal();
@@ -2229,31 +2297,23 @@ async function saveSession(id) {
     if (!team) return alert("Scegli una squadra!");
 
     const societyId = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
-    if (!societyId) return alert("Errore: ID Società mancante.");
-
     const p = {
         title: document.getElementById('sess-title').value || "Allenamento",
         session_date: document.getElementById('sess-date').value,
         society_id: societyId,
-        team_id: team.id, 
-        category_id: team.category_id, 
-        season_id: team.season_id, 
-        type_id: document.getElementById('sess-type').value
+        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type').value
     };
-
     const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { getModal().close(); initSessioni(); } else { alert("Errore: " + error.message); }
+    if (!error) { getModal().close(); initSessioni(); }
 }
 
 async function openAttendanceModal(sessionId) {
     const m = getModal();
     const { data: session } = await client.from('sessions').select('*, session_types(name), teams(id, name, season_id)').eq('id', sessionId).single();
     if(!session) return;
-
     const isGara = session.session_types?.name.toLowerCase().includes('gara');
     const { data: relations } = await client.from('athlete_team_seasons').select(`jersey_number, athletes(id, name, surname)`).eq('team_id', session.team_id).eq('season_id', session.season_id);
     const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
-    
     const attMap = {}; existing?.forEach(a => attMap[a.athlete_id] = a);
 
     m.open(isGara ? "Convocazioni" : "Registro Presenze", `
@@ -2314,7 +2374,7 @@ async function saveAttendances(sessionId, isGara) {
 }
 
 async function deleteSession(id, title) {
-    if (confirm(`Eliminare definitivamente la sessione "${title}"?`)) {
+    if (confirm(`Eliminare "${title}"?`)) {
         const { error } = await client.from('sessions').delete().eq('id', id);
         if (!error) initSessioni();
     }
@@ -2335,23 +2395,6 @@ async function saveSessionNotes(id) {
     initSessioni();
 }
 
-async function reloadSubFilters() {
-    const socId = document.getElementById('filter-society-sess').value;
-    const [cats, teams, types] = await Promise.all([
-        client.from('categories').select('id, name').order('name'),
-        client.from('teams').select('id, name').eq('society_id', socId).order('name'),
-        client.from('session_types').select('id, name').order('name')
-    ]);
-    const fill = (id, d) => {
-        const el = document.getElementById(id);
-        if(el) el.innerHTML = '<option value="">Tutte</option>' + d.map(x => `<option value="${x.id}">${x.name}</option>`).join('');
-    };
-    fill('filter-category-sess', cats.data || []);
-    fill('filter-team-sess', teams.data || []);
-    fill('filter-type-sess', types.data || []);
-    initSessioni();
-}
-
 window.setRating = function(el, value) {
     const container = el.parentElement;
     const stars = container.querySelectorAll('span');
@@ -2360,7 +2403,7 @@ window.setRating = function(el, value) {
 };
 
 /**
- * 4. ESPOSIZIONE GLOBALE
+ * 5. ESPOSIZIONE GLOBALE
  */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
@@ -2370,9 +2413,9 @@ window.saveSession = saveSession;
 window.saveAttendances = saveAttendances;
 window.deleteSession = deleteSession;
 window.reloadSubFilters = reloadSubFilters;
+window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
-
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
