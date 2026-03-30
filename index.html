@@ -2052,11 +2052,11 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.9 (FIX 400 BAD REQUEST)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.9 (FULL RESTORE)
    ============================================================ */
 
 /**
- * 0. GESTORE MODALE UNIVERSALE
+ * 0. GESTORE MODALE (Auto-detect o Emergency Fallback)
  */
 function getModal() {
     let m = window.modal || window.appModal || window.uiModal || window.ui;
@@ -2067,17 +2067,14 @@ function getModal() {
                 overlay.id = 'emergency-modal';
                 overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px;";
                 overlay.innerHTML = `
-                    <div style="background:white; width:100%; max-width:500px; border-radius:12px; padding:20px; position:relative; color:#333; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                    <div style="background:white; width:100%; max-width:600px; border-radius:12px; padding:20px; position:relative; color:#333; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
                         <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">${title}</h3>
-                        <div style="margin-bottom:20px; max-height:70vh; overflow-y:auto;">${html}</div>
+                        <div style="margin-bottom:20px; max-height:75vh; overflow-y:auto;">${html}</div>
                         <button onclick="document.getElementById('emergency-modal').remove()" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
                     </div>`;
                 document.body.appendChild(overlay);
             },
-            close: () => {
-                const el = document.getElementById('emergency-modal');
-                if (el) el.remove();
-            }
+            close: () => { document.getElementById('emergency-modal')?.remove(); }
         };
     }
     return m;
@@ -2123,7 +2120,7 @@ function templateSessioni() {
 }
 
 /**
- * 2. INIZIALIZZAZIONE
+ * 2. INIZIALIZZAZIONE E LOGICA TABELLA
  */
 async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
@@ -2162,14 +2159,17 @@ async function initSessioni() {
             else if(a.status === 'infortunato') acc.i++;
             return acc;
         }, {p:0, a:0, g:0, i:0});
+
         const total = att.length;
         const perc = total > 0 ? Math.round((stats.p / total) * 100) : 0;
+        const hasNotes = s.notes && s.notes.trim().length > 0;
+
         return `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;"><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()}</small></td>
-            <td style="padding:10px;"><small>${s.session_types?.name || 'Sessione'}</small><br><strong>${s.teams?.name || 'N/D'}</strong></td>
+            <td style="padding:10px;"><small>${s.session_types?.name}</small><br><strong>${s.teams?.name}</strong></td>
             <td style="padding:10px; text-align:center;">
-                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${s.notes ? '1' : '0.3'}">📝</button>
+                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${hasNotes ? '1' : '0.3'}">📝</button>
             </td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#10b981;">${stats.p}</td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#ef4444;">${stats.a}</td>
@@ -2192,15 +2192,12 @@ async function openSessionModal(id = null) {
     const m = getModal();
     const isEdit = !!id;
     let editData = null;
-    
-    // Recupero forzato della società corrente
-    const targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
+    let targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
 
     const [typesRes, teamsRes] = await Promise.all([
         client.from('session_types').select('*').order('name'),
         client.from('teams').select('id, name, category_id, season_id').eq('society_id', targetSoc).order('name')
     ]);
-    
     window._teamsList = teamsRes.data || [];
 
     if (isEdit) {
@@ -2210,7 +2207,7 @@ async function openSessionModal(id = null) {
 
     m.open(isEdit ? 'Modifica Sessione' : 'Nuova Sessione', `
         <div style="display:grid; gap:12px;">
-            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
+            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo (es. Allenamento)" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
             <div style="display:flex; gap:10px;">
                 <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
                 <select id="sess-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
@@ -2221,44 +2218,31 @@ async function openSessionModal(id = null) {
                 <option value="">Scegli Squadra...</option>
                 ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
-            <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA</button>
+            <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA E SALVA</button>
         </div>
-    `);
+    `, "", "");
 }
 
 async function saveSession(id) {
     const teamId = document.getElementById('sess-team')?.value;
     const team = window._teamsList.find(t => t.id === teamId);
-    
-    if (!team) return alert("Errore: Seleziona una squadra valida!");
+    if (!team) return alert("Scegli una squadra!");
 
-    // Prepariamo l'oggetto con controlli sui null per evitare il 400
-    const payload = {
-        title: document.getElementById('sess-title').value || "Sessione",
+    const societyId = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
+    if (!societyId) return alert("Errore: ID Società mancante.");
+
+    const p = {
+        title: document.getElementById('sess-title').value || "Allenamento",
         session_date: document.getElementById('sess-date').value,
-        society_id: window._currentSocietyId,
-        team_id: team.id,
-        category_id: team.category_id,
-        season_id: team.season_id,
+        society_id: societyId,
+        team_id: team.id, 
+        category_id: team.category_id, 
+        season_id: team.season_id, 
         type_id: document.getElementById('sess-type').value
     };
 
-    // Verifica finale dati obbligatori
-    if (!payload.society_id || !payload.season_id) {
-        console.error("Dati mancanti:", payload);
-        return alert("Errore interno: ID Società o Stagione mancante. Ricarica la pagina.");
-    }
-
-    const { error } = id ? 
-        await client.from('sessions').update(payload).eq('id', id) : 
-        await client.from('sessions').insert([payload]);
-
-    if (!error) {
-        getModal().close();
-        initSessioni();
-    } else {
-        alert("Errore Supabase: " + error.message);
-    }
+    const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
+    if (!error) { getModal().close(); initSessioni(); } else { alert("Errore: " + error.message); }
 }
 
 async function openAttendanceModal(sessionId) {
@@ -2269,54 +2253,79 @@ async function openAttendanceModal(sessionId) {
     const isGara = session.session_types?.name.toLowerCase().includes('gara');
     const { data: relations } = await client.from('athlete_team_seasons').select(`jersey_number, athletes(id, name, surname)`).eq('team_id', session.team_id).eq('season_id', session.season_id);
     const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
+    
     const attMap = {}; existing?.forEach(a => attMap[a.athlete_id] = a);
 
     m.open(isGara ? "Convocazioni" : "Registro Presenze", `
-        <div style="max-height:400px; overflow-y:auto;">
+        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px; border:1px solid #e2e8f0;">
+            <strong>${session.title}</strong> (${new Date(session.session_date).toLocaleDateString()})
+        </div>
+        <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
             ${(relations || []).map(r => {
                 const ath = r.athletes;
                 const reg = attMap[ath.id] || {};
+                const p = reg.performance_data || {vel:0, tec:0, fis:0, res:0, com:0};
                 return `
-                <div style="border-bottom:1px solid #eee; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span><strong>${ath.surname}</strong> ${ath.name}</span>
-                    <select class="att-status" data-ath="${ath.id}" style="padding:5px; border-radius:4px;">
-                        <option value="presente" ${reg.status==='presente'?'selected':''}>P</option>
-                        <option value="assente" ${reg.status==='assente'?'selected':''}>A</option>
-                        <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>G</option>
-                        <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>I</option>
-                    </select>
+                <div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:10px; background:#fff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong>${ath.surname} ${ath.name} <small style="color:#64748b;">${r.jersey_number ? '#'+r.jersey_number : ''}</small></strong>
+                        <select class="att-status" data-ath="${ath.id}" style="padding:6px; border-radius:4px; border:1px solid #ccc;">
+                            <option value="presente" ${reg.status==='presente'?'selected':''}>Presente</option>
+                            <option value="assente" ${reg.status==='assente'?'selected':''}>Assente</option>
+                            <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>Giustificato</option>
+                            <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>Infortunato</option>
+                        </select>
+                    </div>
+                    ${!isGara ? `
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-top:1px solid #f1f5f9; padding-top:10px;">
+                        ${Object.entries({vel:'VEL', tec:'TEC', fis:'FIS', res:'RES', com:'COM'}).map(([k, label]) => `
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:11px; color:#64748b;">${label}</span>
+                                <div class="star-rating" data-ath="${ath.id}" data-key="${k}" data-value="${p[k]||0}">
+                                    ${[1,2,3,4,5].map(s => `<span onclick="setRating(this, ${s})" style="cursor:pointer; color:${s<=(p[k]||0)?'#f59e0b':'#cbd5e1'}; font-size:16px;">★</span>`).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>` : ''}
                 </div>`;
             }).join('')}
-            <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:14px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA</button>
         </div>
-    `);
+        <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA REGISTRO</button>
+    `, "", "");
 }
 
 async function saveAttendances(sessionId, isGara) {
     const records = [];
     document.querySelectorAll('.att-status').forEach(sel => {
+        const athId = sel.getAttribute('data-ath');
+        const perfData = {};
+        if (!isGara) {
+            document.querySelectorAll(`.star-rating[data-ath="${athId}"]`).forEach(group => {
+                perfData[group.getAttribute('data-key')] = parseInt(group.getAttribute('data-value')) || 0;
+            });
+        }
         records.push({
-            session_id: sessionId, athlete_id: sel.getAttribute('data-ath'), status: sel.value,
-            performance_data: {}, is_called_up: isGara && sel.value === 'presente'
+            session_id: sessionId, athlete_id: athId, status: sel.value,
+            performance_data: perfData, is_called_up: isGara && sel.value === 'presente'
         });
     });
     const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    if (!error) { getModal().close(); initSessioni(); }
+    if (!error) { getModal().close(); initSessioni(); alert("Registro salvato!"); }
 }
 
 async function deleteSession(id, title) {
-    if (confirm(`Eliminare la sessione "${title}"?`)) {
-        await client.from('sessions').delete().eq('id', id);
-        initSessioni();
+    if (confirm(`Eliminare definitivamente la sessione "${title}"?`)) {
+        const { error } = await client.from('sessions').delete().eq('id', id);
+        if (!error) initSessioni();
     }
 }
 
 async function openSessionNotesModal(id, title) {
     const { data } = await client.from('sessions').select('notes').eq('id', id).single();
     getModal().open(`Note: ${title}`, `
-        <textarea id="temp-notes" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">${data?.notes || ''}</textarea>
-        <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:10px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; cursor:pointer;">SALVA</button>
-    `);
+        <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid #ccc; font-family:inherit; box-sizing:border-box;">${data?.notes || ''}</textarea>
+        <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:12px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA NOTE</button>
+    `, "", "");
 }
 
 async function saveSessionNotes(id) {
@@ -2342,6 +2351,13 @@ async function reloadSubFilters() {
     fill('filter-type-sess', types.data || []);
     initSessioni();
 }
+
+window.setRating = function(el, value) {
+    const container = el.parentElement;
+    const stars = container.querySelectorAll('span');
+    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
+    container.setAttribute('data-value', value);
+};
 
 /**
  * 4. ESPOSIZIONE GLOBALE
