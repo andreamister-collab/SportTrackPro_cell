@@ -96,6 +96,7 @@
         <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
         <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
+		<a data-section="partite">📅 GESTIONE PARTITE</a>
         <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
 
@@ -274,6 +275,10 @@ document.getElementById('login-form').onsubmit = async (e) => {
        case 'sessioni':
            content.innerHTML = templateSessioni();
            initSessioni();
+           break;
+	 case 'partite':
+           content.innerHTML = templatePartite();
+           initPartite();
            break;
 /* [INSERIRE QUI I CASE PER SPORT, SOCIETÀ, ECC. IN SEGUITO] */
 
