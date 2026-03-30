@@ -2567,30 +2567,42 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - CORE DEFINITIVO
+   MODULO: GESTIONE PARTITE - FILTRI PROGRESSIVI COMPLETI
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI PROGRESSIVI
+ * 1. LOGICA FILTRI PROGRESSIVI (Soc -> Cat -> Team)
  */
 window.reloadMatchSubFilters = async function() {
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    const selSoc = document.getElementById('f-match-soc');
+    let socId = selSoc?.value || window._currentSocietyId;
     
-    // Uscita silenziosa se non loggati o società non selezionata
-    if (!socId || socId === "null" || socId === "undefined") return;
+    if (!socId || socId === "null" || socId === "") return;
 
-    // Carica Categorie
-    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    // Sincronizza globale
+    window._currentSocietyId = socId;
+
+    // 1. Carica Categorie della Società
+    const { data: cats } = await client.from('categories')
+        .select('id, name')
+        .eq('society_id', socId)
+        .order('name');
+
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
         selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
             (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    // Carica Squadre per filtro progressivo
-    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    // 2. Carica TUTTE le squadre della Società (per filtro lato client veloce)
+    const { data: teams } = await client.from('teams')
+        .select('id, name, category_id')
+        .eq('society_id', socId)
+        .order('name');
+    
     window._matchTeams = teams || [];
     
+    // 3. Reset e aggiornamento squadre
     window.reloadMatchTeamsOnly();
 };
 
@@ -2600,17 +2612,18 @@ window.reloadMatchTeamsOnly = function() {
     if (!selTeam) return;
     
     let filtered = window._matchTeams || [];
-    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    
+    // Filtro progressivo: se è selezionata una categoria, mostra solo le sue squadre
+    if (catId) {
+        filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    }
 
-    let teamOpts = '<option value="">Tutte Squadre</option>';
-    teamOpts += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    selTeam.innerHTML = teamOpts;
+    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
+        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
+    // Ad ogni cambio filtro, aggiorna la tabella
     window.initPartite();
 };
-
-// Sync per moduli esterni
-window.reloadSubFilters = window.reloadMatchSubFilters;
 
 /**
  * 2. TEMPLATE HTML
@@ -2625,11 +2638,15 @@ window.templatePartite = function() {
         
         <div id="match-filters-container" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-                <div id="wrapper-match-soc" style="display:none;">
-                    <select id="f-match-soc" onchange="window.reloadMatchSubFilters()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;"></select>
-                </div>
-                <select id="f-match-cat" onchange="window.reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Tutte Categorie</option></select>
-                <select id="f-match-team" onchange="window.initPartite()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Tutte Squadre</option></select>
+                <select id="f-match-soc" onchange="window.reloadMatchSubFilters()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="">Caricamento società...</option>
+                </select>
+                <select id="f-match-cat" onchange="window.reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="">Tutte Categorie</option>
+                </select>
+                <select id="f-match-team" onchange="window.initPartite()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="">Tutte Squadre</option>
+                </select>
             </div>
         </div>
 
@@ -2642,47 +2659,50 @@ window.templatePartite = function() {
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
-                <tbody id="list-partite-body">
-                    <tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
-                </tbody>
+                <tbody id="list-partite-body"></tbody>
             </table>
         </div>
     </div>`;
 };
 
 /**
- * 3. VISUALIZZAZIONE PARTITE (Sync con Sessions)
+ * 3. LOGICA DI CARICAMENTO DATI
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    if (!socId || socId === "null") {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Effettua il login per visualizzare i dati.</td></tr>';
-        return;
-    }
-
-    // Popola Società se Admin/Manager
     const selSoc = document.getElementById('f-match-soc');
-    if (selSoc && selSoc.options.length === 0) {
+    
+    // Inizializzazione Società (Auto-selezione alfabetica per Admin)
+    if (selSoc && selSoc.options[0].text.includes("Caricamento")) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
-        if (socs) {
-            selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id == socId ? 'selected' : ''}>${s.name}</option>`).join('');
-            if (['admin', 'manager'].includes((window._userRole || '').toLowerCase())) {
-                document.getElementById('wrapper-match-soc').style.display = 'block';
-            }
+        if (socs && socs.length > 0) {
+            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            
+            // Se non c'è una società pre-selezionata, prendiamo la prima (Admin)
+            if (!window._currentSocietyId) window._currentSocietyId = socs[0].id;
+            selSoc.value = window._currentSocietyId;
+            
+            return window.reloadMatchSubFilters();
         }
     }
 
-    // Identifica tipi "Gara" o "Partita"
+    const socId = selSoc?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    // Filtra per tipi "Gara" o "Partita"
     const { data: types } = await client.from('session_types').select('id, name');
     const validIds = (types || [])
         .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
         .map(t => t.id);
 
-    let query = client.from('sessions').select('id, title, session_date, teams(name)').eq('society_id', socId).in('type_id', validIds);
+    let query = client.from('sessions')
+        .select('id, title, session_date, teams(name)')
+        .eq('society_id', socId)
+        .in('type_id', validIds);
     
+    // Applicazione filtri progressivi alla query
     const fCat = document.getElementById('f-match-cat')?.value;
     const fTeam = document.getElementById('f-match-team')?.value;
     if (fCat) query = query.eq('category_id', fCat);
@@ -2693,27 +2713,30 @@ window.initPartite = async function() {
     tbody.innerHTML = (data || []).map(m => `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;">${new Date(m.session_date).toLocaleDateString()}</td>
-            <td style="padding:10px;"><strong>${m.title || 'Gara'}</strong><br><small style="color:#64748b;">${m.teams?.name || '---'}</small></td>
-            <td style="padding:10px; text-align:right; white-space:nowrap;">
+            <td style="padding:10px;">
+                <strong>${m.title || 'Partita'}</strong><br>
+                <small style="color:#64748b;">${m.teams?.name || '---'}</small>
+            </td>
+            <td style="padding:10px; text-align:right;">
                 <button class="btn-sm" style="background:#8b5cf6; color:white; border:none; margin-right:4px;">Convocazioni</button>
                 <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
                 <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px;">Nessuna partita trovata.</td></tr>';
+    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">Nessuna gara trovata per i filtri selezionati.</td></tr>';
 };
 
 /**
- * 4. CREAZIONE PARTITA
+ * 4. NUOVA PARTITA
  */
 window.openMatchModal = async function() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    if (!socId || socId === "null") return;
+    if (!socId) return;
 
-    window._currentSocietyId = socId; // Sync obbligatorio per fetch squadre modale
+    window._currentSocietyId = socId;
 
     if (typeof window.openSessionModal === 'function') {
-        await window.openSessionModal(); 
+        await window.openSessionModal();
         setTimeout(() => {
             const selType = document.getElementById('sess-type');
             if (selType) {
@@ -2725,16 +2748,12 @@ window.openMatchModal = async function() {
                     }
                 }
             }
-        }, 300);
+        }, 400);
     }
 };
 
-// Inizializzazione post-caricamento
-setTimeout(() => { 
-    if (window._currentSocietyId && document.getElementById('main-match-card')) {
-        window.reloadMatchSubFilters(); 
-    }
-}, 600);
+// Start ritardato
+setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
