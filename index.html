@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
         * { box-sizing:border-box; }
@@ -2401,9 +2402,150 @@ window.setRating = function(el, value) {
     stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
     container.setAttribute('data-value', value);
 };
+/**
+ * 6. SALVATAGGIO DETTAGLI MATCH E LOGICA CONVOCAZIONI
+ */
+async function saveMatchDetails(sessionId) {
+    const gf = parseInt(document.getElementById('m-gf').value) || 0;
+    const ga = parseInt(document.getElementById('m-ga').value) || 0;
+    const isFriendly = document.getElementById('m-friendly').checked;
+    
+    let points = 0;
+    if (!isFriendly) {
+        if (gf > ga) points = 3;
+        else if (gf === ga) points = 1;
+    }
+
+    const matchData = {
+        session_id: sessionId,
+        opponent_name: document.getElementById('m-opponent').value,
+        meet_time: document.getElementById('m-meet-time').value,
+        match_start_time: document.getElementById('m-start-time').value,
+        address: document.getElementById('m-address').value,
+        status: document.getElementById('m-status').value,
+        is_friendly: isFriendly,
+        goals_for: gf,
+        goals_against: ga,
+        points: points
+    };
+
+    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
+    
+    if (!error) {
+        // Applichiamo la logica: non convocati = giustificati
+        await syncNonCalledAsJustified(sessionId);
+        alert("Dati partita salvati e presenze sincronizzate!");
+        getModal().close();
+        initSessioni();
+    }
+}
+
+async function syncNonCalledAsJustified(sessionId) {
+    // Recuperiamo tutti gli atleti della squadra che NON sono convocati per questa sessione
+    const { data: session } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
+    const { data: allAthletes } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', session.team_id).eq('season_id', session.season_id);
+    const { data: currentAtt } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
+
+    const calledIds = (currentAtt || []).filter(a => a.is_called_up).map(a => a.athlete_id);
+    const toUpdate = (allAthletes || []).filter(a => !calledIds.includes(a.athlete_id));
+
+    const records = toUpdate.map(a => ({
+        session_id: sessionId,
+        athlete_id: a.athlete_id,
+        status: 'giustificato',
+        is_called_up: false
+    }));
+
+    if (records.length > 0) {
+        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
+    }
+}
 
 /**
- * 5. ESPOSIZIONE GLOBALE
+ * 7. EXPORT GRAFICO "CAMPO DA CALCIO" (Social Ready)
+ */
+async function exportConvocatiSocial(sessionId) {
+    const { data: session } = await client.from('sessions').select('*, teams(name)').eq('id', sessionId).single();
+    const { data: convocati } = await client.from('attendances')
+        .select('athletes(name, surname, role)') // Assumendo che esista il campo role
+        .eq('session_id', sessionId)
+        .eq('is_called_up', true);
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1080;
+    canvas.height = 1350; // Formato Portrait Social
+
+    // 1. Sfondo Campo (Verde con sfumatura)
+    const grad = ctx.createRadialGradient(540, 675, 100, 540, 675, 800);
+    grad.addColorStop(0, '#2d5a27');
+    grad.addColorStop(1, '#1e3d1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Disegno Linee Campo
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 5;
+    ctx.strokeRect(50, 50, 980, 1250); // Perimetro
+    ctx.beginPath(); // Linea Mediana
+    ctx.moveTo(50, 675); ctx.lineTo(1030, 675); ctx.stroke();
+    ctx.beginPath(); // Cerchio centrale
+    ctx.arc(540, 675, 150, 0, Math.PI * 2); ctx.stroke();
+
+    // 3. Testi Intestazione
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.font = "bold 50px sans-serif";
+    ctx.fillText("LISTA CONVOCATI", 540, 120);
+    ctx.font = "italic 40px sans-serif";
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText(session.teams.name.toUpperCase(), 540, 180);
+
+    // 4. Raggruppamento per Ruoli
+    const roles = { 
+        'Portieri': [], 'Difensori': [], 'Centrocampisti': [], 
+        'Attaccanti': [], 'Staff': [] 
+    };
+
+    convocati.forEach(c => {
+        const r = c.athletes.role?.toLowerCase() || '';
+        if (r.includes('por')) roles['Portieri'].push(c.athletes);
+        else if (r.includes('dif')) roles['Difensori'].push(c.athletes);
+        else if (r.includes('cen')) roles['Centrocampisti'].push(c.athletes);
+        else if (r.includes('att')) roles['Attaccanti'].push(c.athletes);
+        else roles['Staff'].push(c.athletes);
+    });
+
+    // 5. Rendering Nomi sul Campo
+    ctx.textAlign = "left";
+    let y = 280;
+    const xLeft = 150;
+    const xRight = 600;
+
+    Object.entries(roles).forEach(([roleName, list], index) => {
+        if (list.length > 0) {
+            ctx.font = "bold 35px sans-serif";
+            ctx.fillStyle = "#38bdf8"; // Colore categoria
+            ctx.fillText(roleName.toUpperCase(), (index % 2 === 0 ? xLeft : xRight), y);
+            
+            ctx.font = "30px sans-serif";
+            ctx.fillStyle = "white";
+            list.forEach((ath, i) => {
+                ctx.fillText(`• ${ath.surname} ${ath.name}`, (index % 2 === 0 ? xLeft : xRight), y + 45 + (i * 40));
+            });
+            
+            if (index % 2 !== 0) y += 250; // Vai a riga successiva ogni 2 ruoli
+        }
+    });
+
+    // 6. Download
+    const link = document.createElement('a');
+    link.download = `Convocati_${session.teams.name}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+/**
+ * 8. ESPOSIZIONE GLOBALE
  */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
