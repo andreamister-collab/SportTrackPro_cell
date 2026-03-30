@@ -2167,54 +2167,88 @@ window.reloadSubFilters = async function() {
 /**
  * 3. MODALE PRESENZE (Risolto punto 1 e 2)
  */
+/* ============================================================
+   MODULO SESSIONI - FIX ERROR 400 & MODAL DEFINITION
+   ============================================================ */
+
 window.openAttendanceModal = async function(sessionId) {
-    const { data: session } = await client.from('sessions').select('*, session_types(name), teams(name, categories(name))').eq('id', sessionId).single();
+    // Verifichiamo che l'oggetto modal esista per evitare il ReferenceError
+    if (typeof modal === 'undefined') {
+        return alert("Errore critico: L'oggetto 'modal' non è definito nel sistema.");
+    }
+
+    const { data: session, error: sErr } = await client
+        .from('sessions')
+        .select('*, session_types(name), teams(name, categories(name))')
+        .eq('id', sessionId)
+        .single();
+
+    if (sErr || !session) return alert("Errore nel recupero sessione");
+
     const isGara = session.session_types?.name.toLowerCase().includes('gara');
 
-    // Query corretta: cerchiamo TUTTI gli atleti assegnati a quel team_id
-    const { data: athletes } = await client.from('athletes').select('*').eq('team_id', session.team_id).order('surname');
-    const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
+    // FIX ERRORE 400: Verifichiamo che il team_id sia valido prima di inviare
+    if (!session.team_id) return alert("Questa sessione non ha una squadra assegnata.");
 
+    // Recupero Atleti
+    const { data: athletes, error: athErr } = await client
+        .from('athletes')
+        .select('*')
+        .eq('team_id', session.team_id)
+        .order('surname', { ascending: true });
+
+    if (athErr) {
+        console.error("Supabase Error 400 Detail:", athErr);
+        return alert("Errore 400: Controlla i permessi RLS sulla tabella athletes.");
+    }
+
+    const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
     const attMap = {};
     existing?.forEach(a => attMap[a.athlete_id] = a);
 
-    // Passiamo stringhe vuote ai bottoni della modale per eliminare i duplicati blu/grigi
-    modal.open(isGara ? `Convocazioni` : `Registro Presenze`, `
-        <div style="background:#f1f5f9; padding:12px; border-radius:8px; margin-bottom:15px; border-left:4px solid #8b5cf6;">
-            <div style="font-size:11px; font-weight:bold;">${session.teams?.categories?.name || ''}</div>
-            <div style="font-size:16px; font-weight:bold;">${session.teams?.name || ''}</div>
+    // Costruzione HTML
+    const tableRows = athletes && athletes.length > 0 
+        ? athletes.map(ath => {
+            const r = attMap[ath.id] || {};
+            return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px;"><strong>${ath.surname} ${ath.name}</strong></td>
+                <td style="padding:10px; text-align:center;">
+                    <select class="att-status" data-ath="${ath.id}" style="padding:5px; border-radius:4px; border:1px solid #ccc;">
+                        <option value="presente" ${r.status === 'presente' ? 'selected' : ''}>P</option>
+                        <option value="assente" ${r.status === 'assente' ? 'selected' : ''}>A</option>
+                        <option value="infortunato" ${r.status === 'infortunato' ? 'selected' : ''}>I</option>
+                    </select>
+                </td>
+                ${!isGara ? `<td style="text-align:center;"><input type="number" class="att-rating" data-ath="${ath.id}" value="${r.rating || ''}" style="width:40px; border:1px solid #ccc;"></td>` : ''}
+            </tr>`;
+        }).join('')
+        : '<tr><td colspan="3" style="padding:20px; text-align:center; color:#64748b;">Nessun atleta trovato per questa squadra. Controlla l\'assegnazione degli atleti.</td></tr>';
+
+    // Apertura Modale - Usiamo "" "" per sopprimere i bottoni automatici blu/grigi
+    modal.open(isGara ? "Convocazioni" : "Registro Presenze", `
+        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #e2e8f0;">
+            <div style="font-size:11px; font-weight:bold; color:#64748b;">${session.teams?.categories?.name || ''}</div>
+            <div style="font-size:15px; font-weight:bold;">${session.teams?.name || ''}</div>
         </div>
-        <div style="max-height:350px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <div style="max-height:300px; overflow-y:auto; border:1px solid #eee; border-radius:6px;">
             <table style="width:100%; border-collapse:collapse;">
-                <thead style="position:sticky; top:0; background:#f8fafc;">
-                    <tr><th style="padding:10px; text-align:left;">Atleta</th><th style="padding:10px; text-align:center;">Stato</th>${!isGara ? '<th>Voto</th>' : ''}</tr>
+                <thead style="position:sticky; top:0; background:#fff; font-size:12px;">
+                    <tr style="border-bottom:2px solid #eee;">
+                        <th style="padding:8px; text-align:left;">Atleta</th>
+                        <th style="padding:8px; text-align:center;">Stato</th>
+                        ${!isGara ? '<th>Voto</th>' : ''}
+                    </tr>
                 </thead>
-                <tbody>
-                    ${athletes?.map(ath => {
-                        const r = attMap[ath.id] || {};
-                        return `
-                        <tr style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:10px;"><strong>${ath.surname} ${ath.name}</strong></td>
-                            <td style="padding:10px; text-align:center;">
-                                <select class="att-status" data-ath="${ath.id}" style="padding:5px; border-radius:4px;">
-                                    <option value="presente" ${r.status === 'presente' ? 'selected' : ''}>P</option>
-                                    <option value="assente" ${r.status === 'assente' ? 'selected' : ''}>A</option>
-                                    <option value="infortunato" ${r.status === 'infortunato' ? 'selected' : ''}>I</option>
-                                </select>
-                            </td>
-                            ${!isGara ? `<td><input type="number" class="att-rating" data-ath="${ath.id}" value="${r.rating || ''}" style="width:40px;"></td>` : ''}
-                        </tr>`;
-                    }).join('') || '<tr><td colspan="3" style="padding:20px; text-align:center;">Nessun atleta trovato per questa squadra.</td></tr>'}
-                </tbody>
+                <tbody>${tableRows}</tbody>
             </table>
         </div>
-        <div style="margin-top:20px;">
-            <button class="btn" onclick="saveAttendances('${sessionId}', ${isGara})" style="width:100%; background:#10b981; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px;">SALVA REGISTRO</button>
-            <button class="btn-link" onclick="modal.close()" style="width:100%; margin-top:10px; border:none; background:none; color:#64748b;">Annulla</button>
+        <div style="margin-top:15px;">
+            <button class="btn" onclick="saveAttendances('${sessionId}', ${isGara})" style="width:100%; background:#10b981; color:white; padding:12px; font-weight:bold; border-radius:8px; border:none;">SALVA REGISTRO</button>
+            <button class="btn-link" onclick="modal.close()" style="width:100%; margin-top:8px; border:none; background:none; color:#94a3b8; cursor:pointer;">Annulla</button>
         </div>
-    `, "", ""); // <--- Le due stringhe vuote finali rimuovono i bottoni predefiniti blu/grigi
+    `, "", "");
 };
-
 /**
  * 4. NUOVA SESSIONE (Risolto punto 3)
  */
