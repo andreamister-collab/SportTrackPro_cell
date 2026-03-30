@@ -2567,17 +2567,16 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - CORE
+   MODULO: GESTIONE PARTITE - CORE SINCRONIZZATO
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI (Sincronizzata)
+ * 1. LOGICA FILTRI E CARICAMENTO (Sincronizzata con Sessioni)
  */
 window.reloadMatchSubFilters = async function() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId || socId === "null") return;
 
-    // Carica Categorie
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
@@ -2585,10 +2584,8 @@ window.reloadMatchSubFilters = async function() {
             (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    // Carica Squadre
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
-    
     window.reloadMatchTeamsOnly();
 };
 
@@ -2607,7 +2604,6 @@ window.reloadMatchTeamsOnly = function() {
     window.initPartite();
 };
 
-// Alias per compatibilità con altri moduli
 window.reloadSubFilters = window.reloadMatchSubFilters;
 
 /**
@@ -2617,7 +2613,7 @@ window.templatePartite = function() {
     return `
     <div class="card">
         <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
+            <h2 style="margin:0; color:#1e293b; display:flex; align-items:center; gap:10px;">🏆 GESTIONE PARTITE</h2>
             <button class="btn" onclick="window.openMatchModal()" style="background:#059669; color:white;">+ Nuova Partita</button>
         </div>
         
@@ -2636,18 +2632,20 @@ window.templatePartite = function() {
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569;">
                         <th style="padding:12px;">Data</th>
-                        <th style="padding:12px;">Titolo / Squadra</th>
+                        <th style="padding:12px;">Partita / Squadra</th>
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
-                <tbody id="list-partite-body"></tbody>
+                <tbody id="list-partite-body">
+                    <tr><td colspan="3" style="text-align:center; padding:20px;">Caricamento in corso...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>`;
 };
 
 /**
- * 3. INIZIALIZZAZIONE E SINCRONIZZAZIONE
+ * 3. LOGICA DI SINCRONIZZAZIONE DATI
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
@@ -2656,18 +2654,16 @@ window.initPartite = async function() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId || socId === "null") return;
 
-    // Identifica il tipo sessione per le partite (Gara/Partita)
-    const { data: typeData } = await client.from('session_types')
-        .select('id')
-        .or('name.eq.Gara,name.eq.Partita,name.eq.gara')
-        .maybeSingle();
+    // Recuperiamo l'ID del tipo sessione che si chiama "Partita" o "Gara"
+    const { data: allTypes } = await client.from('session_types').select('id, name');
+    const validIds = (allTypes || [])
+        .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+        .map(t => t.id);
     
     let query = client.from('sessions').select(`
         id, title, session_date, team_id,
         teams ( name )
-    `).eq('society_id', socId);
-
-    if (typeData) query = query.eq('type_id', typeData.id);
+    `).eq('society_id', socId).in('type_id', validIds);
 
     const fCat = document.getElementById('f-match-cat')?.value;
     const fTeam = document.getElementById('f-match-team')?.value;
@@ -2677,7 +2673,7 @@ window.initPartite = async function() {
     const { data, error } = await query.order('session_date', { ascending: false });
 
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:20px;">Errore caricamento.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:20px; color:red;">Errore: ${error.message}</td></tr>`;
         return;
     }
 
@@ -2685,47 +2681,46 @@ window.initPartite = async function() {
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;">${new Date(m.session_date).toLocaleDateString()}</td>
             <td style="padding:10px;">
-                <strong>${m.title || 'Senza Titolo'}</strong><br>
-                <small style="color:#64748b;">${m.teams?.name || '---'}</small>
+                <strong>${m.title || 'Partita'}</strong><br>
+                <small style="color:#64748b;">${m.teams?.name || 'Squadra non assegnata'}</small>
             </td>
-            <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white;">Convocazioni</button>
-                <button class="btn-sm" style="background:#3b82f6; color:white;">Modifica</button>
-                <button class="btn-sm" style="background:#ef4444; color:white;">Cancella</button>
+            <td style="padding:10px; text-align:right; white-space:nowrap;">
+                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none; margin-right:4px;">Convocazioni</button>
+                <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
+                <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px;">Nessuna partita trovata.</td></tr>';
+    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px; color:#64748b;">Nessuna partita trovata.</td></tr>';
 };
 
 /**
- * 4. APERTURA MODALE CREAZIONE (Utilizza la logica di Gestione Sessioni)
+ * 4. CREAZIONE PARTITA (Sincronizzata con Modale Sessioni)
  */
 window.openMatchModal = async function() {
-    const socId = window._currentSocietyId;
-    if (!socId) return alert("Seleziona una società.");
-
-    // Recupera il tipo "Gara" per pre-impostarlo
-    const { data: typeData } = await client.from('session_types')
-        .select('id')
-        .or('name.eq.Gara,name.eq.Partita')
-        .maybeSingle();
-    
     if (typeof window.openSessionModal === 'function') {
         await window.openSessionModal(); 
         
-        // Dopo l'apertura, forziamo il tipo gara e lo disabilitiamo per coerenza
-        const selType = document.getElementById('sess-type');
-        if (selType && typeData) {
-            selType.value = typeData.id;
-            selType.disabled = true; 
-        }
+        // Cerchiamo di preselezionare il tipo "Partita" nella modale appena aperta
+        setTimeout(() => {
+            const selType = document.getElementById('sess-type');
+            if (selType) {
+                for (let opt of selType.options) {
+                    if (opt.text.toLowerCase().includes('partita') || opt.text.toLowerCase().includes('gara')) {
+                        selType.value = opt.value;
+                        break;
+                    }
+                }
+            }
+        }, 300);
     } else {
-        alert("Errore: Modulo Gestione Sessioni non trovato.");
+        alert("Modulo sessioni non caricato correttamente.");
     }
 };
 
-// Avvio ritardato per garantire la presenza del DOM
-setTimeout(() => { if(document.getElementById('list-partite-body')) window.reloadMatchSubFilters(); }, 500);
+// Esecuzione immediata dei filtri all'apertura del modulo
+setTimeout(() => { 
+    if(document.getElementById('list-partite-body')) window.reloadMatchSubFilters(); 
+}, 300);
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
