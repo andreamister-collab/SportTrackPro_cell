@@ -821,9 +821,12 @@ window.handleDeleteSquadra = async function(id) {
     }
 };
 /* ============================================================
-   SEZIONE: STAFF (Anagrafica Utenti / Personale) - BUILD 1.4
+   SEZIONE: STAFF (Anagrafica Utenti / Personale) - BUILD 1.5
    ============================================================ */
 
+/**
+ * Template HTML per la gestione dell'anagrafica Staff
+ */
 function templateStaff() {
     return `
     <div class="card">
@@ -832,13 +835,13 @@ function templateStaff() {
             <button class="btn" id="btn-add-staff">+ Nuovo Utente Staff</button>
         </div>
         <p style="font-size: 0.85em; color: #666; margin: 15px 0; background: #f9fafb; padding: 12px; border-radius: 4px; border-left: 4px solid #2563eb;">
-            In questa sezione gestisci l'elenco delle persone. I ruoli <strong>Presidente</strong> e <strong>Segretario</strong> sono legati alla società, 
-            mentre il <strong>Manager</strong> ha visibilità globale (creabile solo da Admin).
+            Gestione centralizzata del personale. I <strong>Manager</strong> hanno accesso globale, 
+            mentre gli altri ruoli sono vincolati alla singola società.
         </p>
         <div class="table-container">
-            <table>
+            <table style="width:100%; border-collapse:collapse;">
                 <thead>
-                    <tr style="text-align:left; background:#f8fafc;">
+                    <tr style="text-align:left; background:#f8fafc; border-bottom:2px solid #e2e8f0;">
                         <th style="padding:12px;">Nome Completo</th>
                         <th style="padding:12px;">Username / Email</th>
                         <th style="padding:12px;">Ruolo / Società</th>
@@ -853,6 +856,9 @@ function templateStaff() {
     </div>`;
 }
 
+/**
+ * Inizializza la lista con logica di filtraggio per Ruolo
+ */
 async function initStaff() {
     const tbody = document.getElementById('list-staff');
     if (!tbody) return;
@@ -860,159 +866,178 @@ async function initStaff() {
     const myRole = window._userRole;
     const mySociety = window._currentSocietyId;
 
-    // Admin e Manager vedono tutto (tranne l'admin stesso per sicurezza)
-    // Presidenti e Segretari vedono solo la loro società
-    let query = client.from('users').select('*, societies(name)').neq('username', 'admin');
+    // 1. Query base (esclude l'admin supremo per sicurezza)
+    let query = client
+        .from('users')
+        .select('*, societies(name)')
+        .neq('username', 'admin');
 
-    if (myRole !== 'admin' && myRole !== 'manager') {
+    // 2. Filtro condizionale (Evita l'errore 400 society_id=eq.null)
+    const isGlobalUser = (myRole === 'admin' || myRole === 'manager');
+    
+    if (!isGlobalUser) {
+        if (!mySociety) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ef4444; padding:20px;">⚠️ Profilo non associato a una società.</td></tr>`;
+            return;
+        }
         query = query.eq('society_id', mySociety);
     }
 
     const { data, error } = await query.order('name');
 
     if (error) {
+        console.error("Errore Query Staff:", error);
         tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = data?.map(u => {
-        // Etichetta del ruolo
-        let roleLabel = u.management_role || 'Tecnico';
-        if (u.role === 'manager') roleLabel = '<strong>Manager (Sistema)</strong>';
-        
-        const societyLabel = u.societies?.name || '<span style="color:gray italic">Globale</span>';
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessun utente trovato.</td></tr>';
+        return;
+    }
+
+    // 3. Rendering Righe
+    tbody.innerHTML = data.map(u => {
+        const roleLabel = u.role === 'manager' ? '<strong>Manager (Sistema)</strong>' : (u.management_role || 'Tecnico');
+        const socName = u.societies?.name || '<span style="color:#94a3b8; font-style:italic;">Accesso Globale</span>';
 
         return `
-        <tr style="border-bottom:1px solid #eee;">
+        <tr style="border-bottom: 1px solid #edf2f7;">
             <td style="padding:12px;"><strong>${u.name}</strong></td>
             <td style="padding:12px;">${u.username}</td>
             <td style="padding:12px; font-size:0.9em;">
-                ${roleLabel}<br><small style="color:#666">${societyLabel}</small>
+                ${roleLabel}<br><small style="color:#64748b">${socName}</small>
             </td>
             <td style="padding:12px; text-align:right">
                 <button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessun utente trovato.</td></tr>';
+    }).join('');
 
     document.getElementById('btn-add-staff').onclick = () => openStaffModal();
 }
 
+/**
+ * Modale per inserimento e modifica Staff
+ */
 async function openStaffModal(editData = null) {
     const isEdit = !!editData;
     const myRole = window._userRole;
 
-    // Carichiamo le società solo se chi apre è Admin o Manager
+    // Carichiamo le società solo per chi ha accesso globale
     let societies = [];
     if (myRole === 'admin' || myRole === 'manager') {
         const { data } = await client.from('societies').select('id, name').order('name');
         societies = data || [];
     }
 
-    modal.open(isEdit ? 'Modifica Staff' : 'Nuovo Staff', `
-        <div style="display:grid; gap:10px;">
-            <label>Nome e Cognome</label>
-            <input type="text" id="st-name" value="${editData?.name || ''}" placeholder="es. Mario Rossi">
+    modal.open(isEdit ? 'Modifica Staff' : 'Censimento Nuovo Staff', `
+        <div style="display:grid; gap:12px; margin-top:10px;">
+            <div>
+                <label style="display:block; font-size:11px; font-weight:700; color:#475569;">NOME E COGNOME</label>
+                <input type="text" id="st-name" value="${editData?.name || ''}" placeholder="es. Mario Rossi" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+            </div>
             
-            <label>Username (Login)</label>
-            <input type="text" id="st-user" value="${editData?.username || ''}" placeholder="es. m.rossi">
+            <div>
+                <label style="display:block; font-size:11px; font-weight:700; color:#475569;">USERNAME (LOGIN)</label>
+                <input type="text" id="st-user" value="${editData?.username || ''}" placeholder="es. m.rossi" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+            </div>
 
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;">
-                    <label>Tipo Ruolo</label>
-                    <select id="st-role" onchange="toggleSocietySelect()" style="width:100%; padding:8px; border-radius:4px;">
+                    <label style="display:block; font-size:11px; font-weight:700; color:#475569;">TIPO RUOLO</label>
+                    <select id="st-role" onchange="toggleSocietyVisibility()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                         <option value="user" ${editData?.role === 'user' ? 'selected' : ''}>Staff Societario</option>
                         ${myRole === 'admin' ? `<option value="manager" ${editData?.role === 'manager' ? 'selected' : ''}>Manager Sistema</option>` : ''}
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label>Qualifica</label>
-                    <select id="st-mrole" style="width:100%; padding:8px; border-radius:4px;">
-                        <option value="">Nessuna (Tecnico)</option>
+                    <label style="display:block; font-size:11px; font-weight:700; color:#475569;">QUALIFICA</label>
+                    <select id="st-mrole" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">Seleziona...</option>
+                        <option value="Allenatore" ${editData?.management_role === 'Allenatore' ? 'selected' : ''}>Allenatore</option>
+                        <option value="Dirigente" ${editData?.management_role === 'Dirigente' ? 'selected' : ''}>Dirigente</option>
                         <option value="Presidente" ${editData?.management_role === 'Presidente' ? 'selected' : ''}>Presidente</option>
                         <option value="Segretario" ${editData?.management_role === 'Segretario' ? 'selected' : ''}>Segretario</option>
+                        <option value="Medico" ${editData?.management_role === 'Medico' ? 'selected' : ''}>Staff Medico</option>
                     </select>
                 </div>
             </div>
 
-            <div id="div-society">
-                <label>Società di appartenenza</label>
-                <select id="st-society" style="width:100%; padding:8px; border-radius:4px;" ${(myRole !== 'admin' && myRole !== 'manager') ? 'disabled' : ''}>
+            <div id="div-society-container">
+                <label style="display:block; font-size:11px; font-weight:700; color:#475569;">SOCIETÀ DI APPARTENENZA</label>
+                <select id="st-society" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; background:${(myRole !== 'admin' && myRole !== 'manager') ? '#f3f4f6' : 'white'};" ${(myRole !== 'admin' && myRole !== 'manager') ? 'disabled' : ''}>
                     ${(myRole === 'admin' || myRole === 'manager') 
                         ? societies.map(s => `<option value="${s.id}" ${editData?.society_id === s.id ? 'selected' : ''}>${s.name}</option>`).join('')
-                        : `<option value="${window._currentSocietyId}">La tua società</option>`
+                        : `<option value="${window._currentSocietyId}">Società Corrente</option>`
                     }
                 </select>
             </div>
             
             ${!isEdit ? `
-                <label>Password Temporanea</label>
-                <input type="password" id="st-pass" placeholder="min. 6 caratteri">
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:#475569;">PASSWORD TEMPORANEA</label>
+                    <input type="password" id="st-pass" placeholder="min. 6 caratteri" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
             ` : ''}
         </div>
     `);
 
-    // Gestione visibilità società (i manager non hanno società)
-    window.toggleSocietySelect = function() {
+    // Funzione interna per nascondere la società se si sceglie Manager
+    window.toggleSocietyVisibility = function() {
         const role = document.getElementById('st-role').value;
-        const divSoc = document.getElementById('div-society');
-        const mRole = document.getElementById('st-mrole');
+        const container = document.getElementById('div-society-container');
+        const qualifica = document.getElementById('st-mrole');
         if (role === 'manager') {
-            divSoc.style.display = 'none';
-            mRole.disabled = true;
-            mRole.value = "";
+            container.style.display = 'none';
+            qualifica.disabled = true;
+            qualifica.value = "";
         } else {
-            divSoc.style.display = 'block';
-            mRole.disabled = false;
+            container.style.display = 'block';
+            qualifica.disabled = false;
         }
     };
-    toggleSocietySelect(); // Esegui subito
+    toggleSocietyVisibility();
 
-document.getElementById('btn-modal-save').onclick = async () => {
-    const name = document.getElementById('st-name').value.trim();
-    const username = document.getElementById('st-user').value.trim();
-    const selectedRole = document.getElementById('st-role').value; // 'user' o 'manager'
-    const management_role = document.getElementById('st-mrole').value;
-    const society_id = document.getElementById('st-society').value;
-    
-    if(!name || !username) return alert("Nome e Username sono obbligatori!");
-
-    // Costruzione del payload coerente con i vincoli SQL
-    const payload = { 
-        name, 
-        username, 
-        role: selectedRole, // Assicura che sia 'user' o 'manager'
-        management_role: selectedRole === 'manager' ? 'Gestore Sistema' : (management_role || null),
-        // Se è manager DEVE essere null, altrimenti usa l'ID selezionato
-        society_id: selectedRole === 'manager' ? null : (society_id || null) 
-    };
-
-    if(!isEdit) {
-        const pass = document.getElementById('st-pass').value;
-        if(!pass || pass.length < 6) return alert("La password deve avere almeno 6 caratteri.");
-        payload.password = pass;
+    document.getElementById('btn-modal-save').onclick = async () => {
+        const name = document.getElementById('st-name').value.trim();
+        const username = document.getElementById('st-user').value.trim();
+        const role = document.getElementById('st-role').value;
+        const qualifica = document.getElementById('st-mrole').value;
+        const society_id = document.getElementById('st-society').value;
         
-        // Se non è manager e non abbiamo una società, blocchiamo l'invio (evita errore 400)
-        if (selectedRole === 'user' && !payload.society_id) {
-            return alert("Errore: Seleziona una società per lo staff!");
+        if(!name || !username) return alert("Nome e Username sono obbligatori!");
+
+        const payload = { 
+            name, 
+            username, 
+            role,
+            management_role: role === 'manager' ? 'Gestore Sistema' : (qualifica || null),
+            society_id: role === 'manager' ? null : (society_id || null) 
+        };
+
+        if(!isEdit) {
+            const pass = document.getElementById('st-pass').value;
+            if(!pass || pass.length < 6) return alert("Password obbligatoria (min. 6 caratteri).");
+            payload.password = pass;
         }
-    }
 
-    const { error } = isEdit 
-        ? await client.from('users').update(payload).eq('id', editData.id)
-        : await client.from('users').insert([payload]); // Usiamo array per insert
+        const { error } = isEdit 
+            ? await client.from('users').update(payload).eq('id', editData.id)
+            : await client.from('users').insert([payload]);
 
-    if (!error) {
-        modal.close();
-        // Piccola attesa per dare tempo al DB di aggiornare gli indici prima del refresh
-        setTimeout(initStaff, 300);
-    } else {
-        console.error("Dettaglio Errore Supabase:", error);
-        alert("Errore salvataggio: " + error.message);
-    }
-};
+        if (!error) {
+            modal.close();
+            initStaff();
+        } else {
+            console.error("Errore Salva Staff:", error);
+            alert("Errore: " + error.message);
+        }
+    };
 }
+
+/* --- FUNZIONI DI SUPPORTO --- */
 
 window.handleEditStaff = async function(id) {
     const { data, error } = await client.from('users').select('*').eq('id', id).single();
@@ -1020,9 +1045,10 @@ window.handleEditStaff = async function(id) {
 };
 
 window.handleDeleteStaff = async function(id) {
-    if (confirm("Eliminare definitivamente l'utente?")) {
+    if (confirm("Attenzione: procedere con l'eliminazione dell'utente?")) {
         const { error } = await client.from('users').delete().eq('id', id);
         if (!error) initStaff();
+        else alert("Errore: " + error.message);
     }
 };
 /* ============================================================
