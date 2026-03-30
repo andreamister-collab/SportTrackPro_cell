@@ -2052,14 +2052,11 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO SESSIONI E PRESENZE - FIX ATHLETE_TEAM_SEASONS
-   ============================================================ */
-/* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.4 (STELLE & SAFE-MODE)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.5 (FINALE UNIFORMATA)
    ============================================================ */
 
 /**
- * 1. TEMPLATE
+ * 1. TEMPLATE (TABELLA PRINCIPALE)
  */
 function templateSessioni() {
     return `
@@ -2093,10 +2090,15 @@ function templateSessioni() {
         <div class="table-container">
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
-                    <tr style="text-align:left; background:#f1f5f9;">
-                        <th style="padding:12px; border-bottom:2px solid #e2e8f0;">Data / Titolo</th>
+                    <tr style="text-align:left; background:#f1f5f9; font-size:12px; color:#64748b;">
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0;">Data / Titolo / Squadra</th>
                         <th style="padding:12px; border-bottom:2px solid #e2e8f0;">Tipo</th>
-                        <th style="padding:12px; border-bottom:2px solid #e2e8f0;">Squadra</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center;">Note</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center; color:#10b981;">PRES</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center; color:#ef4444;">ASS</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center; color:#f59e0b;">GIUST</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center; color:#8b5cf6;">INFORT</th>
+                        <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:center;">% PRES</th>
                         <th style="padding:12px; border-bottom:2px solid #e2e8f0; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
@@ -2107,7 +2109,7 @@ function templateSessioni() {
 }
 
 /**
- * 2. INIZIALIZZAZIONE
+ * 2. INIZIALIZZAZIONE (Logica Tabella con Statistiche)
  */
 async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
@@ -2133,7 +2135,13 @@ async function initSessioni() {
         targetSociety = selSoc?.value || targetSociety;
     }
 
-    let query = client.from('sessions').select('*, session_types(name), teams(id, name, categories(name))').eq('society_id', targetSociety);
+    // Query estesa per le statistiche (RPC o JSONB Aggregation preferibile per performance, ma usiamo logica JS per chiarezza Build)
+    let query = client.from('sessions').select(`
+        *, 
+        session_types(name), 
+        teams(id, name, categories(name)),
+        attendances(id, status)
+    `).eq('society_id', targetSociety);
 
     if (document.getElementById('filter-category-sess')?.value) query = query.eq('category_id', document.getElementById('filter-category-sess').value);
     if (document.getElementById('filter-team-sess')?.value) query = query.eq('team_id', document.getElementById('filter-team-sess').value);
@@ -2141,22 +2149,54 @@ async function initSessioni() {
 
     const { data } = await query.order('session_date', { ascending: false });
 
-    tbody.innerHTML = (data || []).map(s => `
+    tbody.innerHTML = (data || []).map(s => {
+        // Calcolo statistiche in JS
+        const att = s.attendances || [];
+        const total = att.length;
+        const stats = att.reduce((acc, a) => {
+            acc[a.status] = (acc[a.status] || 0) + 1;
+            return acc;
+        }, { presente: 0, assente: 0, giustificato: 0, infortunato: 0 });
+
+        const percPres = total > 0 ? ((stats.presente / total) * 100).toFixed(0) + '%' : '-';
+
+        return `
         <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:12px;"><small>${new Date(s.session_date).toLocaleDateString()}</small><br><strong>${s.title}</strong></td>
+            <td style="padding:12px; line-height:1.4;">
+                <strong>${s.title}</strong><br>
+                <small style="color:#64748b;">${new Date(s.session_date).toLocaleDateString()}</small><br>
+                <small style="font-weight:bold;">${s.teams?.categories?.name || ''} - ${s.teams?.name || ''}</small>
+            </td>
             <td style="padding:12px;"><span class="badge" style="background:#f1f5f9; padding:4px 8px; border-radius:4px;">${s.session_types?.name || 'Evento'}</span></td>
-            <td style="padding:12px;">${s.teams?.categories?.name || ''}<br><strong>${s.teams?.name || ''}</strong></td>
+            <td style="padding:12px; text-align:center;">
+                <button class="btn-sm-icon" onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" title="Leggi/Modifica Note" style="background:none; border:none; color:#64748b; cursor:pointer;">📝</button>
+            </td>
+            <td style="padding:12px; text-align:center; font-weight:bold; color:#10b981;">${stats.presente}</td>
+            <td style="padding:12px; text-align:center; font-weight:bold; color:#ef4444;">${stats.assente}</td>
+            <td style="padding:12px; text-align:center; font-weight:bold; color:#f59e0b;">${stats.giustificato}</td>
+            <td style="padding:12px; text-align:center; font-weight:bold; color:#8b5cf6;">${stats.infortunato}</td>
+            <td style="padding:12px; text-align:center; font-weight:bold;">${percPres}</td>
             <td style="padding:12px; text-align:right;">
                 <button class="btn-sm" style="background:#8b5cf6; color:white; border:none; cursor:pointer;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
                 <button class="btn-sm" style="cursor:pointer;" onclick="openSessionModal('${s.id}')">✏️</button>
                 <button class="btn-sm" style="background:#ef4444; color:white; border:none; cursor:pointer;" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
             </td>
-        </tr>`).join('') || '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessuna sessione.</td></tr>';
+        </tr>`;
+    }).join('') || '<tr><td colspan="9" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
 }
 
 /**
- * 3. LOGICA FILTRI E MODALI
+ * 3. LOGICA FILTRI E MODALI (Risoluzione UI e Errori)
  */
+
+// Correzione ReferenceError: modal is not defined
+if (typeof window.modal === 'undefined') {
+    window.modal = {
+        open: function(title, html, btn1, btn2) { console.error("Oggetto modal globale non trovato! Impossibile aprire:", title); },
+        close: function() { console.error("Oggetto modal globale non trovato! Impossibile chiudere."); }
+    };
+    alert("ATTENZIONE: L'oggetto globale 'window.modal' non è definito nel tuo file index.html. La modale non si aprirà finché non dichiari window.modal con un metodo open().");
+}
 
 window.setRating = function(el, value) {
     const container = el.parentElement;
@@ -2167,6 +2207,7 @@ window.setRating = function(el, value) {
     container.setAttribute('data-value', value);
 };
 
+// --- MODALE PRESENZE: UI Pulita (Punto 1 immagine) ---
 async function openAttendanceModal(sessionId) {
     const { data: session } = await client.from('sessions').select('*, session_types(name), teams(name, categories(name))').eq('id', sessionId).single();
     if (!session) return;
@@ -2226,16 +2267,17 @@ async function openAttendanceModal(sessionId) {
                         `).join('')}
                     </div>` : ''}
                 </div>`;
-            }).join('') || '<p style="text-align:center;">Nessun atleta trovato.</p>'}
+            }).join('') || '<p style="text-align:center;">Nessun atleta in rosa.</p>'}
         </div>
 
         <div style="margin-top:20px; display:grid; gap:10px;">
             <button class="btn" onclick="saveAttendances('${sessionId}', ${isGara})" style="width:100%; background:#10b981; color:white; padding:14px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">SALVA REGISTRO</button>
-            <button class="btn-link" onclick="modal.close()" style="background:none; border:none; color:#64748b; cursor:pointer; padding:5px;">Annulla</button>
+            <button class="btn-link" onclick="window.modal.close()" style="background:none; border:none; color:#64748b; cursor:pointer; padding:5px; text-align:center;">Chiudi Annulla</button>
         </div>
     `;
 
-    modal.open(isGara ? "Convocazioni" : "Registro Presenze", modalBody, "", "");
+    // Risoluzione Troppi Bottoni: Passiamo "" come parametri finali
+    window.modal.open(isGara ? "Convocazioni" : "Registro Presenze", modalBody, "", "");
 }
 
 async function saveAttendances(sessionId, isGara) {
@@ -2263,19 +2305,16 @@ async function saveAttendances(sessionId, isGara) {
 
     const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
     if (!error) { 
-        modal.close(); 
+        window.modal.close(); 
         initSessioni(); 
         alert("Registro salvato!"); 
     } else {
-        alert("Errore nel salvataggio: " + error.message);
+        alert("Errore: " + error.message);
     }
 }
 
 async function reloadSubFilters() {
-    const socEl = document.getElementById('filter-society-sess');
-    if (!socEl) return;
-    const socId = socEl.value;
-
+    const socId = document.getElementById('filter-society-sess').value;
     const [cats, teams, types] = await Promise.all([
         client.from('categories').select('id, name').order('name'),
         client.from('teams').select('id, name').eq('society_id', socId).order('name'),
@@ -2320,6 +2359,7 @@ async function openSessionModal(id = null) {
                 <option value="">Scegli Squadra...</option>
                 ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
+            
             <button class="btn" onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px;">SALVA</button>
             <button class="btn-link" onclick="modal.close()" style="margin-top:5px; background:none; border:none; color:#64748b;">Annulla</button>
         </div>
@@ -2327,39 +2367,56 @@ async function openSessionModal(id = null) {
 }
 
 async function saveSession(id) {
-    const elTeam = document.getElementById('sess-team');
-    if (!elTeam || !elTeam.value) return alert("Scegli una squadra!");
-
-    const team = window._teamsList.find(t => t.id === elTeam.value);
-    if (!team) return alert("Squadra obbligatoria!");
+    const teamId = document.getElementById('sess-team')?.value;
+    const team = window._teamsList.find(t => t.id === teamId);
+    if (!team) return alert("Per favore, seleziona una squadra valida!");
 
     const p = {
         title: document.getElementById('sess-title')?.value || "Allenamento",
-        session_date: document.getElementById('sess-date')?.value,
+        session_date: document.getElementById('sess-date')?.value || new Date().toISOString().split('T')[0],
         society_id: document.getElementById('filter-society-sess')?.value || window._currentSocietyId,
-        team_id: team.id, 
-        category_id: team.category_id, 
-        season_id: team.season_id, 
-        type_id: document.getElementById('sess-type')?.value
+        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type')?.value
     };
-
     const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { 
-        modal.close(); 
-        initSessioni(); 
-    } else {
-        alert("Errore: " + error.message);
-    }
+    if (!error) { modal.close(); initSessioni(); }
 }
 
 async function deleteSession(id, title) {
-    if (confirm(`Eliminare ${title}?`)) {
+    if (confirm(`Eliminare ${title}? Verranno cancellate anche tutte le presenze.`)) {
         await client.from('sessions').delete().eq('id', id);
         initSessioni();
     }
 }
 
-/* 4. ESPOSIZIONE GLOBALE */
+// --- MODALE NOTE (Punto 2 immagine - colonna Note) ---
+async function openSessionNotesModal(id, title) {
+    const { data: session } = await client.from('sessions').select('notes').eq('id', id).single();
+    if (!session) return;
+
+    window.modal.open(`Note Sessione: ${title}`, `
+        <div style="display:grid; gap:10px;">
+            <label style="font-size:11px; font-weight:bold; color:#64748b;">NOTE / RIASSUNTO ALLENAMENTO</label>
+            <textarea id="sess-notes" style="width:100%; height:200px; padding:10px; border:1px solid #e2e8f0; border-radius:8px; box-sizing:border-box;">${session.notes || ''}</textarea>
+            
+            <button class="btn" onclick="saveSessionNotes('${id}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">SALVA NOTE</button>
+            <button class="btn-link" onclick="window.modal.close()" style="background:none; border:none; color:#64748b; cursor:pointer; padding:5px; text-align:center;">Chiudi Annulla</button>
+        </div>
+    `, "", "");
+}
+
+async function saveSessionNotes(id) {
+    const notes = document.getElementById('sess-notes')?.value || '';
+    const { error } = await client.from('sessions').update({ notes }).eq('id', id);
+    if (!error) { 
+        window.modal.close(); 
+        initSessioni(); // Ricarica tabella per aggiornare icona note (se vogliamo cambiarne il colore)
+        alert("Note salvate!"); 
+    } else {
+        alert("Errore: " + error.message);
+    }
+}
+
+/* 4. ESPOSIZIONE GLOBALE (In fondo) */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
 window.openAttendanceModal = openAttendanceModal;
@@ -2368,6 +2425,9 @@ window.saveSession = saveSession;
 window.saveAttendances = saveAttendances;
 window.deleteSession = deleteSession;
 window.reloadSubFilters = reloadSubFilters;
+window.openSessionNotesModal = openSessionNotesModal;
+window.saveSessionNotes = saveSessionNotes;
+
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
