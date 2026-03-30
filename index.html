@@ -2053,33 +2053,8 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.9.2 (PROGRESSIVE FILTERS)
+   MODULO: SESSIONI E PARTITE - BUILD 2.0 (FULL INTEGRATION)
    ============================================================ */
-
-/**
- * 0. GESTORE MODALE (Auto-detect o Emergency Fallback)
- */
-function getModal() {
-    let m = window.modal || window.appModal || window.uiModal || window.ui;
-    if (!m) {
-        m = {
-            open: (title, html) => {
-                const overlay = document.createElement('div');
-                overlay.id = 'emergency-modal';
-                overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px;";
-                overlay.innerHTML = `
-                    <div style="background:white; width:100%; max-width:600px; border-radius:12px; padding:20px; position:relative; color:#333; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
-                        <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">${title}</h3>
-                        <div style="margin-bottom:20px; max-height:75vh; overflow-y:auto;">${html}</div>
-                        <button onclick="document.getElementById('emergency-modal').remove()" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
-                    </div>`;
-                document.body.appendChild(overlay);
-            },
-            close: () => { document.getElementById('emergency-modal')?.remove(); }
-        };
-    }
-    return m;
-}
 
 /**
  * 1. TEMPLATE TABELLA
@@ -2104,12 +2079,11 @@ function templateSessioni() {
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569;">
                         <th style="padding:12px;">Data / Titolo</th>
-                        <th style="padding:12px;">Squadra</th>
+                        <th style="padding:12px;">Tipo / Squadra</th>
                         <th style="padding:12px; text-align:center;">Note</th>
                         <th style="padding:12px; text-align:center; color:#10b981;">P</th>
                         <th style="padding:12px; text-align:center; color:#ef4444;">A</th>
                         <th style="padding:12px; text-align:center; color:#f59e0b;">G</th>
-                        <th style="padding:12px; text-align:center; color:#8b5cf6;">I</th>
                         <th style="padding:12px; text-align:center;">% Pres.</th>
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
@@ -2121,7 +2095,7 @@ function templateSessioni() {
 }
 
 /**
- * 2. INIZIALIZZAZIONE E LOGICA TABELLA
+ * 2. INIZIALIZZAZIONE E FILTRI (Versione 1.9.2 integrata)
  */
 async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
@@ -2146,9 +2120,14 @@ async function initSessioni() {
         targetSociety = selSoc?.value || targetSociety;
     }
 
-    let query = client.from('sessions').select(`*, session_types(name), teams(id, name, categories(name)), attendances(status)`).eq('society_id', targetSociety);
+    let query = client.from('sessions').select(`
+        *, 
+        session_types(name), 
+        teams(id, name, category_id, season_id), 
+        attendances(status),
+        match_details(opponent_name, goals_for, goals_against)
+    `).eq('society_id', targetSociety);
     
-    // Applica filtri se selezionati
     const fCat = document.getElementById('filter-category-sess')?.value;
     const fTeam = document.getElementById('filter-team-sess')?.value;
     const fType = document.getElementById('filter-type-sess')?.value;
@@ -2165,52 +2144,45 @@ async function initSessioni() {
             if(a.status === 'presente') acc.p++;
             else if(a.status === 'assente') acc.a++;
             else if(a.status === 'giustificato') acc.g++;
-            else if(a.status === 'infortunato') acc.i++;
             return acc;
-        }, {p:0, a:0, g:0, i:0});
+        }, {p:0, a:0, g:0});
 
-        const total = att.length;
-        const perc = total > 0 ? Math.round((stats.p / total) * 100) : 0;
-        const hasNotes = s.notes && s.notes.trim().length > 0;
+        const isGara = s.session_types?.name.toLowerCase().includes('gara') || s.session_types?.name.toLowerCase().includes('partita');
+        const match = s.match_details?.[0];
 
         return `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px;"><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()}</small></td>
+        <tr style="border-bottom:1px solid #f1f5f9; ${isGara ? 'background:#f0f9ff;' : ''}">
+            <td style="padding:10px;">
+                <strong>${s.title}</strong><br>
+                <small>${new Date(s.session_date).toLocaleDateString()}</small>
+                ${match ? `<br><span style="color:#2563eb; font-size:11px; font-weight:bold;">VS ${match.opponent_name} (${match.goals_for}-${match.goals_against})</span>` : ''}
+            </td>
             <td style="padding:10px;"><small>${s.session_types?.name}</small><br><strong>${s.teams?.name}</strong></td>
             <td style="padding:10px; text-align:center;">
-                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${hasNotes ? '1' : '0.3'}">📝</button>
+                <button onclick="openSessionNotesModal('${s.id}', '${s.title.replace(/'/g, "\\'")}')" style="background:none; border:none; cursor:pointer; font-size:16px; opacity:${s.notes ? '1' : '0.2'}">📝</button>
             </td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#10b981;">${stats.p}</td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#ef4444;">${stats.a}</td>
             <td style="padding:10px; text-align:center; font-weight:bold; color:#f59e0b;">${stats.g}</td>
-            <td style="padding:10px; text-align:center; font-weight:bold; color:#8b5cf6;">${stats.i}</td>
-            <td style="padding:10px; text-align:center;"><strong>${perc}%</strong></td>
+            <td style="padding:10px; text-align:center;"><strong>${att.length > 0 ? Math.round((stats.p/att.length)*100) : 0}%</strong></td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
+                ${isGara ? `<button class="btn-sm" style="background:#fbbf24; color:#000;" onclick="openMatchDetailsModal('${s.id}')">🏆 Gara</button>` : ''}
+                <button class="btn-sm" style="background:#8b5cf6; color:white;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
                 <button class="btn-sm" onclick="openSessionModal('${s.id}')">✏️</button>
-                <button class="btn-sm" style="background:#ef4444; color:white; border:none;" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
+                <button class="btn-sm" style="background:#ef4444; color:white;" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="9" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
 }
 
 /**
- * 3. LOGICA FILTRI PROGRESSIVI
+ * 3. FUNZIONI FILTRI (1.9.2)
  */
 async function reloadSubFilters() {
     const socId = document.getElementById('filter-society-sess').value;
     if (!socId) return;
-
-    // Recupera squadre e categorie collegate per la società
-    const { data: teamsInSoc } = await client
-        .from('teams')
-        .select('id, name, category_id, categories(id, name)')
-        .eq('society_id', socId)
-        .order('name');
-
+    const { data: teamsInSoc } = await client.from('teams').select('id, name, category_id, categories(id, name)').eq('society_id', socId).order('name');
     window._currentSocTeams = teamsInSoc || [];
-
-    // Filtra categorie uniche
     const uniqueCats = [];
     const catMap = new Map();
     teamsInSoc?.forEach(t => {
@@ -2219,333 +2191,90 @@ async function reloadSubFilters() {
             uniqueCats.push(t.categories);
         }
     });
-
     const { data: types } = await client.from('session_types').select('id, name').order('name');
-
-    // Popola select categorie
-    const selCat = document.getElementById('filter-category-sess');
-    if (selCat) {
-        selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
-            uniqueCats.sort((a,b) => a.name.localeCompare(b.name))
-                      .map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    }
-
-    // Popola tipi sessione
-    const selType = document.getElementById('filter-type-sess');
-    if (selType) {
-        selType.innerHTML = '<option value="">Tutti i Tipi</option>' + 
-            (types || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    }
-
+    document.getElementById('filter-category-sess').innerHTML = '<option value="">Tutte Categorie</option>' + uniqueCats.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    document.getElementById('filter-type-sess').innerHTML = '<option value="">Tutti i Tipi</option>' + (types||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
     await reloadTeamsOnly();
 }
 
 async function reloadTeamsOnly() {
     const catId = document.getElementById('filter-category-sess').value;
-    const selTeam = document.getElementById('filter-team-sess');
-    if (!selTeam) return;
-
     let filtered = window._currentSocTeams || [];
     if (catId) filtered = filtered.filter(t => t.category_id === catId);
-
-    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
-        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
+    document.getElementById('filter-team-sess').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
     initSessioni();
 }
 
 /**
- * 4. LOGICA MODALI E SALVATAGGIO (Note: openSessionModal NON toccata)
+ * 4. GESTIONE PARTITA (Nuovo Modulo)
  */
-async function openSessionModal(id = null) {
+async function openMatchDetailsModal(sessionId) {
     const m = getModal();
-    const isEdit = !!id;
-    let editData = null;
-    let targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
+    const { data: session } = await client.from('sessions').select('*, match_details(*)').eq('id', sessionId).single();
+    const match = session.match_details?.[0] || {};
 
-    const [typesRes, teamsRes] = await Promise.all([
-        client.from('session_types').select('*').order('name'),
-        client.from('teams').select('id, name, category_id, season_id').eq('society_id', targetSoc).order('name')
-    ]);
-    window._teamsList = teamsRes.data || [];
-
-    if (isEdit) {
-        const { data } = await client.from('sessions').select('*').eq('id', id).single();
-        editData = data;
-    }
-
-    m.open(isEdit ? 'Modifica Sessione' : 'Nuova Sessione', `
-        <div style="display:grid; gap:12px;">
-            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo (es. Allenamento)" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-            <div style="display:flex; gap:10px;">
-                <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <select id="sess-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
-                    ${typesRes.data.map(t => `<option value="${t.id}" ${editData?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                </select>
+    m.open("Gestione Gara", `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px;">
+            <div style="grid-column: span 2;">
+                <label>Avversario</label>
+                <input type="text" id="m-opponent" value="${match.opponent_name || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
-            <select id="sess-team" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <option value="">Scegli Squadra...</option>
-                ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-            </select>
-            <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA E SALVA</button>
+            <div><label>Ritrovo</label><input type="time" id="m-meet" value="${match.meet_time || ''}" style="width:100%; padding:8px; border-radius:6px;"></div>
+            <div><label>Inizio</label><input type="time" id="m-start" value="${match.match_start_time || ''}" style="width:100%; padding:8px; border-radius:6px;"></div>
+            <div style="grid-column: span 2;"><label>Indirizzo</label><input type="text" id="m-addr" value="${match.address || ''}" style="width:100%; padding:8px; border-radius:6px;"></div>
+            <div><label>Stato</label><select id="m-status" style="width:100%; padding:8px; border-radius:6px;">
+                <option value="da_giocare" ${match.status==='da_giocare'?'selected':''}>Da Giocare</option>
+                <option value="giocata" ${match.status==='giocata'?'selected':''}>Giocata</option>
+                <option value="sospesa" ${match.status==='sospesa'?'selected':''}>Sospesa/Rinviata</option>
+            </select></div>
+            <div style="padding-top:25px;"><input type="checkbox" id="m-friendly" ${match.is_friendly?'checked':''}> <label>Amichevole</label></div>
+            <div style="grid-column: span 2; background:#f8fafc; padding:15px; border-radius:8px; display:flex; justify-content:center; align-items:center; gap:20px;">
+                <div style="text-align:center;"><small>NOI</small><br><input type="number" id="m-gf" value="${match.goals_for||0}" style="width:50px; font-size:18px; text-align:center;"></div>
+                <div style="font-weight:bold;">VS</div>
+                <div style="text-align:center;"><small>LORO</small><br><input type="number" id="m-ga" value="${match.goals_against||0}" style="width:50px; font-size:18px; text-align:center;"></div>
+            </div>
+            <button onclick="saveMatch('${sessionId}')" style="grid-column: span 2; background:#10b981; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA DETTAGLI GARA</button>
+            <button onclick="exportConvocatiSocial('${sessionId}')" style="grid-column: span 2; background:#64748b; color:white; padding:10px; border:none; border-radius:8px; cursor:pointer;">📸 IMMAGINE CONVOCATI</button>
         </div>
-    `, "", "");
+    `);
 }
 
-async function saveSession(id) {
-    const teamId = document.getElementById('sess-team')?.value;
-    const team = window._teamsList.find(t => t.id === teamId);
-    if (!team) return alert("Scegli una squadra!");
-
-    const societyId = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
-    const p = {
-        title: document.getElementById('sess-title').value || "Allenamento",
-        session_date: document.getElementById('sess-date').value,
-        society_id: societyId,
-        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type').value
-    };
-    const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { getModal().close(); initSessioni(); }
-}
-
-async function openAttendanceModal(sessionId) {
-    const m = getModal();
-    const { data: session } = await client.from('sessions').select('*, session_types(name), teams(id, name, season_id)').eq('id', sessionId).single();
-    if(!session) return;
-    const isGara = session.session_types?.name.toLowerCase().includes('gara');
-    const { data: relations } = await client.from('athlete_team_seasons').select(`jersey_number, athletes(id, name, surname)`).eq('team_id', session.team_id).eq('season_id', session.season_id);
-    const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
-    const attMap = {}; existing?.forEach(a => attMap[a.athlete_id] = a);
-
-    m.open(isGara ? "Convocazioni" : "Registro Presenze", `
-        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px; border:1px solid #e2e8f0;">
-            <strong>${session.title}</strong> (${new Date(session.session_date).toLocaleDateString()})
-        </div>
-        <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
-            ${(relations || []).map(r => {
-                const ath = r.athletes;
-                const reg = attMap[ath.id] || {};
-                const p = reg.performance_data || {vel:0, tec:0, fis:0, res:0, com:0};
-                return `
-                <div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:10px; background:#fff;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <strong>${ath.surname} ${ath.name} <small style="color:#64748b;">${r.jersey_number ? '#'+r.jersey_number : ''}</small></strong>
-                        <select class="att-status" data-ath="${ath.id}" style="padding:6px; border-radius:4px; border:1px solid #ccc;">
-                            <option value="presente" ${reg.status==='presente'?'selected':''}>Presente</option>
-                            <option value="assente" ${reg.status==='assente'?'selected':''}>Assente</option>
-                            <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>Giustificato</option>
-                            <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>Infortunato</option>
-                        </select>
-                    </div>
-                    ${!isGara ? `
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                        ${Object.entries({vel:'VEL', tec:'TEC', fis:'FIS', res:'RES', com:'COM'}).map(([k, label]) => `
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:11px; color:#64748b;">${label}</span>
-                                <div class="star-rating" data-ath="${ath.id}" data-key="${k}" data-value="${p[k]||0}">
-                                    ${[1,2,3,4,5].map(s => `<span onclick="setRating(this, ${s})" style="cursor:pointer; color:${s<=(p[k]||0)?'#f59e0b':'#cbd5e1'}; font-size:16px;">★</span>`).join('')}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>` : ''}
-                </div>`;
-            }).join('')}
-        </div>
-        <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA REGISTRO</button>
-    `, "", "");
-}
-
-async function saveAttendances(sessionId, isGara) {
-    const records = [];
-    document.querySelectorAll('.att-status').forEach(sel => {
-        const athId = sel.getAttribute('data-ath');
-        const perfData = {};
-        if (!isGara) {
-            document.querySelectorAll(`.star-rating[data-ath="${athId}"]`).forEach(group => {
-                perfData[group.getAttribute('data-key')] = parseInt(group.getAttribute('data-value')) || 0;
-            });
-        }
-        records.push({
-            session_id: sessionId, athlete_id: athId, status: sel.value,
-            performance_data: perfData, is_called_up: isGara && sel.value === 'presente'
-        });
-    });
-    const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    if (!error) { getModal().close(); initSessioni(); alert("Registro salvato!"); }
-}
-
-async function deleteSession(id, title) {
-    if (confirm(`Eliminare "${title}"?`)) {
-        const { error } = await client.from('sessions').delete().eq('id', id);
-        if (!error) initSessioni();
-    }
-}
-
-async function openSessionNotesModal(id, title) {
-    const { data } = await client.from('sessions').select('notes').eq('id', id).single();
-    getModal().open(`Note: ${title}`, `
-        <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid #ccc; font-family:inherit; box-sizing:border-box;">${data?.notes || ''}</textarea>
-        <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:12px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA NOTE</button>
-    `, "", "");
-}
-
-async function saveSessionNotes(id) {
-    const notes = document.getElementById('temp-notes').value;
-    await client.from('sessions').update({ notes }).eq('id', id);
-    getModal().close();
-    initSessioni();
-}
-
-window.setRating = function(el, value) {
-    const container = el.parentElement;
-    const stars = container.querySelectorAll('span');
-    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
-    container.setAttribute('data-value', value);
-};
-/**
- * 6. SALVATAGGIO DETTAGLI MATCH E LOGICA CONVOCAZIONI
- */
-async function saveMatchDetails(sessionId) {
+async function saveMatch(sessionId) {
     const gf = parseInt(document.getElementById('m-gf').value) || 0;
     const ga = parseInt(document.getElementById('m-ga').value) || 0;
     const isFriendly = document.getElementById('m-friendly').checked;
-    
-    let points = 0;
-    if (!isFriendly) {
-        if (gf > ga) points = 3;
-        else if (gf === ga) points = 1;
+    let pts = 0;
+    if (!isFriendly && document.getElementById('m-status').value === 'giocata') {
+        if (gf > ga) pts = 3; else if (gf === ga) pts = 1;
     }
-
-    const matchData = {
-        session_id: sessionId,
-        opponent_name: document.getElementById('m-opponent').value,
-        meet_time: document.getElementById('m-meet-time').value,
-        match_start_time: document.getElementById('m-start-time').value,
-        address: document.getElementById('m-address').value,
-        status: document.getElementById('m-status').value,
-        is_friendly: isFriendly,
-        goals_for: gf,
-        goals_against: ga,
-        points: points
+    const data = {
+        session_id: sessionId, opponent_name: document.getElementById('m-opponent').value,
+        meet_time: document.getElementById('m-meet').value, match_start_time: document.getElementById('m-start').value,
+        address: document.getElementById('m-addr').value, status: document.getElementById('m-status').value,
+        is_friendly: isFriendly, goals_for: gf, goals_against: ga, points: pts
     };
-
-    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
-    
+    const { error } = await client.from('match_details').upsert(data, { onConflict: 'session_id' });
     if (!error) {
-        // Applichiamo la logica: non convocati = giustificati
-        await syncNonCalledAsJustified(sessionId);
-        alert("Dati partita salvati e presenze sincronizzate!");
+        await syncAttendancesForMatch(sessionId);
+        alert("Dati salvati e presenze sincronizzate!");
         getModal().close();
         initSessioni();
     }
 }
 
-async function syncNonCalledAsJustified(sessionId) {
-    // Recuperiamo tutti gli atleti della squadra che NON sono convocati per questa sessione
+async function syncAttendancesForMatch(sessionId) {
     const { data: session } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
     const { data: allAthletes } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', session.team_id).eq('season_id', session.season_id);
     const { data: currentAtt } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
-
     const calledIds = (currentAtt || []).filter(a => a.is_called_up).map(a => a.athlete_id);
-    const toUpdate = (allAthletes || []).filter(a => !calledIds.includes(a.athlete_id));
-
-    const records = toUpdate.map(a => ({
-        session_id: sessionId,
-        athlete_id: a.athlete_id,
-        status: 'giustificato',
-        is_called_up: false
+    const toUpdate = (allAthletes || []).filter(a => !calledIds.includes(a.athlete_id)).map(a => ({
+        session_id: sessionId, athlete_id: a.athlete_id, status: 'giustificato', is_called_up: false
     }));
-
-    if (records.length > 0) {
-        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    }
+    if (toUpdate.length > 0) await client.from('attendances').upsert(toUpdate, { onConflict: 'session_id, athlete_id' });
 }
 
 /**
- * 7. EXPORT GRAFICO "CAMPO DA CALCIO" (Social Ready)
- */
-async function exportConvocatiSocial(sessionId) {
-    const { data: session } = await client.from('sessions').select('*, teams(name)').eq('id', sessionId).single();
-    const { data: convocati } = await client.from('attendances')
-        .select('athletes(name, surname, role)') // Assumendo che esista il campo role
-        .eq('session_id', sessionId)
-        .eq('is_called_up', true);
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 1080;
-    canvas.height = 1350; // Formato Portrait Social
-
-    // 1. Sfondo Campo (Verde con sfumatura)
-    const grad = ctx.createRadialGradient(540, 675, 100, 540, 675, 800);
-    grad.addColorStop(0, '#2d5a27');
-    grad.addColorStop(1, '#1e3d1a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. Disegno Linee Campo
-    ctx.strokeStyle = "rgba(255,255,255,0.3)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(50, 50, 980, 1250); // Perimetro
-    ctx.beginPath(); // Linea Mediana
-    ctx.moveTo(50, 675); ctx.lineTo(1030, 675); ctx.stroke();
-    ctx.beginPath(); // Cerchio centrale
-    ctx.arc(540, 675, 150, 0, Math.PI * 2); ctx.stroke();
-
-    // 3. Testi Intestazione
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.font = "bold 50px sans-serif";
-    ctx.fillText("LISTA CONVOCATI", 540, 120);
-    ctx.font = "italic 40px sans-serif";
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillText(session.teams.name.toUpperCase(), 540, 180);
-
-    // 4. Raggruppamento per Ruoli
-    const roles = { 
-        'Portieri': [], 'Difensori': [], 'Centrocampisti': [], 
-        'Attaccanti': [], 'Staff': [] 
-    };
-
-    convocati.forEach(c => {
-        const r = c.athletes.role?.toLowerCase() || '';
-        if (r.includes('por')) roles['Portieri'].push(c.athletes);
-        else if (r.includes('dif')) roles['Difensori'].push(c.athletes);
-        else if (r.includes('cen')) roles['Centrocampisti'].push(c.athletes);
-        else if (r.includes('att')) roles['Attaccanti'].push(c.athletes);
-        else roles['Staff'].push(c.athletes);
-    });
-
-    // 5. Rendering Nomi sul Campo
-    ctx.textAlign = "left";
-    let y = 280;
-    const xLeft = 150;
-    const xRight = 600;
-
-    Object.entries(roles).forEach(([roleName, list], index) => {
-        if (list.length > 0) {
-            ctx.font = "bold 35px sans-serif";
-            ctx.fillStyle = "#38bdf8"; // Colore categoria
-            ctx.fillText(roleName.toUpperCase(), (index % 2 === 0 ? xLeft : xRight), y);
-            
-            ctx.font = "30px sans-serif";
-            ctx.fillStyle = "white";
-            list.forEach((ath, i) => {
-                ctx.fillText(`• ${ath.surname} ${ath.name}`, (index % 2 === 0 ? xLeft : xRight), y + 45 + (i * 40));
-            });
-            
-            if (index % 2 !== 0) y += 250; // Vai a riga successiva ogni 2 ruoli
-        }
-    });
-
-    // 6. Download
-    const link = document.createElement('a');
-    link.download = `Convocati_${session.teams.name}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-}
-/**
- * 8. ESPOSIZIONE GLOBALE
+ * 8. ESPOSIZIONE GLOBALE (Build 2.0 Full)
  */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
@@ -2558,6 +2287,19 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+
+// --- NUOVE FUNZIONI GESTIONE GARA ---
+window.openMatchDetailsModal = openMatchDetailsModal;
+window.saveMatch = saveMatch;
+window.exportConvocatiSocial = exportConvocatiSocial; // Se hai aggiunto la funzione export
+window.setRating = function(el, value) {
+    const container = el.parentElement;
+    const stars = container.querySelectorAll('span');
+    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
+    container.setAttribute('data-value', value);
+	};
+
+
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
