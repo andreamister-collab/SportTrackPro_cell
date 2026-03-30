@@ -2567,11 +2567,11 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - BUILD 2.4 (FINAL & GLOBAL)
+   MODULO: GESTIONE PARTITE - BUILD 3.2 (STABLE & FULL)
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI (Definita per prima per essere disponibile)
+ * 1. LOGICA FILTRI (Sincronizzata e protetta)
  */
 window.reloadMatchTeamsOnly = function() {
     const catId = document.getElementById('f-match-cat')?.value;
@@ -2587,7 +2587,6 @@ window.reloadMatchTeamsOnly = function() {
     teamOpts += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     selTeam.innerHTML = teamOpts;
 
-    // Trigger ricaricamento tabella
     if (typeof window.initPartite === 'function') window.initPartite();
 };
 
@@ -2595,6 +2594,7 @@ window.reloadMatchSubFilters = async function() {
     const socSelect = document.getElementById('f-match-soc');
     const socId = socSelect ? socSelect.value : window._currentSocietyId;
 
+    // Protezione Errore 400
     if (!socId || socId === "null" || socId === "undefined") return;
 
     // Carica Categorie
@@ -2661,7 +2661,6 @@ window.initPartite = async function() {
     let targetSociety = window._currentSocietyId;
     const myRole = (window._userRole || '').toLowerCase();
 
-    // Gestione Filtro Società (Admin)
     const selSoc = document.getElementById('f-match-soc');
     if (selSoc && selSoc.options.length === 0) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
@@ -2679,7 +2678,7 @@ window.initPartite = async function() {
     let query = client.from('sessions').select(`
         id, title, session_date, type_id, category_id, team_id,
         teams ( id, name ),
-        match_details ( opponent_name, goals_for, goals_against, is_friendly, scorers )
+        match_details ( opponent_name, goals_for, goals_against, is_friendly, scorers, is_home )
     `).eq('society_id', targetSociety);
 
     if (typeData) query = query.eq('type_id', typeData.id);
@@ -2692,8 +2691,7 @@ window.initPartite = async function() {
     const { data, error } = await query.order('session_date', { ascending: false });
 
     if (error) {
-        console.error("Errore Caricamento Partite:", error);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">Errore 403: Verifica Policy RLS su Supabase</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">Errore 403: Verifica Policy RLS su match_details</td></tr>`;
         return;
     }
 
@@ -2701,13 +2699,14 @@ window.initPartite = async function() {
         const d = (m.match_details && m.match_details[0]) ? m.match_details[0] : {};
         const score = (d.goals_for !== undefined && d.goals_for !== null) ? `${d.goals_for} - ${d.goals_against}` : 'N.D.';
         const amichevole = d.is_friendly ? '<br><span style="color:#f59e0b; font-size:10px; font-weight:bold;">AMICHEVOLE</span>' : '';
+        const tagHome = d.is_home ? '<span style="color:#059669; font-weight:bold;">[C]</span>' : '<span style="color:#2563eb; font-weight:bold;">[T]</span>';
 
         return `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString()}</strong><br><small>${m.title || ''}</small></td>
             <td style="padding:10px;"><strong>${m.teams?.name || '---'}</strong></td>
             <td style="padding:10px; text-align:center;"><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px; font-weight:bold;">${score}</span></td>
-            <td style="padding:10px;">${d.opponent_name || '---'}${amichevole}</td>
+            <td style="padding:10px;">${tagHome} ${d.opponent_name || '---'}${amichevole}</td>
             <td style="padding:10px; text-align:right;">
                 <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="window.openAttendanceModal('${m.id}')">👥</button>
                 <button class="btn-sm" onclick="window.openMatchEditModal('${m.id}')">⚽</button>
@@ -2718,7 +2717,7 @@ window.initPartite = async function() {
 };
 
 /**
- * 4. MODALE EDIT RISULTATO
+ * 4. MODALE EDIT DETTAGLIATO
  */
 window.openMatchEditModal = async function(sessionId) {
     const m = getModal();
@@ -2726,31 +2725,51 @@ window.openMatchEditModal = async function(sessionId) {
     const match = (session.match_details && session.match_details.length > 0) ? session.match_details[0] : {};
 
     m.open("⚽ Dettagli Partita", `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px;">
             <div style="grid-column:span 2;">
-                <label style="font-size:12px; color:#64748b;">Avversario</label>
+                <label style="color:#64748b;">Avversario</label>
                 <input type="text" id="m-opponent" value="${match.opponent_name || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div>
-                <label style="font-size:12px; color:#64748b;">Gol Fatti</label>
+                <label style="color:#64748b;">📍 Luogo</label>
+                <select id="m-home" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                    <option value="true" ${match.is_home !== false ? 'selected' : ''}>🏠 In Casa</option>
+                    <option value="false" ${match.is_home === false ? 'selected' : ''}>🚌 In Trasferta</option>
+                </select>
+            </div>
+            <div>
+                <label style="color:#64748b;">🕒 Orario Inizio</label>
+                <input type="time" id="m-match-time" value="${match.match_time || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div>
+                <label style="color:#64748b;">🤝 Ora Ritrovo</label>
+                <input type="time" id="m-meeting-time" value="${match.meeting_time || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div>
+                <label style="color:#64748b;">📍 Indirizzo Ritrovo</label>
+                <input type="text" id="m-meeting-place" value="${match.meeting_place || ''}" placeholder="Indirizzo o Stadio" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <hr style="grid-column:span 2; border:0; border-top:1px solid #eee; margin:5px 0;">
+            <div>
+                <label style="color:#64748b;">Gol Fatti</label>
                 <input type="number" id="m-gf" value="${match.goals_for || 0}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div>
-                <label style="font-size:12px; color:#64748b;">Gol Subiti</label>
+                <label style="color:#64748b;">Gol Subiti</label>
                 <input type="number" id="m-ga" value="${match.goals_against || 0}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
-            <div>
-                <label style="font-size:12px; color:#64748b;">Arbitro</label>
-                <input type="text" id="m-referee" value="${match.referee || ''}" placeholder="Nome" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            <div style="grid-column:span 2;">
+                <label style="color:#64748b;">Arbitro</label>
+                <input type="text" id="m-referee" value="${match.referee || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
-            <div style="display:flex; align-items:center; gap:8px; padding-top:20px;">
+            <div style="display:flex; align-items:center; gap:8px;">
                 <input type="checkbox" id="m-friendly" ${match.is_friendly ? 'checked' : ''}>
-                <label for="m-friendly" style="font-size:13px; font-weight:bold;">Amichevole</label>
+                <label for="m-friendly" style="font-weight:bold;">Amichevole</label>
             </div>
         </div>
-        <div style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
+        <div style="margin-top:15px;">
             <label style="display:block; font-size:12px; color:#64748b; margin-bottom:5px;">Marcatori</label>
-            <textarea id="m-scorers" placeholder="Rossi (2), Bianchi" style="width:100%; height:60px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">${match.scorers || ''}</textarea>
+            <textarea id="m-scorers" placeholder="Rossi (2), Bianchi" style="width:100%; height:50px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">${match.scorers || ''}</textarea>
         </div>
         <button onclick="window.saveMatchDetailedData('${sessionId}')" style="width:100%; margin-top:15px; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold;">SALVA</button>
     `);
@@ -2763,6 +2782,7 @@ window.saveMatchDetailedData = async function(sessionId) {
     const gf = parseInt(document.getElementById('m-gf').value) || 0;
     const ga = parseInt(document.getElementById('m-ga').value) || 0;
     const isFriendly = document.getElementById('m-friendly').checked;
+    const isHome = document.getElementById('m-home').value === "true";
     
     let pts = 0;
     if (!isFriendly) {
@@ -2777,6 +2797,10 @@ window.saveMatchDetailedData = async function(sessionId) {
         goals_against: ga,
         referee: document.getElementById('m-referee').value,
         is_friendly: isFriendly,
+        is_home: isHome,
+        match_time: document.getElementById('m-match-time').value || null,
+        meeting_time: document.getElementById('m-meeting-time').value || null,
+        meeting_place: document.getElementById('m-meeting-place').value,
         scorers: document.getElementById('m-scorers').value,
         points: pts,
         status: 'giocata'
@@ -2786,10 +2810,17 @@ window.saveMatchDetailedData = async function(sessionId) {
         if (typeof window.syncMatchJustified === 'function') await window.syncMatchJustified(sessionId);
         getModal().close();
         window.initPartite();
-        alert("Salvato correttamente!");
     } else {
         alert("Errore: " + error.message);
     }
+};
+
+/**
+ * 6. EXTRA & SOCIAL
+ */
+window.exportConvocatiSocial = function(sessionId) {
+    console.log("Export social per sessione:", sessionId);
+    alert("Funzionalità Social: Immagine in fase di generazione...");
 };
 
 window.syncMatchJustified = async function(sessionId) {
@@ -2808,9 +2839,6 @@ window.syncMatchJustified = async function(sessionId) {
     }
 };
 
-/**
- * 6. CREAZIONE RAPIDA
- */
 window.openMatchModal = async function() {
     const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita,name.eq.gara').maybeSingle();
     if (typeof window.openSessionModal === 'function') {
