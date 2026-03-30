@@ -2685,35 +2685,42 @@ async function initPartite() {
  * 3. LOGICA FILTRI (Sincronizzata con Sessioni)
  */
 async function reloadMatchSubFilters() {
-    const socId = document.getElementById('f-match-soc').value;
-    
+    const socSelect = document.getElementById('f-match-soc');
+    // Se non c'è la select o non c'è un valore, usa l'ID globale, altrimenti esci
+    const socId = socSelect ? socSelect.value : window._currentSocietyId;
+
+    if (!socId || socId === "null" || socId === "undefined") {
+        console.warn("Filtri Partite: society_id non ancora disponibile.");
+        return; 
+    }
+
+    // Reset select Categorie e Squadre
+    document.getElementById('f-match-cat').innerHTML = '<option value="">Caricamento...</option>';
+    document.getElementById('f-match-team').innerHTML = '<option value="">Scegli Squadra...</option>';
+
     // Carica Categorie
-    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    const { data: cats, error: errCat } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    
+    if (errCat) {
+        console.error("Errore caricamento categorie:", errCat);
+        return;
+    }
+
     let catOpts = '<option value="">Tutte Categorie</option>';
     if (cats) catOpts += cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     document.getElementById('f-match-cat').innerHTML = catOpts;
 
-    // Carica Squadre per window._matchTeams
-    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
-    window._matchTeams = teams || [];
+    // Carica Squadre
+    const { data: teams, error: errTeam } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    
+    if (errTeam) {
+        console.error("Errore caricamento squadre:", errTeam);
+        return;
+    }
 
+    window._matchTeams = teams || [];
     reloadMatchTeamsOnly();
 }
-
-function reloadMatchTeamsOnly() {
-    const catId = document.getElementById('f-match-cat').value;
-    const selTeam = document.getElementById('f-match-team');
-    
-    let filtered = window._matchTeams || [];
-    if (catId) filtered = filtered.filter(t => t.category_id === catId);
-
-    let teamOpts = '<option value="">Tutte Squadre</option>';
-    teamOpts += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    selTeam.innerHTML = teamOpts;
-
-    initPartite();
-}
-
 /**
  * 4. MODALE EDIT RISULTATO
  */
