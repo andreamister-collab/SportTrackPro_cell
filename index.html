@@ -2202,376 +2202,12 @@ async function initSessioni() {
     }).join('') || '<tr><td colspan="9" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
 }
 
-/**
- * 3. LOGICA FILTRI PROGRESSIVI
- */
-async function reloadSubFilters() {
-    const socId = document.getElementById('filter-society-sess').value;
-    if (!socId) return;
-
-    // Recupera squadre e categorie collegate per la società
-    const { data: teamsInSoc } = await client
-        .from('teams')
-        .select('id, name, category_id, categories(id, name)')
-        .eq('society_id', socId)
-        .order('name');
-
-    window._currentSocTeams = teamsInSoc || [];
-
-    // Filtra categorie uniche
-    const uniqueCats = [];
-    const catMap = new Map();
-    teamsInSoc?.forEach(t => {
-        if (t.categories && !catMap.has(t.categories.id)) {
-            catMap.set(t.categories.id, true);
-            uniqueCats.push(t.categories);
-        }
-    });
-
-    const { data: types } = await client.from('session_types').select('id, name').order('name');
-
-    // Popola select categorie
-    const selCat = document.getElementById('filter-category-sess');
-    if (selCat) {
-        selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
-            uniqueCats.sort((a,b) => a.name.localeCompare(b.name))
-                      .map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    }
-
-    // Popola tipi sessione
-    const selType = document.getElementById('filter-type-sess');
-    if (selType) {
-        selType.innerHTML = '<option value="">Tutti i Tipi</option>' + 
-            (types || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    }
-
-    await reloadTeamsOnly();
-}
-
-async function reloadTeamsOnly() {
-    const catId = document.getElementById('filter-category-sess').value;
-    const selTeam = document.getElementById('filter-team-sess');
-    if (!selTeam) return;
-
-    let filtered = window._currentSocTeams || [];
-    if (catId) filtered = filtered.filter(t => t.category_id === catId);
-
-    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
-        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
-    initSessioni();
-}
-
-/**
- * 4. LOGICA MODALI E SALVATAGGIO (Note: openSessionModal NON toccata)
- */
-async function openSessionModal(id = null) {
-    const m = getModal();
-    const isEdit = !!id;
-    let editData = null;
-    let targetSoc = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
-
-    const [typesRes, teamsRes] = await Promise.all([
-        client.from('session_types').select('*').order('name'),
-        client.from('teams').select('id, name, category_id, season_id').eq('society_id', targetSoc).order('name')
-    ]);
-    window._teamsList = teamsRes.data || [];
-
-    if (isEdit) {
-        const { data } = await client.from('sessions').select('*').eq('id', id).single();
-        editData = data;
-    }
-
-    m.open(isEdit ? 'Modifica Sessione' : 'Nuova Sessione', `
-        <div style="display:grid; gap:12px;">
-            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo (es. Allenamento)" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-            <div style="display:flex; gap:10px;">
-                <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <select id="sess-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
-                    ${typesRes.data.map(t => `<option value="${t.id}" ${editData?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                </select>
-            </div>
-            <select id="sess-team" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <option value="">Scegli Squadra...</option>
-                ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-            </select>
-            <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA E SALVA</button>
-        </div>
-    `, "", "");
-}
-
-async function saveSession(id) {
-    const teamId = document.getElementById('sess-team')?.value;
-    const team = window._teamsList.find(t => t.id === teamId);
-    if (!team) return alert("Scegli una squadra!");
-
-    const societyId = document.getElementById('filter-society-sess')?.value || window._currentSocietyId;
-    const p = {
-        title: document.getElementById('sess-title').value || "Allenamento",
-        session_date: document.getElementById('sess-date').value,
-        society_id: societyId,
-        team_id: team.id, category_id: team.category_id, season_id: team.season_id, type_id: document.getElementById('sess-type').value
-    };
-    const { error } = id ? await client.from('sessions').update(p).eq('id', id) : await client.from('sessions').insert([p]);
-    if (!error) { getModal().close(); initSessioni(); }
-}
-
-async function openAttendanceModal(sessionId) {
-    const m = getModal();
-    const { data: session } = await client.from('sessions').select('*, session_types(name), teams(id, name, season_id)').eq('id', sessionId).single();
-    if(!session) return;
-    const isGara = session.session_types?.name.toLowerCase().includes('gara');
-    const { data: relations } = await client.from('athlete_team_seasons').select(`jersey_number, athletes(id, name, surname)`).eq('team_id', session.team_id).eq('season_id', session.season_id);
-    const { data: existing } = await client.from('attendances').select('*').eq('session_id', sessionId);
-    const attMap = {}; existing?.forEach(a => attMap[a.athlete_id] = a);
-
-    m.open(isGara ? "Convocazioni" : "Registro Presenze", `
-        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px; border:1px solid #e2e8f0;">
-            <strong>${session.title}</strong> (${new Date(session.session_date).toLocaleDateString()})
-        </div>
-        <div style="max-height:450px; overflow-y:auto; padding-right:5px;">
-            ${(relations || []).map(r => {
-                const ath = r.athletes;
-                const reg = attMap[ath.id] || {};
-                const p = reg.performance_data || {vel:0, tec:0, fis:0, res:0, com:0};
-                return `
-                <div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:10px; background:#fff;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <strong>${ath.surname} ${ath.name} <small style="color:#64748b;">${r.jersey_number ? '#'+r.jersey_number : ''}</small></strong>
-                        <select class="att-status" data-ath="${ath.id}" style="padding:6px; border-radius:4px; border:1px solid #ccc;">
-                            <option value="presente" ${reg.status==='presente'?'selected':''}>Presente</option>
-                            <option value="assente" ${reg.status==='assente'?'selected':''}>Assente</option>
-                            <option value="giustificato" ${reg.status==='giustificato'?'selected':''}>Giustificato</option>
-                            <option value="infortunato" ${reg.status==='infortunato'?'selected':''}>Infortunato</option>
-                        </select>
-                    </div>
-                    ${!isGara ? `
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                        ${Object.entries({vel:'VEL', tec:'TEC', fis:'FIS', res:'RES', com:'COM'}).map(([k, label]) => `
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:11px; color:#64748b;">${label}</span>
-                                <div class="star-rating" data-ath="${ath.id}" data-key="${k}" data-value="${p[k]||0}">
-                                    ${[1,2,3,4,5].map(s => `<span onclick="setRating(this, ${s})" style="cursor:pointer; color:${s<=(p[k]||0)?'#f59e0b':'#cbd5e1'}; font-size:16px;">★</span>`).join('')}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>` : ''}
-                </div>`;
-            }).join('')}
-        </div>
-        <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA REGISTRO</button>
-    `, "", "");
-}
-
-async function saveAttendances(sessionId, isGara) {
-    const records = [];
-    document.querySelectorAll('.att-status').forEach(sel => {
-        const athId = sel.getAttribute('data-ath');
-        const perfData = {};
-        if (!isGara) {
-            document.querySelectorAll(`.star-rating[data-ath="${athId}"]`).forEach(group => {
-                perfData[group.getAttribute('data-key')] = parseInt(group.getAttribute('data-value')) || 0;
-            });
-        }
-        records.push({
-            session_id: sessionId, athlete_id: athId, status: sel.value,
-            performance_data: perfData, is_called_up: isGara && sel.value === 'presente'
-        });
-    });
-    const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    if (!error) { getModal().close(); initSessioni(); alert("Registro salvato!"); }
-}
-
-async function deleteSession(id, title) {
-    if (confirm(`Eliminare "${title}"?`)) {
-        const { error } = await client.from('sessions').delete().eq('id', id);
-        if (!error) initSessioni();
-    }
-}
-
-async function openSessionNotesModal(id, title) {
-    const { data } = await client.from('sessions').select('notes').eq('id', id).single();
-    getModal().open(`Note: ${title}`, `
-        <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid #ccc; font-family:inherit; box-sizing:border-box;">${data?.notes || ''}</textarea>
-        <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:12px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA NOTE</button>
-    `, "", "");
-}
-
-async function saveSessionNotes(id) {
-    const notes = document.getElementById('temp-notes').value;
-    await client.from('sessions').update({ notes }).eq('id', id);
-    getModal().close();
-    initSessioni();
-}
-
-window.setRating = function(el, value) {
-    const container = el.parentElement;
-    const stars = container.querySelectorAll('span');
-    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
-    container.setAttribute('data-value', value);
-};
-/**
- * 6. SALVATAGGIO DETTAGLI MATCH E LOGICA CONVOCAZIONI
- */
-async function saveMatchDetails(sessionId) {
-    const gf = parseInt(document.getElementById('m-gf').value) || 0;
-    const ga = parseInt(document.getElementById('m-ga').value) || 0;
-    const isFriendly = document.getElementById('m-friendly').checked;
-    
-    let points = 0;
-    if (!isFriendly) {
-        if (gf > ga) points = 3;
-        else if (gf === ga) points = 1;
-    }
-
-    const matchData = {
-        session_id: sessionId,
-        opponent_name: document.getElementById('m-opponent').value,
-        meet_time: document.getElementById('m-meet-time').value,
-        match_start_time: document.getElementById('m-start-time').value,
-        address: document.getElementById('m-address').value,
-        status: document.getElementById('m-status').value,
-        is_friendly: isFriendly,
-        goals_for: gf,
-        goals_against: ga,
-        points: points
-    };
-
-    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
-    
-    if (!error) {
-        // Applichiamo la logica: non convocati = giustificati
-        await syncNonCalledAsJustified(sessionId);
-        alert("Dati partita salvati e presenze sincronizzate!");
-        getModal().close();
-        initSessioni();
-    }
-}
-
-async function syncNonCalledAsJustified(sessionId) {
-    // Recuperiamo tutti gli atleti della squadra che NON sono convocati per questa sessione
-    const { data: session } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
-    const { data: allAthletes } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', session.team_id).eq('season_id', session.season_id);
-    const { data: currentAtt } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
-
-    const calledIds = (currentAtt || []).filter(a => a.is_called_up).map(a => a.athlete_id);
-    const toUpdate = (allAthletes || []).filter(a => !calledIds.includes(a.athlete_id));
-
-    const records = toUpdate.map(a => ({
-        session_id: sessionId,
-        athlete_id: a.athlete_id,
-        status: 'giustificato',
-        is_called_up: false
-    }));
-
-    if (records.length > 0) {
-        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    }
-}
-
-/**
- * 7. EXPORT GRAFICO "CAMPO DA CALCIO" (Social Ready)
- */
-async function exportConvocatiSocial(sessionId) {
-    const { data: session } = await client.from('sessions').select('*, teams(name)').eq('id', sessionId).single();
-    const { data: convocati } = await client.from('attendances')
-        .select('athletes(name, surname, role)') // Assumendo che esista il campo role
-        .eq('session_id', sessionId)
-        .eq('is_called_up', true);
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 1080;
-    canvas.height = 1350; // Formato Portrait Social
-
-    // 1. Sfondo Campo (Verde con sfumatura)
-    const grad = ctx.createRadialGradient(540, 675, 100, 540, 675, 800);
-    grad.addColorStop(0, '#2d5a27');
-    grad.addColorStop(1, '#1e3d1a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. Disegno Linee Campo
-    ctx.strokeStyle = "rgba(255,255,255,0.3)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(50, 50, 980, 1250); // Perimetro
-    ctx.beginPath(); // Linea Mediana
-    ctx.moveTo(50, 675); ctx.lineTo(1030, 675); ctx.stroke();
-    ctx.beginPath(); // Cerchio centrale
-    ctx.arc(540, 675, 150, 0, Math.PI * 2); ctx.stroke();
-
-    // 3. Testi Intestazione
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.font = "bold 50px sans-serif";
-    ctx.fillText("LISTA CONVOCATI", 540, 120);
-    ctx.font = "italic 40px sans-serif";
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillText(session.teams.name.toUpperCase(), 540, 180);
-
-    // 4. Raggruppamento per Ruoli
-    const roles = { 
-        'Portieri': [], 'Difensori': [], 'Centrocampisti': [], 
-        'Attaccanti': [], 'Staff': [] 
-    };
-
-    convocati.forEach(c => {
-        const r = c.athletes.role?.toLowerCase() || '';
-        if (r.includes('por')) roles['Portieri'].push(c.athletes);
-        else if (r.includes('dif')) roles['Difensori'].push(c.athletes);
-        else if (r.includes('cen')) roles['Centrocampisti'].push(c.athletes);
-        else if (r.includes('att')) roles['Attaccanti'].push(c.athletes);
-        else roles['Staff'].push(c.athletes);
-    });
-
-    // 5. Rendering Nomi sul Campo
-    ctx.textAlign = "left";
-    let y = 280;
-    const xLeft = 150;
-    const xRight = 600;
-
-    Object.entries(roles).forEach(([roleName, list], index) => {
-        if (list.length > 0) {
-            ctx.font = "bold 35px sans-serif";
-            ctx.fillStyle = "#38bdf8"; // Colore categoria
-            ctx.fillText(roleName.toUpperCase(), (index % 2 === 0 ? xLeft : xRight), y);
-            
-            ctx.font = "30px sans-serif";
-            ctx.fillStyle = "white";
-            list.forEach((ath, i) => {
-                ctx.fillText(`• ${ath.surname} ${ath.name}`, (index % 2 === 0 ? xLeft : xRight), y + 45 + (i * 40));
-            });
-            
-            if (index % 2 !== 0) y += 250; // Vai a riga successiva ogni 2 ruoli
-        }
-    });
-
-    // 6. Download
-    const link = document.createElement('a');
-    link.download = `Convocati_${session.teams.name}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-}
-/**
- * 8. ESPOSIZIONE GLOBALE
- */
-window.templateSessioni = templateSessioni;
-window.initSessioni = initSessioni;
-window.openAttendanceModal = openAttendanceModal;
-window.openSessionModal = openSessionModal;
-window.saveSession = saveSession;
-window.saveAttendances = saveAttendances;
-window.deleteSession = deleteSession;
-window.reloadSubFilters = reloadSubFilters;
-window.reloadTeamsOnly = reloadTeamsOnly;
-window.openSessionNotesModal = openSessionNotesModal;
-window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - BUILD 3.2 (STABLE & FULL)
+   MODULO: GESTIONE PARTITE - BUILD 4.1 (REPAIR & SOCIAL)
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI (Sincronizzata e protetta)
+ * 1. FILTRI E CARICAMENTO
  */
 window.reloadMatchTeamsOnly = function() {
     const catId = document.getElementById('f-match-cat')?.value;
@@ -2579,9 +2215,7 @@ window.reloadMatchTeamsOnly = function() {
     if (!selTeam) return;
     
     let filtered = window._matchTeams || [];
-    if (catId) {
-        filtered = filtered.filter(t => String(t.category_id) === String(catId));
-    }
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
 
     let teamOpts = '<option value="">Tutte Squadre</option>';
     teamOpts += filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -2591,25 +2225,18 @@ window.reloadMatchTeamsOnly = function() {
 };
 
 window.reloadMatchSubFilters = async function() {
-    const socSelect = document.getElementById('f-match-soc');
-    const socId = socSelect ? socSelect.value : window._currentSocietyId;
+    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    if (!socId || socId === "null") return;
 
-    // Protezione Errore 400
-    if (!socId || socId === "null" || socId === "undefined") return;
-
-    // Carica Categorie
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
-        let catOpts = '<option value="">Tutte Categorie</option>';
-        if (cats) catOpts += cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        selCat.innerHTML = catOpts;
+        selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
+            (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    // Carica Squadre in cache
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
-
     window.reloadMatchTeamsOnly();
 };
 
@@ -2618,7 +2245,7 @@ window.reloadMatchSubFilters = async function() {
  */
 window.templatePartite = function() {
     return `
-    <div class="card">
+    <div class="card" id="main-match-card">
         <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
             <button class="btn" onclick="window.openMatchModal()" style="background:#059669; color:white;">+ Nuova Partita</button>
@@ -2638,7 +2265,7 @@ window.templatePartite = function() {
             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569;">
-                        <th style="padding:12px;">Data / Gara</th>
+                        <th style="padding:12px;">Data / Match</th>
                         <th style="padding:12px;">Squadra</th>
                         <th style="padding:12px; text-align:center;">Risultato</th>
                         <th style="padding:12px;">Avversario</th>
@@ -2652,33 +2279,22 @@ window.templatePartite = function() {
 };
 
 /**
- * 3. INIZIALIZZAZIONE DATI
+ * 3. LOGICA TABELLA
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
     let targetSociety = window._currentSocietyId;
-    const myRole = (window._userRole || '').toLowerCase();
+    if (!targetSociety) return;
 
-    const selSoc = document.getElementById('f-match-soc');
-    if (selSoc && selSoc.options.length === 0) {
-        const { data: socs } = await client.from('societies').select('id, name').order('name');
-        if (socs) {
-            selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id === targetSociety ? 'selected' : ''}>${s.name}</option>`).join('');
-            if (['admin', 'manager'].includes(myRole)) document.getElementById('wrapper-match-soc').style.display = 'block';
-            await window.reloadMatchSubFilters();
-            return;
-        }
-    }
-    targetSociety = selSoc?.value || targetSociety;
-
-    const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita,name.eq.gara').maybeSingle();
+    // Carica tipo sessione "Gara"
+    const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita').maybeSingle();
     
     let query = client.from('sessions').select(`
         id, title, session_date, type_id, category_id, team_id,
         teams ( id, name ),
-        match_details ( opponent_name, goals_for, goals_against, is_friendly, scorers, is_home )
+        match_details ( opponent_name, goals_for, goals_against, is_home, scorers )
     `).eq('society_id', targetSociety);
 
     if (typeData) query = query.eq('type_id', typeData.id);
@@ -2691,156 +2307,107 @@ window.initPartite = async function() {
     const { data, error } = await query.order('session_date', { ascending: false });
 
     if (error) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">Errore 403: Verifica Policy RLS su match_details</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Errore: ${error.message}</td></tr>`;
         return;
     }
 
     tbody.innerHTML = (data || []).map(m => {
         const d = (m.match_details && m.match_details[0]) ? m.match_details[0] : {};
         const score = (d.goals_for !== undefined && d.goals_for !== null) ? `${d.goals_for} - ${d.goals_against}` : 'N.D.';
-        const amichevole = d.is_friendly ? '<br><span style="color:#f59e0b; font-size:10px; font-weight:bold;">AMICHEVOLE</span>' : '';
-        const tagHome = d.is_home ? '<span style="color:#059669; font-weight:bold;">[C]</span>' : '<span style="color:#2563eb; font-weight:bold;">[T]</span>';
-
+        const labelHome = d.is_home ? '<span style="color:#059669;">[C]</span>' : '<span style="color:#2563eb;">[T]</span>';
+        
         return `
         <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString()}</strong><br><small>${m.title || ''}</small></td>
-            <td style="padding:10px;"><strong>${m.teams?.name || '---'}</strong></td>
-            <td style="padding:10px; text-align:center;"><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px; font-weight:bold;">${score}</span></td>
-            <td style="padding:10px;">${tagHome} ${d.opponent_name || '---'}${amichevole}</td>
+            <td style="padding:10px;"><strong>${new Date(m.session_date).toLocaleDateString()}</strong></td>
+            <td style="padding:10px;">${m.teams?.name || '---'}</td>
+            <td style="padding:10px; text-align:center;"><strong>${score}</strong></td>
+            <td style="padding:10px;">${labelHome} ${d.opponent_name || '---'}</td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="window.openAttendanceModal('${m.id}')">👥</button>
-                <button class="btn-sm" onclick="window.openMatchEditModal('${m.id}')">⚽</button>
-                <button class="btn-sm" style="background:#64748b; color:white; border:none;" onclick="window.exportConvocatiSocial('${m.id}')">📸</button>
+                <button class="btn-sm" style="background:#8b5cf6; color:white;" title="Convocazioni" onclick="window.openAttendanceModal('${m.id}')">👥</button>
+                <button class="btn-sm" title="Risultato e Marcatori" onclick="window.openMatchEditModal('${m.id}')">⚽</button>
+                <button class="btn-sm" style="background:#64748b; color:white;" title="Esporta Immagine" onclick="window.exportConvocatiSocial('${m.id}')">📸</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna partita trovata.</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
 };
 
 /**
- * 4. MODALE EDIT DETTAGLIATO
+ * 4. MODALE DETTAGLI E MARCATORI
  */
 window.openMatchEditModal = async function(sessionId) {
     const m = getModal();
-    const { data: session } = await client.from('sessions').select('*, match_details(*)').eq('id', sessionId).single();
-    const match = (session.match_details && session.match_details.length > 0) ? session.match_details[0] : {};
+    
+    // Recupera Match + Atleti con flag Convocato
+    const [resMatch, resConv] = await Promise.all([
+        client.from('sessions').select('*, match_details(*)').eq('id', sessionId).single(),
+        client.from('attendances').select('*, athletes(id, last_name, first_name)').eq('session_id', sessionId).eq('is_called_up', true)
+    ]);
 
-    m.open("⚽ Dettagli Partita", `
+    const session = resMatch.data;
+    const match = (session.match_details && session.match_details.length > 0) ? session.match_details[0] : {};
+    const convocati = resConv.data || [];
+
+    m.open("⚽ Risultato e Marcatori", `
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px;">
             <div style="grid-column:span 2;">
-                <label style="color:#64748b;">Avversario</label>
+                <label>Avversario</label>
                 <input type="text" id="m-opponent" value="${match.opponent_name || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div>
-                <label style="color:#64748b;">📍 Luogo</label>
-                <select id="m-home" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-                    <option value="true" ${match.is_home !== false ? 'selected' : ''}>🏠 In Casa</option>
-                    <option value="false" ${match.is_home === false ? 'selected' : ''}>🚌 In Trasferta</option>
-                </select>
-            </div>
-            <div>
-                <label style="color:#64748b;">🕒 Orario Inizio</label>
-                <input type="time" id="m-match-time" value="${match.match_time || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-            </div>
-            <div>
-                <label style="color:#64748b;">🤝 Ora Ritrovo</label>
-                <input type="time" id="m-meeting-time" value="${match.meeting_time || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-            </div>
-            <div>
-                <label style="color:#64748b;">📍 Indirizzo Ritrovo</label>
-                <input type="text" id="m-meeting-place" value="${match.meeting_place || ''}" placeholder="Indirizzo o Stadio" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-            </div>
-            <hr style="grid-column:span 2; border:0; border-top:1px solid #eee; margin:5px 0;">
-            <div>
-                <label style="color:#64748b;">Gol Fatti</label>
+                <label>Gol Fatti</label>
                 <input type="number" id="m-gf" value="${match.goals_for || 0}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
             <div>
-                <label style="color:#64748b;">Gol Subiti</label>
+                <label>Gol Subiti</label>
                 <input type="number" id="m-ga" value="${match.goals_against || 0}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
             </div>
-            <div style="grid-column:span 2;">
-                <label style="color:#64748b;">Arbitro</label>
-                <input type="text" id="m-referee" value="${match.referee || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" id="m-friendly" ${match.is_friendly ? 'checked' : ''}>
-                <label for="m-friendly" style="font-weight:bold;">Amichevole</label>
+            
+            <div style="grid-column:span 2; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                <label><strong>Marcatori (Seleziona tra i Convocati)</strong></label>
+                <div id="list-scorers-conv" style="max-height:120px; overflow-y:auto; background:#f8fafc; border:1px solid #e2e8f0; padding:8px; border-radius:6px; margin-top:5px;">
+                    ${convocati.map(c => `
+                        <div style="padding:4px 0; border-bottom:1px solid #f1f5f9;">
+                            <input type="checkbox" class="match-scorer-check" value="${c.athletes.last_name}" 
+                            ${(match.scorers || '').includes(c.athletes.last_name) ? 'checked' : ''}> 
+                            ${c.athletes.last_name} ${c.athletes.first_name}
+                        </div>
+                    `).join('') || '<p style="color:red; font-size:11px;">Nessun atleta convocato trovato. Usa l\'icona 👥 per convocare gli atleti.</p>'}
+                </div>
             </div>
         </div>
-        <div style="margin-top:15px;">
-            <label style="display:block; font-size:12px; color:#64748b; margin-bottom:5px;">Marcatori</label>
-            <textarea id="m-scorers" placeholder="Rossi (2), Bianchi" style="width:100%; height:50px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">${match.scorers || ''}</textarea>
-        </div>
-        <button onclick="window.saveMatchDetailedData('${sessionId}')" style="width:100%; margin-top:15px; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold;">SALVA</button>
+        <button onclick="window.saveMatchDetailedData('${sessionId}')" style="width:100%; margin-top:15px; background:#059669; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold;">SALVA RISULTATO</button>
     `);
 };
 
-/**
- * 5. SALVATAGGIO DATI
- */
 window.saveMatchDetailedData = async function(sessionId) {
-    const gf = parseInt(document.getElementById('m-gf').value) || 0;
-    const ga = parseInt(document.getElementById('m-ga').value) || 0;
-    const isFriendly = document.getElementById('m-friendly').checked;
-    const isHome = document.getElementById('m-home').value === "true";
+    const selectedScorers = Array.from(document.querySelectorAll('.match-scorer-check:checked')).map(el => el.value).join(', ');
     
-    let pts = 0;
-    if (!isFriendly) {
-        if (gf > ga) pts = 3;
-        else if (gf === ga) pts = 1;
-    }
-
     const { error } = await client.from('match_details').upsert({
         session_id: sessionId,
         opponent_name: document.getElementById('m-opponent').value,
-        goals_for: gf,
-        goals_against: ga,
-        referee: document.getElementById('m-referee').value,
-        is_friendly: isFriendly,
-        is_home: isHome,
-        match_time: document.getElementById('m-match-time').value || null,
-        meeting_time: document.getElementById('m-meeting-time').value || null,
-        meeting_place: document.getElementById('m-meeting-place').value,
-        scorers: document.getElementById('m-scorers').value,
-        points: pts,
+        goals_for: parseInt(document.getElementById('m-gf').value) || 0,
+        goals_against: parseInt(document.getElementById('m-ga').value) || 0,
+        scorers: selectedScorers,
         status: 'giocata'
     }, { onConflict: 'session_id' });
     
     if (!error) {
-        if (typeof window.syncMatchJustified === 'function') await window.syncMatchJustified(sessionId);
         getModal().close();
         window.initPartite();
     } else {
-        alert("Errore: " + error.message);
+        alert("Errore salvataggio: " + error.message);
     }
 };
 
 /**
- * 6. EXTRA & SOCIAL
+ * 5. CREAZIONE E SOCIAL
  */
-window.exportConvocatiSocial = function(sessionId) {
-    console.log("Export social per sessione:", sessionId);
-    alert("Funzionalità Social: Immagine in fase di generazione...");
-};
-
-window.syncMatchJustified = async function(sessionId) {
-    const { data: sess } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
-    if (!sess) return;
-    const { data: allAth } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', sess.team_id).eq('season_id', sess.season_id);
-    const { data: currAtt } = await client.from('attendances').select('athlete_id').eq('session_id', sessionId).eq('is_called_up', true);
-    const calledIds = (currAtt || []).map(a => a.athlete_id);
-    const notCalled = (allAth || []).filter(a => !calledIds.includes(a.athlete_id));
-
-    if (notCalled.length > 0) {
-        const records = notCalled.map(a => ({
-            session_id: sessionId, athlete_id: a.athlete_id, status: 'giustificato', is_called_up: false
-        }));
-        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    }
-};
-
 window.openMatchModal = async function() {
-    const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita,name.eq.gara').maybeSingle();
+    const socId = window._currentSocietyId;
+    if (!socId) return alert("Errore: ID Società mancante.");
+
+    const { data: typeData } = await client.from('session_types').select('id').or('name.eq.Gara,name.eq.Partita').maybeSingle();
+    
     if (typeof window.openSessionModal === 'function') {
         await window.openSessionModal(); 
         const selType = document.getElementById('sess-type');
@@ -2850,6 +2417,31 @@ window.openMatchModal = async function() {
         }
     }
 };
+
+window.exportConvocatiSocial = async function(sessionId) {
+    const target = document.getElementById('main-match-card');
+    if (!target) return;
+
+    if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
+        document.head.appendChild(script);
+        script.onload = () => window.doCapture(target);
+    } else {
+        window.doCapture(target);
+    }
+};
+
+window.doCapture = function(el) {
+    html2canvas(el, { backgroundColor: "#ffffff", scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `MatchExport_${new Date().getTime()}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
+};
+
+
 /* 2. Export Globali (Quelli che hai inviato tu) */
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
