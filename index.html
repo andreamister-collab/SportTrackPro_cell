@@ -2567,34 +2567,37 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - FIX FILTRI & MODALE
+   MODULO: GESTIONE PARTITE - CORE
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI PROGRESSIVI CON SICUREZZA
+ * 1. LOGICA FILTRI PROGRESSIVI (Con controllo Login)
  */
 window.reloadMatchSubFilters = async function() {
-    // Cerchiamo l'ID società: prima dal filtro, poi dalla variabile globale
+    // Recupera l'ID società: se non c'è, non fare nulla (utente non loggato)
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     
     if (!socId || socId === "null" || socId === "undefined") {
-        console.warn("Gestione Partite: society_id non trovato.");
-        return;
+        return; // Esci silenziosamente se non siamo loggati
     }
 
-    // Aggiorniamo la variabile globale per sicurezza se non allineata
-    window._currentSocietyId = socId;
+    // Carica Categorie
+    const { data: cats } = await client.from('categories')
+        .select('id, name')
+        .eq('society_id', socId)
+        .order('name');
 
-    // 1. Carica Categorie
-    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
         selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
             (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    // 2. Carica Squadre
-    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    // Carica Squadre
+    const { data: teams } = await client.from('teams')
+        .select('id, name, category_id')
+        .eq('society_id', socId)
+        .order('name');
     window._matchTeams = teams || [];
     
     window.reloadMatchTeamsOnly();
@@ -2615,6 +2618,9 @@ window.reloadMatchTeamsOnly = function() {
     window.initPartite();
 };
 
+// Alias per compatibilità con sessioni
+window.reloadSubFilters = window.reloadMatchSubFilters;
+
 /**
  * 2. TEMPLATE HTML
  */
@@ -2628,7 +2634,7 @@ window.templatePartite = function() {
         
         <div id="match-filters-container" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
-                <div id="wrapper-match-soc">
+                <div id="wrapper-match-soc" style="display:none;">
                     <select id="f-match-soc" onchange="window.reloadMatchSubFilters()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd;"></select>
                 </div>
                 <select id="f-match-cat" onchange="window.reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;"><option value="">Tutte Categorie</option></select>
@@ -2652,7 +2658,7 @@ window.templatePartite = function() {
 };
 
 /**
- * 3. INIZIALIZZAZIONE DATI
+ * 3. INIZIALIZZAZIONE DATI (Solo post-login)
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
@@ -2660,24 +2666,32 @@ window.initPartite = async function() {
 
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId || socId === "null") {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Seleziona una società.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Effettua il login per visualizzare le partite.</td></tr>';
         return;
     }
 
-    // Popola selettore società se vuoto
+    // Gestione selettore società per Admin
     const selSoc = document.getElementById('f-match-soc');
     if (selSoc && selSoc.options.length === 0) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
         if (socs) {
             selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id == socId ? 'selected' : ''}>${s.name}</option>`).join('');
+            if (['admin', 'manager'].includes((window._userRole || '').toLowerCase())) {
+                document.getElementById('wrapper-match-soc').style.display = 'block';
+            }
         }
     }
 
-    // Recupero ID tipo Partita/Gara
+    // Trova i tipi sessione validi (Gara/Partita)
     const { data: types } = await client.from('session_types').select('id, name');
-    const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+    const validIds = (types || [])
+        .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+        .map(t => t.id);
 
-    let query = client.from('sessions').select('id, title, session_date, teams(name)').eq('society_id', socId).in('type_id', validIds);
+    let query = client.from('sessions')
+        .select('id, title, session_date, teams(name)')
+        .eq('society_id', socId)
+        .in('type_id', validIds);
     
     const fCat = document.getElementById('f-match-cat')?.value;
     const fTeam = document.getElementById('f-match-team')?.value;
@@ -2689,33 +2703,30 @@ window.initPartite = async function() {
     tbody.innerHTML = (data || []).map(m => `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;">${new Date(m.session_date).toLocaleDateString()}</td>
-            <td style="padding:10px;"><strong>${m.title || 'Gara'}</strong><br><small>${m.teams?.name || '---'}</small></td>
+            <td style="padding:10px;">
+                <strong>${m.title || 'Partita'}</strong><br>
+                <small style="color:#64748b;">${m.teams?.name || '---'}</small>
+            </td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white;">Convocazioni</button>
-                <button class="btn-sm" style="background:#3b82f6; color:white;">Modifica</button>
-                <button class="btn-sm" style="background:#ef4444; color:white;">Cancella</button>
+                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none; margin-right:2px;">Convocazioni</button>
+                <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:2px;">Modifica</button>
+                <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px;">Nessun dato.</td></tr>';
+    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px; color:#64748b;">Nessuna partita trovata.</td></tr>';
 };
 
 /**
- * 4. FIX MODALE CREAZIONE (Passaggio society_id)
+ * 4. NUOVA PARTITA
  */
 window.openMatchModal = async function() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    
-    if (!socId || socId === "null") {
-        alert("Errore: società non definita. Seleziona una società dai filtri.");
-        return;
-    }
+    if (!socId || socId === "null") return alert("Effettua il login.");
 
-    // Sincronizziamo la variabile globale che la modale sessioni usa per le squadre
     window._currentSocietyId = socId;
 
     if (typeof window.openSessionModal === 'function') {
         await window.openSessionModal(); 
-        
         setTimeout(() => {
             const selType = document.getElementById('sess-type');
             if (selType) {
@@ -2731,8 +2742,12 @@ window.openMatchModal = async function() {
     }
 };
 
-// Avvio
-setTimeout(() => { window.reloadMatchSubFilters(); }, 500);
+// Inizializzazione controllata
+setTimeout(() => { 
+    if (window._currentSocietyId && document.getElementById('main-match-card')) {
+        window.reloadMatchSubFilters(); 
+    }
+}, 500);
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
