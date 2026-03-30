@@ -2066,14 +2066,6 @@ function templateSessioni() {
             <h2 style="margin:0;">SESSIONI E PARTITE</h2>
             <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white;">+ Nuova Sessione</button>
         </div>
-        <div id="sess-filters-container" style="display:none; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
-                <div id="wrapper-soc-filter" style="display:none;"><select id="filter-society-sess" onchange="reloadSubFilters()"></select></div>
-                <select id="filter-category-sess" onchange="reloadTeamsOnly()"><option value="">Tutte Categorie</option></select>
-                <select id="filter-team-sess" onchange="initSessioni()"><option value="">Tutte Squadre</option></select>
-                <select id="filter-type-sess" onchange="initSessioni()"><option value="">Tutti i Tipi</option></select>
-            </div>
-        </div>
         <div class="table-container">
             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                 <thead>
@@ -2084,7 +2076,7 @@ function templateSessioni() {
                         <th style="padding:12px; text-align:center; color:#10b981;">P</th>
                         <th style="padding:12px; text-align:center; color:#ef4444;">A</th>
                         <th style="padding:12px; text-align:center; color:#f59e0b;">G</th>
-                        <th style="padding:12px; text-align:center;">% Pres.</th>
+                        <th style="padding:12px; text-align:center; color:#64748b;">I</th> <th style="padding:12px; text-align:center;">% Pres.</th>
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
@@ -2407,24 +2399,39 @@ window.setRating = function(el, value) {
 };
 
 /**
- * 7. ESPOSIZIONE GLOBALE (Build 2.0.2 - Fix Totale)
- * Assicurati che queste righe siano le ULTIME del file.
+ * 8. ESPOSIZIONE GLOBALE (BUILD 2.0.3)
+ * Questo blocco collega le funzioni interne al tasto del browser.
  */
+
+// Funzioni Sessioni
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
-window.openAttendanceModal = openAttendanceModal;
-window.saveAttendances = saveAttendances; // <--- Questa riga risolve il tuo errore
 window.openSessionModal = openSessionModal;
 window.saveSession = saveSession;
 window.deleteSession = deleteSession;
-window.reloadSubFilters = reloadSubFilters;
-window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+
+// Funzioni Filtri
+window.reloadSubFilters = reloadSubFilters;
+window.reloadTeamsOnly = reloadTeamsOnly;
+
+// Funzioni Presenze e Convocazioni
+if (typeof saveAttendances !== 'undefined') {
+    window.saveAttendances = saveAttendances;
+} else {
+    console.error("ERRORE: La funzione saveAttendances non è definita nel codice sopra!");
+}
+
+if (typeof openAttendanceModal !== 'undefined') {
+    window.openAttendanceModal = openAttendanceModal;
+}
+
+// Funzioni Gara
 window.openMatchDetailsModal = openMatchDetailsModal;
 window.saveMatch = saveMatch;
 
-// Funzione di utilità per le stelline (Rating)
+// Utility Rating
 window.setRating = function(el, value) {
     const container = el.parentElement;
     const stars = container.querySelectorAll('span');
