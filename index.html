@@ -2407,12 +2407,13 @@ window.setRating = function(el, value) {
 };
 
 /**
- * 7. ESPOSIZIONE GLOBALE
+ * 7. ESPOSIZIONE GLOBALE (Build 2.0.2 - Fix Totale)
+ * Assicurati che queste righe siano le ULTIME del file.
  */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
 window.openAttendanceModal = openAttendanceModal;
-window.saveAttendances = saveAttendances;
+window.saveAttendances = saveAttendances; // <--- Questa riga risolve il tuo errore
 window.openSessionModal = openSessionModal;
 window.saveSession = saveSession;
 window.deleteSession = deleteSession;
@@ -2422,6 +2423,16 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 window.openMatchDetailsModal = openMatchDetailsModal;
 window.saveMatch = saveMatch;
+
+// Funzione di utilità per le stelline (Rating)
+window.setRating = function(el, value) {
+    const container = el.parentElement;
+    const stars = container.querySelectorAll('span');
+    stars.forEach((s, idx) => {
+        s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1';
+    });
+    container.setAttribute('data-value', value);
+};
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
