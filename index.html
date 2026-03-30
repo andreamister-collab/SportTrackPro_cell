@@ -2053,11 +2053,11 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PARTITE - BUILD 2.0.3 (FULL FIX)
+   MODULO: SESSIONI E PARTITE - BUILD 2.0.4 (COMPLETE)
    ============================================================ */
 
 /**
- * 1. TEMPLATE TABELLA (Incluso header colonna 'I')
+ * 1. TEMPLATE TABELLA
  */
 function templateSessioni() {
     return `
@@ -2369,7 +2369,7 @@ async function syncAttendancesForMatch(sessionId) {
 }
 
 /**
- * 6. UTILITY E FILTRI PROGRESSIVI
+ * 6. UTILITY E FILTRI
  */
 async function reloadSubFilters() {
     const socId = document.getElementById('filter-society-sess').value;
@@ -2419,7 +2419,7 @@ async function saveSessionNotes(id) {
 }
 
 /**
- * 7. EXPORT GLOBALE
+ * 7. ESPOSIZIONE GLOBALE (BUILD 2.0.4)
  */
 window.templateSessioni = templateSessioni;
 window.initSessioni = initSessioni;
