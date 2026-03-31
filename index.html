@@ -2579,11 +2579,49 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - VERSION 2.0.4 (FIX ERROR 400)
+   MODULO: GESTIONE PARTITE - VERSION 2.0.5 (COMPLETE RECOVERY)
    ============================================================ */
 
 /**
- * 1. RENDER TABELLA (Colonne Distinte)
+ * 1. LOGICA FILTRI E CARICAMENTO SOCIETÀ
+ */
+window.reloadMatchSubFilters = async function() {
+    const selSoc = document.getElementById('f-match-soc');
+    let socId = selSoc?.value || window._currentSocietyId;
+    
+    if (!socId || socId === "" || socId === "null") return;
+    window._currentSocietyId = socId;
+
+    // Caricamento Categorie
+    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    const selCat = document.getElementById('f-match-cat');
+    if (selCat) {
+        selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
+            (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
+    }
+
+    // Caricamento Squadre (cache locale per filtraggio rapido)
+    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    window._matchTeams = teams || [];
+    window.reloadMatchTeamsOnly();
+};
+
+window.reloadMatchTeamsOnly = function() {
+    const catId = document.getElementById('f-match-cat')?.value;
+    const selTeam = document.getElementById('f-match-team');
+    if (!selTeam) return;
+    
+    let filtered = window._matchTeams || [];
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+
+    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
+        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    window.initPartite();
+};
+
+/**
+ * 2. TEMPLATE HTML (5 Colonne Distinte)
  */
 window.templatePartite = function() {
     return `
@@ -2594,19 +2632,25 @@ window.templatePartite = function() {
         </div>
         
         <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-            <select id="f-match-soc" onchange="window.reloadMatchSubFilters()"><option value="">Caricamento...</option></select>
-            <select id="f-match-cat" onchange="window.reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
-            <select id="f-match-team" onchange="window.initPartite()"><option value="">Tutte Squadre</option></select>
+            <select id="f-match-soc" onchange="window.reloadMatchSubFilters()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                <option value="">Caricamento società...</option>
+            </select>
+            <select id="f-match-cat" onchange="window.reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                <option value="">Tutte Categorie</option>
+            </select>
+            <select id="f-match-team" onchange="window.initPartite()" style="padding:8px; border-radius:6px; border:1px solid #ddd;">
+                <option value="">Tutte Squadre</option>
+            </select>
         </div>
 
         <div class="table-container">
             <table style="width:100%; border-collapse:collapse; font-size:12px;">
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:12px;">DATA</th>
+                        <th style="padding:12px; width:100px;">DATA</th>
                         <th style="padding:12px;">PARTITA</th>
                         <th style="padding:12px;">SQUADRA</th>
-                        <th style="padding:12px;">STATISTICHE CONVOCATI</th>
+                        <th style="padding:12px;">STATISTICHE</th>
                         <th style="padding:12px; text-align:right;">AZIONI</th>
                     </tr>
                 </thead>
@@ -2617,16 +2661,28 @@ window.templatePartite = function() {
 };
 
 /**
- * 2. CARICAMENTO DATI (Correzione Errore 400 nelle statistiche)
+ * 3. LOGICA DI CARICAMENTO DATI (Fix Error 400 e Società)
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    // Inizializzazione automatica delle società se vuoto
+    const selSoc = document.getElementById('f-match-soc');
+    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
+        const { data: socs } = await client.from('societies').select('id, name').order('name');
+        if (socs && socs.length > 0) {
+            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            window._currentSocietyId = socs[0].id;
+            selSoc.value = window._currentSocietyId;
+            return window.reloadMatchSubFilters();
+        }
+    }
+
+    const socId = selSoc?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // Filtriamo solo sessioni di tipo Partita/Gara
+    // Tipi di sessione validi (Gara/Partita)
     const { data: types } = await client.from('session_types').select('id, name');
     const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
 
@@ -2640,23 +2696,19 @@ window.initPartite = async function() {
     const { data: matches } = await query.order('session_date', { ascending: false });
 
     const rows = await Promise.all((matches || []).map(async m => {
-        // FETCH SEMPLIFICATO per evitare Errore 400 (prendiamo solo i dati grezzi, poi associamo i ruoli)
-        const { data: attendances } = await client.from('attendances').select('is_called_up, athlete_id').eq('session_id', m.id);
+        // Fetch presenze semplice per evitare 400
+        const { data: att } = await client.from('attendances').select('is_called_up, athlete_id').eq('session_id', m.id);
         
-        // Se ci sono presenze, recuperiamo i ruoli degli atleti separatamente per sicurezza
-        let stats = { tot: attendances?.length || 0, conv: 0, dif: 0, cen: 0, att: 0 };
+        let s = { tot: att?.length || 0, conv: 0, dif: 0, cen: 0, att: 0 };
         
-        if (stats.tot > 0) {
-            const athleteIds = attendances.map(a => a.athlete_id);
-            const { data: roles } = await client.from('athletes').select('id, role').in('id', athleteIds);
-            
-            attendances.forEach(a => {
-                if (a.is_called_up) stats.conv++;
-                const ath = roles?.find(r => r.id === a.athlete_id);
-                const r = (ath?.role || '').toLowerCase();
-                if (r.includes('dif')) stats.dif++;
-                else if (r.includes('cen')) stats.cen++;
-                else if (r.includes('att')) stats.att++;
+        if (s.tot > 0) {
+            const { data: roles } = await client.from('athletes').select('id, role').in('id', att.map(a => a.athlete_id));
+            att.forEach(a => {
+                if (a.is_called_up) s.conv++;
+                const r = (roles?.find(role => role.id === a.athlete_id)?.role || '').toLowerCase();
+                if (r.includes('dif')) s.dif++;
+                else if (r.includes('cen')) s.cen++;
+                else if (r.includes('att')) s.att++;
             });
         }
 
@@ -2667,13 +2719,11 @@ window.initPartite = async function() {
             <td style="padding:12px; color:#64748b;">${m.teams?.name || '---'}</td>
             <td style="padding:12px;">
                 <div style="display:flex; gap:5px; font-size:10px;">
-                    <span style="background:#f1f5f9; padding:2px 5px; border-radius:3px; border:1px solid #cbd5e1;">T:${stats.tot} | <b style="color:green">C:${stats.conv}</b></span>
-                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">D:${stats.dif}</span>
-                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">C:${stats.cen}</span>
-                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">A:${stats.att}</span>
+                    <span style="background:#f1f5f9; padding:2px 5px; border-radius:3px; border:1px solid #cbd5e1;">T:${s.tot} | <b style="color:green">C:${s.conv}</b></span>
+                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">D:${s.dif} C:${s.cen} A:${s.att}</span>
                 </div>
             </td>
-            <td style="padding:12px; text-align:right;">
+            <td style="padding:12px; text-align:right; white-space:nowrap;">
                 <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}')" style="background:#8b5cf6; color:white;">Convocazioni</button>
                 <button class="btn-sm" onclick="window.editSession('${m.id}')" style="background:#3b82f6; color:white;">Modifica</button>
                 <button class="btn-sm" onclick="window.deleteSession('${m.id}')" style="background:#ef4444; color:white;">Elimina</button>
@@ -2684,49 +2734,49 @@ window.initPartite = async function() {
 };
 
 /**
- * 3. LOGICA CONVOCAZIONI (Correzione caricamento giocatori)
+ * 4. LOGICA CONVOCAZIONI (Fix "Nessun giocatore trovato")
  */
 window.apriFaseConvocazioni = async function(matchId, teamId) {
-    if (!teamId || teamId === 'null') return alert("Squadra non valida per questa partita.");
+    if (!teamId || teamId === 'null' || teamId === 'undefined') return alert("Errore: Squadra non associata a questa partita.");
 
-    // 1. Recupero la lista atleti legati alla squadra (senza join complessi per evitare il 400)
-    const { data: pivot, error: err1 } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number').eq('team_id', teamId);
+    // Recupero dati disaccoppiato per bypassare errori di relazione
+    const { data: pivot } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number').eq('team_id', teamId);
     
-    if (!pivot || pivot.length === 0) return alert("Nessun giocatore trovato nella rosa di questa squadra.");
+    if (!pivot || pivot.length === 0) return alert("Nessun giocatore trovato in rosa per questa squadra.");
 
-    // 2. Recupero i dettagli anagrafici
-    const aIds = pivot.map(p => p.athlete_id);
-    const { data: athletes, error: err2 } = await client.from('athletes').select('id, name, surname, role').in('id', aIds);
-
-    // 3. Recupero convocazioni già salvate
-    const { data: existing } = await client.from('attendances').select('*').eq('session_id', matchId);
+    const { data: athletes } = await client.from('athletes').select('id, name, surname, role').in('id', pivot.map(p => p.athlete_id));
+    const { data: saved } = await client.from('attendances').select('*').eq('session_id', matchId);
 
     let html = `<div style="padding:20px;">
-        <h3 style="margin-top:0;">📋 Convocazioni</h3>
-        <div style="max-height:450px; overflow-y:auto; border:1px solid #e2e8f0;">
+        <h3 style="margin-top:0;">📋 Gestione Convocazioni</h3>
+        <div style="max-height:400px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
             <table style="width:100%; border-collapse:collapse; font-size:14px;">
-                <thead style="background:#f8fafc; position:sticky; top:0;">
-                    <tr><th style="padding:10px; text-align:left;">Conv.</th><th style="padding:10px; text-align:left;">Giocatore</th><th style="padding:10px;">N°</th></tr>
+                <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+                    <tr style="color:#64748b; text-transform:uppercase; font-size:11px; border-bottom:1px solid #e2e8f0;">
+                        <th style="padding:10px; text-align:left;">CONV.</th>
+                        <th style="padding:10px; text-align:left;">GIOCATORE</th>
+                        <th style="padding:10px; text-align:center;">N° MAGLIA</th>
+                    </tr>
                 </thead>
                 <tbody>`;
 
-    athletes.forEach(a => {
+    athletes.sort((a,b) => a.surname.localeCompare(b.surname)).forEach(a => {
         const pInfo = pivot.find(p => p.athlete_id === a.id);
-        const saved = existing?.find(e => e.athlete_id === a.id);
-        const isC = saved ? saved.is_called_up : false;
-        const num = saved?.match_jersey_number || pInfo?.jersey_number || '';
+        const sInfo = saved?.find(s => s.athlete_id === a.id);
+        const isC = sInfo ? sInfo.is_called_up : false;
+        const nMaglia = sInfo?.match_jersey_number || pInfo?.jersey_number || '';
 
         html += `<tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px;"><input type="checkbox" class="c-check" data-aid="${a.id}" ${isC ? 'checked' : ''}></td>
-            <td style="padding:10px;"><b>${a.surname.toUpperCase()}</b> ${a.name}<br><small>${a.role || ''}</small></td>
-            <td style="padding:10px;"><input type="number" class="c-num" data-aid="${a.id}" value="${num}" style="width:45px; text-align:center;"></td>
+            <td style="padding:10px;"><b>${a.surname.toUpperCase()}</b> ${a.name}<br><small style="color:#94a3b8">${a.role || ''}</small></td>
+            <td style="padding:10px; text-align:center;"><input type="number" class="c-num" data-aid="${a.id}" value="${nMaglia}" style="width:50px; text-align:center; padding:4px; border:1px solid #ddd; border-radius:4px;"></td>
         </tr>`;
     });
 
     html += `</tbody></table></div>
-        <div style="margin-top:15px; display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn" onclick="document.getElementById('generic-modal-overlay').remove()">Annulla</button>
-            <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white;">Salva</button>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn" onclick="document.getElementById('generic-modal-overlay').remove()" style="background:#e2e8f0; color:#475569;">Annulla</button>
+            <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white;">Salva Convocazioni</button>
         </div></div>`;
 
     window.openGenericModal(html);
@@ -2737,30 +2787,30 @@ window.salvaConvocazioni = async function(matchId) {
     const updates = Array.from(checks).map(ck => {
         const aid = ck.dataset.aid;
         const isC = ck.checked;
-        const valNum = document.querySelector(`.c-num[data-aid="${aid}"]`).value;
+        const n = document.querySelector(`.c-num[data-aid="${aid}"]`).value;
         return {
             session_id: matchId,
             athlete_id: aid,
             is_called_up: isC,
-            match_jersey_number: valNum ? parseInt(valNum) : null,
+            match_jersey_number: n ? parseInt(n) : null,
             status: isC ? 'presente' : 'assente'
         };
     });
 
     const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
-    
-    if (error) {
-        console.error("Upsert Error:", error);
-        alert("Errore tecnico nel salvataggio: " + error.message);
-    } else {
-        alert("✅ Convocazioni salvate con successo!");
+    if (error) alert("Errore nel salvataggio: " + error.message);
+    else {
+        alert("✅ Convocazioni salvate!");
         document.getElementById('generic-modal-overlay').remove();
         window.initPartite();
     }
 };
 
+/**
+ * 5. AZIONI EXTRA
+ */
 window.deleteSession = async function(id) { 
-    if(confirm("Eliminare definitivamente questa partita?")) { 
+    if(confirm("Sei sicuro di voler eliminare questa partita?")) { 
         await client.from('sessions').delete().eq('id', id); 
         window.initPartite(); 
     } 
@@ -2768,6 +2818,7 @@ window.deleteSession = async function(id) {
 
 window.editSession = function(id) { if(window.openSessionModal) window.openSessionModal(id); };
 
+// Avvio
 setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
