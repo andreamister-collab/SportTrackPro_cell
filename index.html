@@ -2774,13 +2774,13 @@ setTimeout(() => { if (document.getElementById('main-match-card')) window.initPa
    INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
    ============================================================ */
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
-    // 1. Controllo di sicurezza sui parametri
+    // 1. Controllo di sicurezza sui parametri per evitare errori 400
     if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') {
         console.error("Dati mancanti per la convocazione:", { matchId, teamId, seasonId });
-        return alert("Errore: Dati squadra o stagione non trovati per questa sessione. Verifica che la partita sia configurata correttamente.");
+        return alert("Errore: Dati squadra o stagione non trovati. Assicurati di aver aggiornato la query select con team_id e season_id.");
     }
 
-    // 2. Recupera la Rosa da athlete_team_seasons
+    // 2. Recupera la Rosa da athlete_team_seasons (Sorgente Verità)
     const { data: rosa, error: errRosa } = await client
         .from('athlete_team_seasons')
         .select(`
@@ -2793,32 +2793,36 @@ window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
 
     if (errRosa) {
         console.error("Errore recupero rosa:", errRosa);
-        return alert("Errore nel recupero della rosa degli atleti.");
+        return alert("Errore nel recupero della rosa dal database.");
     }
 
     if (!rosa || rosa.length === 0) {
-        return alert("Nessun atleta trovato per questa squadra nella stagione selezionata. Controlla le assegnazioni Staff/Atleti.");
+        return alert("Nessun atleta assegnato a questa squadra per la stagione corrente.");
     }
 
-    // 3. Recupera convocazioni esistenti (per non perdere i dati se riapri il modal)
+    // 3. Recupera convocazioni esistenti per mostrare i dati già salvati
     const { data: salvati } = await client
         .from('attendances')
         .select('*')
         .eq('session_id', matchId);
 
-    // 3. Costruzione UI Modal (usiamo uno stile coerente col tuo)
+    // 4. Costruzione UI Modal
     let html = `
-        <div style="padding:20px;">
-            <h3 style="margin-bottom:15px; color:#1e293b;">📋 Convocazioni</h3>
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="background:#f1f5f9;">
-                        <th style="padding:10px; text-align:left;">Conv.</th>
-                        <th style="padding:10px; text-align:left;">Atleta</th>
-                        <th style="padding:10px; text-align:center;">N° Maglia</th>
-                    </tr>
-                </thead>
-                <tbody>`;
+        <div style="padding:20px; font-family: sans-serif;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">
+                <h3 style="margin:0; color:#1e293b;">📋 Convocazioni Partita</h3>
+            </div>
+            
+            <div style="max-height:60vh; overflow-y:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <thead>
+                        <tr style="background:#f8fafc; color:#64748b; text-transform:uppercase; font-size:12px;">
+                            <th style="padding:12px; text-align:left; border-bottom:1px solid #e2e8f0;">Conv.</th>
+                            <th style="padding:12px; text-align:left; border-bottom:1px solid #e2e8f0;">Atleta</th>
+                            <th style="padding:12px; text-align:center; border-bottom:1px solid #e2e8f0;">N° Maglia</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
 
     rosa.forEach(p => {
         const check = salvati?.find(s => s.athlete_id === p.athlete_id);
@@ -2826,25 +2830,37 @@ window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
         const num = check?.match_jersey_number || p.jersey_number || '';
 
         html += `
-            <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:10px;">
-                    <input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''}>
+            <tr style="border-bottom:1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <td style="padding:12px;">
+                    <input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''} style="transform: scale(1.2); cursor:pointer;">
                 </td>
-                <td style="padding:10px;">${p.athletes.surname} ${p.athletes.name}</td>
-                <td style="padding:10px; text-align:center;">
-                    <input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" style="width:50px; padding:4px;">
+                <td style="padding:12px; color:#334155; font-weight:500;">
+                    ${p.athletes.surname.toUpperCase()} ${p.athletes.name}
+                </td>
+                <td style="padding:12px; text-align:center;">
+                    <input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" 
+                           style="width:55px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; text-align:center;">
                 </td>
             </tr>`;
     });
 
     html += `</tbody></table>
-            <div style="margin-top:20px; text-align:right;">
-                <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#2563eb; color:white;">Salva Convocazioni</button>
+            </div>
+            
+            <div style="margin-top:25px; display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn" onclick="this.closest('#generic-modal-overlay').remove()" style="background:#e2e8f0; color:#475569; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">Annulla</button>
+                <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white; border:none; padding:10px 25px; border-radius:6px; cursor:pointer; font-weight:bold; box-shadow:0 4px 6px -1px rgba(139, 92, 246, 0.3);">
+                    Salva Convocazioni
+                </button>
             </div>
         </div>`;
 
-    // Apriamo il modal (uso una funzione generica, adattala al tuo sistema modal)
-    window.openGenericModal(html); 
+    // ESECUZIONE: Apre il modal con il contenuto generato
+    if (typeof window.openGenericModal === 'function') {
+        window.openGenericModal(html);
+    } else {
+        console.error("Funzione openGenericModal non trovata. Assicurati di aver aggiunto il Blocco Modal Manager.");
+    }
 };
 
 window.salvaConvocazioni = async function(matchId) {
@@ -2858,7 +2874,7 @@ window.salvaConvocazioni = async function(matchId) {
             session_id: matchId,
             athlete_id: aid,
             is_called_up: isConv,
-            match_jersey_number: jNum || null,
+            match_jersey_number: jNum ? parseInt(jNum) : null,
             status: isConv ? 'presente' : 'assente'
         };
     });
@@ -2866,10 +2882,13 @@ window.salvaConvocazioni = async function(matchId) {
     const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
 
     if (error) {
-        alert("Errore nel salvataggio");
+        console.error("Errore salvataggio:", error);
+        alert("Errore tecnico durante il salvataggio delle convocazioni.");
     } else {
-        alert("Convocazioni salvate con successo!");
-        // Qui potremo far partire la Fase 2 (Marcatori)
+        alert("✅ Convocazioni salvate con successo!");
+        // Chiude il modal dopo il successo
+        const modal = document.getElementById('generic-modal-overlay');
+        if (modal) modal.remove();
     }
 };
 /* ============================================================
