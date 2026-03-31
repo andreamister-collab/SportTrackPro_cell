@@ -333,10 +333,18 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    const { data, error } = await client.from('seasons').select('*').order('start_date', {ascending:false});
-    const tbody = document.getElementById('list-stagioni');
-    
-    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
+    // Questa deve scattare SOLO dopo che loadPage('stagioni') viene chiamata
+    const { data, error } = await client
+        .from('seasons')
+        .select('*')
+        .order('start_date', { ascending: false });
+        
+    if (error) {
+        console.error("Errore 403 o permessi:", error.message);
+        return;
+    }
+    // ... logica per popolare la tabella
+}
 
     // Generiamo l'HTML senza usare onclick
     tbody.innerHTML = data?.map(s => `
