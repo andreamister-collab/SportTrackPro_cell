@@ -2771,6 +2771,70 @@ window.openMatchModal = async function() {
 // Start ritardato
 setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
 /* ============================================================
+   BLOCCO: MODAL MANAGER GENERICO (NECESSARIO)
+   ============================================================ */
+window.openGenericModal = function(contentHtml) {
+    // 1. Rimuovi eventuali modal già aperti
+    const existing = document.getElementById('generic-modal-overlay');
+    if (existing) existing.remove();
+
+    // 2. Crea l'overlay (lo sfondo scuro)
+    const overlay = document.createElement('div');
+    overlay.id = 'generic-modal-overlay';
+    overlay.style = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.7); 
+        display: flex; align-items: center; justify-content: center; 
+        z-index: 99999; backdrop-filter: blur(4px);
+    `;
+
+    // 3. Crea il contenitore del Modal
+    const modal = document.createElement('div');
+    modal.style = `
+        background: white; border-radius: 16px;
+        width: 95%; max-width: 600px; max-height: 90vh;
+        overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        position: relative; animation: modalSlideUp 0.3s ease-out;
+        display: flex; flex-direction: column;
+    `;
+
+    // 4. Bottone di chiusura "X"
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style = `
+        position: absolute; top: 15px; right: 15px; border: none;
+        background: #f1f5f9; color: #64748b; width: 32px; height: 32px;
+        border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10;
+    `;
+    closeBtn.onclick = () => overlay.remove();
+
+    // 5. Inserimento contenuto
+    modal.innerHTML = contentHtml;
+    modal.appendChild(closeBtn);
+    overlay.appendChild(modal);
+
+    // Chiudi se si clicca fuori dal modal
+    overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+
+    document.body.appendChild(overlay);
+};
+
+// CSS per l'animazione
+if (!document.getElementById('modal-styles')) {
+    const style = document.createElement('style');
+    style.id = 'modal-styles';
+    style.innerHTML = `
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+/* ============================================================
+   FINE BLOCCO: MODAL MANAGER
+   ============================================================ */
+/* ============================================================
    INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
    ============================================================ */
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
