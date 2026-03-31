@@ -71,7 +71,7 @@
 
     <script type="module">
         const SUPABASE_URL  = 'https://saoghfehqrjgobcpiebz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb2doZmVocXJqZ29iY3BpZWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgwMTcsImV4cCI6MjA4OTE1NDAxN30.3i6bHXbdmKppLt8r2n4YCD5rgeFnm6veeFPmReDmOMY';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb2doZmVocXJqZ29iY3BpZWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgwMTcsImV4cCI6MjA4OTE1NDAxN30.3i6bHXbdmKppLt8r2n4YCD5rgeFnm6veeFPmReDmOMY';
 
         const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let CURRENT_USER = null;
@@ -85,16 +85,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     try {
         // --- STEP 1: CERCA MAIL DALLO USERNAME ---
+        // Se ricevi 403 qui, la policy SQL sopra non è stata eseguita correttamente
         const { data: userRow, error: userErr } = await client
             .from('users')
             .select('id, username, email, name, role, society_id')
             .eq('username', username)
             .maybeSingle();
 
-        if (userErr) throw new Error("Errore 403: Devi eseguire lo script SQL su Supabase!");
-        if (!userRow) throw new Error("Utente non trovato.");
+        if (userErr) throw new Error("Permessi Negati (403). Esegui lo script SQL su Supabase!");
+        if (!userRow) throw new Error("Utente non trovato nel sistema.");
 
-        // --- STEP 2: AUTENTICAZIONE IN AUTH.USERS ---
+        // --- STEP 2: AUTENTICAZIONE CON PASSWORD ---
         const { error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
@@ -102,9 +103,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (authError) throw new Error("Password errata.");
 
-        // --- STEP 3: SETUP VARIABILI E CARATTERI GRANDI ---
+        // --- STEP 3: SALVATAGGIO VARIABILI E CARATTERI GRANDI ---
         window._userRole = userRow.role;
-        window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin
+        window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin come richiesto
+        window._userName = userRow.name;
         window.CURRENT_USER = userRow;
 
         // INGRANDIMENTO GLOBALE UI (18px)
@@ -117,17 +119,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if(userInfo) {
             userInfo.innerText = `Loggato come: ${userRow.name} (${userRow.role})`;
             userInfo.style.fontWeight = "bold";
-            // L'admin lo evidenziamo in rosso per sicurezza
-            if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
+            // Colore rosso per evidenziare il ruolo Admin
+            if(userRow.role === 'admin') userInfo.style.color = "#e11d48";
         }
 
-        console.log("Login OK. Society ID Admin:", window._currentSocietyId);
+        console.log("Login OK. Society ID:", window._currentSocietyId);
         loadData();
 
     } catch (err) {
         errDiv.innerText = "⚠️ " + err.message;
         errDiv.style.display = 'block';
-        errDiv.style.fontSize = "16px";
+        errDiv.style.fontSize = "1.1rem"; // Messaggio errore leggibile
     }
 });
     </script>
