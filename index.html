@@ -333,17 +333,21 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    // Questa deve scattare SOLO dopo che loadPage('stagioni') viene chiamata
+    // DEBUG: Verifichiamo se siamo davvero loggati prima della chiamata
+    const { data: { session } } = await client.auth.getSession();
+    console.log("Token inviato?", session ? "SÌ" : "NO - ECCO PERCHÉ HAI 403");
+
     const { data, error } = await client
         .from('seasons')
         .select('*')
         .order('start_date', { ascending: false });
-        
+
     if (error) {
         console.error("Errore 403 o permessi:", error.message);
+        // Se l'errore è 'permission denied', il problema è SQL
         return;
     }
-    // ... logica per popolare la tabella
+    // ...resto del codice
 
     // Generiamo l'HTML senza usare onclick
     tbody.innerHTML = data?.map(s => `
