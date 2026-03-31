@@ -2730,7 +2730,13 @@ window.initPartite = async function() {
                 <small style="color:#64748b;">${m.teams?.name || '---'}</small>
             </td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none; margin-right:4px;">Convocazioni</button>
+                //<button class="btn-sm" style="background:#8b5cf6; color:white; border:none; margin-right:4px;">Convocazioni</button>
+				// Bottone per  INIZIO BLOCCO: LOGICA CONVOCAZIONI
+                <button class="btn-sm" 
+                    onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" 
+                    style="background:#8b5cf6; color:white; border:none; margin-right:4px; cursor:pointer;">
+                    Convocazioni
+                </button>
                 <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
                 <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
             </td>
@@ -2766,6 +2772,98 @@ window.openMatchModal = async function() {
 
 // Start ritardato
 setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
+/* ============================================================
+   INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
+   ============================================================ */
+window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
+    // 1. Recupera la Rosa da athlete_team_seasons
+    const { data: rosa, error: errRosa } = await client
+        .from('athlete_team_seasons')
+        .select(`
+            athlete_id,
+            jersey_number,
+            athletes (name, surname)
+        `)
+        .eq('team_id', teamId)
+        .eq('season_id', seasonId);
+
+    if (errRosa) return alert("Errore nel recupero della rosa");
+
+    // 2. Recupera convocazioni esistenti (se già fatte)
+    const { data: salvati } = await client
+        .from('attendances')
+        .select('*')
+        .eq('session_id', matchId);
+
+    // 3. Costruzione UI Modal (usiamo uno stile coerente col tuo)
+    let html = `
+        <div style="padding:20px;">
+            <h3 style="margin-bottom:15px; color:#1e293b;">📋 Convocazioni</h3>
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f1f5f9;">
+                        <th style="padding:10px; text-align:left;">Conv.</th>
+                        <th style="padding:10px; text-align:left;">Atleta</th>
+                        <th style="padding:10px; text-align:center;">N° Maglia</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+    rosa.forEach(p => {
+        const check = salvati?.find(s => s.athlete_id === p.athlete_id);
+        const isChecked = check ? check.is_called_up : false;
+        const num = check?.match_jersey_number || p.jersey_number || '';
+
+        html += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px;">
+                    <input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''}>
+                </td>
+                <td style="padding:10px;">${p.athletes.surname} ${p.athletes.name}</td>
+                <td style="padding:10px; text-align:center;">
+                    <input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" style="width:50px; padding:4px;">
+                </td>
+            </tr>`;
+    });
+
+    html += `</tbody></table>
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#2563eb; color:white;">Salva Convocazioni</button>
+            </div>
+        </div>`;
+
+    // Apriamo il modal (uso una funzione generica, adattala al tuo sistema modal)
+    window.openGenericModal(html); 
+};
+
+window.salvaConvocazioni = async function(matchId) {
+    const rows = document.querySelectorAll('.c-check');
+    const updates = Array.from(rows).map(row => {
+        const aid = row.dataset.aid;
+        const isConv = row.checked;
+        const jNum = document.querySelector(`.c-num[data-aid="${aid}"]`).value;
+
+        return {
+            session_id: matchId,
+            athlete_id: aid,
+            is_called_up: isConv,
+            match_jersey_number: jNum || null,
+            status: isConv ? 'presente' : 'assente'
+        };
+    });
+
+    const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
+
+    if (error) {
+        alert("Errore nel salvataggio");
+    } else {
+        alert("Convocazioni salvate con successo!");
+        // Qui potremo far partire la Fase 2 (Marcatori)
+    }
+};
+/* ============================================================
+   FINE BLOCCO: LOGICA CONVOCAZIONI
+   ============================================================ */
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
