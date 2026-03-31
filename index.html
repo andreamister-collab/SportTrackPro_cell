@@ -2774,7 +2774,13 @@ setTimeout(() => { if (document.getElementById('main-match-card')) window.initPa
    INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
    ============================================================ */
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
-    // 1. Recupera la Rosa da athlete_team_seasons
+    // 1. Controllo di sicurezza sui parametri
+    if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') {
+        console.error("Dati mancanti per la convocazione:", { matchId, teamId, seasonId });
+        return alert("Errore: Dati squadra o stagione non trovati per questa sessione. Verifica che la partita sia configurata correttamente.");
+    }
+
+    // 2. Recupera la Rosa da athlete_team_seasons
     const { data: rosa, error: errRosa } = await client
         .from('athlete_team_seasons')
         .select(`
@@ -2785,9 +2791,16 @@ window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
         .eq('team_id', teamId)
         .eq('season_id', seasonId);
 
-    if (errRosa) return alert("Errore nel recupero della rosa");
+    if (errRosa) {
+        console.error("Errore recupero rosa:", errRosa);
+        return alert("Errore nel recupero della rosa degli atleti.");
+    }
 
-    // 2. Recupera convocazioni esistenti (se già fatte)
+    if (!rosa || rosa.length === 0) {
+        return alert("Nessun atleta trovato per questa squadra nella stagione selezionata. Controlla le assegnazioni Staff/Atleti.");
+    }
+
+    // 3. Recupera convocazioni esistenti (per non perdere i dati se riapri il modal)
     const { data: salvati } = await client
         .from('attendances')
         .select('*')
