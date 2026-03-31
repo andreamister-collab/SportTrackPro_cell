@@ -18,7 +18,17 @@
         
         /* APP LAYOUT */
         #app { display:none; flex-direction:row; min-height:100vh; }
-        #sidebar { width:260px; background:var(--sidebar); color:#cbd5e1; padding:1rem; display:flex; flex-direction:column; position:fixed; height:100vh; }
+        #sidebar { 
+    width: 260px; 
+    background: var(--sidebar); 
+    color: #cbd5e1; 
+    padding: 1rem; 
+    display: flex; 
+    flex-direction: column; 
+    position: fixed; 
+    height: 100vh; 
+    overflow-y: auto; /* <--- AGGIUNGI QUESTA */
+}
         #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
         #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
         #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
@@ -97,6 +107,8 @@
         <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
 		<a data-section="partite">📅 GESTIONE PARTITE</a>
+		<a data-section="partite2">📅 GESTIONE PARTITE_2</a>
+		<a data-section="partite3">📅 GESTIONE PARTITE_3</a>
         <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
 
