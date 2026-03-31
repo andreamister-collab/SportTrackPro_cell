@@ -2579,7 +2579,7 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - VERSION 2.0.2 (STABILE)
+   MODULO: GESTIONE PARTITE - VERSION 2.0.3 (LAYOUT MULTI-COL)
    ============================================================ */
 
 /**
@@ -2588,12 +2588,10 @@ window.saveSessionNotes = saveSessionNotes;
 window.reloadMatchSubFilters = async function() {
     const selSoc = document.getElementById('f-match-soc');
     let socId = selSoc?.value || window._currentSocietyId;
-    
     if (!socId || socId === "null" || socId === "") return;
     window._currentSocietyId = socId;
 
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
         selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
@@ -2609,24 +2607,20 @@ window.reloadMatchTeamsOnly = function() {
     const catId = document.getElementById('f-match-cat')?.value;
     const selTeam = document.getElementById('f-match-team');
     if (!selTeam) return;
-    
     let filtered = window._matchTeams || [];
     if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
-
-    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
-        filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
+    selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     window.initPartite();
 };
 
 /**
- * 2. TEMPLATE HTML
+ * 2. TEMPLATE HTML (Colonne Separate)
  */
 window.templatePartite = function() {
     return `
     <div class="card" id="main-match-card">
         <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0; color:#1e293b; display:flex; align-items:center; gap:8px;">🏆 GESTIONE PARTITE</h2>
+            <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
             <button class="btn" onclick="window.openMatchModal()" style="background:#059669; color:white;">+ Nuova Partita</button>
         </div>
         
@@ -2645,12 +2639,14 @@ window.templatePartite = function() {
         </div>
 
         <div class="table-container">
-            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
                 <thead>
-                    <tr style="text-align:left; background:#f1f5f9; color:#475569;">
-                        <th style="padding:12px;">Data</th>
-                        <th style="padding:12px;">Partita / Squadra / Statistiche</th>
-                        <th style="padding:12px; text-align:right;">Azioni</th>
+                    <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:12px;">DATA</th>
+                        <th style="padding:12px;">PARTITA</th>
+                        <th style="padding:12px;">SQUADRA</th>
+                        <th style="padding:12px;">STATISTICHE CONVOCATI</th>
+                        <th style="padding:12px; text-align:right;">AZIONI</th>
                     </tr>
                 </thead>
                 <tbody id="list-partite-body"></tbody>
@@ -2660,7 +2656,7 @@ window.templatePartite = function() {
 };
 
 /**
- * 3. LOGICA DI CARICAMENTO DATI CON STATISTICHE (CORRETTA)
+ * 3. LOGICA DI CARICAMENTO DATI CON STATISTICHE
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
@@ -2693,7 +2689,7 @@ window.initPartite = async function() {
     if (fCat) query = query.eq('category_id', fCat);
     if (fTeam) query = query.eq('team_id', fTeam);
 
-    const { data, error } = await query.order('session_date', { ascending: false });
+    const { data } = await query.order('session_date', { ascending: false });
 
     const rows = await Promise.all((data || []).map(async m => {
         // Query corretta per evitare errore 400
@@ -2702,56 +2698,40 @@ window.initPartite = async function() {
             .select('is_called_up, athletes:athlete_id(role)')
             .eq('session_id', m.id);
 
-        const stats = {
-            tot: att?.length || 0,
+        const s = { 
+            tot: att?.length || 0, 
             conv: att?.filter(a => a.is_called_up).length || 0,
-            dif: { tot: 0, conv: 0 },
-            cen: { tot: 0, conv: 0 },
-            att: { tot: 0, conv: 0 }
+            dif: 0, c_dif: 0, cen: 0, c_cen: 0, att: 0, c_att: 0 
         };
 
         att?.forEach(a => {
             const r = (a.athletes?.role || '').toLowerCase();
-            let key = '';
-            if (r.includes('dif')) key = 'dif';
-            else if (r.includes('cen')) key = 'cen';
-            else if (r.includes('att')) key = 'att';
-            
-            if (key) {
-                stats[key].tot++;
-                if (a.is_called_up) stats[key].conv++;
-            }
+            if (r.includes('dif')) { s.dif++; if(a.is_called_up) s.c_dif++; }
+            else if (r.includes('cen')) { s.cen++; if(a.is_called_up) s.c_cen++; }
+            else if (r.includes('att')) { s.att++; if(a.is_called_up) s.c_att++; }
         });
 
         return `
-            <tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:10px; vertical-align:top;">${new Date(m.session_date).toLocaleDateString()}</td>
-                <td style="padding:10px;">
-                    <div style="margin-bottom:8px;">
-                        <strong>${m.title || 'Partita'}</strong> - <small style="color:#64748b;">${m.teams?.name || '---'}</small>
-                    </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:8px; font-size:11px;">
-                        <div style="background:#f1f5f9; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0; min-width:80px;">
-                            <strong>TOT:</strong> ${stats.tot} | <span style="color:green">C:${stats.conv}</span> | <span style="color:red">E:${stats.tot - stats.conv}</span>
-                        </div>
-                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>DIF:</strong> ${stats.dif.tot} | <span style="color:green">${stats.dif.conv}</span>
-                        </div>
-                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>CEN:</strong> ${stats.cen.tot} | <span style="color:green">${stats.cen.conv}</span>
-                        </div>
-                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>ATT:</strong> ${stats.att.tot} | <span style="color:green">${stats.att.conv}</span>
-                        </div>
-                    </div>
-                </td>
-                <td style="padding:10px; text-align:right; vertical-align:top;">
-                    <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" style="background:#8b5cf6; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Convocazioni</button>
-                </td>
-            </tr>`;
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+            <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
+            <td style="padding:12px; color:#64748b;">${m.teams?.name || '---'}</td>
+            <td style="padding:12px;">
+                <div style="display:flex; gap:5px; font-size:10px;">
+                    <span style="background:#f1f5f9; padding:2px 5px; border-radius:3px; border:1px solid #cbd5e1;">T:${s.tot} | <b style="color:green">C:${s.conv}</b></span>
+                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">D:${s.dif}|<b style="color:green">${s.c_dif}</b></span>
+                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">C:${s.cen}|<b style="color:green">${s.c_cen}</b></span>
+                    <span style="background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #e2e8f0;">A:${s.att}|<b style="color:green">${s.c_att}</b></span>
+                </div>
+            </td>
+            <td style="padding:12px; text-align:right;">
+                <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" style="background:#8b5cf6; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Convocazioni</button>
+                <button class="btn-sm" onclick="window.editSession('${m.id}')" style="background:#3b82f6; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Modifica</button>
+                <button class="btn-sm" onclick="window.deleteSession('${m.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Elimina</button>
+            </td>
+        </tr>`;
     }));
-
-    tbody.innerHTML = rows.join('') || '<tr><td colspan="3" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
 };
 
 /**
@@ -2777,41 +2757,46 @@ window.openGenericModal = function(contentHtml) {
 };
 
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
-    if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') return alert("Errore: Dati squadra o stagione mancanti.");
+    if (!teamId || teamId === 'undefined') return alert("Errore: Squadra non identificata.");
 
-    const { data: rosa } = await client.from('athlete_team_seasons').select(`athlete_id, jersey_number, athletes (name, surname, role)`).eq('team_id', teamId).eq('season_id', seasonId);
+    // Recupero Rosa filtrata per Squadra (più sicuro della stagione se i dati sono incoerenti)
+    const { data: rosa } = await client
+        .from('athlete_team_seasons')
+        .select(`athlete_id, jersey_number, athletes (name, surname, role)`)
+        .eq('team_id', teamId);
+    
+    if (!rosa || rosa.length === 0) return alert("Nessun giocatore trovato in rosa.");
+
     const { data: salvati } = await client.from('attendances').select('*').eq('session_id', matchId);
 
-    let html = `<div style="padding:20px; font-family: sans-serif;">
-        <h3 style="margin:0 0 20px 0; color:#1e293b;">📋 Convocazioni Partita</h3>
-        <div style="max-height:60vh; overflow-y:auto;">
+    let html = `<div style="padding:20px;">
+        <h3 style="margin:0 0 20px 0; color:#1e293b;">📋 Convocazioni</h3>
+        <div style="max-height:60vh; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
             <table style="width:100%; border-collapse:collapse; font-size:14px;">
-                <thead>
-                    <tr style="background:#f8fafc; color:#64748b; text-transform:uppercase; font-size:12px;">
+                <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+                    <tr style="color:#64748b; text-transform:uppercase; font-size:12px;">
                         <th style="padding:12px; text-align:left;">Conv.</th>
-                        <th style="padding:12px; text-align:left;">Atleta (Ruolo)</th>
-                        <th style="padding:12px; text-align:center;">N° Maglia</th>
+                        <th style="padding:12px; text-align:left;">Atleta</th>
+                        <th style="padding:12px; text-align:center;">N°</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
-    (rosa || []).forEach(p => {
+    rosa.forEach(p => {
         const check = salvati?.find(s => s.athlete_id === p.athlete_id);
         const isChecked = check ? check.is_called_up : false;
         const num = check?.match_jersey_number || p.jersey_number || '';
-        const roleStr = p.athletes.role ? `<br><small style="color:#94a3b8">${p.athletes.role}</small>` : '';
-
         html += `<tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:12px;"><input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''}></td>
-            <td style="padding:12px;"><strong>${p.athletes.surname.toUpperCase()}</strong> ${p.athletes.name} ${roleStr}</td>
-            <td style="padding:12px; text-align:center;"><input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" style="width:50px; text-align:center;"></td>
+            <td style="padding:12px;"><b>${p.athletes.surname.toUpperCase()}</b> ${p.athletes.name}<br><small style="color:#94a3b8">${p.athletes.role || ''}</small></td>
+            <td style="padding:12px; text-align:center;"><input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" style="width:45px; text-align:center;"></td>
         </tr>`;
     });
 
     html += `</tbody></table></div>
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-            <button onclick="this.closest('#generic-modal-overlay').remove()" style="padding:10px 20px; border-radius:6px; cursor:pointer; border:none; background:#e2e8f0;">Annulla</button>
-            <button onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white; padding:10px 20px; border-radius:6px; cursor:pointer; border:none; font-weight:bold;">Salva Convocazioni</button>
+            <button class="btn" onclick="this.closest('#generic-modal-overlay').remove()" style="background:#e2e8f0; color:#475569;">Annulla</button>
+            <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white;">Salva</button>
         </div></div>`;
 
     window.openGenericModal(html);
@@ -2858,6 +2843,17 @@ window.openMatchModal = async function() {
             }
         }, 400);
     }
+};
+
+window.deleteSession = async function(id) { 
+    if(confirm("Eliminare questa partita?")) { 
+        await client.from('sessions').delete().eq('id', id); 
+        window.initPartite(); 
+    } 
+};
+
+window.editSession = function(id) { 
+    if(window.openSessionModal) window.openSessionModal(id); 
 };
 
 setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
