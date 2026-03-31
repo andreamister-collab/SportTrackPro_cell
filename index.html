@@ -84,18 +84,17 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
 
     try {
-        // --- STEP 1: CERCA MAIL DALLO USERNAME ---
-        // Questa chiamata ora restituirà i dati invece del 403 grazie alla Policy v7
+        // STEP 1: Recupero Email (Dovrebbe ora rispondere 200 OK)
         const { data: userRow, error: userErr } = await client
             .from('users')
             .select('id, username, email, name, role, society_id')
             .eq('username', username)
             .maybeSingle();
 
-        if (userErr) throw new Error("Errore Permessi (403). Esegui lo script SQL v7!");
-        if (!userRow) throw new Error("Utente non trovato nel database.");
+        if (userErr) throw new Error("Errore 403 persistente: Controlla i GRANT nel SQL Editor");
+        if (!userRow) throw new Error("Utente non trovato");
 
-        // --- STEP 2: LOGIN REALE CON AUTH ---
+        // STEP 2: Login
         const { error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
@@ -103,13 +102,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
         if (authError) throw new Error("Password errata.");
 
-        // --- STEP 3: SETUP VARIABILI E CARATTERI GRANDI ---
+        // STEP 3: Setup Variabili Globali (Admin avrà society_id: null)
         window._userRole = userRow.role;
-        window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin
+        window._currentSocietyId = userRow.society_id; 
         window.CURRENT_USER = userRow;
 
-        // INGRANDIMENTO GLOBALE UI (18px) - Richiesto per accessibilità
-        document.documentElement.style.fontSize = "18px"; 
+        // --- INGRANDIMENTO CARATTERI 18px ---
+        document.documentElement.style.fontSize = "18px";
         
         document.getElementById('login-wrap').style.display = 'none';
         document.getElementById('app').style.display = 'block';
@@ -118,17 +117,15 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if(userInfo) {
             userInfo.innerText = `Loggato come: ${userRow.name} (${userRow.role})`;
             userInfo.style.fontWeight = "bold";
-            // L'admin lo evidenziamo in rosso
             if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
         }
 
-        console.log("Login OK. Society ID Admin:", window._currentSocietyId);
         loadData();
 
     } catch (err) {
         errDiv.innerText = "⚠️ " + err.message;
         errDiv.style.display = 'block';
-        errDiv.style.fontSize = "1.1rem";
+        errDiv.style.fontSize = "18px";
     }
 });
     </script>
