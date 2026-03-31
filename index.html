@@ -83,32 +83,40 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
 
+    // UI: Font grande per l'errore
+    errDiv.style.fontSize = "18px";
+    errDiv.style.display = 'none';
+
     try {
-        // STEP 1: Recupero Email (Dovrebbe ora rispondere 200 OK)
+        // STEP 1: Cerchiamo l'utente
         const { data: userRow, error: userErr } = await client
             .from('users')
-            .select('id, username, email, name, role, society_id')
+            .select('*')
             .eq('username', username)
             .maybeSingle();
 
-        if (userErr) throw new Error("Errore 403 persistente: Controlla i GRANT nel SQL Editor");
-        if (!userRow) throw new Error("Utente non trovato");
+        if (userErr) throw new Error("Errore database: " + userErr.message);
+        
+        // Se arrivi qui e userRow è null, l'INSERT SQL sopra non è andato a buon fine
+        if (!userRow) {
+            throw new Error(`Username '${username}' non censito in tabella users.`);
+        }
 
-        // STEP 2: Login
+        // STEP 2: Login Auth
         const { error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
         });
 
-        if (authError) throw new Error("Password errata.");
+        if (authError) throw new Error("Password errata o utente non confermato in Auth.");
 
-        // STEP 3: Setup Variabili Globali (Admin avrà society_id: null)
+        // STEP 3: Successo - Gestione Society_ID e Font 18px
         window._userRole = userRow.role;
-        window._currentSocietyId = userRow.society_id; 
+        window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin
         window.CURRENT_USER = userRow;
 
-        // --- INGRANDIMENTO CARATTERI 18px ---
-        document.documentElement.style.fontSize = "18px";
+        // INGRANDIMENTO GLOBALE
+        document.documentElement.style.fontSize = "18px"; 
         
         document.getElementById('login-wrap').style.display = 'none';
         document.getElementById('app').style.display = 'block';
@@ -125,7 +133,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     } catch (err) {
         errDiv.innerText = "⚠️ " + err.message;
         errDiv.style.display = 'block';
-        errDiv.style.fontSize = "18px";
     }
 });
     </script>
