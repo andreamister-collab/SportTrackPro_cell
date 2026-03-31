@@ -309,336 +309,122 @@
     };
 
 /* ============================================================
-   TEMPLATE E LOGICA PER STAGIONI (CORRETTA)
+   PAGINA: STAGIONI (Versione Aggiornata)
    ============================================================ */
-
 function templateStagioni() {
     return `
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2>Gestione Stagioni</h2>
-                <button onclick="showCreateStagioneForm()" class="btn btn-primary">+ Nuova Stagione</button>
-            </div>
-            <div id="stagioni-list">
-                <div class="loading">Caricamento stagioni...</div>
-            </div>
+    <div class="card">
+        <div class="header">
+            <h2>GESTIONE STAGIONI</h2>
+            <button class="btn" id="btn-add-stagione">+ Nuova Stagione</button>
         </div>
-        
-        <!-- Modal per creazione/modifica stagione -->
-        <div id="stagione-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
-            <div style="background: white; max-width: 500px; margin: 50px auto; padding: 20px; border-radius: 8px;">
-                <h3 id="stagione-modal-title">Nuova Stagione</h3>
-                <form id="stagione-form">
-                    <div style="margin-bottom: 1rem;">
-                        <label>Nome Stagione *</label>
-                        <input type="text" id="stagione-nome" required style="width: 100%; padding: 8px; margin-top: 5px;">
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label>Periodo (es. 2024/2025) *</label>
-                        <input type="text" id="stagione-periodo" required style="width: 100%; padding: 8px; margin-top: 5px;">
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label>Stato</label>
-                        <select id="stagione-stato" style="width: 100%; padding: 8px; margin-top: 5px;">
-                            <option value="attiva">Attiva</option>
-                            <option value="chiusa">Chiusa</option>
-                            <option value="in preparazione">In Preparazione</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button type="button" onclick="closeStagioneModal()" class="btn">Annulla</button>
-                        <button type="submit" class="btn btn-primary">Salva</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Periodo</th>
+                    <th>Stato</th>
+                    <th style="text-align:right">Azioni</th>
+                </tr>
+            </thead>
+            <tbody id="list-stagioni"></tbody>
+        </table>
+    </div>`;
 }
 
 async function initStagioni() {
-    // Verifica autenticazione prima di tutto
-    const { data: { user }, error: authError } = await client.auth.getUser();
+    const { data, error } = await client.from('seasons').select('*').order('start_date', {ascending:false});
+    const tbody = document.getElementById('list-stagioni');
     
-    if (authError || !user) {
-        document.getElementById('stagioni-list').innerHTML = `
-            <div class="error-message">
-                ⚠️ Utente non autenticato. Effettua il login per visualizzare le stagioni.
-            </div>
-        `;
-        return;
-    }
-    
-    await loadStagioni();
-}
+    if (error) { tbody.innerHTML = `<tr><td colspan="4">Errore: ${error.message}</td></tr>`; return; }
 
-async function loadStagioni() {
-    try {
-        // Query per ottenere le stagioni
-        const { data: stagioni, error } = await client
-            .from('seasons')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) {
-            console.error('Errore nel caricamento stagioni:', error);
-            
-            // Gestione specifica per errori di permessi
-            if (error.code === '42501' || error.message.includes('permission denied')) {
-                document.getElementById('stagioni-list').innerHTML = `
-                    <div class="error-message">
-                        <strong>⚠️ Errore di permessi</strong><br>
-                        Non hai i permessi necessari per visualizzare le stagioni.<br>
-                        <small>Contatta l'amministratore del sistema.</small>
-                    </div>
-                `;
-            } else {
-                document.getElementById('stagioni-list').innerHTML = `
-                    <div class="error-message">
-                        Errore nel caricamento: ${error.message}
-                    </div>
-                `;
-            }
-            return;
-        }
-        
-        // Visualizza le stagioni
-        if (!stagioni || stagioni.length === 0) {
-            document.getElementById('stagioni-list').innerHTML = `
-                <div class="info-message">
-                    📋 Nessuna stagione presente. Clicca su "+ Nuova Stagione" per crearne una.
-                </div>
-            `;
-            return;
-        }
-        
-        // Crea la tabella
-        let html = `
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
-                        <th style="padding: 12px; text-align: left;">Nome</th>
-                        <th style="padding: 12px; text-align: left;">Periodo</th>
-                        <th style="padding: 12px; text-align: left;">Stato</th>
-                        <th style="padding: 12px; text-align: left;">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        for (const stagione of stagioni) {
-            // Determina il colore dello stato
-            let statoColor = '';
-            switch(stagione.stato) {
-                case 'attiva':
-                    statoColor = '#10b981';
-                    break;
-                case 'chiusa':
-                    statoColor = '#ef4444';
-                    break;
-                default:
-                    statoColor = '#f59e0b';
-            }
-            
-            html += `
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                    <td style="padding: 12px;">${escapeHtml(stagione.nome)}</td>
-                    <td style="padding: 12px;">${escapeHtml(stagione.periodo || '-')}</td>
-                    <td style="padding: 12px;">
-                        <span style="background: ${statoColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                            ${escapeHtml(stagione.stato || 'in preparazione')}
-                        </span>
-                    </td>
-                    <td style="padding: 12px;">
-                        <button onclick="editStagione('${stagione.id}')" class="btn-small" style="margin-right: 5px;">✏️ Modifica</button>
-                        <button onclick="deleteStagione('${stagione.id}')" class="btn-small btn-danger" ${window._userRole !== 'admin' ? 'disabled' : ''}>🗑️ Elimina</button>
-                    </td>
-                </tr>
-            `;
-        }
-        
-        html += `</tbody></table>`;
-        
-        // Aggiungi note per admin
-        if (window._userRole === 'admin') {
-            html += `<div class="info-message" style="margin-top: 1rem; font-size: 12px;">
-                        ℹ️ Hai i permessi di amministratore. Puoi modificare ed eliminare le stagioni.
-                    </div>`;
-        }
-        
-        document.getElementById('stagioni-list').innerHTML = html;
-        
-    } catch (error) {
-        console.error('Errore imprevisto:', error);
-        document.getElementById('stagioni-list').innerHTML = `
-            <div class="error-message">
-                Errore imprevisto: ${error.message}
-            </div>
-        `;
-    }
-}
+    // Generiamo l'HTML senza usare onclick
+    tbody.innerHTML = data?.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.start_date} → ${s.end_date}</td>
+            <td><span class="badge ${s.is_active?'badge-active':'badge-inactive'}">${s.is_active?'ATTIVA':'INATTIVA'}</span></td>
+            <td style="text-align:right">
+                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">
+                    ${s.is_active ? 'Spegni' : 'Attiva'}
+                </button>
+                <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4">Nessuna stagione trovata.</td></tr>';
 
-// Funzioni per gestire la creazione/modifica
-window.showCreateStagioneForm = () => {
-    document.getElementById('stagione-modal-title').innerText = 'Nuova Stagione';
-    document.getElementById('stagione-nome').value = '';
-    document.getElementById('stagione-periodo').value = '';
-    document.getElementById('stagione-stato').value = 'attiva';
-    document.getElementById('stagione-modal').style.display = 'block';
+    // === ATTACCHIAMO I LISTENER AI BOTTONI (Metodo sicuro) ===
     
-    // Rimuovi eventuali event listener precedenti
-    const form = document.getElementById('stagione-form');
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-    
-    newForm.onsubmit = async (e) => {
-        e.preventDefault();
-        await createStagione();
-    };
-};
+    // Bottoni Attiva/Spegni
+    tbody.querySelectorAll('.btn-action-activate').forEach(btn => {
+        btn.onclick = () => handleStagioneToggle(btn.dataset.id, btn.dataset.active === 'true');
+    });
 
-window.closeStagioneModal = () => {
-    document.getElementById('stagione-modal').style.display = 'none';
-};
+    // Bottoni Modifica (Matita)
+    tbody.querySelectorAll('.btn-action-edit').forEach(btn => {
+        btn.onclick = () => handleStagioneEdit(btn.dataset.id, btn.dataset.name);
+    });
 
-async function createStagione() {
-    const nome = document.getElementById('stagione-nome').value.trim();
-    const periodo = document.getElementById('stagione-periodo').value.trim();
-    const stato = document.getElementById('stagione-stato').value;
-    
-    if (!nome || !periodo) {
-        alert('Nome e Periodo sono obbligatori');
-        return;
-    }
-    
-    try {
-        const { data, error } = await client
-            .from('seasons')
-            .insert([{
-                nome: nome,
-                periodo: periodo,
-                stato: stato,
-                society_id: window._currentSocietyId,
-                created_by: window._currentUserId
-            }])
-            .select();
-        
-        if (error) throw error;
-        
-        alert('Stagione creata con successo!');
-        closeStagioneModal();
-        await loadStagioni(); // Ricarica la lista
-        
-    } catch (error) {
-        console.error('Errore creazione:', error);
-        if (error.code === '42501' || error.message.includes('permission denied')) {
-            alert('Errore di permessi: Non hai autorizzazione per creare stagioni.');
-        } else {
-            alert('Errore nella creazione: ' + error.message);
-        }
-    }
-}
+    // Bottoni Elimina (Cestino)
+    tbody.querySelectorAll('.btn-action-delete').forEach(btn => {
+        btn.onclick = () => handleStagioneDelete(btn.dataset.id);
+    });
 
-window.editStagione = async (id) => {
-    try {
-        // Recupera i dati della stagione
-        const { data: stagione, error } = await client
-            .from('seasons')
-            .select('*')
-            .eq('id', id)
-            .single();
-        
-        if (error) throw error;
-        
-        document.getElementById('stagione-modal-title').innerText = 'Modifica Stagione';
-        document.getElementById('stagione-nome').value = stagione.nome;
-        document.getElementById('stagione-periodo').value = stagione.periodo || '';
-        document.getElementById('stagione-stato').value = stagione.stato || 'attiva';
-        document.getElementById('stagione-modal').style.display = 'block';
-        
-        // Gestisci il submit per update
-        const form = document.getElementById('stagione-form');
-        const newForm = form.cloneNode(true);
-        form.parentNode.replaceChild(newForm, form);
-        
-        newForm.onsubmit = async (e) => {
-            e.preventDefault();
-            await updateStagione(id);
+    // Bottone "Nuova Stagione" (quello in alto nella card)
+    const btnAdd = document.getElementById('btn-add-stagione');
+    if(btnAdd) {
+        btnAdd.onclick = () => {
+            modal.open('Nuova Stagione', `
+                <p style="font-size:0.85rem; color:#666">Inserisci gli anni solari (es. 2025 e 2026)</p>
+                <label>Anno Inizio</label><input type="number" id="y-start" value="2025">
+                <label>Anno Fine</label><input type="number" id="y-end" value="2026">
+            `);
+            document.getElementById('btn-modal-save').onclick = async () => {
+                const y1 = document.getElementById('y-start').value;
+                const y2 = document.getElementById('y-end').value;
+                await client.from('seasons').insert({ 
+                    name: `${y1}/${y2}`, 
+                    start_date: `${y1}-08-01`, 
+                    end_date: `${y2}-07-31`, 
+                    is_active: false 
+                });
+                modal.close();
+                initStagioni();
+            };
         };
-        
-    } catch (error) {
-        console.error('Errore nel caricamento:', error);
-        alert('Errore nel caricamento della stagione: ' + error.message);
-    }
-};
-
-async function updateStagione(id) {
-    const nome = document.getElementById('stagione-nome').value.trim();
-    const periodo = document.getElementById('stagione-periodo').value.trim();
-    const stato = document.getElementById('stagione-stato').value;
-    
-    if (!nome || !periodo) {
-        alert('Nome e Periodo sono obbligatori');
-        return;
-    }
-    
-    try {
-        const { error } = await client
-            .from('seasons')
-            .update({
-                nome: nome,
-                periodo: periodo,
-                stato: stato,
-                updated_at: new Date()
-            })
-            .eq('id', id);
-        
-        if (error) throw error;
-        
-        alert('Stagione aggiornata con successo!');
-        closeStagioneModal();
-        await loadStagioni();
-        
-    } catch (error) {
-        console.error('Errore aggiornamento:', error);
-        alert('Errore nell\'aggiornamento: ' + error.message);
     }
 }
 
-window.deleteStagione = async (id) => {
-    if (!confirm('Sei sicuro di voler eliminare questa stagione? Questa azione è irreversibile.')) {
-        return;
+    /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
+/* ============================================================
+   SEZIONE: AZIONI LOGICHE STAGIONI
+   ============================================================ */
+
+async function handleStagioneToggle(id, isActive) {
+    if (!isActive) {
+        await client.from('seasons').update({ is_active: false }).eq('is_active', true);
+        await client.from('seasons').update({ is_active: true }).eq('id', id);
+    } else {
+        await client.from('seasons').update({ is_active: false }).eq('id', id);
     }
-    
-    try {
-        const { error } = await client
-            .from('seasons')
-            .delete()
-            .eq('id', id);
-        
-        if (error) throw error;
-        
-        alert('Stagione eliminata con successo!');
-        await loadStagioni();
-        
-    } catch (error) {
-        console.error('Errore eliminazione:', error);
-        if (error.code === '42501' || error.message.includes('permission denied')) {
-            alert('Errore di permessi: Solo gli amministratori possono eliminare le stagioni.');
-        } else {
-            alert('Errore nell\'eliminazione: ' + error.message);
-        }
+    initStagioni();
+}
+
+async function handleStagioneEdit(id, currentName) {
+    const newName = prompt("Modifica nome stagione (es. 2025/2026):", currentName);
+    if (newName && newName !== currentName) {
+        await client.from('seasons').update({ name: newName }).eq('id', id);
+        initStagioni();
     }
 }
 
-// Funzione helper per evitare XSS
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+async function handleStagioneDelete(id) {
+    if (confirm("Sei sicuro di voler eliminare questa stagione?")) {
+        const { error } = await client.from('seasons').delete().eq('id', id);
+        if (error) alert("Errore: " + error.message);
+        initStagioni();
+    }
 }
 /* ============================================================
    SEZIONE: SPORT (Template + Init + Azioni)
