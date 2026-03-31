@@ -2579,24 +2579,20 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - VERSION 2.01 (STATISTICHE RUOLI)
+   MODULO: GESTIONE PARTITE - VERSION 2.0.2 (STABILE)
    ============================================================ */
 
 /**
- * 1. LOGICA FILTRI PROGRESSIVI (Soc -> Cat -> Team)
+ * 1. LOGICA FILTRI PROGRESSIVI
  */
 window.reloadMatchSubFilters = async function() {
     const selSoc = document.getElementById('f-match-soc');
     let socId = selSoc?.value || window._currentSocietyId;
     
     if (!socId || socId === "null" || socId === "") return;
-
     window._currentSocietyId = socId;
 
-    const { data: cats } = await client.from('categories')
-        .select('id, name')
-        .eq('society_id', socId)
-        .order('name');
+    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
 
     const selCat = document.getElementById('f-match-cat');
     if (selCat) {
@@ -2604,11 +2600,7 @@ window.reloadMatchSubFilters = async function() {
             (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    const { data: teams } = await client.from('teams')
-        .select('id, name, category_id')
-        .eq('society_id', socId)
-        .order('name');
-    
+    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
     window.reloadMatchTeamsOnly();
 };
@@ -2619,9 +2611,7 @@ window.reloadMatchTeamsOnly = function() {
     if (!selTeam) return;
     
     let filtered = window._matchTeams || [];
-    if (catId) {
-        filtered = filtered.filter(t => String(t.category_id) === String(catId));
-    }
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
 
     selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
         filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
@@ -2659,7 +2649,7 @@ window.templatePartite = function() {
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569;">
                         <th style="padding:12px;">Data</th>
-                        <th style="padding:12px;">Partita / Squadra / Statistiche Convocati</th>
+                        <th style="padding:12px;">Partita / Squadra / Statistiche</th>
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
@@ -2670,7 +2660,7 @@ window.templatePartite = function() {
 };
 
 /**
- * 3. LOGICA DI CARICAMENTO DATI CON STATISTICHE
+ * 3. LOGICA DI CARICAMENTO DATI CON STATISTICHE (CORRETTA)
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
@@ -2705,12 +2695,11 @@ window.initPartite = async function() {
 
     const { data, error } = await query.order('session_date', { ascending: false });
 
-    // Rendering asincrono per calcolare le statistiche per ogni riga
     const rows = await Promise.all((data || []).map(async m => {
-        // Recupero presenze incrociate con ruoli atleti
+        // Query corretta per evitare errore 400
         const { data: att } = await client
             .from('attendances')
-            .select('is_called_up, athletes!inner(role)')
+            .select('is_called_up, athletes:athlete_id(role)')
             .eq('session_id', m.id);
 
         const stats = {
@@ -2722,7 +2711,7 @@ window.initPartite = async function() {
         };
 
         att?.forEach(a => {
-            const r = a.athletes?.role?.toLowerCase() || '';
+            const r = (a.athletes?.role || '').toLowerCase();
             let key = '';
             if (r.includes('dif')) key = 'dif';
             else if (r.includes('cen')) key = 'cen';
@@ -2738,28 +2727,26 @@ window.initPartite = async function() {
             <tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:10px; vertical-align:top;">${new Date(m.session_date).toLocaleDateString()}</td>
                 <td style="padding:10px;">
-                    <div style="margin-bottom:5px;">
+                    <div style="margin-bottom:8px;">
                         <strong>${m.title || 'Partita'}</strong> - <small style="color:#64748b;">${m.teams?.name || '---'}</small>
                     </div>
-                    <div style="display:flex; gap:10px; font-size:11px;">
-                        <div style="background:#f1f5f9; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; font-size:11px;">
+                        <div style="background:#f1f5f9; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0; min-width:80px;">
                             <strong>TOT:</strong> ${stats.tot} | <span style="color:green">C:${stats.conv}</span> | <span style="color:red">E:${stats.tot - stats.conv}</span>
                         </div>
                         <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>DIF:</strong> ${stats.dif.tot} | <span style="color:green">${stats.dif.conv}</span> | <span style="color:red">${stats.dif.tot - stats.dif.conv}</span>
+                            <strong>DIF:</strong> ${stats.dif.tot} | <span style="color:green">${stats.dif.conv}</span>
                         </div>
                         <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>CEN:</strong> ${stats.cen.tot} | <span style="color:green">${stats.cen.conv}</span> | <span style="color:red">${stats.cen.tot - stats.cen.conv}</span>
+                            <strong>CEN:</strong> ${stats.cen.tot} | <span style="color:green">${stats.cen.conv}</span>
                         </div>
                         <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                            <strong>ATT:</strong> ${stats.att.tot} | <span style="color:green">${stats.att.conv}</span> | <span style="color:red">${stats.att.tot - stats.att.att.conv}</span>
+                            <strong>ATT:</strong> ${stats.att.tot} | <span style="color:green">${stats.att.conv}</span>
                         </div>
                     </div>
                 </td>
                 <td style="padding:10px; text-align:right; vertical-align:top;">
-                    <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" style="background:#8b5cf6; color:white; border:none; margin-right:4px; cursor:pointer;">Convocazioni</button>
-                    <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
-                    <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
+                    <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" style="background:#8b5cf6; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Convocazioni</button>
                 </td>
             </tr>`;
     }));
@@ -2768,32 +2755,8 @@ window.initPartite = async function() {
 };
 
 /**
- * 4. NUOVA PARTITA
+ * 4. LOGICA MODAL E CONVOCAZIONI
  */
-window.openMatchModal = async function() {
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    if (!socId) return;
-    window._currentSocietyId = socId;
-    if (typeof window.openSessionModal === 'function') {
-        await window.openSessionModal();
-        setTimeout(() => {
-            const selType = document.getElementById('sess-type');
-            if (selType) {
-                for (let opt of selType.options) {
-                    if (opt.text.toLowerCase().includes('partita') || opt.text.toLowerCase().includes('gara')) {
-                        selType.value = opt.value;
-                        selType.disabled = true;
-                        break;
-                    }
-                }
-            }
-        }, 400);
-    }
-};
-
-/* ============================================================
-   BLOCCO: MODAL MANAGER GENERICO
-   ============================================================ */
 window.openGenericModal = function(contentHtml) {
     const existing = document.getElementById('generic-modal-overlay');
     if (existing) existing.remove();
@@ -2813,26 +2776,11 @@ window.openGenericModal = function(contentHtml) {
     document.body.appendChild(overlay);
 };
 
-/* ============================================================
-   INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
-   ============================================================ */
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
-    if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') {
-        return alert("Errore: Dati squadra o stagione mancanti.");
-    }
+    if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') return alert("Errore: Dati squadra o stagione mancanti.");
 
-    const { data: rosa, error: errRosa } = await client
-        .from('athlete_team_seasons')
-        .select(`athlete_id, jersey_number, athletes (name, surname, role)`)
-        .eq('team_id', teamId)
-        .eq('season_id', seasonId);
-
-    if (errRosa || !rosa) return alert("Errore nel recupero della rosa.");
-
-    const { data: salvati } = await client
-        .from('attendances')
-        .select('*')
-        .eq('session_id', matchId);
+    const { data: rosa } = await client.from('athlete_team_seasons').select(`athlete_id, jersey_number, athletes (name, surname, role)`).eq('team_id', teamId).eq('season_id', seasonId);
+    const { data: salvati } = await client.from('attendances').select('*').eq('session_id', matchId);
 
     let html = `<div style="padding:20px; font-family: sans-serif;">
         <h3 style="margin:0 0 20px 0; color:#1e293b;">📋 Convocazioni Partita</h3>
@@ -2847,7 +2795,7 @@ window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
                 </thead>
                 <tbody>`;
 
-    rosa.forEach(p => {
+    (rosa || []).forEach(p => {
         const check = salvati?.find(s => s.athlete_id === p.athlete_id);
         const isChecked = check ? check.is_called_up : false;
         const num = check?.match_jersey_number || p.jersey_number || '';
@@ -2876,9 +2824,7 @@ window.salvaConvocazioni = async function(matchId) {
         const isConv = row.checked;
         const jNum = document.querySelector(`.c-num[data-aid="${aid}"]`).value;
         return {
-            session_id: matchId,
-            athlete_id: aid,
-            is_called_up: isConv,
+            session_id: matchId, athlete_id: aid, is_called_up: isConv,
             match_jersey_number: jNum && jNum !== "" ? parseInt(jNum) : null,
             status: isConv ? 'presente' : 'assente'
         };
@@ -2889,7 +2835,28 @@ window.salvaConvocazioni = async function(matchId) {
     else {
         alert("✅ Convocazioni salvate!");
         document.getElementById('generic-modal-overlay').remove();
-        window.initPartite(); // Ricarica la tabella per aggiornare i contatori
+        window.initPartite();
+    }
+};
+
+window.openMatchModal = async function() {
+    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    if (!socId) return;
+    window._currentSocietyId = socId;
+    if (typeof window.openSessionModal === 'function') {
+        await window.openSessionModal();
+        setTimeout(() => {
+            const selType = document.getElementById('sess-type');
+            if (selType) {
+                for (let opt of selType.options) {
+                    if (opt.text.toLowerCase().includes('partita') || opt.text.toLowerCase().includes('gara')) {
+                        selType.value = opt.value;
+                        selType.disabled = true;
+                        break;
+                    }
+                }
+            }
+        }, 400);
     }
 };
 
