@@ -2938,7 +2938,7 @@ window.salvaConvocazioni = async function(matchId) {
             session_id: matchId,
             athlete_id: aid,
             is_called_up: isConv,
-            match_jersey_number: jNum ? parseInt(jNum) : null,
+            match_jersey_number: jNum && jNum !== "" ? parseInt(jNum) : null,
             status: isConv ? 'presente' : 'assente'
         };
     });
