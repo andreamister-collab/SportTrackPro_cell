@@ -80,42 +80,34 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errDiv = document.getElementById('error-msg');
-    errDiv.style.display = 'none';
-
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
 
-    // UI: Ingrandiamo i caratteri dei messaggi di errore
-    errDiv.style.fontSize = "18px";
-    errDiv.style.padding = "15px";
-
     try {
-        // 1. Recupero dati utente (incluso society_id e management_role)
+        // --- STEP 1: CERCA MAIL DALLO USERNAME ---
         const { data: userRow, error: userErr } = await client
             .from('users')
-            .select('id, username, email, name, role, society_id, management_role')
+            .select('id, username, email, name, role, society_id')
             .eq('username', username)
             .maybeSingle();
 
-        if (userErr) throw new Error("Errore Permessi (403). Esegui il codice SQL sopra!");
+        if (userErr) throw new Error("Errore 403: Devi eseguire lo script SQL su Supabase!");
         if (!userRow) throw new Error("Utente non trovato.");
 
-        // 2. Autenticazione Supabase Auth
-        const { data: authData, error: authError } = await client.auth.signInWithPassword({
+        // --- STEP 2: AUTENTICAZIONE IN AUTH.USERS ---
+        const { error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
         });
 
         if (authError) throw new Error("Password errata.");
 
-        // 3. SET VARIABILI GLOBALI (Fondamentali per filtri futuri)
-        window.CURRENT_USER = { ...authData.user, ...userRow };
+        // --- STEP 3: SETUP VARIABILI E CARATTERI GRANDI ---
         window._userRole = userRow.role;
-        window._currentSocietyId = userRow.society_id; // Sarà NULL per admin come da immagine
-        window._userName = userRow.name;
+        window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin
+        window.CURRENT_USER = userRow;
 
-        // 4. UI: INGRANDIMENTO CARATTERI E SWITCH
-        // Impostiamo il font di base a 18px per tutta l'applicazione
+        // INGRANDIMENTO GLOBALE UI (18px)
         document.documentElement.style.fontSize = "18px"; 
         
         document.getElementById('login-wrap').style.display = 'none';
@@ -124,18 +116,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         const userInfo = document.getElementById('user-info');
         if(userInfo) {
             userInfo.innerText = `Loggato come: ${userRow.name} (${userRow.role})`;
-            userInfo.style.fontSize = "20px";
             userInfo.style.fontWeight = "bold";
-            // Colore rosso se admin per distinguerlo
-            userInfo.style.color = userRow.role === 'admin' ? '#b91c1c' : '#475569';
+            // L'admin lo evidenziamo in rosso per sicurezza
+            if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
         }
 
-        console.log("Login OK. Society ID:", window._currentSocietyId);
+        console.log("Login OK. Society ID Admin:", window._currentSocietyId);
         loadData();
 
     } catch (err) {
         errDiv.innerText = "⚠️ " + err.message;
         errDiv.style.display = 'block';
+        errDiv.style.fontSize = "16px";
     }
 });
     </script>
