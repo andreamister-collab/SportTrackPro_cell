@@ -80,43 +80,44 @@
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errDiv = document.getElementById('error-msg');
-    const username = document.getElementById('username').value.trim();
+    
+    // Pulizia e preparazione UI
+    errDiv.style.display = 'none';
+    errDiv.style.fontSize = "18px"; 
+
+    // Prendiamo lo username e forziamo il minuscolo
+    const usernameInput = document.getElementById('username').value.trim().toLowerCase();
     const password = document.getElementById('password').value;
 
-    // UI: Font grande per l'errore
-    errDiv.style.fontSize = "18px";
-    errDiv.style.display = 'none';
-
     try {
-        // STEP 1: Cerchiamo l'utente
+        // STEP 1: CERCA L'UTENTE NEL DB
         const { data: userRow, error: userErr } = await client
             .from('users')
             .select('*')
-            .eq('username', username)
+            .eq('username', usernameInput)
             .maybeSingle();
 
         if (userErr) throw new Error("Errore database: " + userErr.message);
         
-        // Se arrivi qui e userRow è null, l'INSERT SQL sopra non è andato a buon fine
         if (!userRow) {
-            throw new Error(`Username '${username}' non censito in tabella users.`);
+            throw new Error(`Username '${usernameInput}' non trovato. Verifica lo script SQL.`);
         }
 
-        // STEP 2: Login Auth
+        // STEP 2: LOGIN CON LA MAIL RECUPERATA
         const { error: authError } = await client.auth.signInWithPassword({
             email: userRow.email,
             password: password
         });
 
-        if (authError) throw new Error("Password errata o utente non confermato in Auth.");
+        if (authError) throw new Error("Password errata o account non confermato.");
 
-        // STEP 3: Successo - Gestione Society_ID e Font 18px
+        // STEP 3: LOGIN OK - SETUP VARIABILI E CARATTERI GRANDI
         window._userRole = userRow.role;
         window._currentSocietyId = userRow.society_id; // Sarà NULL per l'admin
         window.CURRENT_USER = userRow;
 
-        // INGRANDIMENTO GLOBALE
-        document.documentElement.style.fontSize = "18px"; 
+        // --- INGRANDIMENTO GLOBALE UI (18px) ---
+        document.documentElement.style.fontSize = "18px";
         
         document.getElementById('login-wrap').style.display = 'none';
         document.getElementById('app').style.display = 'block';
@@ -125,9 +126,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if(userInfo) {
             userInfo.innerText = `Loggato come: ${userRow.name} (${userRow.role})`;
             userInfo.style.fontWeight = "bold";
+            userInfo.style.fontSize = "1.2rem";
             if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
         }
 
+        console.log("Accesso Admin riuscito. Society ID: NULL");
         loadData();
 
     } catch (err) {
