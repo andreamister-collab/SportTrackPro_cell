@@ -2579,7 +2579,7 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - FILTRI PROGRESSIVI COMPLETI
+   MODULO: GESTIONE PARTITE - VERSION 2.01 (STATISTICHE RUOLI)
    ============================================================ */
 
 /**
@@ -2591,10 +2591,8 @@ window.reloadMatchSubFilters = async function() {
     
     if (!socId || socId === "null" || socId === "") return;
 
-    // Sincronizza globale
     window._currentSocietyId = socId;
 
-    // 1. Carica Categorie della Società
     const { data: cats } = await client.from('categories')
         .select('id, name')
         .eq('society_id', socId)
@@ -2606,15 +2604,12 @@ window.reloadMatchSubFilters = async function() {
             (cats ? cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('') : '');
     }
 
-    // 2. Carica TUTTE le squadre della Società (per filtro lato client veloce)
     const { data: teams } = await client.from('teams')
         .select('id, name, category_id')
         .eq('society_id', socId)
         .order('name');
     
     window._matchTeams = teams || [];
-    
-    // 3. Reset e aggiornamento squadre
     window.reloadMatchTeamsOnly();
 };
 
@@ -2624,8 +2619,6 @@ window.reloadMatchTeamsOnly = function() {
     if (!selTeam) return;
     
     let filtered = window._matchTeams || [];
-    
-    // Filtro progressivo: se è selezionata una categoria, mostra solo le sue squadre
     if (catId) {
         filtered = filtered.filter(t => String(t.category_id) === String(catId));
     }
@@ -2633,7 +2626,6 @@ window.reloadMatchTeamsOnly = function() {
     selTeam.innerHTML = '<option value="">Tutte Squadre</option>' + 
         filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
-    // Ad ogni cambio filtro, aggiorna la tabella
     window.initPartite();
 };
 
@@ -2667,7 +2659,7 @@ window.templatePartite = function() {
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569;">
                         <th style="padding:12px;">Data</th>
-                        <th style="padding:12px;">Partita / Squadra</th>
+                        <th style="padding:12px;">Partita / Squadra / Statistiche Convocati</th>
                         <th style="padding:12px; text-align:right;">Azioni</th>
                     </tr>
                 </thead>
@@ -2678,24 +2670,19 @@ window.templatePartite = function() {
 };
 
 /**
- * 3. LOGICA DI CARICAMENTO DATI
+ * 3. LOGICA DI CARICAMENTO DATI CON STATISTICHE
  */
 window.initPartite = async function() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
     const selSoc = document.getElementById('f-match-soc');
-    
-    // Inizializzazione Società (Auto-selezione alfabetica per Admin)
     if (selSoc && selSoc.options[0].text.includes("Caricamento")) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
         if (socs && socs.length > 0) {
             selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            
-            // Se non c'è una società pre-selezionata, prendiamo la prima (Admin)
             if (!window._currentSocietyId) window._currentSocietyId = socs[0].id;
             selSoc.value = window._currentSocietyId;
-            
             return window.reloadMatchSubFilters();
         }
     }
@@ -2703,18 +2690,14 @@ window.initPartite = async function() {
     const socId = selSoc?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // Filtra per tipi "Gara" o "Partita"
     const { data: types } = await client.from('session_types').select('id, name');
-    const validIds = (types || [])
-        .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
-        .map(t => t.id);
+    const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
 
     let query = client.from('sessions')
         .select('id, title, session_date, team_id, season_id, teams(name)')
         .eq('society_id', socId)
         .in('type_id', validIds);
     
-    // Applicazione filtri progressivi alla query
     const fCat = document.getElementById('f-match-cat')?.value;
     const fTeam = document.getElementById('f-match-team')?.value;
     if (fCat) query = query.eq('category_id', fCat);
@@ -2722,24 +2705,66 @@ window.initPartite = async function() {
 
     const { data, error } = await query.order('session_date', { ascending: false });
 
-    tbody.innerHTML = (data || []).map(m => `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px;">${new Date(m.session_date).toLocaleDateString()}</td>
-            <td style="padding:10px;">
-                <strong>${m.title || 'Partita'}</strong><br>
-                <small style="color:#64748b;">${m.teams?.name || '---'}</small>
-            </td>
-            <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" 
-                  onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" 
-                  style="background:#8b5cf6; color:white; border:none; margin-right:4px; cursor:pointer;">
-                  Convocazioni
-                </button>
-                <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
-                <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
-            </td>
-        </tr>
-    `).join('') || '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">Nessuna gara trovata per i filtri selezionati.</td></tr>';
+    // Rendering asincrono per calcolare le statistiche per ogni riga
+    const rows = await Promise.all((data || []).map(async m => {
+        // Recupero presenze incrociate con ruoli atleti
+        const { data: att } = await client
+            .from('attendances')
+            .select('is_called_up, athletes!inner(role)')
+            .eq('session_id', m.id);
+
+        const stats = {
+            tot: att?.length || 0,
+            conv: att?.filter(a => a.is_called_up).length || 0,
+            dif: { tot: 0, conv: 0 },
+            cen: { tot: 0, conv: 0 },
+            att: { tot: 0, conv: 0 }
+        };
+
+        att?.forEach(a => {
+            const r = a.athletes?.role?.toLowerCase() || '';
+            let key = '';
+            if (r.includes('dif')) key = 'dif';
+            else if (r.includes('cen')) key = 'cen';
+            else if (r.includes('att')) key = 'att';
+            
+            if (key) {
+                stats[key].tot++;
+                if (a.is_called_up) stats[key].conv++;
+            }
+        });
+
+        return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px; vertical-align:top;">${new Date(m.session_date).toLocaleDateString()}</td>
+                <td style="padding:10px;">
+                    <div style="margin-bottom:5px;">
+                        <strong>${m.title || 'Partita'}</strong> - <small style="color:#64748b;">${m.teams?.name || '---'}</small>
+                    </div>
+                    <div style="display:flex; gap:10px; font-size:11px;">
+                        <div style="background:#f1f5f9; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                            <strong>TOT:</strong> ${stats.tot} | <span style="color:green">C:${stats.conv}</span> | <span style="color:red">E:${stats.tot - stats.conv}</span>
+                        </div>
+                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                            <strong>DIF:</strong> ${stats.dif.tot} | <span style="color:green">${stats.dif.conv}</span> | <span style="color:red">${stats.dif.tot - stats.dif.conv}</span>
+                        </div>
+                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                            <strong>CEN:</strong> ${stats.cen.tot} | <span style="color:green">${stats.cen.conv}</span> | <span style="color:red">${stats.cen.tot - stats.cen.conv}</span>
+                        </div>
+                        <div style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                            <strong>ATT:</strong> ${stats.att.tot} | <span style="color:green">${stats.att.conv}</span> | <span style="color:red">${stats.att.tot - stats.att.att.conv}</span>
+                        </div>
+                    </div>
+                </td>
+                <td style="padding:10px; text-align:right; vertical-align:top;">
+                    <button class="btn-sm" onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" style="background:#8b5cf6; color:white; border:none; margin-right:4px; cursor:pointer;">Convocazioni</button>
+                    <button class="btn-sm" style="background:#3b82f6; color:white; border:none; margin-right:4px;">Modifica</button>
+                    <button class="btn-sm" style="background:#ef4444; color:white; border:none;">Cancella</button>
+                </td>
+            </tr>`;
+    }));
+
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="3" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
 };
 
 /**
@@ -2748,9 +2773,7 @@ window.initPartite = async function() {
 window.openMatchModal = async function() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId) return;
-
     window._currentSocietyId = socId;
-
     if (typeof window.openSessionModal === 'function') {
         await window.openSessionModal();
         setTimeout(() => {
@@ -2768,163 +2791,82 @@ window.openMatchModal = async function() {
     }
 };
 
-// Start ritardato
-setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
 /* ============================================================
-   BLOCCO: MODAL MANAGER GENERICO (NECESSARIO)
+   BLOCCO: MODAL MANAGER GENERICO
    ============================================================ */
 window.openGenericModal = function(contentHtml) {
-    // 1. Rimuovi eventuali modal già aperti
     const existing = document.getElementById('generic-modal-overlay');
     if (existing) existing.remove();
-
-    // 2. Crea l'overlay (lo sfondo scuro)
     const overlay = document.createElement('div');
     overlay.id = 'generic-modal-overlay';
-    overlay.style = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(15, 23, 42, 0.7); 
-        display: flex; align-items: center; justify-content: center; 
-        z-index: 99999; backdrop-filter: blur(4px);
-    `;
-
-    // 3. Crea il contenitore del Modal
+    overlay.style = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px);`;
     const modal = document.createElement('div');
-    modal.style = `
-        background: white; border-radius: 16px;
-        width: 95%; max-width: 600px; max-height: 90vh;
-        overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-        position: relative; animation: modalSlideUp 0.3s ease-out;
-        display: flex; flex-direction: column;
-    `;
-
-    // 4. Bottone di chiusura "X"
+    modal.style = `background: white; border-radius: 16px; width: 95%; max-width: 600px; max-height: 90vh; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; animation: modalSlideUp 0.3s ease-out; display: flex; flex-direction: column;`;
     const closeBtn = document.createElement('button');
     closeBtn.innerHTML = '✕';
-    closeBtn.style = `
-        position: absolute; top: 15px; right: 15px; border: none;
-        background: #f1f5f9; color: #64748b; width: 32px; height: 32px;
-        border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10;
-    `;
+    closeBtn.style = `position: absolute; top: 15px; right: 15px; border: none; background: #f1f5f9; color: #64748b; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: bold; z-index: 10;`;
     closeBtn.onclick = () => overlay.remove();
-
-    // 5. Inserimento contenuto
     modal.innerHTML = contentHtml;
     modal.appendChild(closeBtn);
     overlay.appendChild(modal);
-
-    // Chiudi se si clicca fuori dal modal
     overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-
     document.body.appendChild(overlay);
 };
 
-// CSS per l'animazione
-if (!document.getElementById('modal-styles')) {
-    const style = document.createElement('style');
-    style.id = 'modal-styles';
-    style.innerHTML = `
-        @keyframes modalSlideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    `;
-    document.head.appendChild(style);
-}
-/* ============================================================
-   FINE BLOCCO: MODAL MANAGER
-   ============================================================ */
 /* ============================================================
    INIZIO BLOCCO: LOGICA CONVOCAZIONI (Fase 1)
    ============================================================ */
 window.apriFaseConvocazioni = async function(matchId, teamId, seasonId) {
-    // 1. Controllo di sicurezza sui parametri per evitare errori 400
     if (!teamId || teamId === 'undefined' || !seasonId || seasonId === 'undefined') {
-        console.error("Dati mancanti per la convocazione:", { matchId, teamId, seasonId });
-        return alert("Errore: Dati squadra o stagione non trovati. Assicurati di aver aggiornato la query select con team_id e season_id.");
+        return alert("Errore: Dati squadra o stagione mancanti.");
     }
 
-    // 2. Recupera la Rosa da athlete_team_seasons (Sorgente Verità)
     const { data: rosa, error: errRosa } = await client
         .from('athlete_team_seasons')
-        .select(`
-            athlete_id,
-            jersey_number,
-            athletes (name, surname)
-        `)
+        .select(`athlete_id, jersey_number, athletes (name, surname, role)`)
         .eq('team_id', teamId)
         .eq('season_id', seasonId);
 
-    if (errRosa) {
-        console.error("Errore recupero rosa:", errRosa);
-        return alert("Errore nel recupero della rosa dal database.");
-    }
+    if (errRosa || !rosa) return alert("Errore nel recupero della rosa.");
 
-    if (!rosa || rosa.length === 0) {
-        return alert("Nessun atleta assegnato a questa squadra per la stagione corrente.");
-    }
-
-    // 3. Recupera convocazioni esistenti per mostrare i dati già salvati
     const { data: salvati } = await client
         .from('attendances')
         .select('*')
         .eq('session_id', matchId);
 
-    // 4. Costruzione UI Modal
-    let html = `
-        <div style="padding:20px; font-family: sans-serif;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">
-                <h3 style="margin:0; color:#1e293b;">📋 Convocazioni Partita</h3>
-            </div>
-            
-            <div style="max-height:60vh; overflow-y:auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:14px;">
-                    <thead>
-                        <tr style="background:#f8fafc; color:#64748b; text-transform:uppercase; font-size:12px;">
-                            <th style="padding:12px; text-align:left; border-bottom:1px solid #e2e8f0;">Conv.</th>
-                            <th style="padding:12px; text-align:left; border-bottom:1px solid #e2e8f0;">Atleta</th>
-                            <th style="padding:12px; text-align:center; border-bottom:1px solid #e2e8f0;">N° Maglia</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+    let html = `<div style="padding:20px; font-family: sans-serif;">
+        <h3 style="margin:0 0 20px 0; color:#1e293b;">📋 Convocazioni Partita</h3>
+        <div style="max-height:60vh; overflow-y:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <thead>
+                    <tr style="background:#f8fafc; color:#64748b; text-transform:uppercase; font-size:12px;">
+                        <th style="padding:12px; text-align:left;">Conv.</th>
+                        <th style="padding:12px; text-align:left;">Atleta (Ruolo)</th>
+                        <th style="padding:12px; text-align:center;">N° Maglia</th>
+                    </tr>
+                </thead>
+                <tbody>`;
 
     rosa.forEach(p => {
         const check = salvati?.find(s => s.athlete_id === p.athlete_id);
         const isChecked = check ? check.is_called_up : false;
         const num = check?.match_jersey_number || p.jersey_number || '';
+        const roleStr = p.athletes.role ? `<br><small style="color:#94a3b8">${p.athletes.role}</small>` : '';
 
-        html += `
-            <tr style="border-bottom:1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding:12px;">
-                    <input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''} style="transform: scale(1.2); cursor:pointer;">
-                </td>
-                <td style="padding:12px; color:#334155; font-weight:500;">
-                    ${p.athletes.surname.toUpperCase()} ${p.athletes.name}
-                </td>
-                <td style="padding:12px; text-align:center;">
-                    <input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" 
-                           style="width:55px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; text-align:center;">
-                </td>
-            </tr>`;
+        html += `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:12px;"><input type="checkbox" class="c-check" data-aid="${p.athlete_id}" ${isChecked ? 'checked' : ''}></td>
+            <td style="padding:12px;"><strong>${p.athletes.surname.toUpperCase()}</strong> ${p.athletes.name} ${roleStr}</td>
+            <td style="padding:12px; text-align:center;"><input type="number" class="c-num" data-aid="${p.athlete_id}" value="${num}" style="width:50px; text-align:center;"></td>
+        </tr>`;
     });
 
-    html += `</tbody></table>
-            </div>
-            
-            <div style="margin-top:25px; display:flex; justify-content:flex-end; gap:10px;">
-                <button class="btn" onclick="this.closest('#generic-modal-overlay').remove()" style="background:#e2e8f0; color:#475569; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">Annulla</button>
-                <button class="btn" onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white; border:none; padding:10px 25px; border-radius:6px; cursor:pointer; font-weight:bold; box-shadow:0 4px 6px -1px rgba(139, 92, 246, 0.3);">
-                    Salva Convocazioni
-                </button>
-            </div>
-        </div>`;
+    html += `</tbody></table></div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="this.closest('#generic-modal-overlay').remove()" style="padding:10px 20px; border-radius:6px; cursor:pointer; border:none; background:#e2e8f0;">Annulla</button>
+            <button onclick="window.salvaConvocazioni('${matchId}')" style="background:#8b5cf6; color:white; padding:10px 20px; border-radius:6px; cursor:pointer; border:none; font-weight:bold;">Salva Convocazioni</button>
+        </div></div>`;
 
-    // ESECUZIONE: Apre il modal con il contenuto generato
-    if (typeof window.openGenericModal === 'function') {
-        window.openGenericModal(html);
-    } else {
-        console.error("Funzione openGenericModal non trovata. Assicurati di aver aggiunto il Blocco Modal Manager.");
-    }
+    window.openGenericModal(html);
 };
 
 window.salvaConvocazioni = async function(matchId) {
@@ -2933,7 +2875,6 @@ window.salvaConvocazioni = async function(matchId) {
         const aid = row.dataset.aid;
         const isConv = row.checked;
         const jNum = document.querySelector(`.c-num[data-aid="${aid}"]`).value;
-
         return {
             session_id: matchId,
             athlete_id: aid,
@@ -2944,20 +2885,15 @@ window.salvaConvocazioni = async function(matchId) {
     });
 
     const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
-
-    if (error) {
-        console.error("Errore salvataggio:", error);
-        alert("Errore tecnico durante il salvataggio delle convocazioni.");
-    } else {
-        alert("✅ Convocazioni salvate con successo!");
-        // Chiude il modal dopo il successo
-        const modal = document.getElementById('generic-modal-overlay');
-        if (modal) modal.remove();
+    if (error) alert("Errore nel salvataggio.");
+    else {
+        alert("✅ Convocazioni salvate!");
+        document.getElementById('generic-modal-overlay').remove();
+        window.initPartite(); // Ricarica la tabella per aggiornare i contatori
     }
 };
-/* ============================================================
-   FINE BLOCCO: LOGICA CONVOCAZIONI
-   ============================================================ */
+
+setTimeout(() => { if (document.getElementById('main-match-card')) window.initPartite(); }, 600);
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 
 </script>
