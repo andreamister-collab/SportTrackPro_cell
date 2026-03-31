@@ -2710,7 +2710,7 @@ window.initPartite = async function() {
         .map(t => t.id);
 
     let query = client.from('sessions')
-        .select('id, title, session_date, teams(name)')
+        .select('id, title, session_date, team_id, season_id, teams(name)')
         .eq('society_id', socId)
         .in('type_id', validIds);
     
@@ -2730,7 +2730,6 @@ window.initPartite = async function() {
                 <small style="color:#64748b;">${m.teams?.name || '---'}</small>
             </td>
             <td style="padding:10px; text-align:right;">
-                /*bottone per  INIZIO BLOCCO: LOGICA CONVOCAZIONI*/
                 <button class="btn-sm" 
                     onclick="window.apriFaseConvocazioni('${m.id}', '${m.team_id}', '${m.season_id}')" 
                     style="background:#8b5cf6; color:white; border:none; margin-right:4px; cursor:pointer;">
