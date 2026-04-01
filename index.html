@@ -2091,10 +2091,7 @@ window.importAtleti = async function(event) {
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.9.2 (MATCH INTEGRATED)
-   ============================================================ */
-/* ============================================================
-   MODULO: SESSIONI E PRESENZE - BUILD 1.9.2 (PROGRESSIVE FILTERS)
+   MODULO: SESSIONI E PRESENZE - BUILD 1.9.3 (PERFORMANCE OPTIMIZED)
    ============================================================ */
 
 /**
@@ -2189,7 +2186,6 @@ async function initSessioni() {
 
     let query = client.from('sessions').select(`*, session_types(name), teams(id, name, categories(name)), attendances(status)`).eq('society_id', targetSociety);
     
-    // Applica filtri se selezionati
     const fCat = document.getElementById('filter-category-sess')?.value;
     const fTeam = document.getElementById('filter-team-sess')?.value;
     const fType = document.getElementById('filter-type-sess')?.value;
@@ -2203,10 +2199,11 @@ async function initSessioni() {
     tbody.innerHTML = (data || []).map(s => {
         const att = s.attendances || [];
         const stats = att.reduce((acc, a) => {
-            if(a.status === 'presente') acc.p++;
-            else if(a.status === 'assente') acc.a++;
-            else if(a.status === 'giustificato') acc.g++;
-            else if(a.status === 'infortunato') acc.i++;
+            const st = (a.status || '').toLowerCase();
+            if(st === 'presente' || st === 'p') acc.p++;
+            else if(st === 'assente' || st === 'a') acc.a++;
+            else if(st === 'giustificato' || st === 'g') acc.g++;
+            else if(st === 'infortunato' || st === 'i') acc.i++;
             return acc;
         }, {p:0, a:0, g:0, i:0});
 
@@ -2242,7 +2239,6 @@ async function reloadSubFilters() {
     const socId = document.getElementById('filter-society-sess').value;
     if (!socId) return;
 
-    // Recupera squadre e categorie collegate per la società
     const { data: teamsInSoc } = await client
         .from('teams')
         .select('id, name, category_id, categories(id, name)')
@@ -2251,7 +2247,6 @@ async function reloadSubFilters() {
 
     window._currentSocTeams = teamsInSoc || [];
 
-    // Filtra categorie uniche
     const uniqueCats = [];
     const catMap = new Map();
     teamsInSoc?.forEach(t => {
@@ -2263,7 +2258,6 @@ async function reloadSubFilters() {
 
     const { data: types } = await client.from('session_types').select('id, name').order('name');
 
-    // Popola select categorie
     const selCat = document.getElementById('filter-category-sess');
     if (selCat) {
         selCat.innerHTML = '<option value="">Tutte Categorie</option>' + 
@@ -2271,7 +2265,6 @@ async function reloadSubFilters() {
                       .map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     }
 
-    // Popola tipi sessione
     const selType = document.getElementById('filter-type-sess');
     if (selType) {
         selType.innerHTML = '<option value="">Tutti i Tipi</option>' + 
@@ -2296,7 +2289,7 @@ async function reloadTeamsOnly() {
 }
 
 /**
- * 4. LOGICA MODALI E SALVATAGGIO (Note: openSessionModal NON toccata)
+ * 4. LOGICA MODALI E SALVATAGGIO
  */
 async function openSessionModal(id = null) {
     const m = getModal();
@@ -2330,7 +2323,7 @@ async function openSessionModal(id = null) {
             </select>
             <button onclick="saveSession('${id || ''}')" style="background:#2563eb; color:white; padding:12px; font-weight:bold; border:none; border-radius:8px; cursor:pointer;">CONFERMA E SALVA</button>
         </div>
-    `, "", "");
+    `);
 }
 
 async function saveSession(id) {
@@ -2366,7 +2359,8 @@ async function openAttendanceModal(sessionId) {
             ${(relations || []).map(r => {
                 const ath = r.athletes;
                 const reg = attMap[ath.id] || {};
-                const p = reg.performance_data || {vel:0, tec:0, fis:0, res:0, com:0};
+                // UNIFORMATO A MAIUSCOLO PER COERENZA DB
+                const p = reg.performance_data || {VEL:0, TEC:0, FIS:0, RES:0, COM:0};
                 return `
                 <div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:10px; background:#fff;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -2380,7 +2374,7 @@ async function openAttendanceModal(sessionId) {
                     </div>
                     ${!isGara ? `
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                        ${Object.entries({vel:'VEL', tec:'TEC', fis:'FIS', res:'RES', com:'COM'}).map(([k, label]) => `
+                        ${Object.entries({VEL:'VEL', TEC:'TEC', FIS:'FIS', RES:'RES', COM:'COM'}).map(([k, label]) => `
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <span style="font-size:11px; color:#64748b;">${label}</span>
                                 <div class="star-rating" data-ath="${ath.id}" data-key="${k}" data-value="${p[k]||0}">
@@ -2393,7 +2387,7 @@ async function openAttendanceModal(sessionId) {
             }).join('')}
         </div>
         <button onclick="saveAttendances('${sessionId}', ${isGara})" style="background:#10b981; color:white; width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">SALVA REGISTRO</button>
-    `, "", "");
+    `);
 }
 
 async function saveAttendances(sessionId, isGara) {
@@ -2407,12 +2401,23 @@ async function saveAttendances(sessionId, isGara) {
             });
         }
         records.push({
-            session_id: sessionId, athlete_id: athId, status: sel.value,
-            performance_data: perfData, is_called_up: isGara && sel.value === 'presente'
+            session_id: sessionId, 
+            athlete_id: athId, 
+            status: sel.value,
+            performance_data: perfData, 
+            is_called_up: isGara && sel.value === 'presente'
         });
     });
+    
+    // UPSERT gestisce sia creazione che aggiornamento (chiave: session_id + athlete_id)
     const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    if (!error) { getModal().close(); initSessioni(); alert("Registro salvato!"); }
+    if (!error) { 
+        getModal().close(); 
+        initSessioni(); 
+        alert("Registro salvato!"); 
+    } else {
+        console.error("Errore salvataggio:", error);
+    }
 }
 
 async function deleteSession(id, title) {
@@ -2427,7 +2432,7 @@ async function openSessionNotesModal(id, title) {
     getModal().open(`Note: ${title}`, `
         <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid #ccc; font-family:inherit; box-sizing:border-box;">${data?.notes || ''}</textarea>
         <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:12px; background:#2563eb; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA NOTE</button>
-    `, "", "");
+    `);
 }
 
 async function saveSessionNotes(id) {
@@ -2443,148 +2448,7 @@ window.setRating = function(el, value) {
     stars.forEach((s, idx) => s.style.color = (idx < value) ? '#f59e0b' : '#cbd5e1');
     container.setAttribute('data-value', value);
 };
-/**
- * 6. SALVATAGGIO DETTAGLI MATCH E LOGICA CONVOCAZIONI
- */
-async function saveMatchDetails(sessionId) {
-    const gf = parseInt(document.getElementById('m-gf').value) || 0;
-    const ga = parseInt(document.getElementById('m-ga').value) || 0;
-    const isFriendly = document.getElementById('m-friendly').checked;
-    
-    let points = 0;
-    if (!isFriendly) {
-        if (gf > ga) points = 3;
-        else if (gf === ga) points = 1;
-    }
 
-    const matchData = {
-        session_id: sessionId,
-        opponent_name: document.getElementById('m-opponent').value,
-        meet_time: document.getElementById('m-meet-time').value,
-        match_start_time: document.getElementById('m-start-time').value,
-        address: document.getElementById('m-address').value,
-        status: document.getElementById('m-status').value,
-        is_friendly: isFriendly,
-        goals_for: gf,
-        goals_against: ga,
-        points: points
-    };
-
-    const { error } = await client.from('match_details').upsert(matchData, { onConflict: 'session_id' });
-    
-    if (!error) {
-        // Applichiamo la logica: non convocati = giustificati
-        await syncNonCalledAsJustified(sessionId);
-        alert("Dati partita salvati e presenze sincronizzate!");
-        getModal().close();
-        initSessioni();
-    }
-}
-
-async function syncNonCalledAsJustified(sessionId) {
-    // Recuperiamo tutti gli atleti della squadra che NON sono convocati per questa sessione
-    const { data: session } = await client.from('sessions').select('team_id, season_id').eq('id', sessionId).single();
-    const { data: allAthletes } = await client.from('athlete_team_seasons').select('athlete_id').eq('team_id', session.team_id).eq('season_id', session.season_id);
-    const { data: currentAtt } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
-
-    const calledIds = (currentAtt || []).filter(a => a.is_called_up).map(a => a.athlete_id);
-    const toUpdate = (allAthletes || []).filter(a => !calledIds.includes(a.athlete_id));
-
-    const records = toUpdate.map(a => ({
-        session_id: sessionId,
-        athlete_id: a.athlete_id,
-        status: 'giustificato',
-        is_called_up: false
-    }));
-
-    if (records.length > 0) {
-        await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
-    }
-}
-
-/**
- * 7. EXPORT GRAFICO "CAMPO DA CALCIO" (Social Ready)
- */
-async function exportConvocatiSocial(sessionId) {
-    const { data: session } = await client.from('sessions').select('*, teams(name)').eq('id', sessionId).single();
-    const { data: convocati } = await client.from('attendances')
-        .select('athletes(name, surname, role)') // Assumendo che esista il campo role
-        .eq('session_id', sessionId)
-        .eq('is_called_up', true);
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 1080;
-    canvas.height = 1350; // Formato Portrait Social
-
-    // 1. Sfondo Campo (Verde con sfumatura)
-    const grad = ctx.createRadialGradient(540, 675, 100, 540, 675, 800);
-    grad.addColorStop(0, '#2d5a27');
-    grad.addColorStop(1, '#1e3d1a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. Disegno Linee Campo
-    ctx.strokeStyle = "rgba(255,255,255,0.3)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(50, 50, 980, 1250); // Perimetro
-    ctx.beginPath(); // Linea Mediana
-    ctx.moveTo(50, 675); ctx.lineTo(1030, 675); ctx.stroke();
-    ctx.beginPath(); // Cerchio centrale
-    ctx.arc(540, 675, 150, 0, Math.PI * 2); ctx.stroke();
-
-    // 3. Testi Intestazione
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.font = "bold 50px sans-serif";
-    ctx.fillText("LISTA CONVOCATI", 540, 120);
-    ctx.font = "italic 40px sans-serif";
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillText(session.teams.name.toUpperCase(), 540, 180);
-
-    // 4. Raggruppamento per Ruoli
-    const roles = { 
-        'Portieri': [], 'Difensori': [], 'Centrocampisti': [], 
-        'Attaccanti': [], 'Staff': [] 
-    };
-
-    convocati.forEach(c => {
-        const r = c.athletes.role?.toLowerCase() || '';
-        if (r.includes('por')) roles['Portieri'].push(c.athletes);
-        else if (r.includes('dif')) roles['Difensori'].push(c.athletes);
-        else if (r.includes('cen')) roles['Centrocampisti'].push(c.athletes);
-        else if (r.includes('att')) roles['Attaccanti'].push(c.athletes);
-        else roles['Staff'].push(c.athletes);
-    });
-
-    // 5. Rendering Nomi sul Campo
-    ctx.textAlign = "left";
-    let y = 280;
-    const xLeft = 150;
-    const xRight = 600;
-
-    Object.entries(roles).forEach(([roleName, list], index) => {
-        if (list.length > 0) {
-            ctx.font = "bold 35px sans-serif";
-            ctx.fillStyle = "#38bdf8"; // Colore categoria
-            ctx.fillText(roleName.toUpperCase(), (index % 2 === 0 ? xLeft : xRight), y);
-            
-            ctx.font = "30px sans-serif";
-            ctx.fillStyle = "white";
-            list.forEach((ath, i) => {
-                ctx.fillText(`• ${ath.surname} ${ath.name}`, (index % 2 === 0 ? xLeft : xRight), y + 45 + (i * 40));
-            });
-            
-            if (index % 2 !== 0) y += 250; // Vai a riga successiva ogni 2 ruoli
-        }
-    });
-
-    // 6. Download
-    const link = document.createElement('a');
-    link.download = `Convocati_${session.teams.name}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-}
 /**
  * 8. ESPOSIZIONE GLOBALE
  */
