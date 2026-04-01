@@ -1365,7 +1365,12 @@ window.handleDeleteStaff = async function(id) {
             </div>
         `);
         document.getElementById('btn-modal-save').onclick = async () => {
-            const data = { name: document.getElementById('m-bp-name').value.trim(), surname: document.getElementById('m-bp-surname').value.trim().toUpperCase(), born_date: document.getElementById('m-bp-date').value || null, society_id: document.getElementById('m-bp-soc').value };
+            const data = { 
+                name: document.getElementById('m-bp-name').value.trim(), 
+                surname: document.getElementById('m-bp-surname').value.trim().toUpperCase(), 
+                born_date: document.getElementById('m-bp-date').value || null, 
+                society_id: document.getElementById('m-bp-soc').value 
+            };
             if(!data.name || !data.surname || !data.society_id) return alert("Tutti i campi sono obbligatori!");
             const { error } = id ? await client.from('athletes').update(data).eq('id', id) : await client.from('athletes').insert([data]);
             if(!error) { modal.close(); await window.initAnagraficaPura(); }
@@ -1380,23 +1385,29 @@ window.handleDeleteStaff = async function(id) {
         if(!confirm(`Sei sicuro di voler eliminare ${atleta.surname}? Tutte le associazioni squadre verranno spostate in archivio.`)) return;
 
         try {
+            // A. Recupero associazioni attuali
             const { data: associazioni } = await client
                 .from('athlete_team_seasons')
                 .select('*')
                 .eq('athlete_id', id);
 
+            // B. Archiviazione Anagrafica con Debug RLS
             const { error: errArchivioAtleta } = await client
                 .from('athletes_deleted_archive')
                 .insert([{
                     original_id: atleta.id,
-                    name: atleta.name,
-                    surname: atleta.surname,
-                    born_date: atleta.born_date,
+                    name: atleta.name || null,
+                    surname: atleta.surname || null,
+                    born_date: atleta.born_date || null,
                     society_id: atleta.society_id
                 }]);
 
-            if (errArchivioAtleta) throw new Error("Errore archiviazione atleta");
+            if (errArchivioAtleta) {
+                console.error("Errore RLS/DB Atleta:", errArchivioAtleta);
+                throw new Error("Errore archiviazione atleta: " + errArchivioAtleta.message);
+            }
 
+            // C. Archiviazione Associazioni (se presenti)
             if (associazioni && associazioni.length > 0) {
                 const assoc_to_archive = associazioni.map(as => ({
                     original_id: as.id,
@@ -1412,20 +1423,25 @@ window.handleDeleteStaff = async function(id) {
                     .from('athlete_team_seasons_archive')
                     .insert(assoc_to_archive);
 
-                if (errArchivioAssoc) throw new Error("Errore archiviazione associazioni");
+                if (errArchivioAssoc) {
+                    console.error("Errore RLS/DB Associazioni:", errArchivioAssoc);
+                    throw new Error("Errore archiviazione associazioni: " + errArchivioAssoc.message);
+                }
             }
 
+            // D. Eliminazione definitiva (avviene solo se i passaggi precedenti sono ok)
             const { error: errDelete } = await client.from('athletes').delete().eq('id', id);
             if (errDelete) throw errDelete;
 
-            alert("Archiviazione completata.");
+            alert("Archiviazione completata con successo.");
             await window.initAnagraficaPura();
+
         } catch (err) {
-    console.error("DETTAGLI ERRORE:", err); // <-- Fondamentale per vedere quale colonna fallisce
-    alert("Errore: " + (err.details || err.message || "Errore sconosciuto"));
-}
+            console.error("DETTAGLI ERRORE FLOW:", err);
+            alert("Si è verificato un errore: " + (err.message || "Errore sconosciuto"));
+        }
     };
-})(); // Chiusura corretta della IIFE
+})(); // Chiusura IIFE corretta
 /* ============================================================
    EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
