@@ -309,7 +309,7 @@
     };
 
 /* ============================================================
-   PAGINA: STAGIONI (Versione Corretta e Ottimizzata)
+   PAGINA: STAGIONI (Versione Definitiva)
    ============================================================ */
 
 function templateStagioni() {
@@ -334,7 +334,6 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    // 1. Chiamata al DB
     const { data: seasons, error } = await client
         .from('seasons')
         .select('*')
@@ -345,15 +344,9 @@ async function initStagioni() {
         return;
     }
 
-    // 2. SELEZIONE DEL CONTENITORE
     const tbody = document.getElementById('list-stagioni'); 
-    
-    if (!tbody) {
-        console.error("Elemento 'list-stagioni' non trovato!");
-        return;
-    }
+    if (!tbody) return;
 
-    // 3. GENERAZIONE HTML (Usando map per pulizia)
     tbody.innerHTML = seasons?.map(s => `
         <tr>
             <td><strong>${s.name}</strong></td>
@@ -373,91 +366,63 @@ async function initStagioni() {
         </tr>
     `).join('') || '<tr><td colspan="4" style="text-align:center">Nessuna stagione trovata.</td></tr>';
 
-    // 4. ATTACCHIAMO I LISTENER AI BOTTONI DELLA TABELLA
-    
-    // Bottoni Attiva/Spegni
+    // Listener Bottoni Tabella
     tbody.querySelectorAll('.btn-action-activate').forEach(btn => {
         btn.onclick = () => handleStagioneToggle(btn.dataset.id, btn.dataset.active === 'true');
     });
 
-    // Bottoni Modifica
     tbody.querySelectorAll('.btn-action-edit').forEach(btn => {
         btn.onclick = () => handleStagioneEdit(btn.dataset.id, btn.dataset.name);
     });
 
-    // Bottoni Elimina
     tbody.querySelectorAll('.btn-action-delete').forEach(btn => {
         btn.onclick = () => handleStagioneDelete(btn.dataset.id);
     });
 
-    // 5. BOTTONE "NUOVA STAGIONE" (Quello in alto nella card)
+    // Listener Bottone "Nuova Stagione"
     const btnAdd = document.getElementById('btn-add-stagione');
-    if (btnAdd) {
+    if (btnAdd && typeof modal !== 'undefined') {
         btnAdd.onclick = () => {
-            // Assicurati che l'oggetto 'modal' sia definito nel tuo progetto
-            if (typeof modal !== 'undefined') {
-                modal.open('Nuova Stagione', `
-                    <p style="font-size:0.85rem; color:#666; margin-bottom:10px">Inserisci gli anni solari (es. 2025 e 2026)</p>
-                    <div style="display:flex; flex-direction:column; gap:10px">
-                        <label>Anno Inizio</label>
-                        <input type="number" id="y-start" value="${new Date().getFullYear()}">
-                        <label>Anno Fine</label>
-                        <input type="number" id="y-end" value="${new Date().getFullYear() + 1}">
-                    </div>
-                `);
+            modal.open('Nuova Stagione', `
+                <p style="font-size:0.85rem; color:#666; margin-bottom:10px">Inserisci gli anni solari (es. 2025 e 2026)</p>
+                <div style="display:flex; flex-direction:column; gap:10px">
+                    <label>Anno Inizio</label>
+                    <input type="number" id="y-start" value="${new Date().getFullYear()}">
+                    <label>Anno Fine</label>
+                    <input type="number" id="y-end" value="${new Date().getFullYear() + 1}">
+                </div>
+            `);
 
-                const btnSave = document.getElementById('btn-modal-save');
-                if (btnSave) {
-                    btnSave.onclick = async () => {
-                        const y1 = document.getElementById('y-start').value;
-                        const y2 = document.getElementById('y-end').value;
-                        
-                        const { error: insError } = await client.from('seasons').insert({ 
-                            name: `${y1}/${y2}`, 
-                            start_date: `${y1}-08-01`, 
-                            end_date: `${y2}-07-31`, 
-                            is_active: false 
-                        });
-
-                        if (insError) {
-                            alert("Errore: " + insError.message);
-                        } else {
-                            modal.close();
-                            initStagioni(); // Ricarica la lista
-                        }
-                    };
-                }
-            } else {
-                alert("Errore: Sistema modal non trovato.");
+            const btnSave = document.getElementById('btn-modal-save');
+            if (btnSave) {
+                btnSave.onclick = async () => {
+                    const y1 = document.getElementById('y-start').value;
+                    const y2 = document.getElementById('y-end').value;
+                    const { error: insError } = await client.from('seasons').insert({ 
+                        name: `${y1}/${y2}`, 
+                        start_date: `${y1}-08-01`, 
+                        end_date: `${y2}-07-31`, 
+                        is_active: false 
+                    });
+                    if (insError) alert(insError.message);
+                    else { modal.close(); initStagioni(); }
+                };
             }
         };
     }
 }
 
-/* --- Funzioni di supporto (Assicurati che esistano) --- */
-async function handleStagioneToggle(id, currentStatus) {
-    const { error } = await client
-        .from('seasons')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
-    if (!error) initStagioni();
-}
-
-async function handleStagioneDelete(id) {
-    if (confirm("Sei sicuro di voler eliminare questa stagione?")) {
-        const { error } = await client.from('seasons').delete().eq('id', id);
-        if (!error) initStagioni();
-    }
-}
 /* ============================================================
-   SEZIONE: AZIONI LOGICHE STAGIONI
+   AZIONI LOGICHE (Dichiarate una sola volta)
    ============================================================ */
 
-async function handleStagioneToggle(id, isActive) {
-    if (!isActive) {
+async function handleStagioneToggle(id, isActiveNow) {
+    if (!isActiveNow) {
+        // Se vogliamo attivarne una, spegniamo prima tutte le altre
         await client.from('seasons').update({ is_active: false }).eq('is_active', true);
         await client.from('seasons').update({ is_active: true }).eq('id', id);
     } else {
+        // Se è già attiva, la spegniamo e basta
         await client.from('seasons').update({ is_active: false }).eq('id', id);
     }
     initStagioni();
@@ -466,7 +431,8 @@ async function handleStagioneToggle(id, isActive) {
 async function handleStagioneEdit(id, currentName) {
     const newName = prompt("Modifica nome stagione (es. 2025/2026):", currentName);
     if (newName && newName !== currentName) {
-        await client.from('seasons').update({ name: newName }).eq('id', id);
+        const { error } = await client.from('seasons').update({ name: newName }).eq('id', id);
+        if (error) alert(error.message);
         initStagioni();
     }
 }
