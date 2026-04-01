@@ -333,21 +333,43 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    // DEBUG: Verifichiamo se siamo davvero loggati prima della chiamata
+    // 1. Verifichiamo la sessione (già fatto, funziona!)
     const { data: { session } } = await client.auth.getSession();
-    console.log("Token inviato?", session ? "SÌ" : "NO - ECCO PERCHÉ HAI 403");
-
-    const { data, error } = await client
+    
+    // 2. Chiamata al DB
+    const { data: seasons, error } = await client
         .from('seasons')
         .select('*')
         .order('start_date', { ascending: false });
 
     if (error) {
-        console.error("Errore 403 o permessi:", error.message);
-        // Se l'errore è 'permission denied', il problema è SQL
+        console.error("Errore fetch:", error.message);
         return;
     }
-    // ...resto del codice
+
+    // 3. SELEZIONE DEL TBODY (Qui c'era l'errore!)
+    // Assicurati che nel tuo HTML la tabella delle stagioni abbia id="seasons-tbody"
+    const tbody = document.getElementById('seasons-tbody'); 
+    
+    if (!tbody) {
+        console.error("Errore: Elemento 'seasons-tbody' non trovato nel DOM!");
+        return;
+    }
+
+    // 4. Popolamento della tabella
+    tbody.innerHTML = ''; // Pulizia
+
+    seasons.forEach(s => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${s.name}</td>
+            <td>${new Date(s.start_date).toLocaleDateString()}</td>
+            <td>${new Date(s.end_date).toLocaleDateString()}</td>
+            <td>${s.is_active ? '✅ Attiva' : '❌ Inattiva'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 
     // Generiamo l'HTML senza usare onclick
     tbody.innerHTML = data?.map(s => `
