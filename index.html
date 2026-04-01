@@ -629,7 +629,7 @@ window.handleSocietaDelete = async function(id) {
     }
 };
 /* ============================================================
-   SEZIONE: CATEGORIA (Versione Finale Anti-Errore)
+   SEZIONE: CATEGORIA (Versione Corretta Anti-400)
    ============================================================ */
 
 function templateCategoria() {
@@ -658,22 +658,27 @@ async function initCategoria() {
     const tbody = document.getElementById('list-categoria');
     if (!tbody) return;
 
+    // FIX: Rimosso !fk_cat_to_soc per evitare l'errore 400
     const { data, error } = await client
         .from('categories')
-        .select('*, societies!fk_cat_to_soc(name)') 
+        .select('*, societies(name)') 
         .order('name');
 
     if (error) { 
+        console.error("Errore fetch categorie:", error);
         tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
         return; 
     }
 
     tbody.innerHTML = data?.map(c => {
         const safeName = c.name.replace(/'/g, "\\'");
+        // Supabase restituisce l'oggetto società correlato
+        const nomeSocieta = c.societies ? c.societies.name : 'N/A';
+        
         return `
         <tr>
             <td><strong>${c.name}</strong></td>
-            <td>${c.societies ? c.societies.name : 'N/A'}</td>
+            <td>${nomeSocieta}</td>
             <td style="text-align:right">
                 <button class="btn-sm btn-warning" onclick="handleCategoriaEdit('${c.id}', '${safeName}', '${c.society_id}')">✏️</button>
                 <button class="btn-sm btn-danger" onclick="handleCategoriaDelete('${c.id}')">🗑️</button>
@@ -681,32 +686,45 @@ async function initCategoria() {
         </tr>`;
     }).join('') || '<tr><td colspan="3">Nessuna categoria.</td></tr>';
 
-    document.getElementById('btn-add-categoria').onclick = async () => {
-        const { data: socList } = await client.from('societies').select('id, name').order('name');
-        const options = socList?.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '';
+    // Gestione tasto Aggiungi
+    const btnAdd = document.getElementById('btn-add-categoria');
+    if (btnAdd) {
+        btnAdd.onclick = async () => {
+            const { data: socList } = await client.from('societies').select('id, name').order('name');
+            const options = socList?.map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '';
 
-        modal.open('Nuova Categoria', `
-            <label>Nome Categoria</label>
-            <input type="text" id="cat-name" placeholder="es. Under 19">
-            <label>Associa a Società</label>
-            <select id="cat-soc-id">
-                <option value="">-- Seleziona Società --</option>
-                ${options}
-            </select>
-        `);
+            modal.open('Nuova Categoria', `
+                <label>Nome Categoria</label>
+                <input type="text" id="cat-name" placeholder="es. Under 19">
+                <label>Associa a Società</label>
+                <select id="cat-soc-id">
+                    <option value="">-- Seleziona Società --</option>
+                    ${options}
+                </select>
+            `);
 
-        document.getElementById('btn-modal-save').onclick = async () => {
-            const name = document.getElementById('cat-name').value.trim();
-            const society_id = document.getElementById('cat-soc-id').value;
-            if(!name || !society_id) return alert("Compila tutti i campi!");
+            document.getElementById('btn-modal-save').onclick = async () => {
+                const name = document.getElementById('cat-name').value.trim();
+                const society_id = document.getElementById('cat-soc-id').value;
+                
+                if(!name || !society_id) return alert("Compila tutti i campi!");
 
-            const { error: insErr } = await client.from('categories').insert({ name, society_id });
-            if(!insErr) { modal.close(); initCategoria(); } else { alert(insErr.message); }
+                const { error: insErr } = await client.from('categories').insert({ name, society_id });
+                if(!insErr) { 
+                    modal.close(); 
+                    initCategoria(); 
+                } else { 
+                    alert(insErr.message); 
+                }
+            };
         };
-    };
+    }
 }
 
-// ESPOSIZIONE GLOBALE FUNZIONI CATEGORIA
+/* ============================================================
+   ESPOSIZIONE GLOBALE FUNZIONI CATEGORIA
+   ============================================================ */
+
 window.handleCategoriaEdit = async function(id, oldName, oldSocId) {
     const { data: socList } = await client.from('societies').select('id, name').order('name');
     const options = socList?.map(s => 
@@ -723,15 +741,29 @@ window.handleCategoriaEdit = async function(id, oldName, oldSocId) {
     document.getElementById('btn-modal-save').onclick = async () => {
         const name = document.getElementById('up-cat-name').value.trim();
         const society_id = document.getElementById('up-cat-soc-id').value;
-        const { error } = await client.from('categories').update({ name, society_id }).eq('id', id);
-        if(!error) { modal.close(); initCategoria(); } else { alert(error.message); }
+        
+        const { error } = await client
+            .from('categories')
+            .update({ name, society_id })
+            .eq('id', id);
+
+        if(!error) { 
+            modal.close(); 
+            initCategoria(); 
+        } else { 
+            alert(error.message); 
+        }
     };
 };
 
 window.handleCategoriaDelete = async function(id) {
-    if (confirm("Eliminare questa categoria?")) {
+    if (confirm("Sei sicuro di voler eliminare questa categoria?")) {
         const { error } = await client.from('categories').delete().eq('id', id);
-        if(!error) initCategoria(); else alert("Errore: " + error.message);
+        if(!error) {
+            initCategoria();
+        } else {
+            alert("Errore: " + error.message);
+        }
     }
 };
 /* ============================================================
