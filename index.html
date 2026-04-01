@@ -1156,7 +1156,7 @@ window.handleDeleteStaff = async function(id) {
     }
 };
 /* ============================================================
-   MODULO ANAGRAFICA ATLETI (GESTIONE COMPLETA CON FILTRI PROGRESSIVI)
+    MODULO ANAGRAFICA ATLETI (GESTIONE COMPLETA CON UPSERT)
    ============================================================ */
 (function() {
     let _atletiBase = [];
@@ -1240,12 +1240,11 @@ window.handleDeleteStaff = async function(id) {
         `).join('');
     }
 
-    // 5. FUNZIONE ASSOCIA (FILTRI PROGRESSIVI)
+    // 5. FUNZIONE ASSOCIA CON LOGICA ANTI-DUPLICAZIONE (UPSERT)
     window.openAssociaGiocatoreModal = async function(atletaId) {
         const atleta = _atletiBase.find(a => a.id === atletaId);
         if(!atleta) return;
 
-        // Recupero iniziale stagioni e categorie della società dell'atleta
         const [seasonsRes, categoriesRes] = await Promise.all([
             client.from('seasons').select('*').order('name', { ascending: false }),
             client.from('categories').select('*').eq('society_id', atleta.society_id).order('name')
@@ -1279,18 +1278,15 @@ window.handleDeleteStaff = async function(id) {
                 </div>
                 <div>
                     <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA</label>
-                    <input type="number" id="m-ass-jersey" placeholder="Lascia vuoto se N.D." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                    <input type="number" id="m-ass-jersey" placeholder="Esempio: 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
                 </div>
             </div>
         `);
 
-        // Logica Progressiva: Carica squadre quando cambia la categoria
         const refreshTeams = async () => {
             const catId = document.getElementById('m-ass-cat').value;
             const seaId = document.getElementById('m-ass-season').value;
             const teamSelect = document.getElementById('m-ass-team');
-            
-            teamSelect.innerHTML = '<option value="">Caricamento...</option>';
             
             if(!catId) {
                 teamSelect.innerHTML = '<option value="">-- Seleziona Categoria --</option>';
@@ -1312,29 +1308,39 @@ window.handleDeleteStaff = async function(id) {
 
         document.getElementById('btn-modal-save').onclick = async () => {
             const catId = document.getElementById('m-ass-cat').value;
+            const seaId = document.getElementById('m-ass-season').value;
+            const teamId = document.getElementById('m-ass-team').value || null;
+            const num = document.getElementById('m-ass-jersey').value;
+
             if(!catId) return alert("La categoria è obbligatoria!");
 
-            const num = document.getElementById('m-ass-jersey').value;
             const payload = {
                 athlete_id: atletaId,
-                society_id: atleta.society_id, // Fondamentale per coerenza dati
-                season_id: document.getElementById('m-ass-season').value,
+                society_id: atleta.society_id,
+                season_id: seaId,
                 category_id: catId,
-                team_id: document.getElementById('m-ass-team').value || null,
+                team_id: teamId,
                 jersey_number: num === "" ? null : parseInt(num)
             };
 
-            const { error } = await client.from('athlete_team_seasons').insert([payload]);
+            // FIX DUPLICAZIONE: Usiamo upsert definendo il vincolo di conflitto
+            // Nota: Per funzionare, devi avere un vincolo UNIQUE nel database 
+            // su (athlete_id, season_id, team_id) oppure passare l'id se esistente.
+            const { error } = await client
+                .from('athlete_team_seasons')
+                .upsert(payload, { onConflict: 'athlete_id,season_id,team_id' });
+
             if(!error) {
-                alert("Associazione completata!");
+                alert("Salvataggio completato!");
                 modal.close();
             } else {
+                console.error(error);
                 alert("Errore: " + error.message);
             }
         };
     };
 
-    // 6. ALTRE FUNZIONI
+    // 6. FILTRI E MODAL ANAGRAFICA BASE
     window.applyAnagraficaFilters = function() {
         const search = document.getElementById('f-bp-search').value.toLowerCase();
         const socId = document.getElementById('f-bp-soc').value;
@@ -1369,88 +1375,14 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 
- /*   ===== VECCHIO BLOCCO======
- 
- window.deleteAtletaBase = async function(id) {
-        const atleta = _atletiBase.find(a => a.id === id);
-        if(!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
-        try {
-            const { data: stagioni } = await client.from('athlete_team_seasons').select('*').eq('athlete_id', id);
-            const { data: arch } = await client.from('athletes_archive').insert([{
-                original_athlete_id: atleta.id, surname: atleta.surname, name: atleta.name, born_date: atleta.born_date, society_name: _socLook[atleta.society_id]
-            }]).select().single();
-            if(stagioni?.length > 0) {
-                await client.from('athlete_seasons_archive').insert(stagioni.map(s => ({
-                    athlete_archive_id: arch.id, season_id: s.season_id, team_id: s.team_id, jersey_number: s.jersey_number
-                })));
-            }
-            await client.from('athletes').delete().eq('id', id);
-            await window.initAnagraficaPura();
-        } catch (e) { alert("Errore: " + e.message); }
-    }; ===== VECCHIO BLOCCO====== */
-window.deleteAtletaBase = async function(id) {
-    const atleta = _atletiBase.find(a => a.id === id);
-    if (!atleta || !confirm(`Archiviare definitivamente ${atleta.surname}?`)) return;
+    // Funzione Archiviazione (Delete)
+    window.deleteAtletaBase = async function(id) {
+        if(!confirm("Sei sicuro di voler eliminare definitivamente questo atleta?")) return;
+        const { error } = await client.from('athletes').delete().eq('id', id);
+        if(!error) await window.initAnagraficaPura();
+        else alert("Errore durante l'eliminazione: " + error.message);
+    };
 
-    try {
-        // 1. Recupero dati attuali (da athlete_team_seasons)
-        const { data: stagioni, error: errFetch } = await client
-            .from('athlete_team_seasons')
-            .select('*')
-            .eq('athlete_id', id);
-        
-        if (errFetch) throw new Error("Errore recupero stagioni: " + errFetch.message);
-
-        // 2. Inserimento in Archivio Anagrafica
-        const { error: errArch } = await client
-            .from('athletes_archive')
-            .insert([{
-                original_athlete_id: atleta.id,
-                surname: atleta.surname,
-                name: atleta.name,
-                born_date: atleta.born_date,
-                society_name: _socLook[atleta.society_id] || 'N.D.'
-            }]);
-
-        if (errArch) throw new Error("Errore inserimento archivio atleti: " + errArch.message);
-
-        // 3. Inserimento in Archivio Stagioni (usando i nomi colonne definiti nell'SQL sopra)
-        if (stagioni && stagioni.length > 0) {
-            const payloadStagioni = stagioni.map(s => ({
-                original_athlete_id: id,
-                season_id: s.season_id,
-                team_id: s.team_id,
-                category_id: s.category_id,
-                jersey_number: s.jersey_number,
-                role: s.role
-            }));
-
-            const { error: errStag } = await client
-                .from('athlete_seasons_archive')
-                .insert(payloadStagioni);
-            
-            if (errStag) {
-                console.error("Dettaglio errore stagioni:", errStag);
-                console.warn("Lo storico stagioni non è stato migrato.");
-            }
-        }
-
-        // 4. Cancellazione finale
-        const { error: errDel } = await client
-            .from('athletes')
-            .delete()
-            .eq('id', id);
-
-        if (errDel) throw new Error("Errore durante la cancellazione finale: " + errDel.message);
-
-        alert("Atleta archiviato correttamente.");
-        await window.initAnagraficaPura();
-
-    } catch (e) {
-        console.error("Errore procedura:", e);
-        alert("Impossibile completare: " + e.message);
-    }
-};
 })();
 /* ============================================================
    EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
