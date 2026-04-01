@@ -333,10 +333,7 @@ function templateStagioni() {
 }
 
 async function initStagioni() {
-    // 1. Verifichiamo la sessione (già fatto, funziona!)
-    const { data: { session } } = await client.auth.getSession();
-    
-    // 2. Chiamata al DB
+    // 1. Chiamata al DB (il 403 è già risolto, come abbiamo visto)
     const { data: seasons, error } = await client
         .from('seasons')
         .select('*')
@@ -347,29 +344,40 @@ async function initStagioni() {
         return;
     }
 
-    // 3. SELEZIONE DEL TBODY (Qui c'era l'errore!)
-    // Assicurati che nel tuo HTML la tabella delle stagioni abbia id="seasons-tbody"
-    const tbody = document.getElementById('seasons-tbody'); 
+    // 2. SELEZIONE DEL CONTENITORE (Usando l'ID del tuo template)
+    const container = document.getElementById('list-stagioni'); 
     
-    if (!tbody) {
-        console.error("Errore: Elemento 'seasons-tbody' non trovato nel DOM!");
+    if (!container) {
+        // Se entriamo qui, significa che initStagioni è partita prima che il template fosse nel DOM
+        console.error("Elemento 'list-stagioni' non trovato!");
         return;
     }
 
-    // 4. Popolamento della tabella
-    tbody.innerHTML = ''; // Pulizia
+    // 3. PULIZIA E POPOLAMENTO
+    container.innerHTML = ''; 
+
+    if (seasons.length === 0) {
+        container.innerHTML = '<tr><td colspan="4" style="text-align:center">Nessuna stagione trovata.</td></tr>';
+        return;
+    }
 
     seasons.forEach(s => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${s.name}</td>
-            <td>${new Date(s.start_date).toLocaleDateString()}</td>
-            <td>${new Date(s.end_date).toLocaleDateString()}</td>
-            <td>${s.is_active ? '✅ Attiva' : '❌ Inattiva'}</td>
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${s.name}</strong></td>
+            <td>${new Date(s.start_date).toLocaleDateString()} - ${new Date(s.end_date).toLocaleDateString()}</td>
+            <td>
+                <span class="badge ${s.is_active ? 'active' : 'inactive'}">
+                    ${s.is_active ? 'Attiva' : 'Inattiva'}
+                </span>
+            </td>
+            <td style="text-align:right">
+                <button class="btn-icon" onclick="editStagione('${s.id}')">✏️</button>
+            </td>
         `;
-        tbody.appendChild(row);
+        container.appendChild(tr);
     });
-
+}
     // Generiamo l'HTML senza usare onclick
     tbody.innerHTML = data?.map(s => `
         <tr>
