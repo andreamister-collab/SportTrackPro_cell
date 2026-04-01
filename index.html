@@ -1037,7 +1037,7 @@ async function initStaff() {
         </tr>`;
     }).join('') || '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessun utente trovato.</td></tr>';
 
-    // 4. AGGANCIO TASTO NUOVO (Risolto il problema del tasto morto)
+    // 4. Aggancio tasto nuovo utente
     const btnAdd = document.getElementById('btn-add-staff');
     if (btnAdd) {
         btnAdd.onclick = () => openStaffModal();
@@ -1095,12 +1095,9 @@ async function openStaffModal(editData = null) {
                 </select>
             </div>
             
-            ${!isEdit ? `
-                <div>
-                    <label>PASSWORD TEMPORANEA</label>
-                    <input type="password" id="st-password" placeholder="min. 6 caratteri" class="modal-input">
-                </div>
-            ` : ''}
+            <p style="font-size:0.8em; color:#666; margin-top:10px;">
+                Nota: La password viene gestita tramite il sistema di autenticazione globale.
+            </p>
         </div>
     `);
 
@@ -1111,31 +1108,24 @@ async function openStaffModal(editData = null) {
     };
     toggleStaffSocVisibility();
 
-    // --- LOGICA DI SALVATAGGIO ---
+    /* --- LOGICA DI SALVATAGGIO --- */
     document.getElementById('btn-modal-save').onclick = async () => {
-        // Recupero elementi in modo sicuro
-        const elName = document.getElementById('st-name');
-        const elUser = document.getElementById('st-username');
-        const elRole = document.getElementById('st-role');
-        const elMrole = document.getElementById('st-mrole');
-        const elSoc = document.getElementById('st-society_id');
-        const elPass = document.getElementById('st-password'); // Potrebbe essere null in Edit
+        const name = document.getElementById('st-name').value.trim();
+        const username = document.getElementById('st-username').value.trim();
+        const role = document.getElementById('st-role').value;
+        const mrole = document.getElementById('st-mrole').value;
+        const soc_id = document.getElementById('st-society_id').value;
 
-        if(!elName?.value || !elUser?.value) return alert("Nome e Username obbligatori!");
+        if(!name || !username) return alert("Nome e Username obbligatori!");
 
+        // Payload PULITO: Solo colonne esistenti nel DB public.users
         const payload = { 
-            name: elName.value.trim(), 
-            username: elUser.value.trim(), 
-            role: elRole.value,
-            management_role: elRole.value === 'manager' ? 'Gestore Sistema' : elMrole.value,
-            society_id: elRole.value === 'manager' ? null : elSoc.value 
+            name: name, 
+            username: username, 
+            role: role,
+            management_role: role === 'manager' ? 'Gestore Sistema' : mrole,
+            society_id: role === 'manager' ? null : (soc_id || null) 
         };
-
-        // Aggiungo password solo se l'elemento esiste (Nuovo Utente)
-        if (!isEdit && elPass) {
-            if (elPass.value.length < 6) return alert("Password troppo corta!");
-            payload.password = elPass.value;
-        }
 
         const { error } = isEdit 
             ? await client.from('users').update(payload).eq('id', editData.id)
@@ -1145,10 +1135,12 @@ async function openStaffModal(editData = null) {
             modal.close();
             initStaff();
         } else {
-            alert("Errore: " + error.message);
+            console.error("Errore Database:", error);
+            alert("Errore salvataggio: " + error.message);
         }
     };
 }
+
 /* --- FUNZIONI GLOBALI (ESPOSTE) --- */
 
 window.handleEditStaff = async function(id) {
