@@ -1375,15 +1375,70 @@ window.handleDeleteStaff = async function(id) {
         };
     };
 
-    // Funzione Archiviazione (Delete)
-    window.deleteAtletaBase = async function(id) {
-        if(!confirm("Sei sicuro di voler eliminare definitivamente questo atleta?")) return;
-        const { error } = await client.from('athletes').delete().eq('id', id);
-        if(!error) await window.initAnagraficaPura();
-        else alert("Errore durante l'eliminazione: " + error.message);
-    };
+ // 6. FUNZIONE CANCELLAZIONE CON ARCHIVIAZIONE
+window.deleteAtletaBase = async function(id) {
+    const atleta = _atletiBase.find(a => a.id === id);
+    if(!atleta) return;
 
-})();
+    if(!confirm(`Sei sicuro di voler eliminare ${atleta.surname}? 
+Tutti i suoi dati e le associazioni squadre verranno spostati in archivio.`)) return;
+
+    try {
+        // A. Recuperiamo le associazioni squadre attuali
+        const { data: associazioni } = await client
+            .from('athlete_team_seasons')
+            .select('*')
+            .eq('athlete_id', id);
+
+        // B. Archiviazione Anagrafica
+        const { error: errArchivioAtleta } = await client
+            .from('athletes_deleted_archive')
+            .insert([{
+                original_id: atleta.id,
+                name: atleta.name,
+                surname: atleta.surname,
+                born_date: atleta.born_date,
+                society_id: atleta.society_id
+            }]);
+
+        if (errArchivioAtleta) throw new Error("Errore archiviazione anagrafica: " + errArchivioAtleta.message);
+
+        // C. Archiviazione Associazioni (se presenti)
+        if (associazioni && associazioni.length > 0) {
+            const assoc_to_archive = associazioni.map(as => ({
+                original_id: as.id,
+                athlete_id: as.athlete_id,
+                society_id: as.society_id,
+                season_id: as.season_id,
+                category_id: as.category_id,
+                team_id: as.team_id,
+                jersey_number: as.jersey_number
+            }));
+
+            const { error: errArchivioAssoc } = await client
+                .from('athlete_team_seasons_archive')
+                .insert(assoc_to_archive);
+
+            if (errArchivioAssoc) throw new Error("Errore archiviazione associazioni: " + errArchivioAssoc.message);
+        }
+
+        // D. Eliminazione definitiva dalle tabelle attive
+        // Nota: se hai il CASCADE su athlete_team_seasons, basta eliminare l'atleta
+        const { error: errDelete } = await client
+            .from('athletes')
+            .delete()
+            .eq('id', id);
+
+        if (errDelete) throw errDelete;
+
+        alert("Atleta e associazioni spostati correttamente in archivio.");
+        await window.initAnagraficaPura();
+
+    } catch (err) {
+        console.error(err);
+        alert("Si è verificato un errore durante la procedura: " + err.message);
+    }
+};
 /* ============================================================
    EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
    ============================================================ */
