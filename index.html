@@ -1421,9 +1421,9 @@ window.handleDeleteStaff = async function(id) {
             alert("Archiviazione completata.");
             await window.initAnagraficaPura();
         } catch (err) {
-            console.error(err);
-            alert("Errore: " + err.message);
-        }
+    console.error("DETTAGLI ERRORE:", err); // <-- Fondamentale per vedere quale colonna fallisce
+    alert("Errore: " + (err.details || err.message || "Errore sconosciuto"));
+}
     };
 })(); // Chiusura corretta della IIFE
 /* ============================================================
