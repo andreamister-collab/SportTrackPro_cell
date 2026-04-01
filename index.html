@@ -551,10 +551,10 @@ async function initSocieta() {
     const tbody = document.getElementById('list-societa');
     if (!tbody) return;
 
-    const { data, error } = await client
-        .from('societies')
-        .select('*, sports!fk_soc_to_sport(name, icon)') 
-        .order('name');
+const { data, error } = await client
+    .from('societies')
+    .select('*, sports(name, icon)') // Rimosso !fk_soc_to_sport
+    .order('name');
     
     if (error) { 
         tbody.innerHTML = `<tr><td colspan="3">Errore: ${error.message}</td></tr>`; 
