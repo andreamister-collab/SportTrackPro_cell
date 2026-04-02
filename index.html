@@ -338,19 +338,19 @@
 
             <span class="sb-grp">Attività</span>
             <a data-section="sessioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>Gestione Sessioni</a>
-            <div class="nav-item-group">
-                <a data-section="partite">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/>
-                    </svg>
-                    Gestione Partite
-                </a>
-                <div class="nav-submenu">
-                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); reloadMatchSubFilters();">📊 Sintesi Partite</div>
-                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); setTimeout(() => initPartite('convocazioni'), 100);">📋 Convocazioni</div>
-                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); setTimeout(() => initPartite('risultati'), 100);">⚽ Risultati e Tabellini</div>
-                </div>
-            </div>
+<div class="nav-item-group">
+    <a data-section="partite">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/>
+        </svg>
+        Gestione Partite
+    </a>
+    <div class="nav-submenu">
+        <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content'); if(c){ c.innerHTML = templatePartite(); reloadMatchSubFilters(); }">📊 Sintesi Partite</div>
+        <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content'); if(c){ c.innerHTML = templatePartite(); setTimeout(() => initPartite('convocazioni'), 100); }">📋 Convocazioni</div>
+        <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content'); if(c){ c.innerHTML = templatePartite(); setTimeout(() => initPartite('risultati'), 100); }">⚽ Risultati e Tabellini</div>
+    </div>
+</div>
         </div>
         <div class="sb-foot">
             <span id="user-info"></span>
@@ -2711,23 +2711,23 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE (Sintesi, Convocazioni, Risultati)
+   MODULO: GESTIONE PARTITE - FIX VISIBILITÀ E RIFERIMENTI
    ============================================================ */
 
 function templatePartite() {
     return `
     <div class="card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <div>
-                <h2 id="match-main-title" style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase;">🏟️ GESTIONE PARTITE</h2>
+                <h2 style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase;">🏟️ GESTIONE PARTITE</h2>
                 <p id="match-subtitle" style="color:#94a3b8; font-size:13px; margin-top:4px; font-weight:500;"></p>
             </div>
-            <div id="match-header-actions" style="display:flex; gap:10px;"></div>
+            <div id="match-header-actions"></div>
         </div>
 
         <div id="match-filters-area" style="display:flex; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05);">
              <select id="f-match-soc" onchange="reloadMatchSubFilters()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:180px;">
-                <option value="">Caricamento Società...</option>
+                <option value="">Seleziona Società...</option>
              </select>
              <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;">
                 <option value="">Tutte Categorie</option>
@@ -2741,74 +2741,61 @@ function templatePartite() {
     </div>`;
 }
 
+async function setupAdminSocietyFilter() {
+    const selectSoc = document.getElementById('f-match-soc');
+    if (!selectSoc) return;
+    const { data: societies } = await client.from('societies').select('id, name').order('name');
+    if (societies && societies.length > 0) {
+        selectSoc.innerHTML = societies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        if (!window._currentSocietyId) window._currentSocietyId = societies[0].id;
+        await reloadMatchSubFilters();
+    }
+}
+
 async function initPartite(sub = 'sintesi') {
     const content = document.getElementById('match-main-content');
     const subtitle = document.getElementById('match-subtitle');
     const actions = document.getElementById('match-header-actions');
-    
     if (!content) return;
 
-    // Popolamento iniziale società se vuoto (Admin)
     const selectSoc = document.getElementById('f-match-soc');
-    if (selectSoc && selectSoc.options.length <= 1) {
-        await setupAdminSocietyFilter();
-    }
+    if (selectSoc && selectSoc.options.length <= 1) await setupAdminSocietyFilter();
 
     const currentSoc = selectSoc?.value || window._currentSocietyId;
-    
-    if (!currentSoc || currentSoc === "null") {
-        content.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8;">Seleziona una società per visualizzare i dati.</div>`;
-        return;
-    }
-
     actions.innerHTML = '';
-    content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento...</div>';
 
     if (sub === 'sintesi') {
         subtitle.innerText = "SINTESI GENERALE PARTITE";
         await renderSintesiPartite(content, currentSoc);
     } else if (sub === 'convocazioni') {
         subtitle.innerText = "CONVOCAZIONI ED EXPORT";
-        actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white; font-weight:bold;">+ NUOVA GARA</button>`;
+        actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white;">+ NUOVA GARA</button>`;
         await renderConvocazioniPartite(content, currentSoc);
-    }
-}
-
-async function setupAdminSocietyFilter() {
-    const selectSoc = document.getElementById('f-match-soc');
-    const { data: societies } = await client.from('societies').select('id, name').order('name');
-    
-    if (societies && societies.length > 0) {
-        selectSoc.innerHTML = societies.map(s => 
-            `<option value="${s.id}" ${s.id === window._currentSocietyId ? 'selected' : ''}>${s.name}</option>`
-        ).join('');
-        
-        if (!window._currentSocietyId) window._currentSocietyId = societies[0].id;
-        await reloadMatchSubFilters();
     }
 }
 
 async function renderSintesiPartite(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
-    
-    // Query corretta per recuperare le sessioni di tipo GARA
+    container.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Ricerca gare in corso...</div>';
+
+    // Recuperiamo le sessioni che iniziano per "GARA:"
     let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).ilike('title', 'GARA:%');
     if (teamId) query = query.eq('team_id', teamId);
 
-    const { data: matches } = await query.order('session_date', { ascending: false });
+    const { data: matches, error } = await query.order('session_date', { ascending: false });
 
-    if (!matches || matches.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna gara trovata.</div>`;
+    if (error || !matches || matches.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna gara registrata per questa selezione.</div>`;
         return;
     }
 
     container.innerHTML = `
-    <div class="table-container" style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+    <div class="table-container">
+        <table style="width:100%; border-collapse:collapse; font-size:12px; color: white;">
             <thead>
-                <tr style="background:#0f1117; color:#94a3b8; text-align:left;">
+                <tr style="background:#0f1117; color:#94a3b8; text-align:left; border-bottom: 1px solid var(--border);">
                     <th style="padding:12px;">DATA / SQUADRA</th>
-                    <th style="padding:12px;">DESCRIZIONE</th>
+                    <th style="padding:12px;">PARTITA</th>
                     <th style="padding:12px; text-align:right;">AZIONI</th>
                 </tr>
             </thead>
@@ -2818,7 +2805,7 @@ async function renderSintesiPartite(container, socId) {
                         <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}<br><small style="color:#2563eb">${m.teams?.name || 'N/A'}</small></td>
                         <td style="padding:12px;"><strong>${m.title.replace('GARA: ', '')}</strong></td>
                         <td style="padding:12px; text-align:right;">
-                            <button onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer;">🗑️</button>
+                            <button onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer; font-size:16px;">🗑️</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -2830,10 +2817,8 @@ async function renderSintesiPartite(container, socId) {
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value;
     if (!socId) return;
-
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
-    
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
     reloadMatchTeamsOnly();
@@ -2847,34 +2832,14 @@ function reloadMatchTeamsOnly() {
     initPartite();
 }
 
-async function openMatchModal() {
-    const m = typeof getModal === 'function' ? getModal() : { open: (t, h) => alert(t) };
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    const { data: teams } = await client.from('teams').select('id, name').eq('society_id', socId).order('name');
-
-    m.open('PROGRAMMA NUOVA GARA', `
-        <div style="display:grid; gap:12px; color:#333;">
-            <input type="date" id="m-date" value="${new Date().toISOString().split('T')[0]}" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-            <select id="m-team" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <option value="">Scegli Squadra...</option>
-                ${teams?.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
-            </select>
-            <input type="text" id="m-opponent" placeholder="Squadra Avversaria" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-            <select id="m-location" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
-                <option value="Casa">In Casa</option>
-                <option value="Trasferta">Trasferta</option>
-            </select>
-            <button onclick="saveMatch()" style="background:#10b981; color:white; padding:15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA GARA</button>
-        </div>
-    `);
-}
-
 async function saveMatch() {
     const socId = document.getElementById('f-match-soc')?.value;
     const teamId = document.getElementById('m-team').value;
     const opponent = document.getElementById('m-opponent').value;
     const location = document.getElementById('m-location').value;
     const date = document.getElementById('m-date').value;
+
+    if(!socId || !teamId || !opponent) return alert("Compila tutti i campi obbligatori!");
 
     const { error } = await client.from('sessions').insert([{
         society_id: socId,
@@ -2885,19 +2850,22 @@ async function saveMatch() {
     }]);
 
     if (error) alert("Errore: " + error.message);
-    else { if(window.getModal) getModal().close(); initPartite('sintesi'); }
+    else { 
+        if(window.getModal) getModal().close(); 
+        initPartite('sintesi'); 
+    }
 }
 
 async function deleteMatchSession(id) {
-    if(!confirm("Eliminare?")) return;
+    if(!confirm("Vuoi eliminare questa gara?")) return;
     await client.from('sessions').delete().eq('id', id);
     initPartite();
 }
 
+// Esponi le funzioni globalmente
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
-window.openMatchModal = openMatchModal;
-window.saveMatch = saveMatch; 
+window.saveMatch = saveMatch;
 window.deleteMatchSession = deleteMatchSession;
 window.reloadMatchSubFilters = reloadMatchSubFilters;
 window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
