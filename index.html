@@ -339,18 +339,18 @@
             <span class="sb-grp">Attività</span>
             <a data-section="sessioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>Gestione Sessioni</a>
             <div class="nav-item-group">
-    <a data-section="partite">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/>
-        </svg>
-        Gestione Partite
-    </a>
-    <div class="nav-submenu">
-        <div class="nav-submenu-item" onclick="mainContainer.innerHTML = templatePartite(); reloadMatchSubFilters();">📊 Sintesi Partite</div>
-        <div class="nav-submenu-item" onclick="mainContainer.innerHTML = templatePartite(); setTimeout(() => initPartite('convocazioni'), 50);">📋 Convocazioni</div>
-        <div class="nav-submenu-item" onclick="mainContainer.innerHTML = templatePartite(); setTimeout(() => initPartite('risultati'), 50);">⚽ Risultati e Tabellini</div>
-    </div>
-</div>
+                <a data-section="partite">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/>
+                    </svg>
+                    Gestione Partite
+                </a>
+                <div class="nav-submenu">
+                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); reloadMatchSubFilters();">📊 Sintesi Partite</div>
+                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); setTimeout(() => initPartite('convocazioni'), 100);">📋 Convocazioni</div>
+                    <div class="nav-submenu-item" onclick="const c = document.getElementById('main-content') || document.body; c.innerHTML = templatePartite(); setTimeout(() => initPartite('risultati'), 100);">⚽ Risultati e Tabellini</div>
+                </div>
+            </div>
         </div>
         <div class="sb-foot">
             <span id="user-info"></span>
@@ -2714,23 +2714,20 @@ window.saveSessionNotes = saveSessionNotes;
    MODULO: GESTIONE PARTITE (Sintesi, Convocazioni, Risultati)
    ============================================================ */
 
-/**
- * 1. IL CONTENITORE PRINCIPALE
- */
 function templatePartite() {
     return `
     <div class="card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
             <div>
-                <h2 id="match-main-title" style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase; font-family: 'Syne', sans-serif;">🏟️ GESTIONE PARTITE</h2>
+                <h2 id="match-main-title" style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase;">🏟️ GESTIONE PARTITE</h2>
                 <p id="match-subtitle" style="color:#94a3b8; font-size:13px; margin-top:4px; font-weight:500;"></p>
             </div>
             <div id="match-header-actions" style="display:flex; gap:10px;"></div>
         </div>
 
-        <div id="match-filters-area" style="display:flex; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05); overflow-x:auto;">
+        <div id="match-filters-area" style="display:flex; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05);">
              <select id="f-match-soc" onchange="reloadMatchSubFilters()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:180px;">
-                <option value="">Seleziona Società...</option>
+                <option value="">Caricamento Società...</option>
              </select>
              <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;">
                 <option value="">Tutte Categorie</option>
@@ -2744,9 +2741,6 @@ function templatePartite() {
     </div>`;
 }
 
-/**
- * 2. INIZIALIZZATORE (Gestione Sottomenu e ID Società)
- */
 async function initPartite(sub = 'sintesi') {
     const content = document.getElementById('match-main-content');
     const subtitle = document.getElementById('match-subtitle');
@@ -2754,7 +2748,7 @@ async function initPartite(sub = 'sintesi') {
     
     if (!content) return;
 
-    // Se il filtro società è vuoto (prima esecuzione), lo popoliamo subito
+    // Popolamento iniziale società se vuoto (Admin)
     const selectSoc = document.getElementById('f-match-soc');
     if (selectSoc && selectSoc.options.length <= 1) {
         await setupAdminSocietyFilter();
@@ -2763,12 +2757,12 @@ async function initPartite(sub = 'sintesi') {
     const currentSoc = selectSoc?.value || window._currentSocietyId;
     
     if (!currentSoc || currentSoc === "null") {
-        content.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8;">Scegli una società dal filtro in alto per visualizzare le partite.</div>`;
+        content.innerHTML = `<div style="padding:40px; text-align:center; color:#94a3b8;">Seleziona una società per visualizzare i dati.</div>`;
         return;
     }
 
     actions.innerHTML = '';
-    content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento in corso...</div>';
+    content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento...</div>';
 
     if (sub === 'sintesi') {
         subtitle.innerText = "SINTESI GENERALE PARTITE";
@@ -2777,56 +2771,34 @@ async function initPartite(sub = 'sintesi') {
         subtitle.innerText = "CONVOCAZIONI ED EXPORT";
         actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white; font-weight:bold;">+ NUOVA GARA</button>`;
         await renderConvocazioniPartite(content, currentSoc);
-    } else if (sub === 'risultati') {
-        subtitle.innerText = "RISULTATI E TABELLINI";
-        await renderRisultatiPartite(content, currentSoc);
     }
 }
 
-/**
- * 3. LOGICA SPECIFICA PER ADMIN (Caricamento Società Censite)
- */
 async function setupAdminSocietyFilter() {
     const selectSoc = document.getElementById('f-match-soc');
-    if (!selectSoc) return;
-
-    // Recuperiamo tutte le società censite
-    const { data: societies, error } = await client.from('societies').select('id, name').order('name');
+    const { data: societies } = await client.from('societies').select('id, name').order('name');
     
-    if (error) {
-        console.error("Errore caricamento società:", error);
-        return;
-    }
-
     if (societies && societies.length > 0) {
-        // Popoliamo la select
         selectSoc.innerHTML = societies.map(s => 
             `<option value="${s.id}" ${s.id === window._currentSocietyId ? 'selected' : ''}>${s.name}</option>`
         ).join('');
         
-        // Se non c'è una società corrente impostata, prendiamo la prima della lista
-        if (!window._currentSocietyId) {
-            window._currentSocietyId = societies[0].id;
-        }
-        
-        // Carichiamo subito i filtri dipendenti (categorie/squadre)
+        if (!window._currentSocietyId) window._currentSocietyId = societies[0].id;
         await reloadMatchSubFilters();
     }
 }
 
-/**
- * 4. RENDERING SINTESI
- */
 async function renderSintesiPartite(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
     
+    // Query corretta per recuperare le sessioni di tipo GARA
     let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).ilike('title', 'GARA:%');
     if (teamId) query = query.eq('team_id', teamId);
 
     const { data: matches } = await query.order('session_date', { ascending: false });
 
     if (!matches || matches.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna gara registrata.</div>`;
+        container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna gara trovata.</div>`;
         return;
     }
 
@@ -2834,11 +2806,9 @@ async function renderSintesiPartite(container, socId) {
     <div class="table-container" style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
-                <tr style="background:#0f1117; color:#94a3b8; text-align:left; border-bottom: 2px solid var(--border);">
+                <tr style="background:#0f1117; color:#94a3b8; text-align:left;">
                     <th style="padding:12px;">DATA / SQUADRA</th>
-                    <th style="padding:12px;">AVVERSARIO</th>
-                    <th style="padding:12px; text-align:center;">C/T</th>
-                    <th style="padding:12px; text-align:center;">RISULTATO</th>
+                    <th style="padding:12px;">DESCRIZIONE</th>
                     <th style="padding:12px; text-align:right;">AZIONI</th>
                 </tr>
             </thead>
@@ -2846,11 +2816,9 @@ async function renderSintesiPartite(container, socId) {
                 ${matches.map(m => `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
                         <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}<br><small style="color:#2563eb">${m.teams?.name || 'N/A'}</small></td>
-                        <td style="padding:12px;"><strong>${m.title.split(' vs ')[1] || m.title.replace('GARA: ', '')}</strong></td>
-                        <td style="padding:12px; text-align:center;">${m.title.includes('(Casa)') ? 'Casa' : 'Trasf.'}</td>
-                        <td style="padding:12px; text-align:center; font-weight:bold;">-</td>
+                        <td style="padding:12px;"><strong>${m.title.replace('GARA: ', '')}</strong></td>
                         <td style="padding:12px; text-align:right;">
-                            <button class="btn-sm" onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer;">🗑️</button>
+                            <button onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer;">🗑️</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -2859,38 +2827,6 @@ async function renderSintesiPartite(container, socId) {
     </div>`;
 }
 
-/**
- * 5. RENDERING CONVOCAZIONI
- */
-async function renderConvocazioniPartite(container, socId) {
-    const { data: matches } = await client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).ilike('title', 'GARA:%').order('session_date', { ascending: false });
-
-    if (!matches || matches.length === 0) {
-        container.innerHTML = `<p style="color:#64748b; text-align:center; padding:40px;">Crea una nuova gara per gestire i convocati.</p>`;
-        return;
-    }
-
-    container.innerHTML = `<div id="convocazioni-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:15px;">
-        ${matches.map(m => `
-            <div style="background:#13151e; border:1px solid var(--border); border-radius:10px; padding:15px;">
-                <h4 style="margin:0; font-size:15px;">${m.title.replace('GARA: ', '')}</h4>
-                <p style="font-size:12px; color:#94a3b8; margin:5px 0;">${m.teams?.name} - ${new Date(m.session_date).toLocaleDateString()}</p>
-                <div style="display:flex; gap:8px; margin-top:15px;">
-                    <button class="btn-sm btn-info" style="flex:1;" onclick="alert('In arrivo...')">👥 Convocati</button>
-                    <button class="btn-sm" style="flex:1; background:#10b981; color:white;" onclick="alert('In arrivo...')">📸 Export</button>
-                </div>
-            </div>
-        `).join('')}
-    </div>`;
-}
-
-async function renderRisultatiPartite(container, socId) {
-    container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">Seleziona una gara dalla sintesi per inserire il risultato.</div>`;
-}
-
-/**
- * 6. LOGICA FILTRI DIPENDENTI
- */
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value;
     if (!socId) return;
@@ -2911,11 +2847,8 @@ function reloadMatchTeamsOnly() {
     initPartite();
 }
 
-/**
- * 7. MODALE E SALVATAGGIO
- */
 async function openMatchModal() {
-    const m = getModal();
+    const m = typeof getModal === 'function' ? getModal() : { open: (t, h) => alert(t) };
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     const { data: teams } = await client.from('teams').select('id, name').eq('society_id', socId).order('name');
 
@@ -2943,8 +2876,6 @@ async function saveMatch() {
     const location = document.getElementById('m-location').value;
     const date = document.getElementById('m-date').value;
 
-    if (!teamId || !opponent) return alert("Dati mancanti!");
-
     const { error } = await client.from('sessions').insert([{
         society_id: socId,
         team_id: teamId,
@@ -2954,16 +2885,15 @@ async function saveMatch() {
     }]);
 
     if (error) alert("Errore: " + error.message);
-    else { getModal().close(); initPartite('sintesi'); }
+    else { if(window.getModal) getModal().close(); initPartite('sintesi'); }
 }
 
 async function deleteMatchSession(id) {
-    if(!confirm("Eliminare questa gara?")) return;
+    if(!confirm("Eliminare?")) return;
     await client.from('sessions').delete().eq('id', id);
     initPartite();
 }
 
-// Esposizione Globale
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.openMatchModal = openMatchModal;
