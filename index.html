@@ -2581,36 +2581,54 @@ function reloadMatchTeamsOnly() {
 /**
  * 3. MODALE E SALVATAGGIO
  */
+/**
+ * 3. MODALE E SALVATAGGIO (VERSIONE CON FALLBACK)
+ */
 async function openMatchModal(id = null) {
     let editData = null;
     if (id) {
-        const { data } = await client.from('sessions').select('*').eq('id', id.toString().split(':')[0]).single();
+        const cleanId = id.toString().split(':')[0];
+        const { data } = await client.from('sessions').select('*').eq('id', cleanId).single();
         editData = data;
     }
+
     const html = `
-        <div style="padding:20px; display:grid; gap:10px;">
-            <h3>${id ? 'Modifica' : 'Nuova'} Gara</h3>
-            <input type="text" id="m-title" placeholder="Titolo" value="${editData?.title || ''}">
-            <input type="date" id="m-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}">
-            <select id="m-team">
-                <option value="">Squadra...</option>
+        <div style="padding:20px; display:grid; gap:10px; font-family: sans-serif;">
+            <h3 style="margin-top:0;">${id ? 'Modifica' : 'Nuova'} Gara</h3>
+            <label style="font-size:12px; color:#666;">Titolo / Avversario</label>
+            <input type="text" id="m-title" placeholder="Es: Derby vs Team X" value="${editData?.title || ''}" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
+            
+            <label style="font-size:12px; color:#666;">Data</label>
+            <input type="date" id="m-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
+            
+            <label style="font-size:12px; color:#666;">Squadra</label>
+            <select id="m-team" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
+                <option value="">Seleziona Squadra...</option>
                 ${(window._matchTeams || []).map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
-            <button onclick="saveMatch('${id || ''}')" style="background:#059669; color:white; padding:10px;">SALVA</button>
+            
+            <div style="margin-top:10px; display:flex; gap:10px;">
+                <button onclick="document.getElementById('generic-modal-overlay').remove()" style="flex:1; padding:10px; background:#eee; border:none; border-radius:4px; cursor:pointer;">Annulla</button>
+                <button onclick="saveMatch('${id || ''}')" style="flex:1; background:#059669; color:white; padding:10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">SALVA</button>
+            </div>
         </div>`;
-    window.openGenericModal(html);
-}
 
-async function saveMatch(id) {
-    const payload = { 
-        title: document.getElementById('m-title').value, 
-        session_date: document.getElementById('m-date').value, 
-        team_id: document.getElementById('m-team').value,
-        society_id: window._currentSocietyId,
-        type_id: (await client.from('session_types').select('id').ilike('name', '%gara%').single()).data?.id
-    };
-    const { error } = id ? await client.from('sessions').update(payload).eq('id', id) : await client.from('sessions').insert([payload]);
-    if (!error) { document.getElementById('generic-modal-overlay').remove(); initPartite(); }
+    // CONTROLLO SE ESISTE LA FUNZIONE, ALTRIMENTI LA CREO AL VOLO
+    if (typeof window.openGenericModal === 'function') {
+        window.openGenericModal(html);
+    } else {
+        // FALLBACK: Crea una modale base se openGenericModal non esiste
+        const overlay = document.createElement('div');
+        overlay.id = 'generic-modal-overlay';
+        overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;";
+        
+        const content = document.createElement('div');
+        content.style = "background:white; padding:10px; border-radius:8px; width:90%; max-width:400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+        content.innerHTML = html;
+        
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+    }
 }
 
 /**
