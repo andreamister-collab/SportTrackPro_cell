@@ -2828,22 +2828,64 @@ async function saveMatch(id) {
 
     if (!teamId) return alert("Scegli la squadra!");
 
-    const { data: types } = await client.from('session_types').select('id, name');
-    const typeId = types?.find(t => t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('partita'))?.id;
+    // 1. Recupera il type_id corretto per le gare
+    const { data: typeData } = await client.from('session_types')
+        .select('id')
+        .ilike('name', '%gara%')
+        .limit(1)
+        .single();
+    
+    const typeId = typeData?.id;
 
-    const payload = { title, session_date: date, team_id: teamId, society_id: window._currentSocietyId, type_id: typeId };
+    const payload = { 
+        title, 
+        session_date: date, 
+        team_id: teamId, 
+        society_id: window._currentSocietyId, 
+        type_id: typeId 
+    };
 
-    const { error } = id && id !== '' 
-        ? await client.from('sessions').update(payload).eq('id', id.toString().split(':')[0])
-        : await client.from('sessions').insert([payload]);
+    // 2. Salva o Aggiorna la Sessione
+    const isEdit = id && id !== '';
+    const { data: sessionData, error: sessionError } = isEdit 
+        ? await client.from('sessions').update(payload).eq('id', id.toString().split(':')[0]).select().single()
+        : await client.from('sessions').insert([payload]).select().single();
 
-    if (!error) {
-        const overlay = document.getElementById('generic-modal-overlay');
-        if (overlay) overlay.remove();
-        initPartite();
-    } else {
-        alert("Errore salvataggio: " + error.message);
+    if (sessionError) return alert("Errore sessione: " + sessionError.message);
+
+    // 3. SE È UNA NUOVA PARTITA, GENERA AUTOMATICAMENTE LE RIGHE PRESENZE
+    if (!isEdit && sessionData) {
+        // Recupera gli atleti della squadra
+        const { data: teamAthletes, error: athleteError } = await client
+            .from('athlete_team_seasons')
+            .select('athlete_id')
+            .eq('team_id', teamId);
+
+        if (athleteError) {
+            console.error("Errore recupero atleti:", athleteError);
+        } else if (teamAthletes && teamAthletes.length > 0) {
+            // Prepara le righe per la tabella attendances
+            const attendanceRows = teamAthletes.map(a => ({
+                session_id: sessionData.id,
+                athlete_id: a.athlete_id,
+                status: 'assente', // Default iniziale
+                is_called_up: false // Default: non ancora convocato
+            }));
+
+            // Inserimento massivo
+            const { error: attendError } = await client
+                .from('attendances')
+                .insert(attendanceRows);
+
+            if (attendError) console.error("Errore popolamento presenze:", attendError);
+        }
     }
+
+    // Chiudi e ricarica
+    const overlay = document.getElementById('generic-modal-overlay');
+    if (overlay) overlay.remove();
+    initPartite();
+    alert(isEdit ? "Gara aggiornata!" : "Gara creata con successo e lista atleti pronta!");
 }
 
 async function deleteMatchSession(id) {
