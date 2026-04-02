@@ -2711,21 +2711,18 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - VERSION 2.0 (SESSION TYPE)
+   MODULO: GESTIONE PARTITE - FULL BLOCK (FIX UUID & REFS)
    ============================================================ */
 
-/**
- * 1. IL CONTENITORE PRINCIPALE
- */
 function templatePartite() {
     return `
     <div class="card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <div>
-                <h2 style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase;">🏟️ GESTIONE PARTITE</h2>
+                <h2 style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase; font-family: 'Syne', sans-serif;">🏟️ GESTIONE PARTITE</h2>
                 <p id="match-subtitle" style="color:#94a3b8; font-size:13px; margin-top:4px; font-weight:500;"></p>
             </div>
-            <div id="match-header-actions"></div>
+            <div id="match-header-actions" style="display:flex; gap:10px;"></div>
         </div>
 
         <div id="match-filters-area" style="display:flex; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -2744,89 +2741,6 @@ function templatePartite() {
     </div>`;
 }
 
-/**
- * 2. RENDERING SINTESI (FILTRO PER SESSION_TYPE)
- */
-async function renderSintesiPartite(container, socId) {
-    const teamId = document.getElementById('f-match-team')?.value;
-    container.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento partite...</div>';
-
-    // QUERY PULITA: Filtriamo solo per tipo 'Partita'
-    let query = client
-        .from('sessions')
-        .select(`*, teams(name)`)
-        .eq('society_id', socId)
-        .eq('session_type', 'Partita'); // <-- Filtro diretto sulla colonna tipo
-
-    if (teamId) query = query.eq('team_id', teamId);
-
-    const { data: matches, error } = await query.order('session_date', { ascending: false });
-
-    if (error || !matches || matches.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna partita trovata nel database.</div>`;
-        return;
-    }
-
-    container.innerHTML = `
-    <div class="table-container">
-        <table style="width:100%; border-collapse:collapse; font-size:12px; color:white;">
-            <thead>
-                <tr style="background:#0f1117; color:#94a3b8; text-align:left; border-bottom:1px solid var(--border);">
-                    <th style="padding:12px;">DATA</th>
-                    <th style="padding:12px;">SQUADRA</th>
-                    <th style="padding:12px;">DESCRIZIONE</th>
-                    <th style="padding:12px; text-align:right;">AZIONI</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${matches.map(m => `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                        <td style="padding:12px; color:#2563eb;">${m.teams?.name || 'N/A'}</td>
-                        <td style="padding:12px;"><strong>${m.title}</strong></td>
-                        <td style="padding:12px; text-align:right;">
-                            <button onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer;">🗑️</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    </div>`;
-}
-
-/**
- * 3. SALVATAGGIO (IMPOSTA IL SESSION_TYPE)
- */
-async function saveMatch() {
-    const socId = document.getElementById('f-match-soc')?.value;
-    const teamId = document.getElementById('m-team').value;
-    const opponent = document.getElementById('m-opponent').value;
-    const location = document.getElementById('m-location').value;
-    const date = document.getElementById('m-date').value;
-
-    if(!socId || !teamId || !opponent) return alert("Dati obbligatori mancanti!");
-
-    // Inseriamo la sessione forzando il tipo 'Partita'
-    const { error } = await client.from('sessions').insert([{
-        society_id: socId,
-        team_id: teamId,
-        session_date: date,
-        session_type: 'Partita', // <-- Fondamentale per la visibilità
-        title: `${opponent} (${location})`,
-        notes: `Gara di campionato`
-    }]);
-
-    if (error) {
-        alert("Errore: " + error.message);
-    } else { 
-        if(window.getModal) getModal().close(); 
-        initPartite('sintesi'); 
-    }
-}
-
-/**
- * 4. GESTIONE ADMIN E FILTRI (Invariata ma necessaria)
- */
 async function setupAdminSocietyFilter() {
     const selectSoc = document.getElementById('f-match-soc');
     if (!selectSoc) return;
@@ -2854,13 +2768,63 @@ async function initPartite(sub = 'sintesi') {
         subtitle.innerText = "SINTESI GENERALE PARTITE";
         await renderSintesiPartite(content, currentSoc);
     } else if (sub === 'convocazioni') {
-        subtitle.innerText = "CONVOCAZIONI";
+        subtitle.innerText = "CONVOCAZIONI ED EXPORT";
         actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white;">+ NUOVA GARA</button>`;
-        // Qui chiameresti renderConvocazioniPartite...
+        content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Modulo convocazioni in fase di attivazione...</div>';
     }
 }
 
-// Funzioni di supporto filtri
+async function renderSintesiPartite(container, socId) {
+    const teamId = document.getElementById('f-match-team')?.value;
+    container.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento in corso...</div>';
+
+    try {
+        // 1. Trova l'UUID del tipo "Partita"
+        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        if (!typeData) throw new Error("Tipo 'Partita' non trovato in session_types");
+
+        // 2. Query sessioni con type_id UUID
+        let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
+        if (teamId) query = query.eq('team_id', teamId);
+
+        const { data: matches, error } = await query.order('session_date', { ascending: false });
+        if (error) throw error;
+
+        if (!matches || matches.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b;">Nessuna partita trovata.</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="table-container" style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; color:white;">
+                <thead>
+                    <tr style="background:#0f1117; color:#94a3b8; text-align:left;">
+                        <th style="padding:12px;">DATA</th>
+                        <th style="padding:12px;">SQUADRA</th>
+                        <th style="padding:12px;">DESCRIZIONE</th>
+                        <th style="padding:12px; text-align:right;">AZIONI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${matches.map(m => `
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                            <td style="padding:12px; color:#2563eb;">${m.teams?.name || 'N/A'}</td>
+                            <td style="padding:12px;"><strong>${m.title}</strong></td>
+                            <td style="padding:12px; text-align:right;">
+                                <button onclick="deleteMatchSession('${m.id}')" style="background:transparent; color:#ef4444; border:none; cursor:pointer;">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    } catch (err) {
+        container.innerHTML = `<div style="padding:40px; text-align:center; color:#ef4444;">Errore: ${err.message}</div>`;
+    }
+}
+
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value;
     if (!socId) return;
@@ -2879,13 +2843,40 @@ function reloadMatchTeamsOnly() {
     initPartite();
 }
 
+async function saveMatch() {
+    const socId = document.getElementById('f-match-soc')?.value;
+    const teamId = document.getElementById('m-team').value;
+    const opponent = document.getElementById('m-opponent').value;
+    const location = document.getElementById('m-location').value;
+    const date = document.getElementById('m-date').value;
+
+    try {
+        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        
+        const { error } = await client.from('sessions').insert([{
+            society_id: socId,
+            team_id: teamId,
+            session_date: date,
+            type_id: typeData.id,
+            title: `${opponent} (${location})`,
+            notes: `Partita registrata`
+        }]);
+
+        if (error) throw error;
+        getModal().close();
+        initPartite('sintesi');
+    } catch (err) {
+        alert("Errore salvataggio: " + err.message);
+    }
+}
+
 async function deleteMatchSession(id) {
     if(!confirm("Eliminare la partita?")) return;
     await client.from('sessions').delete().eq('id', id);
     initPartite();
 }
 
-// Esposizione globale
+// Esposizione Globale
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.saveMatch = saveMatch;
