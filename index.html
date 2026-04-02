@@ -2667,219 +2667,203 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   MODULO: GESTIONE PARTITE - VERSION 2.1.4 (FIX DEFINITIVE)
+   MODULO: GESTIONE PARTITE (3 SOTTOMENU) - COMPLETO
    ============================================================ */
 
 /**
- * 1. TEMPLATE HTML PRINCIPALE
+ * 1. TEMPLATE PRINCIPALE CON BOTTONI TAB
  */
 function templatePartite() {
     return `
-    <div class="card" id="main-match-card">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
-            <button class="btn" onclick="openMatchModal()" style="background:#059669; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer;">+ Nuova Partita</button>
-        </div>
-        
-        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-            <select id="f-match-soc" onchange="reloadMatchSubFilters()"><option value="">Caricamento società...</option></select>
-            <select id="f-match-cat" onchange="reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
-            <select id="f-match-team" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
+    <div class="card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div class="header" style="margin-bottom:20px;">
+            <h2 style="margin:0; color: #fff; font-size: 1.5rem;">🏟️ GESTIONE MATCH</h2>
+            <p style="color:#94a3b8; font-size:14px; margin-top:5px;">Pianificazione, Cronaca e Statistiche</p>
         </div>
 
+        <div style="display:flex; gap:8px; margin-bottom:25px; background: #13151e; padding: 6px; border-radius: 10px; border: 1px solid var(--border);">
+            <button class="match-tab-btn active" onclick="switchMatchSubTab('convocazioni', this)">📋 Convocazioni</button>
+            <button class="match-tab-btn" onclick="switchMatchSubTab('risultati', this)">⚽ Risultato & Eventi</button>
+            <button class="match-tab-btn" onclick="switchMatchSubTab('sintesi', this)">📊 Sintesi Partite</button>
+        </div>
+
+        <div id="match-content-area" style="min-height: 400px;">
+            </div>
+    </div>
+
+    <style>
+        .match-tab-btn {
+            flex: 1; background: transparent; color: #94a3b8; border: none;
+            padding: 10px 15px; border-radius: 8px; cursor: pointer;
+            font-weight: 600; font-size: 13px; transition: all 0.2s ease;
+        }
+        .match-tab-btn.active {
+            background: #2563eb; color: white; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .match-tab-btn:hover:not(.active) { background: rgba(255,255,255,0.05); color: #fff; }
+        .match-card-item { background: #13151e; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 12px; }
+    </style>
+    `;
+}
+
+/**
+ * 2. GESTORE NAVIGAZIONE FRA I SOTTOMENU
+ */
+async function switchMatchSubTab(tab, btn) {
+    if (btn) {
+        document.querySelectorAll('.match-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    const area = document.getElementById('match-content-area');
+    if (!area) return;
+    area.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento...</div>';
+
+    switch(tab) {
+        case 'convocazioni': await renderConvocazioni(area); break;
+        case 'risultati': await renderRisultati(area); break;
+        case 'sintesi': await renderSintesi(area); break;
+    }
+}
+
+/**
+ * 3. SOTTOMENU: CONVOCAZIONI (Pianificazione e Export)
+ */
+async function renderConvocazioni(container) {
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:16px;">Logistica e Convocati</h3>
+            <button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white;">+ Programma Gara</button>
+        </div>
+        <div id="convocazioni-list">
+            <div class="match-card-item">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                        <span style="background:#2563eb; font-size:10px; padding:2px 6px; border-radius:4px;">CAMPIONATO</span>
+                        <h4 style="margin:8px 0 4px 0;">SQUADRA PRO vs AVVERSARIO X</h4>
+                        <p style="font-size:12px; color:#94a3b8;">📍 Via Roma 10, Torino | 🕒 Ritrovo: 14:30</p>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <button class="btn-sm btn-info" onclick="gestisciConvocati('ID')">👥 Convocati</button>
+                        <button class="btn-sm" style="background:#10b981; color:white;" onclick="exportConvocati('ID')">📸 Export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 4. SOTTOMENU: GESTIONE RISULTATO (Marcatori, Ammoniti)
+ */
+async function renderRisultati(container) {
+    container.innerHTML = `
+        <h3 style="margin:0 0 20px 0; font-size:16px;">Tabellino e Cronaca</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="text-align:left; color:#94a3b8; border-bottom:1px solid var(--border);">
+                    <th style="padding:12px;">Gara</th>
+                    <th style="padding:12px; text-align:center;">Risultato</th>
+                    <th style="padding:12px; text-align:right;">Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:12px;"><strong>U17</strong> vs Team B<br><small>12/04/2024</small></td>
+                    <td style="padding:12px; text-align:center; font-weight:bold; font-size:16px;">3 - 1</td>
+                    <td style="padding:12px; text-align:right;">
+                        <button class="btn-sm btn-warning" onclick="openMatchEventsModal('ID')">⚽ Eventi</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+}
+
+/**
+ * 5. SOTTOMENU: SINTESI PARTITE (Tabella riassuntiva)
+ */
+async function renderSintesi(container) {
+    container.innerHTML = `
+        <h3 style="margin:0 0 20px 0; font-size:16px;">Andamento Stagionale</h3>
         <div class="table-container" style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:12px; min-width:600px;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap;">
                 <thead>
-                    <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:12px; width:100px;">DATA</th>
-                        <th style="padding:12px;">PARTITA</th>
-                        <th style="padding:12px;">SQUADRA</th>
-                        <th style="padding:12px; text-align:right;">AZIONI</th>
+                    <tr style="background:#0f1117; color:#94a3b8; text-align:left;">
+                        <th style="padding:10px;">Tipo</th>
+                        <th style="padding:10px;">Avversario</th>
+                        <th style="padding:10px; text-align:center;">C/T</th>
+                        <th style="padding:10px; text-align:center;">Pres.</th>
+                        <th style="padding:10px; text-align:center;">Conv.</th>
+                        <th style="padding:10px; text-align:center;">Risultato</th>
+                        <th style="padding:10px; text-align:center;">Punti</th>
                     </tr>
                 </thead>
-                <tbody id="list-partite-body"></tbody>
+                <tbody id="sintesi-body">
+                    <tr>
+                        <td style="padding:10px;">Campionato</td>
+                        <td style="padding:10px;">Vanchiglia</td>
+                        <td style="padding:10px; text-align:center;">Casa</td>
+                        <td style="padding:10px; text-align:center;">22</td>
+                        <td style="padding:10px; text-align:center;">18</td>
+                        <td style="padding:10px; text-align:center;"><strong>2 - 1</strong></td>
+                        <td style="padding:10px; text-align:center; color:#10b981; font-weight:bold;">3</td>
+                    </tr>
+                </tbody>
             </table>
         </div>
-    </div>`;
+    `;
 }
 
 /**
- * 2. LOGICA INIZIALIZZAZIONE
+ * 6. MODALE CREAZIONE GARA (Con tutti i tuoi campi richiesti)
  */
-async function initPartite() {
-    const tbody = document.getElementById('list-partite-body');
-    if (!tbody) return;
+async function openMatchModal() {
+    const m = getModal();
+    const targetSoc = window._currentSocietyId;
+    const { data: teams } = await client.from('teams').select('id, name').eq('society_id', targetSoc);
 
-    const selSoc = document.getElementById('f-match-soc');
-    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
-        const { data: socs } = await client.from('societies').select('id, name').order('name');
-        if (socs?.length > 0) {
-            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            window._currentSocietyId = socs[0].id;
-            selSoc.value = window._currentSocietyId;
-            return reloadMatchSubFilters();
-        }
-    }
-
-    const socId = selSoc?.value || window._currentSocietyId;
-    if (!socId) return;
-
-    const { data: types } = await client.from('session_types').select('id, name');
-    const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
-
-    let query = client.from('sessions').select('id, title, session_date, team_id, teams(name)').eq('society_id', socId).in('type_id', validIds);
-    const { data: matches } = await query.order('session_date', { ascending: false });
-
-    tbody.innerHTML = (matches || []).map(m => `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-            <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
-            <td style="padding:12px;">${m.teams?.name || '---'}</td>
-            <td style="padding:12px; text-align:right;">
-                <button class="btn-sm btn-warning wide" onclick="openMatchModal('${m.id}')" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger" onclick="deleteMatchSession('${m.id}')" title="Elimina">🗑️</button>
-            </td>
-        </tr>`).join('') || '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
-}
-
-/**
- * 3. GESTIONE MODALE (Con fallback se openGenericModal manca)
- */
-async function openMatchModal(id = null) {
-    let editData = null;
-    if (id) {
-        const cleanId = id.toString().split(':')[0];
-        const { data } = await client.from('sessions').select('*').eq('id', cleanId).single();
-        editData = data;
-    }
-
-    const html = `
-        <div style="padding:20px; display:grid; gap:10px;">
-            <h3>${id ? 'Modifica' : 'Nuova'} Gara</h3>
-            <input type="text" id="m-title" placeholder="Titolo" value="${editData?.title || ''}" style="padding:8px;">
-            <input type="date" id="m-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="padding:8px;">
-            <select id="m-team" style="padding:8px;">
-                <option value="">Squadra...</option>
-                ${(window._matchTeams || []).map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+    m.open('Programma Nuova Gara', `
+        <div style="display:grid; gap:12px; color:#333;">
+            <div style="display:flex; gap:10px;">
+                <select id="m-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="Campionato">Campionato</option>
+                    <option value="Amichevole">Amichevole</option>
+                    <option value="Torneo">Torneo</option>
+                </select>
+                <input type="date" id="m-date" value="${new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            
+            <select id="m-team" style="padding:10px; border-radius:6px; border:1px solid #ddd;">
+                <option value="">Scegli la tua squadra...</option>
+                ${teams?.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
             </select>
-            <button onclick="saveMatch('${id || ''}')" style="background:#059669; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer;">SALVA</button>
-        </div>`;
 
-    if (typeof window.openGenericModal === 'function') {
-        window.openGenericModal(html);
-    } else {
-        const div = document.createElement('div');
-        div.id = 'generic-modal-overlay';
-        div.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;";
-        div.innerHTML = `<div style="background:white; padding:10px; border-radius:8px; width:300px;">${html}</div>`;
-        document.body.appendChild(div);
-    }
+            <input type="text" id="m-opponent" placeholder="Squadra Avversaria" style="padding:10px; border:1px solid #ddd; border-radius:6px;">
+            
+            <div style="display:flex; gap:10px;">
+                <select id="m-location" style="flex:1; padding:10px; border-radius:6px; border:1px solid #ddd;">
+                    <option value="Casa">In Casa</option>
+                    <option value="Trasferta">Fuori Casa</option>
+                </select>
+                <input type="time" id="m-time" title="Ora di ritrovo" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:6px;">
+            </div>
+
+            <input type="text" id="m-address" placeholder="📍 Indirizzo o link Google Maps" style="padding:10px; border:1px solid #ddd; border-radius:6px;">
+
+            <button onclick="saveMatchSession()" style="background:#10b981; color:white; padding:14px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">
+                CREA GARA E APRI CONVOCAZIONI
+            </button>
+        </div>
+    `);
 }
 
 /**
- * 4. SALVATAGGIO (Risolve il ReferenceError)
+ * Aggancio per far partire il sottomenu all'apertura della sezione
  */
-async function saveMatch(id) {
-    const title = document.getElementById('m-title').value;
-    const date = document.getElementById('m-date').value;
-    const teamId = document.getElementById('m-team').value;
-
-    if (!teamId) return alert("Scegli la squadra!");
-
-    // 1. Recupera il type_id corretto per le gare
-    const { data: typeData } = await client.from('session_types')
-        .select('id')
-        .ilike('name', '%gara%')
-        .limit(1)
-        .single();
-    
-    const typeId = typeData?.id;
-
-    const payload = { 
-        title, 
-        session_date: date, 
-        team_id: teamId, 
-        society_id: window._currentSocietyId, 
-        type_id: typeId 
-    };
-
-    // 2. Salva o Aggiorna la Sessione
-    const isEdit = id && id !== '';
-    const { data: sessionData, error: sessionError } = isEdit 
-        ? await client.from('sessions').update(payload).eq('id', id.toString().split(':')[0]).select().single()
-        : await client.from('sessions').insert([payload]).select().single();
-
-    if (sessionError) return alert("Errore sessione: " + sessionError.message);
-
-    // 3. SE È UNA NUOVA PARTITA, GENERA AUTOMATICAMENTE LE RIGHE PRESENZE
-    if (!isEdit && sessionData) {
-        // Recupera gli atleti della squadra
-        const { data: teamAthletes, error: athleteError } = await client
-            .from('athlete_team_seasons')
-            .select('athlete_id')
-            .eq('team_id', teamId);
-
-        if (athleteError) {
-            console.error("Errore recupero atleti:", athleteError);
-        } else if (teamAthletes && teamAthletes.length > 0) {
-            // Prepara le righe per la tabella attendances
-            const attendanceRows = teamAthletes.map(a => ({
-                session_id: sessionData.id,
-                athlete_id: a.athlete_id,
-                status: 'assente', // Default iniziale
-                is_called_up: false // Default: non ancora convocato
-            }));
-
-            // Inserimento massivo
-            const { error: attendError } = await client
-                .from('attendances')
-                .insert(attendanceRows);
-
-            if (attendError) console.error("Errore popolamento presenze:", attendError);
-        }
-    }
-
-    // Chiudi e ricarica
-    const overlay = document.getElementById('generic-modal-overlay');
-    if (overlay) overlay.remove();
-    initPartite();
-    alert(isEdit ? "Gara aggiornata!" : "Gara creata con successo e lista atleti pronta!");
-}
-
-async function deleteMatchSession(id) {
-    if (confirm("Eliminare?")) {
-        await client.from('sessions').delete().eq('id', id.toString().split(':')[0]);
-        initPartite();
-    }
-}
-
-async function reloadMatchSubFilters() {
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-    document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
-    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
-    window._matchTeams = teams || [];
-    reloadMatchTeamsOnly();
-}
-
-function reloadMatchTeamsOnly() {
-    const catId = document.getElementById('f-match-cat')?.value;
-    let filtered = window._matchTeams || [];
-    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
-    document.getElementById('f-match-team').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    initPartite();
-}
-
-/**
- * 5. AGGANCIO A WINDOW (Obbligatorio per i bottoni)
- */
-window.templatePartite = templatePartite;
-window.initPartite = initPartite;
-window.openMatchModal = openMatchModal;
-window.saveMatch = saveMatch; // <--- Questo risolve il tuo errore
-window.deleteMatchSession = deleteMatchSession;
-window.reloadMatchSubFilters = reloadMatchSubFilters;
-window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
+window.initPartite = () => {
+    switchMatchSubTab('convocazioni', null);
+};
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
