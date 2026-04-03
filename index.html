@@ -479,7 +479,23 @@ function toggleSubmenu(id) {
 
 
 
+<a data-section="sessioni">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="20"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>
+    Gestione Sessioni
+</a>
 
+<div class="nav-item-group">
+    <div class="nav-item" onclick="toggleSubmenu('menu-gare')" style="background: rgba(37,99,235,0.1); border-left: 4px solid #2563eb; cursor: pointer; padding: 10px;">
+        <span style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-trophy" style="color: #2563eb;"></i>
+            <b style="color: white; font-size: 13px;">GESTIONE GARE</b>
+        </span>
+    </div>
+    <div id="menu-gare" class="nav-submenu" style="padding-left: 20px;">
+        <div class="nav-submenu-item" onclick="preparePartite('sintesi')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 12px;">• Riepilogo</div>
+        <div class="nav-submenu-item" onclick="preparePartite('convocazioni')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 12px;">• Convocazioni</div>
+    </div>
+</div>
 
         </div>
         <div class="sb-foot">
