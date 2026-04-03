@@ -2663,45 +2663,61 @@ window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
 /**
  * ============================================================
- * MATCH CENTER - DESIGN PROFESSIONALE (TABELLA & DARK MODE)
+ * MATCH CENTER - FIX ERRORI 400 & NULL CHECK
  * ============================================================
  */
 
-const MC_THEME = {
-    bg: "#08090c",
-    panel: "#111827",
-    input: "#1f2937",
-    border: "#374151",
-    accent: "#3b82f6",
-    text: "#ffffff",
-    muted: "#9ca3af",
-    success: "#10b981",
-    danger: "#ef4444"
-};
+// Funzione di supporto per gestire le query a Supabase in sicurezza
+async function safeGetSession(sessionId) {
+    try {
+        const { data, error } = await client
+            .from('sessions')
+            .select('id, team_id, title, date')
+            .eq('id', sessionId)
+            .maybeSingle(); // maybeSingle non lancia errore se non trova nulla
 
-// Funzione di utilità per pulire e preparare l'area di lavoro
-function prepareSubSection(sessionId) {
-    const container = document.getElementById('sub-section-container');
-    if (!container) return null;
-    container.innerHTML = `<div style="text-align:center; padding:30px; color:${MC_THEME.muted};">Caricamento in corso...</div>`;
-    container.scrollIntoView({ behavior: 'smooth' });
-    return container;
+        if (error) {
+            console.error("Errore Supabase:", error);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error("Errore di rete:", e);
+        return null;
+    }
 }
 
 /**
- * 1. CONVOCAZIONI (Stile "Distinta Gara")
+ * 1. CONVOCAZIONI (Fix team_id null)
  */
 window.openConvocazioni = async function(sessionId) {
     const container = prepareSubSection(sessionId);
-    const { data: session } = await client.from('sessions').select('team_id, title, date').eq('id', sessionId).single();
-    const { data: athletes } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number, role, athletes(name, surname)').eq('team_id', session.team_id);
+    if (!container) return;
+
+    const session = await safeGetSession(sessionId);
+    
+    if (!session) {
+        container.innerHTML = `<div style="padding:20px; color:${MC_THEME.danger};">⚠️ Errore: Sessione non trovata o permessi insufficienti.</div>`;
+        return;
+    }
+
+    // Caricamento atleti
+    const { data: athletes, error: errAth } = await client.from('athlete_team_seasons')
+        .select('athlete_id, jersey_number, role, athletes(name, surname)')
+        .eq('team_id', session.team_id);
+
+    if (errAth) {
+        container.innerHTML = `<div style="padding:20px; color:white;">Nessun atleta trovato per questa squadra.</div>`;
+        return;
+    }
+
     const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
     const convocatiIds = new Set(att?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
 
     container.innerHTML = `
         <div id="capture-area" style="background:${MC_THEME.bg}; padding:15px; border-radius:12px; border:1px solid ${MC_THEME.border};">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid ${MC_THEME.border}; padding-bottom:10px;">
-                <h3 style="margin:0; color:${MC_THEME.text}; font-size:16px;">📋 CONVOCAZIONI: ${session.title}</h3>
+                <h3 style="margin:0; color:${MC_THEME.text}; font-size:16px;">📋 CONVOCAZIONI: ${session.title || 'Gara'}</h3>
                 <div style="display:flex; gap:8px;">
                     <button onclick="exportMatchCard()" style="background:${MC_THEME.success}; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">📤 ESPORTA</button>
                     <button onclick="saveConvocazioni('${sessionId}')" style="background:${MC_THEME.accent}; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">SALVA</button>
@@ -2710,11 +2726,12 @@ window.openConvocazioni = async function(sessionId) {
             <div style="display:grid; gap:6px;">
                 ${athletes.map(a => {
                     const isChecked = convocatiIds.has(a.athlete_id);
+                    const labelStyle = `display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : MC_THEME.panel}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer;`;
                     return `
-                    <label style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : MC_THEME.panel}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer;">
+                    <label style="${labelStyle}">
                         <div style="display:flex; align-items:center; gap:15px;">
                             <span style="color:${MC_THEME.accent}; font-weight:bold; font-family:monospace; font-size:16px; width:25px;">${a.jersey_number || '--'}</span>
-                            <span style="color:white; text-transform:uppercase; font-size:13px; font-weight:600;">${a.athletes.surname} ${a.athletes.name}</span>
+                            <span style="color:white; text-transform:uppercase; font-size:13px; font-weight:600;">${a.athletes?.surname || ''} ${a.athletes?.name || ''}</span>
                         </div>
                         <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:18px; height:18px; accent-color:${MC_THEME.accent};">
                     </label>`;
@@ -2724,20 +2741,26 @@ window.openConvocazioni = async function(sessionId) {
 };
 
 /**
- * 2. TABELLINO (Design Tabellare basato su Immagine)
+ * 2. TABELLINO (Fix date null)
  */
 window.openTabellino = async function(sessionId) {
     const container = prepareSubSection(sessionId);
+    if (!container) return;
+
+    const session = await safeGetSession(sessionId);
+    if (!session) {
+        container.innerHTML = `<div style="padding:20px; color:${MC_THEME.danger};">⚠️ Impossibile caricare i dati della partita.</div>`;
+        return;
+    }
     
-    const { data: detailsList } = await client.from('match_details').select('*').eq('session_id', sessionId);
-    let d = detailsList?.[0] || { goals_for: 0, goals_against: 0, match_status: 'da giocare' };
+    // Gestione match_details (uso maybeSingle per evitare l'errore 406/400)
+    let { data: d, error: errD } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
     
-    if (!detailsList?.[0]) {
-        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId }]).select();
-        d = newD[0];
+    if (!d) {
+        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0 }]).select().single();
+        d = newD;
     }
 
-    const { data: session } = await client.from('sessions').select('date').eq('id', sessionId).single();
     const { data: players } = await client.from('attendances').select('athlete_id, athletes(name, surname)').eq('session_id', sessionId).eq('is_called_up', true);
 
     container.innerHTML = `
@@ -2749,12 +2772,12 @@ window.openTabellino = async function(sessionId) {
                     <tbody>
                         <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold; width:40%;">AVVERSARIO</td>
-                            <td style="padding:12px;"><input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="..." style="width:100%; background:transparent; border:none; color:white; outline:none;"></td>
+                            <td style="padding:12px;"><input type="text" id="tab-opponent" value="${d.opponent_name || ''}" style="width:100%; background:transparent; border:none; color:white; outline:none;"></td>
                         </tr>
                         <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">CASA / TRASFERTA</td>
                             <td style="padding:12px;">
-                                <select id="tab-location" style="background:transparent; border:none; color:white; outline:none; width:100%; cursor:pointer;">
+                                <select id="tab-location" style="background:transparent; border:none; color:white; outline:none; width:100%;">
                                     <option value="casa" ${d.location === 'casa' ? 'selected' : ''}>Casa</option>
                                     <option value="trasferta" ${d.location === 'trasferta' ? 'selected' : ''}>Trasferta</option>
                                 </select>
@@ -2762,7 +2785,7 @@ window.openTabellino = async function(sessionId) {
                         </tr>
                         <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">DATA</td>
-                            <td style="padding:12px; color:${MC_THEME.muted};">${new Date(session.date).toLocaleDateString()}</td>
+                            <td style="padding:12px; color:${MC_THEME.muted};">${session.date ? new Date(session.date).toLocaleDateString() : '--'}</td>
                         </tr>
                         <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">ORARIO INIZIO</td>
@@ -2775,7 +2798,7 @@ window.openTabellino = async function(sessionId) {
                         <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">STATO PARTITA</td>
                             <td style="padding:12px;">
-                                <select id="tab-status" style="background:transparent; border:none; color:white; outline:none; width:100%; cursor:pointer;">
+                                <select id="tab-status" style="background:transparent; border:none; color:white; outline:none; width:100%;">
                                     <option value="da giocare" ${d.match_status === 'da giocare' ? 'selected' : ''}>Da Giocare</option>
                                     <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>Vittoria</option>
                                     <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>Pareggio</option>
@@ -2783,105 +2806,33 @@ window.openTabellino = async function(sessionId) {
                                 </select>
                             </td>
                         </tr>
-                         <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(16, 185, 129, 0.05);">
+                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(16, 185, 129, 0.05);">
                             <td style="padding:12px; color:${MC_THEME.success}; font-weight:bold;">GOL FATTI</td>
-                            <td style="padding:12px;"><input type="number" id="tab-gf" value="${d.goals_for || 0}" style="width:100%; background:transparent; border:none; color:white; outline:none; font-weight:bold;"></td>
+                            <td style="padding:12px;"><input type="number" id="tab-gf" value="${d.goals_for || 0}" style="width:100%; background:transparent; border:none; color:white; font-weight:bold;"></td>
                         </tr>
                         <tr style="background:rgba(239, 68, 68, 0.05);">
                             <td style="padding:12px; color:${MC_THEME.danger}; font-weight:bold;">GOL SUBITI</td>
-                            <td style="padding:12px;"><input type="number" id="tab-gs" value="${d.goals_against || 0}" style="width:100%; background:transparent; border:none; color:white; outline:none; font-weight:bold;"></td>
+                            <td style="padding:12px;"><input type="number" id="tab-gs" value="${d.goals_against || 0}" style="width:100%; background:transparent; border:none; color:white; font-weight:bold;"></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-
+            
             <div style="background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; border-radius:10px; padding:15px;">
                 <h4 style="margin:0 0 15px 0; font-size:13px; color:${MC_THEME.muted}; text-transform:uppercase;">Marcatori e Sanzioni</h4>
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
                     <select id="player-selector" style="flex:2; padding:12px; background:${MC_THEME.input}; color:white; border:1px solid ${MC_THEME.border}; border-radius:6px;">
                         <option value="">Seleziona...</option>
-                        ${players?.map(p => `<option value="${p.athlete_id}">${p.athletes.surname} ${p.athletes.name}</option>`).join('') || ''}
+                        ${players?.map(p => `<option value="${p.athlete_id}">${p.athletes?.surname || ''}</option>`).join('') || ''}
                     </select>
                     <button onclick="addEventRow()" style="flex:1; background:${MC_THEME.accent}; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">+ AGGIUNGI</button>
                 </div>
-                <div id="events-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                <div id="events-list"></div>
             </div>
 
-            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="width:100%; margin-top:25px; padding:16px; background:${MC_THEME.accent}; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; text-transform:uppercase; letter-spacing:1px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">SALVA REPORT COMPLETO</button>
+            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="width:100%; margin-top:25px; padding:16px; background:${MC_THEME.accent}; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">SALVA REPORT</button>
         </div>`;
 };
-
-/**
- * 3. LOGICA SALVATAGGI & EXPORT
- */
-window.addEventRow = function() {
-    const sel = document.getElementById('player-selector');
-    if (!sel.value) return;
-    const name = sel.options[sel.selectedIndex].text;
-    const div = document.createElement('div');
-    div.className = 'event-row';
-    div.style = `display:flex; align-items:center; gap:10px; background:${MC_THEME.input}; padding:10px; border-radius:8px; border:1px solid ${MC_THEME.border};`;
-    div.innerHTML = `
-        <span style="flex:2; color:white; font-size:13px; font-weight:600;">${name}</span>
-        <input type="number" placeholder="Gol" class="ev-gol" data-id="${sel.value}" value="1" style="width:50px; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:5px; border-radius:4px; text-align:center;">
-        <div style="display:flex; gap:10px; flex:1; justify-content:flex-end;">
-            <label style="cursor:pointer;"><input type="checkbox" class="ev-y" data-id="${sel.value}"> 🟨</label>
-            <label style="cursor:pointer;"><input type="checkbox" class="ev-r" data-id="${sel.value}"> 🟥</label>
-            <button onclick="this.parentElement.parentElement.remove()" style="background:none; border:none; color:${MC_THEME.danger}; cursor:pointer; font-weight:bold; padding-left:10px;">✕</button>
-        </div>`;
-    document.getElementById('events-list').appendChild(div);
-};
-
-window.saveConvocazioni = async function(sessionId) {
-    const updates = Array.from(document.querySelectorAll('.conv-check')).map(c => ({
-        session_id: sessionId,
-        athlete_id: c.getAttribute('data-id'),
-        is_called_up: c.checked,
-        status: c.checked ? 'presente' : 'assente'
-    }));
-    const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
-    if (!error) alert("Lista salvata!");
-};
-
-window.saveFullTabellino = async function(sessionId, detailId) {
-    const detailUpdate = {
-        opponent_name: document.getElementById('tab-opponent').value,
-        location: document.getElementById('tab-location').value,
-        match_start_time: document.getElementById('tab-start').value,
-        meet_time: document.getElementById('tab-meet').value,
-        match_status: document.getElementById('tab-status').value,
-        goals_for: parseInt(document.getElementById('tab-gf').value) || 0,
-        goals_against: parseInt(document.getElementById('tab-gs').value) || 0
-    };
-
-    await client.from('match_details').update(detailUpdate).eq('id', detailId);
-
-    const rows = document.querySelectorAll('.event-row');
-    const statsUpdates = Array.from(rows).map(r => ({
-        session_id: sessionId,
-        athlete_id: r.querySelector('.ev-gol').getAttribute('data-id'),
-        goals: parseInt(r.querySelector('.ev-gol').value) || 0,
-        yellow_cards: r.querySelector('.ev-y').checked ? 1 : 0,
-        red_cards: r.querySelector('.ev-r').checked ? 1 : 0
-    }));
-
-    if (statsUpdates.length > 0) {
-        await client.from('match_stats').upsert(statsUpdates, { onConflict: 'session_id, athlete_id' });
-    }
-    alert("Report salvato!");
-    initPartite();
-};
-
-window.exportMatchCard = function() {
-    const element = document.getElementById('capture-area');
-    html2canvas(element, { backgroundColor: MC_THEME.bg, scale: 2 }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'Distinta_Match.png';
-        link.href = canvas.toDataURL();
-        link.click();
-    });
-};
-
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
