@@ -353,59 +353,125 @@
 
 
 
-<div class="nav-item-group">
-    <div class="nav-item" onclick="toggleSubmenu('menu-gare')" style="background: rgba(37,99,235,0.1); border-left: 4px solid #2563eb; cursor: pointer;">
-        <span style="display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-trophy" style="color: #2563eb;"></i>
-            <b style="color: white;">GESTIONE GARE</b>
-            <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: auto;"></i>
-        </span>
-    </div>
-    
-    <div id="menu-gare" class="nav-submenu" style="display: block; padding-left: 20px; margin-top: 5px;">
-        <div class="nav-submenu-item" onclick="preparePartite('sintesi')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
-            <i class="fas fa-list-ul"></i> Riepilogo Gare
-        </div>
-        <div class="nav-submenu-item" onclick="preparePartite('convocazioni')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
-            <i class="fas fa-check-square"></i> Convocazioni
-        </div>
-        <div class="nav-submenu-item" onclick="preparePartite('risultati')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
-            <i class="fas fa-futbol"></i> Tabellini e Voti
-        </div>
-    </div>
-</div>
-
 <script>
 /**
- * Funzione Ponte: Pulisce il main e chiama la logica corretta
+ * Funzione Ponte: Gestisce il click dal menu laterale
  */
 function preparePartite(sezione) {
-    console.log("Avvio sezione:", sezione); // Debug per verificare il click
-    const main = document.getElementById('main-content');
+    console.log("Avvio sezione:", sezione); 
+    // Usiamo 'content' perché nel tuo index.html il div principale ha id="content"
+    const main = document.getElementById('content'); 
     
     if (main) {
-        // Carica il template con i filtri
-        if (typeof window.templatePartite === 'function') {
-            main.innerHTML = window.templatePartite();
-            
-            setTimeout(() => {
-                // Cambia il titolo dinamico per conferma visiva
-                const title = document.getElementById('match-title-display');
-                if (title) {
-                    const nomi = { 'sintesi': 'RIEPILOGO GARE', 'convocazioni': 'CONVOCAZIONI', 'risultati': 'TABELLINI' };
-                    title.innerText = nomi[sezione] || 'GESTIONE GARE';
-                }
+        // Carica la struttura base della pagina
+        main.innerHTML = templatePartite();
+        
+        setTimeout(() => {
+            // Aggiorna il titolo della card in base alla scelta
+            const title = document.getElementById('match-title-display');
+            if (title) {
+                const nomi = { 
+                    'sintesi': 'RIEPILOGO GARE', 
+                    'convocazioni': 'GESTIONE CONVOCAZIONI', 
+                    'risultati': 'TABELLINI E RISULTATI' 
+                };
+                title.innerText = nomi[sezione] || 'GESTIONE GARE';
+            }
 
-                // Chiama la funzione nel file JS esterno
-                if (typeof window.initPartite === 'function') {
-                    window.initPartite(sezione);
-                } else {
-                    main.innerHTML = "<div style='color:red; padding:20px;'>Errore: window.initPartite non definita.</div>";
-                }
-            }, 50);
-        } else {
-            main.innerHTML = "<div style='color:red; padding:20px;'>Errore: window.templatePartite non trovato.</div>";
+            // Avvia il caricamento dei dati da Supabase
+            initPartite(sezione);
+        }, 50);
+    }
+}
+
+/**
+ * TEMPLATE: Genera l'interfaccia con i filtri per Admin
+ */
+function templatePartite() {
+    return `
+    <div class="card">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 id="match-title-display" style="margin:0; text-transform: uppercase; color:white;">GESTIONE GARE</h2>
+            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;">+ Nuova Gara</button>
+        </div>
+        
+        <div id="gare-filters-container" style="display:none; background:#13151e; padding:15px; border-radius:8px; border:1px solid #2d303e; margin-bottom:15px;">
+            <div style="display:grid; grid-template-columns: 1fr; gap:12px;">
+                <label style="font-size:11px; color:#94a3b8; font-weight:bold;">SOCIETÀ (FILTRO ADMIN)</label>
+                <select id="f-match-soc" onchange="initPartite()" style="background:#1c1f2e; color:white; border:1px solid #333; padding:8px; border-radius:6px;"></select>
+            </div>
+        </div>
+
+        <div id="match-main-content">
+            <div style="text-align:center; padding:40px; color:#94a3b8;">Caricamento in corso...</div>
+        </div>
+    </div>`;
+}
+
+/**
+ * LOGICA CORE: Carica le gare distinguendo tra Admin e Utenti Normali
+ */
+async function initPartite(sub = 'sintesi') {
+    const container = document.getElementById('match-main-content');
+    if (!container) return;
+
+    const myRole = (window._userRole || '').toLowerCase();
+    const isAdminOrManager = ['admin', 'manager'].includes(myRole);
+    const userSocId = window._currentSocietyId;
+
+    // Gestione Filtri per Admin
+    if (isAdminOrManager) {
+        const fContainer = document.getElementById('gare-filters-container');
+        if (fContainer) fContainer.style.display = 'block';
+        const selSoc = document.getElementById('f-match-soc');
+        if (selSoc && selSoc.options.length === 0) {
+            const { data: socs } = await client.from('societies').select('id, name').order('name');
+            selSoc.innerHTML = '<option value="">Tutte le Società (Vedi Tutto)</option>' + 
+                               (socs || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         }
+    }
+
+    try {
+        // 1. Trova l'ID del tipo sessione "Partita"
+        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        if (!typeData) return container.innerHTML = "Errore: Tipo 'Partita' non trovato.";
+
+        // 2. Costruisci la Query
+        let query = client.from('sessions').select(`*, teams(name), attendances(id, status)`).eq('type_id', typeData.id);
+
+        // LOGICA ADMIN: Se non è admin, filtra per la società dell'utente. Se è admin, non filtra (mostra anche PARTIA_01)
+        if (!isAdminOrManager) {
+            query = query.eq('society_id', userSocId);
+        } else {
+            const selectedSoc = document.getElementById('f-match-soc')?.value;
+            if (selectedSoc) query = query.eq('society_id', selectedSoc);
+        }
+
+        const { data: matches, error } = await query.order('session_date', { ascending: false });
+        if (error) throw error;
+
+        if (!matches || matches.length === 0) {
+            container.innerHTML = "<div style='padding:40px; text-align:center; color:#64748b;'>Nessuna gara trovata.</div>";
+            return;
+        }
+
+        // 3. Rendering delle Card
+        container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+            ${matches.map(m => `
+            <div style="background:#1c1f2e; padding:15px; border-radius:10px; border-top:4px solid ${sub === 'convocazioni' ? '#2563eb' : '#10b981'};">
+                <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; font-weight:bold;">${m.teams?.name || 'SQUADRA NON ASSIGNATA'}</div>
+                <h4 style="margin:10px 0; color:white;">${m.title}</h4>
+                <div style="font-size:12px; color:#64748b; margin-bottom:15px;">Data: ${new Date(m.session_date).toLocaleDateString()}</div>
+                <button class="btn" style="width:100%; background:${sub === 'convocazioni' ? '#2563eb' : '#10b981'}; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;" 
+                    onclick="openAttendanceModal('${m.id}')">
+                    ${sub === 'convocazioni' ? '📋 GESTISCI CONVOCATI' : '⚽ VEDI RISULTATI'}
+                </button>
+            </div>`).join('')}
+        </div>`;
+
+    } catch (e) {
+        console.error("Errore initPartite:", e);
+        container.innerHTML = "Errore durante il caricamento dei dati.";
     }
 }
 
@@ -413,21 +479,7 @@ function toggleSubmenu(id) {
     const sub = document.getElementById(id);
     if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
 }
-/*aggiunta da andrea a caso*/
-function mostraSezioneConvocazioni() {
-    // Cerchiamo il contenitore principale. 
-    // Nel tuo codice sembra essere document.getElementById('main-content') o .main-content
-    const mainContainer = document.getElementById('main-content'); 
-    
-    if (mainContainer) {
-        // 1. Pulizia e Iniezione Template
-        mainContainer.innerHTML = templateConvocazioni();
-        
-        // 2. Chiamata al Database per caricare i dati
-        initConvocazioni();
-    }
-}
-/*aggiunta da andrea a caso fine*/
+</script>
 </script>
 
         </div>
