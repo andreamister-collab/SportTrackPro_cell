@@ -2663,53 +2663,71 @@ window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
 /**
  * ============================================================
- * MATCH CENTER - FIX ERRORI 400 & NULL CHECK
+ * MATCH CENTER - FIX DEFINITIVO (STRUTTURA & ERRORI 400)
  * ============================================================
  */
 
-// Funzione di supporto per gestire le query a Supabase in sicurezza
-async function safeGetSession(sessionId) {
+// 1. TEMA E COSTANTI
+const MC_THEME = {
+    bg: "#08090c",
+    panel: "#111827",
+    input: "#1f2937",
+    border: "#374151",
+    accent: "#3b82f6",
+    text: "#ffffff",
+    muted: "#9ca3af",
+    success: "#10b981",
+    danger: "#ef4444"
+};
+
+/**
+ * 2. FUNZIONI DI SUPPORTO GLOBALI
+ * Rendendole proprietà di window evitiamo i ReferenceError
+ */
+window.prepareSubSection = function(sessionId) {
+    const container = document.getElementById('sub-section-container');
+    if (!container) {
+        console.error("Errore: Elemento 'sub-section-container' non trovato.");
+        return null;
+    }
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:${MC_THEME.muted};">Caricamento in corso...</div>`;
+    container.scrollIntoView({ behavior: 'smooth' });
+    return container;
+};
+
+// Gestore sicuro per le sessioni (Evita errore 400/406)
+window.safeGetSession = async function(sessionId) {
     try {
         const { data, error } = await client
             .from('sessions')
             .select('id, team_id, title, date')
             .eq('id', sessionId)
-            .maybeSingle(); // maybeSingle non lancia errore se non trova nulla
+            .maybeSingle(); 
 
-        if (error) {
-            console.error("Errore Supabase:", error);
-            return null;
-        }
+        if (error) throw error;
         return data;
     } catch (e) {
-        console.error("Errore di rete:", e);
+        console.error("Errore recupero sessione:", e);
         return null;
     }
-}
+};
 
 /**
- * 1. CONVOCAZIONI (Fix team_id null)
+ * 3. CONVOCAZIONI
  */
 window.openConvocazioni = async function(sessionId) {
-    const container = prepareSubSection(sessionId);
+    const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
-    const session = await safeGetSession(sessionId);
-    
+    const session = await window.safeGetSession(sessionId);
     if (!session) {
-        container.innerHTML = `<div style="padding:20px; color:${MC_THEME.danger};">⚠️ Errore: Sessione non trovata o permessi insufficienti.</div>`;
+        container.innerHTML = `<div style="padding:20px; color:${MC_THEME.danger}; text-align:center;">⚠️ Sessione non trovata. Controlla i permessi Supabase.</div>`;
         return;
     }
 
-    // Caricamento atleti
-    const { data: athletes, error: errAth } = await client.from('athlete_team_seasons')
+    const { data: athletes } = await client.from('athlete_team_seasons')
         .select('athlete_id, jersey_number, role, athletes(name, surname)')
         .eq('team_id', session.team_id);
-
-    if (errAth) {
-        container.innerHTML = `<div style="padding:20px; color:white;">Nessun atleta trovato per questa squadra.</div>`;
-        return;
-    }
 
     const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
     const convocatiIds = new Set(att?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
@@ -2724,40 +2742,35 @@ window.openConvocazioni = async function(sessionId) {
                 </div>
             </div>
             <div style="display:grid; gap:6px;">
-                ${athletes.map(a => {
+                ${athletes?.map(a => {
                     const isChecked = convocatiIds.has(a.athlete_id);
-                    const labelStyle = `display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : MC_THEME.panel}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer;`;
                     return `
-                    <label style="${labelStyle}">
+                    <label style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : MC_THEME.panel}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer;">
                         <div style="display:flex; align-items:center; gap:15px;">
-                            <span style="color:${MC_THEME.accent}; font-weight:bold; font-family:monospace; font-size:16px; width:25px;">${a.jersey_number || '--'}</span>
+                            <span style="color:${MC_THEME.accent}; font-weight:bold; width:25px;">${a.jersey_number || '--'}</span>
                             <span style="color:white; text-transform:uppercase; font-size:13px; font-weight:600;">${a.athletes?.surname || ''} ${a.athletes?.name || ''}</span>
                         </div>
-                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:18px; height:18px; accent-color:${MC_THEME.accent};">
+                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:18px; height:18px;">
                     </label>`;
-                }).join('')}
+                }).join('') || '<p style="color:white;">Nessun atleta in questa squadra.</p>'}
             </div>
         </div>`;
 };
 
 /**
- * 2. TABELLINO (Fix date null)
+ * 4. TABELLINO (Stile Tabellare)
  */
 window.openTabellino = async function(sessionId) {
-    const container = prepareSubSection(sessionId);
+    const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
-    const session = await safeGetSession(sessionId);
-    if (!session) {
-        container.innerHTML = `<div style="padding:20px; color:${MC_THEME.danger};">⚠️ Impossibile caricare i dati della partita.</div>`;
-        return;
-    }
+    const session = await window.safeGetSession(sessionId);
+    if (!session) return;
     
-    // Gestione match_details (uso maybeSingle per evitare l'errore 406/400)
-    let { data: d, error: errD } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
+    let { data: d } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
     
     if (!d) {
-        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0 }]).select().single();
+        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da giocare' }]).select().single();
         d = newD;
     }
 
@@ -2765,12 +2778,12 @@ window.openTabellino = async function(sessionId) {
 
     container.innerHTML = `
         <div class="card" style="background:${MC_THEME.panel}; border:1px solid ${MC_THEME.border}; padding:20px; border-radius:12px; color:white;">
-            <h3 style="color:${MC_THEME.accent}; margin-bottom:20px; font-family: 'Syne', sans-serif; font-size:18px;">⚽ REPORT PARTITA</h3>
+            <h3 style="color:${MC_THEME.accent}; margin-bottom:20px; font-size:18px;">⚽ REPORT PARTITA</h3>
             
             <div style="overflow:hidden; border-radius:10px; border:1px solid ${MC_THEME.border}; margin-bottom:25px;">
                 <table style="width:100%; border-collapse: collapse; font-size:14px;">
                     <tbody>
-                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
+                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold; width:40%;">AVVERSARIO</td>
                             <td style="padding:12px;"><input type="text" id="tab-opponent" value="${d.opponent_name || ''}" style="width:100%; background:transparent; border:none; color:white; outline:none;"></td>
                         </tr>
@@ -2783,17 +2796,9 @@ window.openTabellino = async function(sessionId) {
                                 </select>
                             </td>
                         </tr>
-                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
+                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">DATA</td>
                             <td style="padding:12px; color:${MC_THEME.muted};">${session.date ? new Date(session.date).toLocaleDateString() : '--'}</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
-                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">ORARIO INIZIO</td>
-                            <td style="padding:12px;"><input type="time" id="tab-start" value="${d.match_start_time || ''}" style="background:transparent; border:none; color:white; outline:none;"></td>
-                        </tr>
-                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
-                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">ORARIO RITROVO</td>
-                            <td style="padding:12px;"><input type="time" id="tab-meet" value="${d.meet_time || ''}" style="background:transparent; border:none; color:white; outline:none;"></td>
                         </tr>
                         <tr style="border-bottom:1px solid ${MC_THEME.border};">
                             <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">STATO PARTITA</td>
@@ -2817,7 +2822,7 @@ window.openTabellino = async function(sessionId) {
                     </tbody>
                 </table>
             </div>
-            
+
             <div style="background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; border-radius:10px; padding:15px;">
                 <h4 style="margin:0 0 15px 0; font-size:13px; color:${MC_THEME.muted}; text-transform:uppercase;">Marcatori e Sanzioni</h4>
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
