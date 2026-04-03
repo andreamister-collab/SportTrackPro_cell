@@ -508,6 +508,18 @@ function toggleSubmenu(id) {
 
 
 
+<button class="btn" onclick="window.testConvocazioni('${m.id}')">
+    📋 GESTISCI CONVOCATI
+</button>
+
+
+
+
+
+
+
+
+
 
 
         </div>
@@ -3016,6 +3028,113 @@ window.salvaStatoGara = async function(playerId, sessionId, nuovoStato) {
         window.openAttendanceModal(sessionId); 
     } catch (e) {
         alert("Sessione scaduta. Ricarica la pagina.");
+    }
+};
+
+
+
+
+
+/* ──────────────────────────────────────────────────────────────────────────
+   NUOVA SEZIONE ISOLATA: TEST CONVOCAZIONI
+   ────────────────────────────────────────────────────────────────────────── */
+
+// Funzione di test per verificare la connessione immediata
+window.testConvocazioni = async function(sessionId) {
+    console.log("🚀 Avvio Test Convocazioni per Sessione ID:", sessionId);
+    
+    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+    
+    if (!db) {
+        alert("Errore: Client Database non trovato!");
+        return;
+    }
+
+    // Creiamo dinamicamente un contenitore se non esiste, per evitare il "non succede nulla"
+    let container = document.getElementById('match-main-content');
+    if (!container) {
+        console.warn("Contenitore principale non trovato, lo cerco nel body...");
+        container = document.body; 
+    }
+
+    // 1. Fase di Caricamento
+    container.innerHTML = `<div style="padding:20px; color:white; background:#1e293b; border-radius:10px;">
+        <h3>🔄 Caricamento Lista Atleti...</h3>
+    </div>`;
+
+    try {
+        // Recupero info sessione
+        const { data: session, error: sErr } = await db.from('sessions').select('team_id, title').eq('id', sessionId).single();
+        if (sErr) throw sErr;
+
+        // Recupero giocatori della squadra
+        const { data: players, error: pErr } = await db.from('players').select('*').eq('team_id', session.team_id).order('last_name');
+        if (pErr) throw pErr;
+
+        // Recupero convocazioni esistenti
+        const { data: currentAtt } = await db.from('attendances').select('player_id, status').eq('session_id', sessionId);
+
+        console.log("✅ Dati caricati: ", players.length, " atleti trovati.");
+
+        // 2. Rendering Interfaccia Isolata
+        container.innerHTML = `
+            <div style="background:#13151e; padding:25px; border-radius:15px; border: 1px solid #2563eb; margin-top:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
+                    <h2 style="color:white; margin:0;">📋 Gestione Atleti: ${session.title}</h2>
+                    <button onclick="window.preparePartite('convocazioni')" style="background:#334155; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer;">⬅ Torna Indietro</button>
+                </div>
+                
+                <div style="display:grid; gap:10px;">
+                    ${players.map(p => {
+                        const status = currentAtt?.find(a => a.player_id === p.id)?.status;
+                        const isConvocato = status === 'Convocato';
+                        const isEscluso = status === 'Escluso';
+
+                        return `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:${isConvocato ? 'rgba(37,99,235,0.1)' : '#1a1d29'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:12px;">
+                            <div style="display:flex; align-items:center; gap:15px;">
+                                <span style="color:#64748b; font-weight:bold; width:20px;">${p.shirt_number || '-'}</span>
+                                <span style="color:white; font-weight:600;">${p.last_name} ${p.first_name}</span>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <button onclick="window.updateStatus('${p.id}', '${sessionId}', 'Convocato')" 
+                                    style="padding:10px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; background:${isConvocato ? '#2563eb' : '#334155'}; color:white;">
+                                    ${isConvocato ? '✓ CONVOCATO' : 'CONVOCA'}
+                                </button>
+                                <button onclick="window.updateStatus('${p.id}', '${sessionId}', 'Escluso')" 
+                                    style="padding:10px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; background:${isEscluso ? '#ef4444' : '#334155'}; color:white;">
+                                    ${isEscluso ? 'ESCLUSO' : 'ESCLUDI'}
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+
+    } catch (err) {
+        console.error("❌ Errore critico sezione convocazioni:", err);
+        container.innerHTML = `<div style="padding:20px; background:#451a1a; color:#f87171; border-radius:10px;">
+            <b>Errore durante il caricamento:</b> ${err.message}
+        </div>`;
+    }
+};
+
+// Funzione di aggiornamento stato
+window.updateStatus = async function(pId, sId, status) {
+    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+    try {
+        const { error } = await db.from('attendances').upsert({
+            player_id: pId,
+            session_id: sId,
+            status: status,
+            updated_at: new Date()
+        }, { onConflict: 'player_id, session_id' });
+
+        if (error) throw error;
+        window.testConvocazioni(sId); // Refresh istantaneo
+    } catch (e) {
+        alert("Errore nel salvataggio!");
+        console.error(e);
     }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
