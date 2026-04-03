@@ -2775,136 +2775,131 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   LOGICA UNIFICATA GARE - SCOPE: ADMIN & SOCIETY
+   LOGICA UNIFICATA GARE - FILTRO RUOLI (ADMIN/MANAGER vs USER)
    ============================================================ */
 
 window.initPartite = async function(sub = 'sintesi') {
     const content = document.getElementById('match-main-content');
-    if (!content) {
-        console.error("Contenitore match-main-content non trovato!");
-        return;
-    }
+    if (!content) return;
 
-    content.innerHTML = '<div style="text-align:center; padding:50px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento sessioni...</div>';
+    content.innerHTML = '<div style="text-align:center; padding:50px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento in corso...</div>';
 
     try {
-        // 1. Identifica l'ID del tipo "Partita" (Data-Driven)
-        const { data: typeData, error: typeErr } = await client
+        // 1. Identifica l'ID del tipo "Partita" (Subquery logica)
+        const { data: typeData } = await client
             .from('session_types')
             .select('id')
             .ilike('name', 'Partita')
             .single();
 
-        if (typeErr || !typeData) {
-            content.innerHTML = `<div style="padding:20px; color:#ef4444; text-align:center;">
-                <b>Errore:</b> Tipo "Partita" non trovato nella tabella session_types.
-            </div>`;
+        if (!typeData) {
+            content.innerHTML = `<div class="alert-error">Errore: Tipo "Partita" non configurato.</div>`;
             return;
         }
 
         const matchTypeId = typeData.id;
+        
+        // Recupero Ruolo e Società dell'utente corrente
+        const userRole = window._userRole; // Assicurati che questa variabile sia popolata al login
+        const userSocId = window._currentSocietyId; 
 
-        // 2. Lettura Filtri (Logica Admin Libera)
-        const selectSoc = document.getElementById('f-match-soc');
-        const socId = selectSoc?.value || window._currentSocietyId;
-        const teamId = document.getElementById('f-match-team')?.value;
-
-        // 3. Costruzione Query su 'sessions'
+        // 2. Costruzione Query Supabase
         let query = client
             .from('sessions')
             .select(`*, teams(name)`)
             .eq('type_id', matchTypeId);
 
-        // Se l'utente è Admin e socId è vuoto/null, NON filtriamo per società (vede tutto)
-        if (socId && socId !== "" && socId !== "null" && socId !== "undefined") {
-            query = query.eq('society_id', socId);
+        /**
+         * APPLICAZIONE FILTRI SQL DINAMICI
+         * Se NON è Admin o Manager, applichiamo il vincolo della society_id
+         */
+        const isAdminOrManager = (userRole === 'Admin' || userRole === 'Manager');
+
+        if (!isAdminOrManager) {
+            // Filtro obbligatorio per utenti standard
+            if (userSocId) {
+                query = query.eq('society_id', userSocId);
+            } else {
+                console.warn("Utente senza society_id rilevato!");
+            }
+        } else {
+            // Se è Admin/Manager, controlliamo se ha comunque selezionato una società specifica dai filtri UI
+            const uiSocId = document.getElementById('f-match-soc')?.value;
+            if (uiSocId && uiSocId !== "" && uiSocId !== "null") {
+                query = query.eq('society_id', uiSocId);
+            }
         }
 
-        if (teamId && teamId !== "" && teamId !== "null") {
-            query = query.eq('team_id', teamId);
+        // Aggiunta eventuale filtro squadra dalla UI
+        const uiTeamId = document.getElementById('f-match-team')?.value;
+        if (uiTeamId && uiTeamId !== "" && uiTeamId !== "null") {
+            query = query.eq('team_id', uiTeamId);
         }
 
-        const { data: matches, error: matchErr } = await query.order('session_date', { ascending: false });
+        // Esecuzione Query ordinata per data decrescente
+        const { data: matches, error } = await query.order('session_date', { ascending: false });
 
-        if (matchErr) throw matchErr;
+        if (error) throw error;
 
-        // 4. Gestione Risultati Vuoti
+        // 3. Gestione Risultati Vuoti
         if (!matches || matches.length === 0) {
             content.innerHTML = `
             <div style="text-align:center; padding:60px; color:#64748b; border:1px dashed #333; border-radius:12px;">
-                <i class="fas fa-search" style="font-size:30px; margin-bottom:15px; opacity:0.3;"></i><br>
-                Nessuna partita trovata.<br>
-                <span style="font-size:11px; opacity:0.6;">(Filtro ID Tipo: ${matchTypeId} | Soc: ${socId || 'TUTTE'})</span>
+                <i class="fas fa-search" style="font-size:24px; margin-bottom:10px;"></i><br>
+                Nessuna gara trovata per questa selezione.
             </div>`;
             return;
         }
 
-        // 5. Rendering Dinamico
-        if (sub === 'convocazioni') {
-            renderViewConvocazioni(content, matches);
-        } else if (sub === 'risultati') {
-            renderViewRisultati(content, matches);
-        } else {
-            renderViewSintesi(content, matches);
-        }
+        // 4. Rendering Dinamico
+        if (sub === 'convocazioni') renderViewConvocazioni(content, matches);
+        else if (sub === 'risultati') renderViewRisultati(content, matches);
+        else renderViewSintesi(content, matches);
 
     } catch (err) {
         console.error("Errore initPartite:", err);
-        content.innerHTML = `<div style="color:#ef4444; padding:20px;">Errore: ${err.message}</div>`;
+        content.innerHTML = `<div class="alert-error">Errore caricamento: ${err.message}</div>`;
     }
 };
 
-/* --- Funzioni di Rendering Interne --- */
-
+/* --- Funzioni di Rendering (Invariate) --- */
 function renderViewSintesi(container, matches) {
     container.innerHTML = `
-    <div style="overflow-x:auto; background:#13151e; border-radius:8px; border:1px solid #2d303e;">
-        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
-            <thead style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
-                <tr>
-                    <th style="padding:15px;">DATA</th>
-                    <th style="padding:15px;">SQUADRA</th>
-                    <th style="padding:15px;">PARTITA</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${matches.map(m => `
-                <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="padding:15px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
-                    <td style="padding:15px;">${m.title}</td>
-                </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
+    <table style="width:100%; border-collapse:collapse; color:white; font-size:13px; background:#13151e;">
+        <thead>
+            <tr style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
+                <th style="padding:15px;">DATA</th><th style="padding:15px;">SQUADRA</th><th style="padding:15px;">GARA</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${matches.map(m => `
+            <tr style="border-bottom:1px solid #2d303e;">
+                <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                <td style="padding:15px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
+                <td style="padding:15px;">${m.title}</td>
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
 }
 
 function renderViewConvocazioni(container, matches) {
-    container.innerHTML = `
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+    container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
         ${matches.map(m => `
             <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-left:4px solid #2563eb;">
-                <div style="font-size:10px; color:#2563eb; font-weight:bold; margin-bottom:5px; text-transform:uppercase;">${m.teams?.name || 'SQUADRA'}</div>
-                <h4 style="margin:0 0 20px 0; color:white; font-size:16px;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#2563eb; color:white; padding:10px; border-radius:6px; cursor:pointer;"
-                        onclick="apriModaleConvocati('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">
-                    📋 CONVOCA
-                </button>
+                <div style="font-size:10px; color:#2563eb; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
+                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                <button class="btn" style="width:100%; background:#2563eb; color:white;" onclick="apriModaleConvocati('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">📋 GESTISCI CONVOCATI</button>
             </div>`).join('')}
     </div>`;
 }
 
 function renderViewRisultati(container, matches) {
-    container.innerHTML = `
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+    container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
         ${matches.map(m => `
             <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #10b981;">
-                <div style="font-size:10px; color:#10b981; font-weight:bold; margin-bottom:5px; text-transform:uppercase;">${m.teams?.name || 'SQUADRA'}</div>
-                <h4 style="margin:0 0 20px 0; color:white; font-size:16px;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#10b981; color:white; padding:10px; border-radius:6px; cursor:pointer;"
-                        onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">
-                    ⚽ TABELLINO
-                </button>
+                <div style="font-size:10px; color:#10b981; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
+                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                <button class="btn" style="width:100%; background:#10b981; color:white;" onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">⚽ TABELLINO E VOTI</button>
             </div>`).join('')}
     </div>`;
 }
