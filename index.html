@@ -2880,17 +2880,15 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 
 /* ──────────────────────────────────────────────────────────────────────────
-   MODULO GESTIONE GARE E CONVOCAZIONI (VERSIONE DEFINITIVA)
+   MODULO GESTIONE GARE E CONVOCAZIONI (FIX ID E BACKTICK)
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. UTILITY: Recupero Client Database
 function getDbInstance() {
     if (typeof client !== 'undefined' && typeof client.from === 'function') return client;
     if (typeof supabase !== 'undefined' && typeof supabase.from === 'function') return supabase;
     return null;
 }
 
-// 2. PREPARAZIONE INTERFACCIA
 window.preparePartite = function(sezione) {
     const main = document.getElementById('content'); 
     if (!main) return;
@@ -2901,7 +2899,7 @@ window.preparePartite = function(sezione) {
             <h2 id="match-title-display" style="margin:0; color:white; text-transform: uppercase; font-size: 18px;">GARE</h2>
             <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">+ NUOVA GARA</button>
         </div>
-        <div id="match-main-content">
+        <div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
             <div style="text-align:center; padding:50px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
         </div>
     </div>`;
@@ -2912,7 +2910,6 @@ window.preparePartite = function(sezione) {
     window.initPartite(sezione);
 };
 
-// 3. CARICAMENTO LISTA GARE (CORRETTO CON BACKTICK)
 window.initPartite = async function(sub = 'sintesi') {
     const container = document.getElementById('match-main-content');
     const db = getDbInstance();
@@ -2929,12 +2926,7 @@ window.initPartite = async function(sub = 'sintesi') {
 
         if (error) throw error;
 
-        if (!matches || matches.length === 0) {
-            container.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>Nessuna gara trovata.</div>";
-            return;
-        }
-
-        // Generazione Card con ID corretto
+        // GENERAZIONE CARD - NOTA I BACKTICK ` ALL'INIZIO E ALLA FINE
         container.innerHTML = matches.map(m => `
             <div style="background:#1a1d29; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #2563eb;">
                 <div style="color:#94a3b8; font-size:11px; font-weight:bold; margin-bottom:8px;">${m.teams?.name || 'SQUADRA'}</div>
@@ -2953,20 +2945,19 @@ window.initPartite = async function(sub = 'sintesi') {
     }
 };
 
-// 4. LOGICA CONVOCAZIONI (ATHLETE_TEAM_SEASONS)
 window.testConvocazioni = async function(sessionId) {
-    console.log("🚀 Caricamento convocazioni per ID:", sessionId);
+    // Se qui leggi ancora ${m.id} significa che il browser non ha aggiornato il file JS
+    console.log("🚀 Caricamento convocazioni per ID reale:", sessionId);
+    
     const db = getDbInstance();
     const container = document.getElementById('match-main-content');
     if (!db || !container) return;
 
-    container.innerHTML = `<div style="text-align:center; padding:40px; color:white;"><i class="fas fa-spinner fa-spin"></i> Caricamento atleti...</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:40px; color:white;"><i class="fas fa-spinner fa-spin"></i> Caricamento roster...</div>`;
 
     try {
-        // Recupero info sessione
         const { data: session } = await db.from('sessions').select('team_id, title').eq('id', sessionId).single();
 
-        // Recupero roster dalla tabella athlete_team_seasons
         const { data: teamRoster, error: rErr } = await db
             .from('athlete_team_seasons')
             .select(`
@@ -2978,17 +2969,15 @@ window.testConvocazioni = async function(sessionId) {
 
         if (rErr) throw rErr;
 
-        // Recupero stati attuali
         const { data: existingAtt } = await db.from('attendances').select('athlete_id, status').eq('session_id', sessionId);
 
-        // Rendering Lista
         container.innerHTML = `
-            <div style="background:#13151e; padding:15px; border-radius:10px; border:1px solid #2d303e;">
+            <div style="background:#13151e; padding:15px; border-radius:10px; border:1px solid #2d303e; grid-column: 1 / -1;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                     <h4 style="color:white; margin:0;">${session.title}</h4>
                     <button onclick="window.preparePartite('convocazioni')" style="background:#334155; color:white; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px;">CHIUDI</button>
                 </div>
-                <div style="display:grid; gap:8px;">
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:10px;">
                     ${teamRoster.map(item => {
                         const atleta = item.athletes;
                         const status = existingAtt?.find(a => a.athlete_id === atleta.id)?.status;
@@ -3002,18 +2991,17 @@ window.testConvocazioni = async function(sessionId) {
                             </div>
                             <button onclick="window.updateStatus('${atleta.id}', '${sessionId}', '${isConvocato ? 'Escluso' : 'Convocato'}')" 
                                 style="padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-size:11px; font-weight:bold; background:${isConvocato ? '#2563eb' : '#334155'}; color:white;">
-                                ${isConvocato ? '✓ CONVOCATO' : 'CONVOCA'}
+                                ${isConvocato ? '✓ SELEZIONATO' : 'CONVOCA'}
                             </button>
                         </div>`;
                     }).join('')}
                 </div>
             </div>`;
     } catch (e) {
-        container.innerHTML = "Errore: " + e.message;
+        container.innerHTML = "Errore caricamento: " + e.message;
     }
 };
 
-// 5. SALVATAGGIO STATO
 window.updateStatus = async function(athleteId, sessionId, nuovoStato) {
     const db = getDbInstance();
     try {
@@ -3025,9 +3013,8 @@ window.updateStatus = async function(athleteId, sessionId, nuovoStato) {
         }, { onConflict: 'athlete_id, session_id' });
 
         window.testConvocazioni(sessionId); 
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Errore salvataggio:", e); }
 };
-
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
