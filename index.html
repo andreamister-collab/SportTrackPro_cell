@@ -2662,161 +2662,200 @@ window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
 
 /**
- * 4. GESTIONE SOTTO-SEZIONI DINAMICHE
+ * ============================================================
+ * MATCH CENTER - DESIGN PROFESSIONALE (TABELLA & DARK MODE)
+ * ============================================================
  */
 
+const MC_THEME = {
+    bg: "#08090c",
+    panel: "#111827",
+    input: "#1f2937",
+    border: "#374151",
+    accent: "#3b82f6",
+    text: "#ffffff",
+    muted: "#9ca3af",
+    success: "#10b981",
+    danger: "#ef4444"
+};
+
+// Funzione di utilità per pulire e preparare l'area di lavoro
 function prepareSubSection(sessionId) {
     const container = document.getElementById('sub-section-container');
     if (!container) return null;
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:white;">Caricamento in corso...</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:${MC_THEME.muted};">Caricamento in corso...</div>`;
     container.scrollIntoView({ behavior: 'smooth' });
     return container;
 }
 
-// --- A. CONVOCAZIONI (Lista stile screenshot) ---
+/**
+ * 1. CONVOCAZIONI (Stile "Distinta Gara")
+ */
 window.openConvocazioni = async function(sessionId) {
     const container = prepareSubSection(sessionId);
-    
-    const { data: session } = await client.from('sessions').select('team_id, title').eq('id', sessionId).single();
-    // Prendiamo gli atleti legati a questa squadra/stagione
-    const { data: athletes } = await client.from('athlete_team_seasons')
-        .select('athlete_id, jersey_number, role, athletes(name, surname)')
-        .eq('team_id', session.team_id);
-
-    const { data: currentAttendances } = await client.from('attendances')
-        .select('athlete_id, is_called_up')
-        .eq('session_id', sessionId);
-
-    const convocatiIds = new Set(currentAttendances?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
+    const { data: session } = await client.from('sessions').select('team_id, title, date').eq('id', sessionId).single();
+    const { data: athletes } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number, role, athletes(name, surname)').eq('team_id', session.team_id);
+    const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
+    const convocatiIds = new Set(att?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
 
     container.innerHTML = `
-        <div class="card" style="background:var(--surface); border:1px solid var(--border); padding:20px; border-radius:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:white;">📋 Convocazioni: ${session.title}</h3>
-                <button onclick="saveConvocazioni('${sessionId}')" class="btn-primary" style="padding:8px 16px;">SALVA LISTA</button>
+        <div id="capture-area" style="background:${MC_THEME.bg}; padding:15px; border-radius:12px; border:1px solid ${MC_THEME.border};">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid ${MC_THEME.border}; padding-bottom:10px;">
+                <h3 style="margin:0; color:${MC_THEME.text}; font-size:16px;">📋 CONVOCAZIONI: ${session.title}</h3>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="exportMatchCard()" style="background:${MC_THEME.success}; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">📤 ESPORTA</button>
+                    <button onclick="saveConvocazioni('${sessionId}')" style="background:${MC_THEME.accent}; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">SALVA</button>
+                </div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:grid; gap:6px;">
                 ${athletes.map(a => {
                     const isChecked = convocatiIds.has(a.athlete_id);
                     return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(37,99,235,0.1)' : 'var(--panel)'}; border:1px solid ${isChecked ? 'var(--primary)' : 'var(--border)'}; border-radius:8px;">
+                    <label style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : MC_THEME.panel}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer;">
                         <div style="display:flex; align-items:center; gap:15px;">
-                            <span style="width:30px; font-weight:bold; color:var(--primary);">${a.jersey_number || '-'}</span>
-                            <span style="color:white; font-weight:500;">${a.athletes.surname} ${a.athletes.name}</span>
-                            <span style="font-size:11px; color:#64748b; text-transform:uppercase;">${a.role || 'G'}</span>
+                            <span style="color:${MC_THEME.accent}; font-weight:bold; font-family:monospace; font-size:16px; width:25px;">${a.jersey_number || '--'}</span>
+                            <span style="color:white; text-transform:uppercase; font-size:13px; font-weight:600;">${a.athletes.surname} ${a.athletes.name}</span>
                         </div>
-                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px; cursor:pointer;">
-                    </div>`;
+                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:18px; height:18px; accent-color:${MC_THEME.accent};">
+                    </label>`;
                 }).join('')}
             </div>
         </div>`;
 };
 
-// --- B. TABELLINO & MARCATORI (A cascata) ---
+/**
+ * 2. TABELLINO (Design Tabellare basato su Immagine)
+ */
 window.openTabellino = async function(sessionId) {
     const container = prepareSubSection(sessionId);
     
-    // Fix Errore 406: Usiamo una selezione esplicita e gestiamo il single() con cura
-    const { data: detailsList, error } = await client.from('match_details').select('*').eq('session_id', sessionId);
-    let details = detailsList?.[0] || null;
+    const { data: detailsList } = await client.from('match_details').select('*').eq('session_id', sessionId);
+    let d = detailsList?.[0] || { goals_for: 0, goals_against: 0, match_status: 'da giocare' };
     
-    if (!details) {
-        const { data: newDetails } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0 }]).select();
-        details = newDetails[0];
+    if (!detailsList?.[0]) {
+        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId }]).select();
+        d = newD[0];
     }
 
-    // Carichiamo i convocati per il selettore marcatori
-    const { data: players } = await client.from('attendances')
-        .select('athlete_id, athletes(name, surname)')
-        .eq('session_id', sessionId)
-        .eq('is_called_up', true);
+    const { data: session } = await client.from('sessions').select('date').eq('id', sessionId).single();
+    const { data: players } = await client.from('attendances').select('athlete_id, athletes(name, surname)').eq('session_id', sessionId).eq('is_called_up', true);
 
     container.innerHTML = `
-        <div class="card" style="background:var(--surface); border:1px solid var(--border); padding:20px; border-radius:12px;">
-            <h3 style="color:white; margin-bottom:20px;">⚽ Report Partita</h3>
+        <div class="card" style="background:${MC_THEME.panel}; border:1px solid ${MC_THEME.border}; padding:20px; border-radius:12px; color:white;">
+            <h3 style="color:${MC_THEME.accent}; margin-bottom:20px; font-family: 'Syne', sans-serif; font-size:18px;">⚽ REPORT PARTITA</h3>
             
-            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:15px; margin-bottom:25px;">
-                <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">AVVERSARIO</label>
-                    <input type="text" id="tab-opponent" value="${details.opponent_name || ''}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">GOL FATTI</label>
-                    <input type="number" id="tab-gf" value="${details.goals_for || 0}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">GOL SUBITI</label>
-                    <input type="number" id="tab-gs" value="${details.goals_against || 0}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
-                </div>
+            <div style="overflow:hidden; border-radius:10px; border:1px solid ${MC_THEME.border}; margin-bottom:25px;">
+                <table style="width:100%; border-collapse: collapse; font-size:14px;">
+                    <tbody>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold; width:40%;">AVVERSARIO</td>
+                            <td style="padding:12px;"><input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="..." style="width:100%; background:transparent; border:none; color:white; outline:none;"></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">CASA / TRASFERTA</td>
+                            <td style="padding:12px;">
+                                <select id="tab-location" style="background:transparent; border:none; color:white; outline:none; width:100%; cursor:pointer;">
+                                    <option value="casa" ${d.location === 'casa' ? 'selected' : ''}>Casa</option>
+                                    <option value="trasferta" ${d.location === 'trasferta' ? 'selected' : ''}>Trasferta</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">DATA</td>
+                            <td style="padding:12px; color:${MC_THEME.muted};">${new Date(session.date).toLocaleDateString()}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">ORARIO INIZIO</td>
+                            <td style="padding:12px;"><input type="time" id="tab-start" value="${d.match_start_time || ''}" style="background:transparent; border:none; color:white; outline:none;"></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(255,255,255,0.02);">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">ORARIO RITROVO</td>
+                            <td style="padding:12px;"><input type="time" id="tab-meet" value="${d.meet_time || ''}" style="background:transparent; border:none; color:white; outline:none;"></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid ${MC_THEME.border};">
+                            <td style="padding:12px; color:${MC_THEME.accent}; font-weight:bold;">STATO PARTITA</td>
+                            <td style="padding:12px;">
+                                <select id="tab-status" style="background:transparent; border:none; color:white; outline:none; width:100%; cursor:pointer;">
+                                    <option value="da giocare" ${d.match_status === 'da giocare' ? 'selected' : ''}>Da Giocare</option>
+                                    <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>Vittoria</option>
+                                    <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>Pareggio</option>
+                                    <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>Sconfitta</option>
+                                </select>
+                            </td>
+                        </tr>
+                         <tr style="border-bottom:1px solid ${MC_THEME.border}; background:rgba(16, 185, 129, 0.05);">
+                            <td style="padding:12px; color:${MC_THEME.success}; font-weight:bold;">GOL FATTI</td>
+                            <td style="padding:12px;"><input type="number" id="tab-gf" value="${d.goals_for || 0}" style="width:100%; background:transparent; border:none; color:white; outline:none; font-weight:bold;"></td>
+                        </tr>
+                        <tr style="background:rgba(239, 68, 68, 0.05);">
+                            <td style="padding:12px; color:${MC_THEME.danger}; font-weight:bold;">GOL SUBITI</td>
+                            <td style="padding:12px;"><input type="number" id="tab-gs" value="${d.goals_against || 0}" style="width:100%; background:transparent; border:none; color:white; outline:none; font-weight:bold;"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <div style="border-top:1px solid var(--border); padding-top:20px;">
-                <h4 style="color:white; margin-bottom:10px;">🎯 Marcatori & Sanzioni</h4>
+            <div style="background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; border-radius:10px; padding:15px;">
+                <h4 style="margin:0 0 15px 0; font-size:13px; color:${MC_THEME.muted}; text-transform:uppercase;">Marcatori e Sanzioni</h4>
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <select id="player-selector" style="flex:2; padding:10px; background:var(--panel); color:white; border:1px solid var(--border); border-radius:6px;">
-                        <option value="">Seleziona Giocatore...</option>
+                    <select id="player-selector" style="flex:2; padding:12px; background:${MC_THEME.input}; color:white; border:1px solid ${MC_THEME.border}; border-radius:6px;">
+                        <option value="">Seleziona...</option>
                         ${players?.map(p => `<option value="${p.athlete_id}">${p.athletes.surname} ${p.athletes.name}</option>`).join('') || ''}
                     </select>
-                    <button onclick="addEventRow()" class="btn-primary" style="flex:1;">+ AGGIUNGI</button>
+                    <button onclick="addEventRow()" style="flex:1; background:${MC_THEME.accent}; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">+ AGGIUNGI</button>
                 </div>
-                <div id="events-list" style="display:flex; flex-direction:column; gap:8px;">
-                    </div>
+                <div id="events-list" style="display:flex; flex-direction:column; gap:8px;"></div>
             </div>
 
-            <button onclick="saveFullTabellino('${sessionId}', '${details.id}')" class="btn-primary" style="width:100%; margin-top:30px; padding:15px;">SALVA TUTTO IL REPORT</button>
+            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="width:100%; margin-top:25px; padding:16px; background:${MC_THEME.accent}; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; text-transform:uppercase; letter-spacing:1px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">SALVA REPORT COMPLETO</button>
         </div>`;
 };
 
-// Logica per aggiungere una riga marcatore/sanzione
+/**
+ * 3. LOGICA SALVATAGGI & EXPORT
+ */
 window.addEventRow = function() {
     const sel = document.getElementById('player-selector');
-    const playerId = sel.value;
-    const playerName = sel.options[sel.selectedIndex].text;
-    if (!playerId) return;
-
-    const row = document.createElement('div');
-    row.className = 'event-row';
-    row.style = "display:flex; align-items:center; gap:10px; background:var(--panel); padding:10px; border-radius:8px; border:1px solid var(--border);";
-    row.innerHTML = `
-        <span style="flex:2; color:white; font-size:13px;">${playerName}</span>
-        <input type="number" placeholder="Gol" class="ev-gol" data-id="${playerId}" style="width:50px; padding:5px; border-radius:4px; border:none;">
+    if (!sel.value) return;
+    const name = sel.options[sel.selectedIndex].text;
+    const div = document.createElement('div');
+    div.className = 'event-row';
+    div.style = `display:flex; align-items:center; gap:10px; background:${MC_THEME.input}; padding:10px; border-radius:8px; border:1px solid ${MC_THEME.border};`;
+    div.innerHTML = `
+        <span style="flex:2; color:white; font-size:13px; font-weight:600;">${name}</span>
+        <input type="number" placeholder="Gol" class="ev-gol" data-id="${sel.value}" value="1" style="width:50px; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:5px; border-radius:4px; text-align:center;">
         <div style="display:flex; gap:10px; flex:1; justify-content:flex-end;">
-            <label style="color:#f59e0b; font-size:11px;"><input type="checkbox" class="ev-y" data-id="${playerId}"> 🟨</label>
-            <label style="color:#ef4444; font-size:11px;"><input type="checkbox" class="ev-r" data-id="${playerId}"> 🟥</label>
-            <button onclick="this.parentElement.parentElement.remove()" style="background:none; border:none; color:#ef4444; cursor:pointer;">✕</button>
-        </div>
-    `;
-    document.getElementById('events-list').appendChild(row);
+            <label style="cursor:pointer;"><input type="checkbox" class="ev-y" data-id="${sel.value}"> 🟨</label>
+            <label style="cursor:pointer;"><input type="checkbox" class="ev-r" data-id="${sel.value}"> 🟥</label>
+            <button onclick="this.parentElement.parentElement.remove()" style="background:none; border:none; color:${MC_THEME.danger}; cursor:pointer; font-weight:bold; padding-left:10px;">✕</button>
+        </div>`;
+    document.getElementById('events-list').appendChild(div);
 };
 
-/**
- * 5. SALVATAGGI & FIX REFERENCE ERROR
- */
 window.saveConvocazioni = async function(sessionId) {
-    const checks = document.querySelectorAll('.conv-check');
-    const updates = Array.from(checks).map(c => ({
+    const updates = Array.from(document.querySelectorAll('.conv-check')).map(c => ({
         session_id: sessionId,
         athlete_id: c.getAttribute('data-id'),
         is_called_up: c.checked,
         status: c.checked ? 'presente' : 'assente'
     }));
-
     const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
-    if (error) alert("Errore nel salvataggio convocazioni");
-    else alert("Convocazioni salvate con successo!");
+    if (!error) alert("Lista salvata!");
 };
 
 window.saveFullTabellino = async function(sessionId, detailId) {
-    // 1. Salva dati generali match
     const detailUpdate = {
         opponent_name: document.getElementById('tab-opponent').value,
-        goals_for: parseInt(document.getElementById('tab-gf').value),
-        goals_against: parseInt(document.getElementById('tab-gs').value),
-        match_status: 'giocata'
+        location: document.getElementById('tab-location').value,
+        match_start_time: document.getElementById('tab-start').value,
+        meet_time: document.getElementById('tab-meet').value,
+        match_status: document.getElementById('tab-status').value,
+        goals_for: parseInt(document.getElementById('tab-gf').value) || 0,
+        goals_against: parseInt(document.getElementById('tab-gs').value) || 0
     };
+
     await client.from('match_details').update(detailUpdate).eq('id', detailId);
 
-    // 2. Salva statistiche (Marcatori/Cartellini)
     const rows = document.querySelectorAll('.event-row');
     const statsUpdates = Array.from(rows).map(r => ({
         session_id: sessionId,
@@ -2829,15 +2868,18 @@ window.saveFullTabellino = async function(sessionId, detailId) {
     if (statsUpdates.length > 0) {
         await client.from('match_stats').upsert(statsUpdates, { onConflict: 'session_id, athlete_id' });
     }
-
-    alert("Report salvato con successo!");
+    alert("Report salvato!");
     initPartite();
 };
 
-// Registrazione mancante che causava l'errore nel tuo log
-window.openMatchModal = function(id) { 
-    if (typeof openSessionModal === 'function') openSessionModal(id);
-    else console.error("La funzione openSessionModal non è definita nel file.");
+window.exportMatchCard = function() {
+    const element = document.getElementById('capture-area');
+    html2canvas(element, { backgroundColor: MC_THEME.bg, scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'Distinta_Match.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    });
 };
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
