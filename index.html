@@ -413,6 +413,21 @@ function toggleSubmenu(id) {
     const sub = document.getElementById(id);
     if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
 }
+/*aggiunta da andrea a caso*/
+function mostraSezioneConvocazioni() {
+    // Cerchiamo il contenitore principale. 
+    // Nel tuo codice sembra essere document.getElementById('main-content') o .main-content
+    const mainContainer = document.getElementById('main-content'); 
+    
+    if (mainContainer) {
+        // 1. Pulizia e Iniezione Template
+        mainContainer.innerHTML = templateConvocazioni();
+        
+        // 2. Chiamata al Database per caricare i dati
+        initConvocazioni();
+    }
+}
+/*aggiunta da andrea a caso fine*/
 </script>
 
         </div>
