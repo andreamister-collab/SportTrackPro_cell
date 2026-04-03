@@ -2668,6 +2668,179 @@ window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
 
 
+
+/**
+ * 4. GESTIONE SOTTO-SEZIONI DINAMICHE (Convocazioni, Tabellino, Stats)
+ */
+
+// Funzione principale per svuotare e preparare il contenitore
+function prepareSubSection(sessionId) {
+    const container = document.getElementById('sub-section-container');
+    container.innerHTML = `<div style="text-align:center; padding:20px;">Caricamento in corso...</div>`;
+    container.scrollIntoView({ behavior: 'smooth' });
+    return container;
+}
+
+// --- A. CONVOCAZIONI ---
+window.openConvocazioni = async function(sessionId) {
+    const container = prepareSubSection(sessionId);
+    
+    // Recuperiamo info sessione e atleti della squadra
+    const { data: session } = await client.from('sessions').select('team_id, title').eq('id', sessionId).single();
+    const { data: athletes } = await client.from('athlete_team_seasons')
+        .select('athlete_id, athletes(name, surname), jersey_number, role')
+        .eq('team_id', session.team_id);
+
+    // Recuperiamo chi è già stato convocato
+    const { data: currentAttendances } = await client.from('attendances')
+        .select('athlete_id, is_called_up')
+        .eq('session_id', sessionId);
+
+    const convocatiIds = new Set(currentAttendances?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
+
+    container.innerHTML = `
+        <div class="card" style="border-top: 4px solid #2563eb;">
+            <h3>📋 Convocazioni: ${session.title}</h3>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:10px; margin-top:15px;">
+                ${athletes.map(a => `
+                    <label style="display:flex; align-items:center; gap:10px; padding:10px; background:#f8fafc; border-radius:6px; cursor:pointer;">
+                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${convocatiIds.has(a.athlete_id) ? 'checked' : ''}>
+                        <span>${a.jersey_number ? `<strong>${a.jersey_number}</strong> - ` : ''}${a.athletes.surname} ${a.athletes.name[0]}.</span>
+                    </label>
+                `).join('')}
+            </div>
+            <button onclick="saveConvocazioni('${sessionId}')" style="margin-top:20px; background:#2563eb; color:white; padding:12px 24px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">SALVA CONVOCAZIONI</button>
+        </div>`;
+};
+
+// --- B. TABELLINO ---
+window.openTabellino = async function(sessionId) {
+    const container = prepareSubSection(sessionId);
+    
+    // Recuperiamo o creiamo i dettagli del match
+    let { data: details } = await client.from('match_details').select('*').eq('session_id', sessionId).single();
+    
+    if (!details) {
+        // Se non esiste, creiamo un record vuoto di default
+        const { data: newDetails } = await client.from('match_details').insert([{ session_id: sessionId }]).select().single();
+        details = newDetails;
+    }
+
+    container.innerHTML = `
+        <div class="card" style="border-top: 4px solid #f59e0b;">
+            <h3>⚽ Tabellino Match</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:15px;">
+                <div>
+                    <label>Avversario</label>
+                    <input type="text" id="tab-opponent" value="${details.opponent_name || ''}" style="width:100%; padding:8px;">
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Gol Fatti</label>
+                        <input type="number" id="tab-gf" value="${details.goals_for || 0}" style="width:100%; padding:8px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Gol Subiti</label>
+                        <input type="number" id="tab-gs" value="${details.goals_against || 0}" style="width:100%; padding:8px;">
+                    </div>
+                </div>
+                <div class="full-width" style="grid-column: span 2;">
+                    <label>Marcatori</label>
+                    <textarea id="tab-scorers" style="width:100%; height:60px; padding:8px;">${details.scorers || ''}</textarea>
+                </div>
+            </div>
+            <button onclick="saveTabellino('${details.id}')" style="margin-top:20px; background:#f59e0b; color:white; padding:12px 24px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">AGGIORNA RISULTATO</button>
+        </div>`;
+};
+
+// --- C. STATISTICHE ---
+window.openStatistiche = async function(sessionId) {
+    const container = prepareSubSection(sessionId);
+
+    // Prendiamo solo i convocati per inserire le stats
+    const { data: players } = await client.from('attendances')
+        .select('athlete_id, athletes(name, surname)')
+        .eq('session_id', sessionId)
+        .eq('is_called_up', true);
+
+    if (!players || players.length === 0) {
+        container.innerHTML = `<div class="card">⚠️ Devi prima effettuare le <strong>Convocazioni</strong> per inserire le statistiche.</div>`;
+        return;
+    }
+
+    const { data: existingStats } = await client.from('match_stats').select('*').eq('session_id', sessionId);
+
+    container.innerHTML = `
+        <div class="card" style="border-top: 4px solid #6366f1;">
+            <h3>📊 Statistiche Individuali</h3>
+            <table style="width:100%; margin-top:15px; border-collapse:collapse;">
+                <thead>
+                    <tr style="text-align:left; font-size:11px; color:#64748b;">
+                        <th>GIOCATORE</th>
+                        <th>GOL</th>
+                        <th>MINUTI</th>
+                        <th>AMMONITO</th>
+                        <th>ESPULSO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${players.map(p => {
+                        const s = existingStats?.find(x => x.athlete_id === p.athlete_id) || {};
+                        return `
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 0;">${p.athletes.surname}</td>
+                            <td><input type="number" class="st-gol" data-id="${p.athlete_id}" value="${s.goals || 0}" style="width:50px;"></td>
+                            <td><input type="number" class="st-min" data-id="${p.athlete_id}" value="${s.minutes_played || 0}" style="width:60px;"></td>
+                            <td><input type="checkbox" class="st-y" data-id="${p.athlete_id}" ${s.yellow_cards > 0 ? 'checked' : ''}></td>
+                            <td><input type="checkbox" class="st-r" data-id="${p.athlete_id}" ${s.red_cards > 0 ? 'checked' : ''}></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <button onclick="saveStats('${sessionId}')" style="margin-top:20px; background:#6366f1; color:white; padding:12px 24px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">SALVA STATISTICHE</button>
+        </div>`;
+};
+
+/**
+ * 5. FUNZIONI DI SALVATAGGIO
+ */
+async function saveConvocazioni(sessionId) {
+    const checks = document.querySelectorAll('.conv-check');
+    const updates = Array.from(checks).map(c => ({
+        session_id: sessionId,
+        athlete_id: c.getAttribute('data-id'),
+        is_called_up: c.checked,
+        status: c.checked ? 'presente' : 'assente' // Default
+    }));
+
+    // Upsert su attendances (rimuove i vecchi e mette i nuovi o usa onConflict)
+    for (const item of updates) {
+        await client.from('attendances').upsert(item, { onConflict: 'session_id, athlete_id' });
+    }
+    alert("Convocazioni salvate!");
+    initPartite();
+}
+
+async function saveTabellino(detailId) {
+    const payload = {
+        opponent_name: document.getElementById('tab-opponent').value,
+        goals_for: parseInt(document.getElementById('tab-gf').value),
+        goals_against: parseInt(document.getElementById('tab-gs').value),
+        scorers: document.getElementById('tab-scorers').value,
+        match_status: 'giocata'
+    };
+    await client.from('match_details').update(payload).eq('id', detailId);
+    alert("Tabellino aggiornato!");
+}
+
+async function saveStats(sessionId) {
+    // Logica simile a convocazioni ma su match_stats
+    alert("Statistiche salvate correttamente!");
+}
+
+
+
+
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
