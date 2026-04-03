@@ -2699,69 +2699,63 @@ window.safeGetSession = async function(sessionId) {
  * 2. TABELLINO (FIXATO)
  */
 window.openTabellino = async function(sessionId) {
-    // Usiamo esplicitamente window. per sicurezza
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
     const session = await window.safeGetSession(sessionId);
-    if (!session) {
-        container.innerHTML = `<div style="color:#ef4444; padding:20px;">⚠️ Errore: Sessione ${sessionId} non trovata.</div>`;
-        return;
-    }
-    
     let { data: d } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
     
     if (!d) {
-        const { data: newD } = await client.from('match_details').insert([{ 
-            session_id: sessionId, 
-            goals_for: 0, 
-            goals_against: 0, 
-            match_status: 'da giocare' 
-        }]).select().single();
+        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da giocare' }]).select().single();
         d = newD;
     }
 
-    const { data: players } = await client.from('attendances')
-        .select('athlete_id, athletes(name, surname)')
-        .eq('session_id', sessionId)
-        .eq('is_called_up', true);
-
     container.innerHTML = `
-        <div class="card" style="background:#111827; border:1px solid #374151; padding:20px; border-radius:12px; color:white;">
-            <h3 style="color:#3b82f6; margin-bottom:20px; font-size:18px;">⚽ REPORT PARTITA</h3>
-            <table style="width:100%; border-collapse: collapse; font-size:14px; border:1px solid #374151; border-radius:8px; overflow:hidden;">
-                <tbody>
-                    <tr style="border-bottom:1px solid #374151;">
-                        <td style="padding:12px; color:#3b82f6; font-weight:bold; width:40%;">AVVERSARIO</td>
-                        <td style="padding:12px;"><input type="text" id="tab-opponent" value="${d.opponent_name || ''}" style="width:100%; background:transparent; border:none; color:white; outline:none;"></td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #374151;">
-                        <td style="padding:12px; color:#3b82f6; font-weight:bold;">DATA GARA</td>
-                        <td style="padding:12px; color:#9ca3af;">${session.session_date ? new Date(session.session_date).toLocaleDateString('it-IT') : '--'}</td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #374151;">
-                        <td style="padding:12px; color:#3b82f6; font-weight:bold;">ESITO</td>
-                        <td style="padding:12px;">
-                            <select id="tab-status" style="background:transparent; border:none; color:white; outline:none; width:100%;">
-                                <option value="da giocare" ${d.match_status === 'da giocare' ? 'selected' : ''}>Da Giocare</option>
-                                <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>Vittoria</option>
-                                <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>Pareggio</option>
-                                <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>Sconfitta</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #374151; background:rgba(16, 185, 129, 0.1);">
-                        <td style="padding:12px; color:#10b981; font-weight:bold;">GOL FATTI</td>
-                        <td style="padding:12px;"><input type="number" id="tab-gf" value="${d.goals_for || 0}" style="width:100%; background:transparent; border:none; color:white; font-weight:bold;"></td>
-                    </tr>
-                    <tr style="background:rgba(239, 68, 68, 0.1);">
-                        <td style="padding:12px; color:#ef4444; font-weight:bold;">GOL SUBITI</td>
-                        <td style="padding:12px;"><input type="number" id="tab-gs" value="${d.goals_against || 0}" style="width:100%; background:transparent; border:none; color:white; font-weight:bold;"></td>
-                    </tr>
-                </tbody>
-            </table>
-            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="width:100%; margin-top:20px; padding:15px; background:#3b82f6; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA REPORT</button>
-        </div>`;
+    <div style="max-width:600px; margin:auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); color:#333;">
+        <div style="background:#f8fafc; padding:20px; border-bottom:1px solid #e2e8f0;">
+            <h2 style="margin:0; font-size:18px; color:#1e293b;">⚽ Dettagli Match</h2>
+            <p style="margin:5px 0 0; font-size:13px; color:#64748b;">Compila i dati della gara e i dettagli logistici</p>
+        </div>
+
+        <div style="padding:20px; display:grid; gap:20px;">
+            <div style="display:grid; gap:5px;">
+                <label style="font-weight:600; font-size:13px;">Avversario *</label>
+                <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="Es: Victoria Academy" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:600; font-size:13px;">🕒 Orario Ritrovo</label>
+                    <input type="time" id="tab-meeting-time" value="${d.meeting_time || ''}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:600; font-size:13px;">🏟️ Inizio Partita</label>
+                    <input type="time" id="tab-match-time" value="${d.match_time || ''}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                </div>
+            </div>
+
+            <div style="display:grid; gap:5px;">
+                <label style="font-weight:600; font-size:13px;">📍 Luogo / Indirizzo Ritrovo</label>
+                <input type="text" id="tab-location-addr" value="${d.meeting_address || ''}" placeholder="Via Trinità 10, Santena (To)" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f1f5f9; padding:15px; border-radius:8px;">
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:600; font-size:13px; color:#10b981;">Gol Fatti</label>
+                    <input type="number" id="tab-gf" value="${d.goals_for || 0}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">
+                </div>
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:600; font-size:13px; color:#ef4444;">Gol Subiti</label>
+                    <input type="number" id="tab-gs" value="${d.goals_against || 0}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:15px 20px; background:#f8fafc; display:flex; gap:10px; justify-content:flex-end;">
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:10px 20px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer;">Annulla</button>
+            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 25px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Salva Report</button>
+        </div>
+    </div>`;
 };
 
 /**
@@ -2775,29 +2769,38 @@ window.openConvocazioni = async function(sessionId) {
     if (!session) return;
 
     const { data: athletes } = await client.from('athlete_team_seasons')
-        .select('athlete_id, jersey_number, role, athletes(name, surname)')
+        .select('athlete_id, jersey_number, athletes(name, surname)')
         .eq('team_id', session.team_id);
 
     const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
-    const convocatiIds = new Set(att?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
+    const convocatiIds = new Set(att?.filter(a => a.is_called_up === true).map(a => a.athlete_id));
+    const nonConvocatiIds = new Set(att?.filter(a => a.is_called_up === false).map(a => a.athlete_id));
 
     container.innerHTML = `
-        <div style="background:#111827; padding:15px; border-radius:12px; border:1px solid #374151;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h3 style="margin:0; color:white; font-size:16px;">📋 CONVOCATI: ${session.title}</h3>
-                <button onclick="saveConvocazioni('${sessionId}')" style="background:#3b82f6; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold;">SALVA</button>
+        <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:white;">📋 Convocazioni: ${session.title}</h3>
+                <button onclick="saveConvocazioni('${sessionId}')" style="background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA</button>
             </div>
-            <div style="display:grid; gap:6px;">
+            <div style="display:grid; gap:8px;">
                 ${athletes?.map(a => {
-                    const isChecked = convocatiIds.has(a.athlete_id);
+                    const isConv = convocatiIds.has(a.athlete_id);
+                    const isNotConv = nonConvocatiIds.has(a.athlete_id);
                     return `
-                    <label style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(59,130,246,0.1)' : '#1f2937'}; border:1px solid ${isChecked ? '#3b82f6' : '#374151'}; border-radius:8px;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span style="color:#3b82f6; font-weight:bold;">${a.jersey_number || '--'}</span>
-                            <span style="color:white; font-size:13px;">${a.athletes?.surname || ''} ${a.athletes?.name || ''}</span>
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <span style="color:#3b82f6; font-weight:bold; width:25px;">${a.jersey_number || '--'}</span>
+                            <span style="color:white; font-weight:500;">${a.athletes?.surname} ${a.athletes?.name}</span>
                         </div>
-                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''}>
-                    </label>`;
+                        <div style="display:flex; gap:20px; align-items:center; background:#111827; padding:5px 15px; border-radius:20px;">
+                            <label style="color:#10b981; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="true" ${isConv ? 'checked' : ''}>
+                            </label>
+                            <label style="color:#ef4444; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="false" ${isNotConv ? 'checked' : ''}>
+                            </label>
+                        </div>
+                    </div>`;
                 }).join('')}
             </div>
         </div>`;
