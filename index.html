@@ -2871,10 +2871,27 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 
 /* ──────────────────────────────────────────────────────────────────────────
-   MODULO GARE E CONVOCAZIONI (FIX DB-FROM)
+   MODULO GARE E CONVOCAZIONI - FIX DEFINITIVO (AUTO-DETECTION)
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. GESTIONE MENU
+// 1. RILEVATORE INTELLIGENTE DEL CLIENT (Risolve l'errore del DEBUG)
+function getSupabaseInstance() {
+    const candidates = [window.supabase, window.client, supabase, client];
+    
+    for (let cand of candidates) {
+        if (!cand) continue;
+        // Se il candidato ha .from, è lui
+        if (typeof cand.from === 'function') return cand;
+        // Se è annidato (alcune versioni lo mettono dentro .supabase)
+        if (cand.supabase && typeof cand.supabase.from === 'function') return cand.supabase;
+    }
+    
+    // Se arriviamo qui, il log ci aiuterà a capire cosa c'è "dentro"
+    console.warn("Ricerca profonda client fallita. Oggetto attuale:", window.supabase || window.client);
+    return null;
+}
+
+// 2. GESTIONE MENU SIDEBAR
 window.toggleSubmenu = function(id) {
     const sub = document.getElementById(id);
     if (sub) {
@@ -2882,7 +2899,7 @@ window.toggleSubmenu = function(id) {
     }
 };
 
-// 2. PREPARAZIONE PAGINA
+// 3. PREPARAZIONE INTERFACCIA
 window.preparePartite = function(sezione) {
     const main = document.getElementById('content'); 
     if (!main) return;
@@ -2904,23 +2921,18 @@ window.preparePartite = function(sezione) {
     window.initPartite(sezione);
 };
 
-// 3. RECUPERO DATI (CORREZIONE TypeError: db.from)
+// 4. CARICAMENTO DATI
 window.initPartite = async function(sub) {
     const container = document.getElementById('match-main-content');
-    
-    // TENTATIVO DI RECUPERO CLIENT CORRETTO
-    // Se nel tuo file Supabase è init come 'supabase', userà quello. Se 'client', userà quello.
-    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+    const db = getSupabaseInstance();
 
-    if (!db || typeof db.from !== 'function') {
-        console.error("DEBUG: Oggetto DB trovato:", db);
-        container.innerHTML = "<b style='color:#ef4444;'>Errore: Il client Supabase non è stato inizializzato correttamente o ha un nome diverso.</b>";
+    if (!db) {
+        container.innerHTML = "<b style='color:#ef4444;'>Errore: Impossibile trovare il comando .from() nel database.</b>";
         return;
     }
 
     try {
         const { data: typeData } = await db.from('session_types').select('id').ilike('name', 'Partita').single();
-        
         const { data: matches, error } = await db.from('sessions')
             .select(`*, teams(name)`)
             .eq('type_id', typeData?.id)
@@ -2929,40 +2941,46 @@ window.initPartite = async function(sub) {
         if (error) throw error;
 
         if (sub === 'sintesi') {
-            container.innerHTML = `<table style="width:100%; color:white; border-collapse:collapse;">
-                ${matches.map(m => `
-                <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:15px; color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="font-weight:600; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
-                    <td>${m.title}</td>
-                    <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')" style="background:#1e293b; color:white; border:1px solid #334155; padding:6px 12px; border-radius:6px; cursor:pointer;">Dettagli</button></td>
-                </tr>`).join('')}
+            container.innerHTML = `
+            <table style="width:100%; color:white; border-collapse:collapse;">
+                <thead style="color:#94a3b8; font-size:12px; text-align:left; border-bottom:1px solid #333;">
+                    <tr><th style="padding:10px;">DATA</th><th>SQUADRA</th><th>GARA</th><th style="text-align:right;">AZIONI</th></tr>
+                </thead>
+                <tbody>
+                    ${matches.map(m => `
+                    <tr style="border-bottom:1px solid #2d303e;">
+                        <td style="padding:15px; color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</td>
+                        <td style="font-weight:600; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
+                        <td>${m.title}</td>
+                        <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')" style="background:#1e293b; color:white; border:1px solid #334155; padding:6px 12px; border-radius:6px; cursor:pointer;">Dettagli</button></td>
+                    </tr>`).join('')}
+                </tbody>
             </table>`;
         } else {
             container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
                 ${matches.map(m => `
                 <div style="background:#13151e; border:1px solid #2d303e; padding:20px; border-radius:15px; border-top:5px solid #2563eb;">
                     <div style="font-size:11px; color:#64748b; margin-bottom:8px;">${new Date(m.session_date).toLocaleDateString()}</div>
-                    <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                    <h4 style="margin:0 0 15px 0; color:white; font-size:16px;">${m.title}</h4>
                     <button class="btn" onclick="window.openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">📋 CONVOCAZIONI</button>
                 </div>`).join('')}
             </div>`;
         }
     } catch (e) { 
         console.error("Errore initPartite:", e);
-        container.innerHTML = "Errore durante il caricamento delle gare.";
+        container.innerHTML = "Errore nel caricamento.";
     }
 };
 
-// 4. MODALE CONVOCAZIONE (LOGICA CONVOCATO/ESCLUSO)
+// 5. MODALE CONVOCAZIONI
 window.openAttendanceModal = async function(sessionId) {
     const modal = document.getElementById('modal-attendance');
     const list = document.getElementById('attendance-list');
-    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+    const db = getSupabaseInstance();
     
-    if (!modal || !list) return;
+    if (!modal || !list || !db) return;
     modal.style.display = 'flex';
-    list.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i></div>';
+    list.innerHTML = 'Caricamento...';
 
     try {
         const { data: session } = await db.from('sessions').select('*').eq('id', sessionId).single();
@@ -2971,31 +2989,31 @@ window.openAttendanceModal = async function(sessionId) {
 
         list.innerHTML = players.map(p => {
             const rowAtt = (att || []).find(a => a.player_id === p.id);
-            const isConvocato = rowAtt && rowAtt.status === 'Convocato';
-            const isEscluso = rowAtt && rowAtt.status === 'Escluso';
+            const status = rowAtt ? rowAtt.status : 'Escluso';
+            const isConvocato = status === 'Convocato';
             
             return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.01)'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:10px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'transparent'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:10px; margin-bottom:8px;">
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="width:30px; height:30px; background:#0f1117; border-radius:6px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; font-size:12px; border:1px solid ${isConvocato ? '#2563eb' : '#333'}">
+                    <div style="width:30px; height:30px; background:#0f1117; border-radius:6px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; border:1px solid ${isConvocato ? '#2563eb' : '#333'}">
                         ${p.shirt_number || '-'}
                     </div>
-                    <div style="color:white; font-weight:600; font-size:14px;">${p.last_name} ${p.first_name}</div>
+                    <div style="color:white; font-weight:600;">${p.last_name} ${p.first_name}</div>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Convocato')" 
-                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isConvocato ? '#2563eb' : '#1c202e'}; color:${isConvocato ? 'white' : '#64748b'};">CONVOCA</button>
+                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isConvocato ? '#2563eb' : '#1c202e'}; color:white;">CONVOCA</button>
                     <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Escluso')" 
-                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isEscluso ? '#ef4444' : '#1c202e'}; color:${isEscluso ? 'white' : '#64748b'};">ESCLUDI</button>
+                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${status === 'Escluso' ? '#ef4444' : '#1c202e'}; color:white;">ESCLUDI</button>
                 </div>
             </div>`;
         }).join('');
     } catch (e) { console.error(e); }
 };
 
-// 5. SALVATAGGIO
+// 6. SALVATAGGIO
 window.salvaConvocazione = async function(playerId, sessionId, nuovoStato) {
-    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+    const db = getSupabaseInstance();
     try {
         await db.from('attendances').upsert({
             player_id: playerId,
