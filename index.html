@@ -355,19 +355,19 @@
 
 <script>
 /**
- * Funzione Ponte: Gestisce il click dal menu laterale
+ * Funzione principale richiamata dai tasti del menu
  */
 function preparePartite(sezione) {
     console.log("Avvio sezione:", sezione); 
-    // Usiamo 'content' perché nel tuo index.html il div principale ha id="content"
+    // Correzione: Il tuo div principale nel file index.html ha id="content"
     const main = document.getElementById('content'); 
     
     if (main) {
-        // Carica la struttura base della pagina
+        // 1. Inserisce la struttura della pagina
         main.innerHTML = templatePartite();
         
         setTimeout(() => {
-            // Aggiorna il titolo della card in base alla scelta
+            // 2. Aggiorna il titolo visibile
             const title = document.getElementById('match-title-display');
             if (title) {
                 const nomi = { 
@@ -378,39 +378,33 @@ function preparePartite(sezione) {
                 title.innerText = nomi[sezione] || 'GESTIONE GARE';
             }
 
-            // Avvia il caricamento dei dati da Supabase
+            // 3. Carica i dati dal database
             initPartite(sezione);
         }, 50);
     }
 }
 
-/**
- * TEMPLATE: Genera l'interfaccia con i filtri per Admin
- */
 function templatePartite() {
     return `
     <div class="card">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 id="match-title-display" style="margin:0; text-transform: uppercase; color:white;">GESTIONE GARE</h2>
-            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;">+ Nuova Gara</button>
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 id="match-title-display" style="margin:0; color:white; text-transform:uppercase;">GESTIONE GARE</h2>
+            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">+ Nuova Gara</button>
         </div>
         
-        <div id="gare-filters-container" style="display:none; background:#13151e; padding:15px; border-radius:8px; border:1px solid #2d303e; margin-bottom:15px;">
-            <div style="display:grid; grid-template-columns: 1fr; gap:12px;">
-                <label style="font-size:11px; color:#94a3b8; font-weight:bold;">SOCIETÀ (FILTRO ADMIN)</label>
-                <select id="f-match-soc" onchange="initPartite()" style="background:#1c1f2e; color:white; border:1px solid #333; padding:8px; border-radius:6px;"></select>
-            </div>
+        <div id="gare-filters-container" style="display:none; background:#13151e; padding:15px; border-radius:12px; border:1px solid #2d303e; margin-bottom:20px;">
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:5px; font-weight:bold;">FILTRO SOCIETÀ (ADMIN)</label>
+            <select id="f-match-soc" onchange="initPartite()" style="width:100%; max-width:300px; background:#1c1f2e; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
         </div>
 
-        <div id="match-main-content">
-            <div style="text-align:center; padding:40px; color:#94a3b8;">Caricamento in corso...</div>
+        <div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
+            <div style="grid-column:1/-1; text-align:center; padding:50px; color:#64748b;">
+                <i class="fas fa-spinner fa-spin"></i> Caricamento gare...
+            </div>
         </div>
     </div>`;
 }
 
-/**
- * LOGICA CORE: Carica le gare distinguendo tra Admin e Utenti Normali
- */
 async function initPartite(sub = 'sintesi') {
     const container = document.getElementById('match-main-content');
     if (!container) return;
@@ -419,7 +413,7 @@ async function initPartite(sub = 'sintesi') {
     const isAdminOrManager = ['admin', 'manager'].includes(myRole);
     const userSocId = window._currentSocietyId;
 
-    // Gestione Filtri per Admin
+    // Se Admin, mostra il selettore società
     if (isAdminOrManager) {
         const fContainer = document.getElementById('gare-filters-container');
         if (fContainer) fContainer.style.display = 'block';
@@ -432,14 +426,12 @@ async function initPartite(sub = 'sintesi') {
     }
 
     try {
-        // 1. Trova l'ID del tipo sessione "Partita"
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
-        if (!typeData) return container.innerHTML = "Errore: Tipo 'Partita' non trovato.";
+        if (!typeData) return container.innerHTML = "Errore: Tipo sessione 'Partita' non trovato.";
 
-        // 2. Costruisci la Query
         let query = client.from('sessions').select(`*, teams(name), attendances(id, status)`).eq('type_id', typeData.id);
 
-        // LOGICA ADMIN: Se non è admin, filtra per la società dell'utente. Se è admin, non filtra (mostra anche PARTIA_01)
+        // LOGICA VISIBILITÀ: L'admin vede tutto (anche i record senza società) a meno che non ne selezioni una
         if (!isAdminOrManager) {
             query = query.eq('society_id', userSocId);
         } else {
@@ -451,27 +443,24 @@ async function initPartite(sub = 'sintesi') {
         if (error) throw error;
 
         if (!matches || matches.length === 0) {
-            container.innerHTML = "<div style='padding:40px; text-align:center; color:#64748b;'>Nessuna gara trovata.</div>";
+            container.innerHTML = "<div style='grid-column:1/-1; text-align:center; padding:40px; color:#64748b;'>Nessuna gara programmata trovata.</div>";
             return;
         }
 
-        // 3. Rendering delle Card
-        container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
-            ${matches.map(m => `
-            <div style="background:#1c1f2e; padding:15px; border-radius:10px; border-top:4px solid ${sub === 'convocazioni' ? '#2563eb' : '#10b981'};">
-                <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; font-weight:bold;">${m.teams?.name || 'SQUADRA NON ASSIGNATA'}</div>
-                <h4 style="margin:10px 0; color:white;">${m.title}</h4>
-                <div style="font-size:12px; color:#64748b; margin-bottom:15px;">Data: ${new Date(m.session_date).toLocaleDateString()}</div>
-                <button class="btn" style="width:100%; background:${sub === 'convocazioni' ? '#2563eb' : '#10b981'}; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;" 
+        container.innerHTML = matches.map(m => `
+            <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px; border-top:4px solid ${sub === 'risultati' ? '#10b981' : '#2563eb'};">
+                <div style="color:#94a3b8; font-size:11px; text-transform:uppercase; font-weight:bold; margin-bottom:10px;">${m.teams?.name || 'SQUADRA DA ASSEGNARE'}</div>
+                <h3 style="color:white; margin:0 0 15px 0; font-size:18px;">${m.title}</h3>
+                <div style="color:#64748b; font-size:13px; margin-bottom:20px;"><i class="far fa-calendar-alt"></i> ${new Date(m.session_date).toLocaleDateString()}</div>
+                <button class="btn" style="width:100%; background:${sub === 'risultati' ? '#10b981' : '#2563eb'}; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold;" 
                     onclick="openAttendanceModal('${m.id}')">
-                    ${sub === 'convocazioni' ? '📋 GESTISCI CONVOCATI' : '⚽ VEDI RISULTATI'}
+                    ${sub === 'risultati' ? '⚽ TABELLINO E VOTI' : '📋 GESTISCI CONVOCATI'}
                 </button>
-            </div>`).join('')}
-        </div>`;
+            </div>
+        `).join('');
 
     } catch (e) {
-        console.error("Errore initPartite:", e);
-        container.innerHTML = "Errore durante il caricamento dei dati.";
+        container.innerHTML = `<div style="grid-column:1/-1; color:#ef4444;">Errore nel caricamento: ${e.message}</div>`;
     }
 }
 
@@ -480,7 +469,17 @@ function toggleSubmenu(id) {
     if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
 }
 </script>
-</script>
+
+
+
+
+
+
+
+
+
+
+
 
         </div>
         <div class="sb-foot">
