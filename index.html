@@ -2878,33 +2878,36 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+
+
+
+
 /* ──────────────────────────────────────────────────────────────────────────
-   MODULO GARE E CONVOCAZIONI - VERSIONE COMPATIBILITÀ TOTALE
+   MODULO GARE E CONVOCAZIONI - VERSIONE INTEGRALE (NO-BACKTICK)
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. Recupero Istanza Database
+// 1. Utility Database
 function getDbInstance() {
     if (typeof client !== 'undefined' && typeof client.from === 'function') return client;
     if (typeof supabase !== 'undefined' && typeof supabase.from === 'function') return supabase;
     return null;
 }
 
-// 2. Apertura Sezione Gare
+// 2. Preparazione Pagina
 window.preparePartite = function(sezione) {
     var main = document.getElementById('content'); 
     if (!main) return;
 
-    var htmlHeader = '<div class="card" style="background: #13151e; border: 1px solid #2d303e; padding: 25px; border-radius: 15px;">' +
+    main.innerHTML = 
+    '<div class="card" style="background: #13151e; border: 1px solid #2d303e; padding: 25px; border-radius: 15px;">' +
         '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">' +
             '<h2 id="match-title-display" style="margin:0; color:white; text-transform: uppercase; font-size: 18px;">GARE</h2>' +
             '<button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">+ NUOVA GARA</button>' +
         '</div>' +
         '<div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">' +
-            '<div style="text-align:center; padding:50px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>' +
+            '<div style="text-align:center; padding:50px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i> Caricamento...</div>' +
         '</div>' +
     '</div>';
-    
-    main.innerHTML = htmlHeader;
     
     var nomi = { 'sintesi': '📊 RIEPILOGO GARE', 'convocazioni': '📋 GESTIONE CONVOCAZIONI' };
     var titleElem = document.getElementById('match-title-display');
@@ -2928,37 +2931,44 @@ window.initPartite = async function(sub) {
             .eq('type_id', resType.data.id)
             .order('session_date', { ascending: false });
 
+        if (resMatches.error) throw resMatches.error;
         var matches = resMatches.data || [];
+
         if (matches.length === 0) {
-            container.innerHTML = "Nessuna gara trovata.";
+            container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#64748b;">Nessuna gara trovata.</div>';
             return;
         }
 
-        var cardsHtml = '';
+        var htmlCards = '';
         for (var i = 0; i < matches.length; i++) {
-            var match = matches[i];
-            
-            // COSTRUZIONE MANUALE DEL BOTTONE PER EVITARE IL BUG ${m.id}
-            var btnHtml = '<button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold;" ' +
-                          'onclick="window.testConvocazioni(\'' + match.id + '\')">' + 
-                          '📋 GESTISCI CONVOCATI</button>';
+            var m = matches[i];
+            var teamName = (m.teams && m.teams.name) ? m.teams.name : 'SQUADRA';
+            var dateStr = new Date(m.session_date).toLocaleDateString();
 
-            cardsHtml += '<div style="background:#1a1d29; border:1px solid #2d303e; border-radius:12px; padding:20px; margin-bottom:10px;">' +
-                         '<h3 style="color:white; margin:0 0 10px 0;">' + match.title + '</h3>' +
-                         '<p style="color:#64748b;">' + new Date(match.session_date).toLocaleDateString() + '</p>' +
-                         btnHtml + 
-                         '</div>';
+            htmlCards += '<div style="background:#1a1d29; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #2563eb;">';
+            htmlCards += '<div style="color:#94a3b8; font-size:11px; font-weight:bold; margin-bottom:8px;">' + teamName + '</div>';
+            htmlCards += '<h3 style="color:white; margin:0 0 12px 0; font-size:16px;">' + m.title + '</h3>';
+            htmlCards += '<div style="color:#64748b; font-size:13px; margin-bottom:15px;"><i class="far fa-calendar-alt"></i> ' + dateStr + '</div>';
+            
+            // LA CORREZIONE È QUI: Usiamo la concatenazione ' + m.id + ' invece di ${m.id}
+            htmlCards += '<button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;" ';
+            htmlCards += 'onclick="window.testConvocazioni(\'' + m.id + '\')">';
+            htmlCards += '📋 GESTISCI CONVOCATI</button>';
+            
+            htmlCards += '</div>';
         }
-        container.innerHTML = cardsHtml;
+        container.innerHTML = htmlCards;
 
     } catch (e) {
-        container.innerHTML = "Errore: " + e.message;
+        container.innerHTML = '<div style="grid-column:1/-1; color:#ef4444;">Errore: ' + e.message + '</div>';
     }
 };
 
-// 4. Logica Convocazioni (Tabella athlete_team_seasons)
+// 4. Logica Convocazioni (Database Relazionale)
 window.testConvocazioni = async function(sessionId) {
+    // Ora sessionId conterrà l'ID reale (es. "7aff-...") e non la stringa "${m.id}"
     console.log("🚀 Caricamento convocazioni per ID reale:", sessionId);
+    
     var db = getDbInstance();
     var container = document.getElementById('match-main-content');
     if (!db || !container) return;
@@ -3009,11 +3019,11 @@ window.testConvocazioni = async function(sessionId) {
         container.innerHTML = listHtml;
 
     } catch (e) {
-        container.innerHTML = '<div style="grid-column:1/-1; color:red;">Errore: ' + e.message + '</div>';
+        container.innerHTML = '<div style="grid-column:1/-1; color:red; padding:20px;">Errore: ' + e.message + '</div>';
     }
 };
 
-// 5. Aggiornamento Stato
+// 5. Funzione Update
 window.updateStatus = async function(athleteId, sessionId, nuovoStato) {
     var db = getDbInstance();
     try {
@@ -3025,10 +3035,7 @@ window.updateStatus = async function(athleteId, sessionId, nuovoStato) {
         }, { onConflict: 'athlete_id, session_id' });
 
         window.testConvocazioni(sessionId); 
-    } catch (e) { 
-        console.error(e);
-        alert("Errore nel salvataggio");
-    }
+    } catch (e) { console.error(e); }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
