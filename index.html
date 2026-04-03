@@ -339,8 +339,10 @@
             <span class="sb-grp">Attività</span>
             <a data-section="sessioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>Gestione Sessioni</a>
 <div class="nav-item-group">
-    <a href="#" onclick="preparePartite('sintesi')">📊 Sintesi Partite</a>
-    <div class="nav-submenu">
+    <div class="nav-item" onclick="preparePartite('sintesi')">
+        <span>🏟️ Gestione Partite</span>
+    </div>
+    <div class="nav-submenu" style="display: block;">
         <div class="nav-submenu-item" onclick="preparePartite('sintesi')">➡️ Lista Gare</div>
         <div class="nav-submenu-item" onclick="preparePartite('convocazioni')">➡️ Convocazioni</div>
         <div class="nav-submenu-item" onclick="preparePartite('risultati')">➡️ Tabellini e Marcatori</div>
@@ -348,11 +350,18 @@
 </div>
 
 <script>
+// Questa funzione pulisce l'area principale e carica il template corretto
 function preparePartite(sezione) {
-    const container = document.getElementById('main-content');
-    if(container) {
-        container.innerHTML = templatePartite(); // Carica la struttura
-        setTimeout(() => initPartite(sezione), 50); // Inizializza i dati
+    const main = document.getElementById('main-content');
+    if (main) {
+        // Forza il caricamento del template base
+        main.innerHTML = window.templatePartite();
+        // Attende un istante che il DOM sia pronto prima di caricare i dati
+        setTimeout(() => {
+            if (typeof window.initPartite === 'function') {
+                window.initPartite(sezione);
+            }
+        }, 50);
     }
 }
 </script>
@@ -2716,7 +2725,7 @@ window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 /* ============================================================
-   ENGINE GESTIONE PARTITE: SINTESI, CONVOCATI, MARCATORI
+   ENGINE INTEGRATO GESTIONE PARTITE (V4)
    ============================================================ */
 
 window.templatePartite = function() {
@@ -2724,16 +2733,16 @@ window.templatePartite = function() {
     <div class="card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <div>
-                <h2 style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase; font-family: 'Syne', sans-serif;">🏟️ GESTIONE GARE</h2>
+                <h2 style="margin:0; color: #fff; font-size: 1.5rem; text-transform: uppercase;">🏟️ GESTIONE GARE</h2>
                 <p id="match-subtitle" style="color:#94a3b8; font-size:13px; margin-top:4px; font-weight:500;"></p>
             </div>
             <div id="match-header-actions"></div>
         </div>
 
         <div id="match-filters-area" style="display:flex; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05); overflow-x:auto;">
-             <select id="f-match-soc" onchange="reloadMatchSubFilters()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:180px;"><option value="">Società...</option></select>
-             <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;"><option value="">Categorie</option></select>
-             <select id="f-match-team" onchange="initPartite(window._currentPartiteSub)" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;"><option value="">Squadre</option></select>
+             <select id="f-match-soc" onchange="reloadMatchSubFilters()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:180px;"><option value="">Seleziona Società...</option></select>
+             <select id="f-match-cat" onchange="reloadMatchTeamsOnly()" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;"><option value="">Tutte Categorie</option></select>
+             <select id="f-match-team" onchange="initPartite(window._currentPartiteSub)" style="padding:8px; border-radius:6px; background:#13151e; color:white; border:1px solid var(--border); font-size:12px; min-width:150px;"><option value="">Tutte Squadre</option></select>
         </div>
 
         <div id="match-main-content" style="min-height: 400px;"></div>
@@ -2747,7 +2756,7 @@ window.initPartite = async function(sub = 'sintesi') {
     const actions = document.getElementById('match-header-actions');
     if (!content) return;
 
-    // Popolamento filtri
+    // Inizializzazione Filtri Società
     const selectSoc = document.getElementById('f-match-soc');
     if (selectSoc && selectSoc.options.length <= 1) {
         const { data: socs } = await client.from('societies').select('id, name').order('name');
@@ -2761,13 +2770,14 @@ window.initPartite = async function(sub = 'sintesi') {
     const currentSoc = selectSoc?.value || window._currentSocietyId;
     actions.innerHTML = '';
 
+    // Switch Visualizzazione
     if (sub === 'sintesi') {
-        subtitle.innerText = "LISTA GENERALE PARTITE";
+        subtitle.innerText = "ELENCO GENERALE PARTITE";
         actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white;">+ NUOVA GARA</button>`;
         await renderSintesiPartite(content, currentSoc);
     } 
     else if (sub === 'convocazioni') {
-        subtitle.innerText = "CONVOCAZIONI ATLETI";
+        subtitle.innerText = "GESTIONE CONVOCATI";
         await renderConvocazioniPartite(content, currentSoc);
     } 
     else if (sub === 'risultati') {
@@ -2776,10 +2786,10 @@ window.initPartite = async function(sub = 'sintesi') {
     }
 };
 
-// 1. RENDER SINTESI (Tabella)
+// 1. RENDER SINTESI
 window.renderSintesiPartite = async function(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
-    container.innerHTML = '<div style="text-align:center; padding:40px;">Caricamento...</div>';
+    container.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Caricamento gare...</div>';
     try {
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
         let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
@@ -2788,14 +2798,14 @@ window.renderSintesiPartite = async function(container, socId) {
 
         container.innerHTML = `
         <div class="table-container">
-            <table style="width:100%; color:white; font-size:13px; border-collapse:collapse;">
-                <tr style="background:#0f1117; color:#94a3b8; text-align:left;">
+            <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+                <tr style="background:rgba(255,255,255,0.05); text-align:left; color:#94a3b8;">
                     <th style="padding:12px;">DATA</th><th style="padding:12px;">SQUADRA</th><th style="padding:12px;">TITOLO</th><th style="padding:12px; text-align:right;">AZIONI</th>
                 </tr>
                 ${(matches || []).map(m => `
                 <tr style="border-bottom:1px solid #2d303e;">
                     <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="padding:12px; color:#2563eb; font-weight:bold;">${m.teams?.name}</td>
+                    <td style="padding:12px; color:#2563eb;">${m.teams?.name}</td>
                     <td style="padding:12px;">${m.title}</td>
                     <td style="padding:12px; text-align:right;">
                         <button onclick="deleteMatchSession('${m.id}')" style="background:none; border:none; color:#ef4444; cursor:pointer;">🗑️</button>
@@ -2806,10 +2816,10 @@ window.renderSintesiPartite = async function(container, socId) {
     } catch (e) { container.innerHTML = "Errore: " + e.message; }
 };
 
-// 2. RENDER CONVOCAZIONI (Cards)
+// 2. RENDER CONVOCAZIONI
 window.renderConvocazioniPartite = async function(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
-    container.innerHTML = '<div style="text-align:center; padding:40px;">Caricamento...</div>';
+    container.innerHTML = '<div style="padding:40px; text-align:center;">Caricamento...</div>';
     try {
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
         let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
@@ -2817,21 +2827,21 @@ window.renderConvocazioniPartite = async function(container, socId) {
         const { data: matches } = await query.order('session_date', { ascending: false });
 
         container.innerHTML = `
-        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:15px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
             ${(matches || []).map(m => `
-                <div style="background:#13151e; border:1px solid #2d303e; border-radius:10px; padding:15px;">
-                    <div style="font-size:11px; color:#2563eb; margin-bottom:5px;">${m.teams?.name}</div>
-                    <h4 style="margin:0 0 10px 0; color:white;">${m.title}</h4>
-                    <button class="btn" style="width:100%; font-size:12px;" onclick="openConvocazioniModal('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">📋 CONVOCA</button>
+                <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px;">
+                    <div style="font-size:10px; color:#2563eb; margin-bottom:5px; font-weight:bold;">${m.teams?.name}</div>
+                    <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                    <button class="btn" style="width:100%; font-size:12px; background:#2563eb;" onclick="openConvocazioniModal('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">📋 GESTISCI CONVOCATI</button>
                 </div>`).join('')}
         </div>`;
     } catch (e) { container.innerHTML = "Errore: " + e.message; }
 };
 
-// 3. RENDER RISULTATI/MARCATORI (Cards)
+// 3. RENDER RISULTATI (MARCATORI)
 window.renderRisultatiPartite = async function(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
-    container.innerHTML = '<div style="text-align:center; padding:40px;">Caricamento...</div>';
+    container.innerHTML = '<div style="padding:40px; text-align:center;">Caricamento...</div>';
     try {
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
         let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
@@ -2839,21 +2849,22 @@ window.renderRisultatiPartite = async function(container, socId) {
         const { data: matches } = await query.order('session_date', { ascending: false });
 
         container.innerHTML = `
-        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:15px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
             ${(matches || []).map(m => `
-                <div style="background:#13151e; border:1px solid #2d303e; border-radius:10px; padding:15px;">
-                    <div style="font-size:11px; color:#10b981; margin-bottom:5px;">${m.teams?.name}</div>
-                    <h4 style="margin:0 0 10px 0; color:white;">${m.title}</h4>
-                    <button class="btn" style="width:100%; background:#10b981; color:white;" onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">⚽ TABELLINO</button>
+                <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px;">
+                    <div style="font-size:10px; color:#10b981; margin-bottom:5px; font-weight:bold;">${m.teams?.name}</div>
+                    <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                    <button class="btn" style="width:100%; background:#10b981; color:white;" onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">⚽ TABELLINO E VOTI</button>
                 </div>`).join('')}
         </div>`;
     } catch (e) { container.innerHTML = "Errore: " + e.message; }
 };
 
-// MODALE MARCATORI E VOTI
+// --- FUNZIONI MODALI (MARCATORI E SALVATAGGIO) ---
+
 window.openTabellinoModal = async function(sessionId, title) {
     const m = getModal();
-    m.open(`TABELLINO: ${title}`, `<div id="load-t" style="padding:20px; text-align:center; color:white;">Caricamento...</div>`);
+    m.open(`TABELLINO: ${title}`, `<div id="load-t" style="padding:20px; text-align:center; color:white;">Caricamento convocati...</div>`);
 
     const { data: atts } = await client.from('attendances')
         .select(`id, rating, performance_data, athletes(id, first_name, last_name)`)
@@ -2861,24 +2872,24 @@ window.openTabellinoModal = async function(sessionId, title) {
         .eq('is_called_up', true);
 
     if (!atts || atts.length === 0) {
-        document.getElementById('load-t').innerHTML = "Nessun atleta convocato.";
+        document.getElementById('load-t').innerHTML = "Nessun convocato trovato. Vai prima in 'Convocazioni'.";
         return;
     }
 
     let html = `
     <div style="max-height:400px; overflow-y:auto; border:1px solid #333; border-radius:8px;">
         <table style="width:100%; color:white; font-size:12px; border-collapse:collapse;">
-            <tr style="background:#000; position:sticky; top:0;">
+            <tr style="background:#000; position:sticky; top:0; z-index:10;">
                 <th style="padding:10px; text-align:left;">Atleta</th>
                 <th style="padding:10px; text-align:center;">⚽ GOL</th>
-                <th style="padding:10px; text-align:center;">🟨 Card</th>
-                <th style="padding:10px; text-align:center;">⭐ Voto</th>
+                <th style="padding:10px; text-align:center;">🟨/🟥</th>
+                <th style="padding:10px; text-align:center;">⭐ VOTO</th>
             </tr>
             ${atts.map(a => `
             <tr style="border-bottom:1px solid #2d303e;">
                 <td style="padding:10px;">${a.athletes.last_name}</td>
                 <td style="padding:10px; text-align:center;">
-                    <input type="number" class="t-goals" data-id="${a.id}" value="${a.performance_data?.goals || 0}" style="width:40px; background:#000; color:white; border:1px solid #444; text-align:center;">
+                    <input type="number" class="t-goals" data-id="${a.id}" value="${a.performance_data?.goals || 0}" style="width:45px; background:#000; color:white; border:1px solid #444; text-align:center;">
                 </td>
                 <td style="padding:10px; text-align:center;">
                     <select class="t-cards" data-id="${a.id}" style="background:#000; color:white; border:1px solid #444;">
@@ -2888,12 +2899,12 @@ window.openTabellinoModal = async function(sessionId, title) {
                     </select>
                 </td>
                 <td style="padding:10px; text-align:center;">
-                    <input type="number" step="0.5" class="t-rating" data-id="${a.id}" value="${a.rating || 0}" style="width:40px; background:#000; color:white; border:1px solid #444; text-align:center;">
+                    <input type="number" step="0.5" class="t-rating" data-id="${a.id}" value="${a.rating || 0}" style="width:45px; background:#000; color:white; border:1px solid #444; text-align:center;">
                 </td>
             </tr>`).join('')}
         </table>
     </div>
-    <button onclick="saveTabellino('${sessionId}')" style="width:100%; background:#10b981; color:white; padding:12px; margin-top:15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">💾 SALVA TABELLINO</button>`;
+    <button onclick="saveTabellino('${sessionId}')" style="width:100%; background:#10b981; color:white; padding:12px; margin-top:15px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">💾 SALVA TUTTO</button>`;
     document.getElementById('load-t').parentElement.innerHTML = html;
 };
 
@@ -2910,14 +2921,15 @@ window.saveTabellino = async function(sessionId) {
                 performance_data: { goals: parseInt(goals[i].value) || 0, card: cards[i].value || null } 
             }).eq('id', attId);
         }
-        alert("Tabellino salvato!");
+        alert("Salvataggio completato!");
         getModal().close();
     } catch (e) { alert("Errore: " + e.message); }
 };
 
-// UTILITY FILTRI
+// --- UTILITY FILTRI ---
 window.reloadMatchSubFilters = async function() {
     const socId = document.getElementById('f-match-soc')?.value;
+    if(!socId) return;
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
@@ -2934,7 +2946,7 @@ window.reloadMatchTeamsOnly = function() {
 };
 
 window.deleteMatchSession = async function(id) {
-    if(!confirm("Eliminare?")) return;
+    if(!confirm("Eliminare definitivamente?")) return;
     await client.from('sessions').delete().eq('id', id);
     initPartite('sintesi');
 };
