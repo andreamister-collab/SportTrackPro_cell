@@ -2871,32 +2871,30 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 
 /* ──────────────────────────────────────────────────────────────────────────
-   MODULO GARE E CONVOCAZIONI PRO (VERSIONE COMPLETA)
+   MODULO GARE E CONVOCAZIONI (FIX DB-FROM)
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. GESTIONE MENU SIDEBAR
+// 1. GESTIONE MENU
 window.toggleSubmenu = function(id) {
     const sub = document.getElementById(id);
     if (sub) {
-        const isHidden = (sub.style.display === 'none' || sub.style.display === '');
-        sub.style.display = isHidden ? 'block' : 'none';
+        sub.style.display = (sub.style.display === 'none' || sub.style.display === '') ? 'block' : 'none';
     }
 };
 
-// 2. PREPARAZIONE PAGINA PRINCIPALE
+// 2. PREPARAZIONE PAGINA
 window.preparePartite = function(sezione) {
     const main = document.getElementById('content'); 
     if (!main) return;
 
-    // Reset UI con caricamento
     main.innerHTML = `
     <div class="card" style="width: 100%; border-radius: 15px; background: var(--panel); border: 1px solid var(--border); padding: 25px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
-            <h2 id="match-title-display" style="margin:0; color:white; font-size: 22px; font-weight:700;"></h2>
-            <button class="btn" onclick="if(window.openSessionModal) openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:600;">+ Nuova Gara</button>
+            <h2 id="match-title-display" style="margin:0; color:white; font-size: 20px; font-weight:700;"></h2>
+            <button class="btn" onclick="if(window.openSessionModal) openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">+ Nuova Gara</button>
         </div>
         <div id="match-main-content">
-            <div style="text-align:center; padding:60px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><span style="margin-top:10px; display:block;">Caricamento dati...</span></div>
+            <div style="text-align:center; padding:60px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
         </div>
     </div>`;
     
@@ -2906,74 +2904,47 @@ window.preparePartite = function(sezione) {
     window.initPartite(sezione);
 };
 
-// 3. RECUPERO GARE DAL DATABASE
+// 3. RECUPERO DATI (CORREZIONE TypeError: db.from)
 window.initPartite = async function(sub) {
     const container = document.getElementById('match-main-content');
     
-    // Check di sicurezza per il client Supabase
-    const db = window.client || window.supabase;
-    if (!db) {
-        container.innerHTML = "<b style='color:#ef4444;'>Errore: Connessione database (Supabase client) non trovata.</b>";
+    // TENTATIVO DI RECUPERO CLIENT CORRETTO
+    // Se nel tuo file Supabase è init come 'supabase', userà quello. Se 'client', userà quello.
+    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
+
+    if (!db || typeof db.from !== 'function') {
+        console.error("DEBUG: Oggetto DB trovato:", db);
+        container.innerHTML = "<b style='color:#ef4444;'>Errore: Il client Supabase non è stato inizializzato correttamente o ha un nome diverso.</b>";
         return;
     }
 
     try {
-        // Recupero ID del tipo "Partita"
         const { data: typeData } = await db.from('session_types').select('id').ilike('name', 'Partita').single();
-        if (!typeData) {
-            container.innerHTML = "Tipo sessione 'Partita' non configurato.";
-            return;
-        }
-
+        
         const { data: matches, error } = await db.from('sessions')
-            .select(`*, teams(id, name)`)
-            .eq('type_id', typeData.id)
+            .select(`*, teams(name)`)
+            .eq('type_id', typeData?.id)
             .order('session_date', { ascending: false });
 
         if (error) throw error;
-        if (!matches || matches.length === 0) {
-            container.innerHTML = "<div style='color:#64748b; text-align:center; padding:40px;'>Nessuna gara registrata.</div>";
-            return;
-        }
 
         if (sub === 'sintesi') {
-            // TABELLA RIEPILOGO
-            container.innerHTML = `
-            <div style="overflow-x:auto;">
-                <table style="width:100%; color:white; border-collapse:collapse; min-width:600px;">
-                    <thead style="background:rgba(255,255,255,0.02); color:#94a3b8; text-align:left; font-size:12px;">
-                        <tr>
-                            <th style="padding:15px;">DATA</th>
-                            <th>SQUADRA</th>
-                            <th>GARA</th>
-                            <th style="text-align:right; padding-right:15px;">AZIONI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${matches.map(m => `
-                        <tr style="border-bottom:1px solid #2d303e; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.01)'" onmouseout="this.style.background='transparent'">
-                            <td style="padding:15px; color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</td>
-                            <td style="font-weight:600; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
-                            <td>${m.title}</td>
-                            <td style="text-align:right; padding-right:15px;">
-                                <button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')" style="background:#1e293b; color:white; border:1px solid #334155; padding:6px 12px; border-radius:6px; cursor:pointer;">Dettagli</button>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>`;
-        } else {
-            // GRIGLIA CARDS CONVOCAZIONI
-            container.innerHTML = `
-            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+            container.innerHTML = `<table style="width:100%; color:white; border-collapse:collapse;">
                 ${matches.map(m => `
-                <div style="background:#13151e; border:1px solid #2d303e; padding:22px; border-radius:15px; border-top:5px solid #2563eb; position:relative;">
-                    <div style="font-size:11px; color:#64748b; margin-bottom:8px; font-weight:700; text-transform:uppercase;">${new Date(m.session_date).toLocaleDateString()}</div>
-                    <h4 style="margin:0 0 18px 0; color:white; font-size:17px; line-height:1.4;">${m.title}</h4>
-                    <button class="btn" onclick="window.openAttendanceModal('${m.id}')" 
-                        style="width:100%; background:#2563eb; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
-                        <i class="fas fa-clipboard-check"></i> CONVOCAZIONI
-                    </button>
+                <tr style="border-bottom:1px solid #2d303e;">
+                    <td style="padding:15px; color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</td>
+                    <td style="font-weight:600; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
+                    <td>${m.title}</td>
+                    <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')" style="background:#1e293b; color:white; border:1px solid #334155; padding:6px 12px; border-radius:6px; cursor:pointer;">Dettagli</button></td>
+                </tr>`).join('')}
+            </table>`;
+        } else {
+            container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+                ${matches.map(m => `
+                <div style="background:#13151e; border:1px solid #2d303e; padding:20px; border-radius:15px; border-top:5px solid #2563eb;">
+                    <div style="font-size:11px; color:#64748b; margin-bottom:8px;">${new Date(m.session_date).toLocaleDateString()}</div>
+                    <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                    <button class="btn" onclick="window.openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">📋 CONVOCAZIONI</button>
                 </div>`).join('')}
             </div>`;
         }
@@ -2983,16 +2954,15 @@ window.initPartite = async function(sub) {
     }
 };
 
-// 4. MODALE CONVOCAZIONE (LISTA SELEZIONE ATLETI)
+// 4. MODALE CONVOCAZIONE (LOGICA CONVOCATO/ESCLUSO)
 window.openAttendanceModal = async function(sessionId) {
     const modal = document.getElementById('modal-attendance');
     const list = document.getElementById('attendance-list');
-    const db = window.client || window.supabase;
+    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
     
     if (!modal || !list) return;
-
     modal.style.display = 'flex';
-    list.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+    list.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i></div>';
 
     try {
         const { data: session } = await db.from('sessions').select('*').eq('id', sessionId).single();
@@ -3001,59 +2971,41 @@ window.openAttendanceModal = async function(sessionId) {
 
         list.innerHTML = players.map(p => {
             const rowAtt = (att || []).find(a => a.player_id === p.id);
-            const status = rowAtt ? rowAtt.status : 'Escluso';
-            const isConvocato = status === 'Convocato';
-            const isEscluso = status === 'Escluso';
+            const isConvocato = rowAtt && rowAtt.status === 'Convocato';
+            const isEscluso = rowAtt && rowAtt.status === 'Escluso';
             
             return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.01)'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:12px; margin-bottom:10px; transition:0.3s;">
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <div style="width:34px; height:34px; background:#0f1117; border:1px solid ${isConvocato ? '#2563eb' : '#333'}; border-radius:8px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:800; font-size:13px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.01)'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:10px; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:30px; height:30px; background:#0f1117; border-radius:6px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; font-size:12px; border:1px solid ${isConvocato ? '#2563eb' : '#333'}">
                         ${p.shirt_number || '-'}
                     </div>
-                    <div>
-                        <div style="color:white; font-weight:600; font-size:14px;">${p.last_name} ${p.first_name}</div>
-                        <div style="font-size:11px; color:#64748b; text-transform:uppercase;">${p.role || 'Gara'}</div>
-                    </div>
+                    <div style="color:white; font-weight:600; font-size:14px;">${p.last_name} ${p.first_name}</div>
                 </div>
-                <div style="display:flex; gap:8px;">
+                <div style="display:flex; gap:6px;">
                     <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Convocato')" 
-                        style="padding:8px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:700; font-size:11px; transition:0.2s;
-                        background:${isConvocato ? '#2563eb' : '#1c202e'}; color:${isConvocato ? 'white' : '#64748b'};">
-                        CONVOCA
-                    </button>
+                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isConvocato ? '#2563eb' : '#1c202e'}; color:${isConvocato ? 'white' : '#64748b'};">CONVOCA</button>
                     <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Escluso')" 
-                        style="padding:8px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:700; font-size:11px; transition:0.2s;
-                        background:${isEscluso ? '#ef4444' : '#1c202e'}; color:${isEscluso ? 'white' : '#64748b'};">
-                        ESCLUDI
-                    </button>
+                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isEscluso ? '#ef4444' : '#1c202e'}; color:${isEscluso ? 'white' : '#64748b'};">ESCLUDI</button>
                 </div>
             </div>`;
         }).join('');
-    } catch (e) { 
-        console.error("Errore Modale:", e);
-        list.innerHTML = "Errore nel caricamento della lista convocati.";
-    }
+    } catch (e) { console.error(e); }
 };
 
-// 5. FUNZIONE DI SALVATAGGIO STATO
+// 5. SALVATAGGIO
 window.salvaConvocazione = async function(playerId, sessionId, nuovoStato) {
-    const db = window.client || window.supabase;
+    const db = (typeof supabase !== 'undefined') ? supabase : (typeof client !== 'undefined' ? client : null);
     try {
-        const { error } = await db.from('attendances').upsert({
+        await db.from('attendances').upsert({
             player_id: playerId,
             session_id: sessionId,
             status: nuovoStato,
             updated_at: new Date()
         }, { onConflict: 'player_id, session_id' });
 
-        if (error) throw error;
-        
-        // Ricarica la modale per aggiornare istantaneamente la grafica
         window.openAttendanceModal(sessionId);
-    } catch (e) {
-        console.error("Errore salvataggio:", e);
-    }
+    } catch (e) { console.error(e); }
 };
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
