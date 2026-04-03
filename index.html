@@ -2856,209 +2856,181 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+
+
+
+
 /**
- * INIZIALIZZAZIONE GARE - LOGICA RUOLI DIFFERENZIATA
+ * GESTIONE GARE - ARCHITETTURA COMPLETA
+ * Include: Riepilogo, Convocazioni e Tabellino Marcatori
  */
-window.initPartite = async function(sub = 'sintesi') {
+
+function preparePartite(sezione) {
+    console.log("Navigazione sezione gare:", sezione);
+    const main = document.getElementById('content'); // ID del contenitore principale nel tuo index.html
+    if (!main) return;
+
+    // Layout Full-Width
+    main.style.width = "100%";
+    main.style.maxWidth = "none";
+    main.style.padding = "20px";
+
+    // Iniezione Struttura Base
+    main.innerHTML = templatePartite();
+    
+    setTimeout(() => {
+        // Aggiornamento Titolo Dinamico
+        const title = document.getElementById('match-title-display');
+        if (title) {
+            const nomi = { 
+                'sintesi': '📊 RIEPILOGO E STATISTICHE GARE', 
+                'convocazioni': '📋 GESTIONE CONVOCAZIONI', 
+                'risultati': '⚽ TABELLINO MARCATORI E VOTI' 
+            };
+            title.innerText = nomi[sezione] || 'GESTIONE GARE';
+        }
+        // Caricamento Dati
+        initPartite(sezione);
+    }, 50);
+}
+
+function templatePartite() {
+    return `
+    <div class="card" style="width: 100%; border-radius: 15px; background: var(--panel); border: 1px solid var(--border);">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; padding: 10px 20px;">
+            <h2 id="match-title-display" style="margin:0; color:white; font-size: 20px; font-weight: 700;">GESTIONE GARE</h2>
+            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border-radius:10px; padding: 10px 18px; font-weight:600;">+ Nuova Gara</button>
+        </div>
+        
+        <div id="gare-filters-container" style="display:none; margin: 0 20px 25px 20px; background: rgba(255,255,255,0.02); padding:15px; border-radius:12px; border:1px solid var(--border);">
+            <label style="color:#94a3b8; font-size:10px; font-weight:bold; text-transform:uppercase; display:block; margin-bottom:8px;">Società Visualizzata (Admin)</label>
+            <select id="f-match-soc" onchange="initPartite()" style="width:100%; max-width:350px; background:#0f1117; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
+        </div>
+
+        <div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px; padding: 0 20px 20px 20px;">
+            <div style="grid-column: 1/-1; text-align:center; padding:80px; color:#64748b;">
+                <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Caricamento in corso...
+            </div>
+        </div>
+    </div>`;
+}
+
+async function initPartite(sub = 'sintesi') {
     const container = document.getElementById('match-main-content');
     if (!container) return;
 
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
-
-    // 1. IDENTIFICAZIONE RUOLO
-    const myRole = (window._userRole || '').toLowerCase();
-    // Admin e Manager saltano i filtri di appartenenza societaria
-    const isAdminOrManager = ['admin', 'manager'].includes(myRole);
-    
-    // Recuperiamo la società corrente (se presente nella sessione dell'utente)
-    let targetSociety = window._currentSocietyId;
-
-    try {
-        // 2. LOOKUP TIPO "PARTITA" (Necessario per entrambe le query)
-        const { data: typeData } = await client
-            .from('session_types')
-            .select('id')
-            .ilike('name', 'Partita')
-            .single();
-
-        if (!typeData) {
-            container.innerHTML = "Errore: Tipo 'Partita' non trovato in session_types.";
-            return;
-        }
-
-        // 3. COSTRUZIONE QUERY BASE (Usa la logica della tua Build 1.9.3)
-        let query = client
-            .from('sessions')
-            .select(`*, session_types(name), teams(id, name, categories(name))`)
-            .eq('type_id', typeData.id);
-
-        /* -----------------------------------------------------------
-           LOGICA DI ACCESSO (ADMIN vs ALTRI)
-           ----------------------------------------------------------- */
-        if (isAdminOrManager) {
-            // QUERY ADMIN: Non aggiungiamo .eq('society_id') di default.
-            // Se però l'Admin ha selezionato una società specifica nel filtro UI, la applichiamo.
-            const uiSocId = document.getElementById('f-match-soc')?.value;
-            if (uiSocId && uiSocId !== "" && uiSocId !== "null") {
-                query = query.eq('society_id', uiSocId);
-            }
-            // Risultato SQL: SELECT * FROM sessions WHERE type_id = X (Senza vincoli di società)
-        } else {
-            // QUERY TUTTI GLI ALTRI: Il filtro società è OBBLIGATORIO.
-            // Possono vedere solo i dati della società a cui appartengono.
-            if (targetSociety) {
-                query = query.eq('society_id', targetSociety);
-            } else {
-                // Sicurezza: se non c'è società e non è admin, blocchiamo tutto.
-                container.innerHTML = "Accesso negato: Nessuna società associata.";
-                return;
-            }
-            // Risultato SQL: SELECT * FROM sessions WHERE type_id = X AND society_id = 'USER_SOC_ID'
-        }
-        /* ----------------------------------------------------------- */
-
-        // Filtro Squadra (opzionale dalla UI)
-        const fTeam = document.getElementById('f-match-team')?.value;
-        if (fTeam) query = query.eq('team_id', fTeam);
-
-        const { data: matches, error } = await query.order('session_date', { ascending: false });
-
-        if (error) throw error;
-
-        // 4. RENDERING (Sintesi, Convocazioni o Risultati)
-        if (!matches || matches.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">Nessuna gara trovata.</div>';
-            return;
-        }
-
-        if (sub === 'convocazioni') renderGareCards(container, matches, 'convocazioni');
-        else if (sub === 'risultati') renderGareCards(container, matches, 'risultati');
-        else renderGareTable(container, matches);
-
-    } catch (err) {
-        console.error("Errore query gare:", err);
-        container.innerHTML = "Errore nel caricamento dati.";
-    }
-};
-
-/**
- * RENDER TABELLA SINTESI
- */
-function renderGareTable(container, data) {
-    container.innerHTML = `
-    <div style="overflow-x:auto; background:#13151e; border-radius:8px; border:1px solid #2d303e;">
-        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
-            <thead style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
-                <tr>
-                    <th style="padding:15px;">DATA</th>
-                    <th style="padding:15px;">SQUADRA</th>
-                    <th style="padding:15px;">GARA</th>
-                    <th style="padding:15px; text-align:right;">AZIONI</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.map(m => `
-                <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="padding:15px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
-                    <td style="padding:15px;">${m.title}</td>
-                    <td style="padding:15px; text-align:right;">
-                        <button class="btn-sm btn-info" onclick="openAttendanceModal('${m.id}')">👥 Presenze</button>
-                    </td>
-                </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
-}
-
-/**
- * RENDER CARDS (CONVOCAZIONI / RISULTATI)
- */
-function renderGareCards(container, data, mode) {
-    const isConv = mode === 'convocazioni';
-    const accent = isConv ? '#2563eb' : '#10b981';
-    
-    container.innerHTML = `
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
-        ${data.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid ${accent};">
-                <div style="font-size:10px; color:${accent}; font-weight:bold; margin-bottom:5px;">${m.teams?.name}</div>
-                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:${accent}; color:white; padding:10px; border-radius:6px; font-weight:bold; border:none;"
-                    onclick="${isConv ? `openAttendanceModal('${m.id}')` : `openTabellinoModal('${m.id}')`}">
-                    ${isConv ? '📋 CONVOCA' : '⚽ TABELLINO'}
-                </button>
-            </div>
-        `).join('')}
-    </div>`;
-}
-// --- IN FONDO AL TUO SCRIPT ESISTENTE ---
-
-function templateConvocazioni() {
-    return `
-    <div class="card" style="background: transparent; border: none; box-shadow: none;">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
-            <div>
-                <h2 style="margin:0; color:white; font-size:24px;">📋 GESTIONE CONVOCAZIONI</h2>
-            </div>
-        </div>
-        <div id="conv-filters-area" style="display:none; background:#13151e; padding:15px; border-radius:12px; border:1px solid #2d303e; margin-bottom:20px;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
-                <div id="wrapper-soc-conv">
-                    <select id="f-conv-soc" onchange="initConvocazioni()" style="width:100%; background:#1c1f2e; color:white; border:1px solid #333; padding:8px; border-radius:6px;"></select>
-                </div>
-            </div>
-        </div>
-        <div id="conv-grid-results" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
-            </div>
-    </div>`;
-}
-
-async function initConvocazioni() {
-    const grid = document.getElementById('conv-grid-results');
-    if (!grid) return;
-    
-    // Logica Admin/Manager vs User
     const myRole = (window._userRole || '').toLowerCase();
     const isAdminOrManager = ['admin', 'manager'].includes(myRole);
-    const userSocId = window._currentSocietyId;
 
-    // Se admin, mostriamo il filtro società
-    if (isAdminOrManager && document.getElementById('conv-filters-area')) {
-        document.getElementById('conv-filters-area').style.display = 'block';
-        const selSoc = document.getElementById('f-conv-soc');
+    // Configurazione filtri se Admin
+    if (isAdminOrManager) {
+        const filterDiv = document.getElementById('gare-filters-container');
+        if (filterDiv) filterDiv.style.display = 'block';
+        const selSoc = document.getElementById('f-match-soc');
         if (selSoc && selSoc.options.length === 0) {
             const { data: socs } = await client.from('societies').select('id, name').order('name');
-            selSoc.innerHTML = '<option value="">Tutte le Società</option>' + 
-                               socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            selSoc.innerHTML = '<option value="">🌎 Tutte le Società</option>' + 
+                               (socs || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         }
     }
 
-    // Query filtrata solo per "Partita"
-    const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
-    if (!typeData) return;
+    try {
+        // Recupero ID della tipologia "Partita"
+        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        if (!typeData) return container.innerHTML = "Errore: Tipo 'Partita' non configurato nel DB.";
 
-    let query = client.from('sessions').select(`*, teams(name), attendances(id, status)`).eq('type_id', typeData.id);
+        let query = client.from('sessions').select(`*, teams(name)`).eq('type_id', typeData.id);
 
-    // LOGICA CRUCIALE: Se non è admin, filtra per società dell'utente
-    if (!isAdminOrManager) {
-        query = query.eq('society_id', userSocId);
-    } else {
-        const uiSoc = document.getElementById('f-conv-soc')?.value;
-        if (uiSoc) query = query.eq('society_id', uiSoc);
+        // Logica visibilità: Admin vede tutto (anche record senza society_id), Mister solo sua società
+        if (!isAdminOrManager) {
+            query = query.eq('society_id', window._currentSocietyId);
+        } else {
+            const sId = document.getElementById('f-match-soc')?.value;
+            if (sId) query = query.eq('society_id', sId);
+        }
+
+        const { data: matches, error } = await query.order('session_date', { ascending: false });
+        if (error) throw error;
+
+        if (!matches || matches.length === 0) {
+            container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#64748b; border: 1px dashed #2d303e; border-radius:12px;">Nessuna gara trovata per questa selezione.</div>`;
+            return;
+        }
+
+        container.innerHTML = matches.map(m => {
+            const dateStr = new Date(m.session_date).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric'});
+            
+            // Configurazione specifica in base al sottomenu scelto
+            let config = {
+                btnText: "VEDI DETTAGLI",
+                btnColor: "#2563eb",
+                icon: "fas fa-info-circle",
+                label: "Info Gara",
+                footer: `<div style="font-size:11px; color:#64748b;">Località: ${m.location || 'Non definita'}</div>`
+            };
+
+            if (sub === 'convocazioni') {
+                config = {
+                    btnText: "📋 GESTISCI CONVOCATI",
+                    btnColor: "#2563eb",
+                    icon: "fas fa-users-check",
+                    label: "PRESENZE / CONVOCAZIONI",
+                    footer: `<div style="font-size:11px; color:#94a3b8;"><i class="fas fa-exclamation-circle"></i> Definisci la lista dei partecipanti</div>`
+                };
+            } else if (sub === 'risultati') {
+                config = {
+                    btnText: "⚽ COMPILA TABELLINO",
+                    btnColor: "#10b981",
+                    icon: "fas fa-stopwatch",
+                    label: "EVENTI E MARCATORI",
+                    footer: `<div style="font-size:11px; color:#10b981;"><i class="fas fa-bullseye"></i> Inserisci gol, ammonizioni e voti</div>`
+                };
+            } else {
+                // RIEPILOGO
+                config = {
+                    btnText: "📊 STATISTICHE",
+                    btnColor: "#f59e0b",
+                    icon: "fas fa-chart-line",
+                    label: "RIEPILOGO GARA",
+                    footer: `<div style="display:flex; justify-content:space-between; font-size:11px;">
+                                <span style="color:#64748b;">${m.location === 'Casa' ? '🏠 In Casa' : '🚌 Trasferta'}</span>
+                                <span style="color:white; font-weight:bold;">VS Avversario</span>
+                             </div>`
+                };
+            }
+
+            return `
+            <div class="match-card" style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px; border-top: 4px solid ${config.btnColor}; transition: transform 0.2s;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:10px; font-weight:800; color:${config.btnColor}; text-transform:uppercase; letter-spacing:1px;">${config.label}</span>
+                    <span style="font-size:11px; color:#64748b;">${dateStr}</span>
+                </div>
+                <div style="color:#94a3b8; font-size:11px; font-weight:600; margin-bottom:5px;">${m.teams?.name || 'SQUADRA N.D.'}</div>
+                <h3 style="color:white; margin:0 0 18px 0; font-size:17px; line-height:1.4;">${m.title}</h3>
+                
+                <button class="btn" onclick="openAttendanceModal('${m.id}')" style="width:100%; background:${config.btnColor}; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <i class="${config.icon}"></i> ${config.btnText}
+                </button>
+                
+                <div style="margin-top:15px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05);">
+                    ${config.footer}
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = `<div style="grid-column:1/-1; color:#ef4444; text-align:center; padding:20px;">Errore nel caricamento: ${e.message}</div>`;
     }
+}
 
-    const { data: matches } = await query.order('session_date', { ascending: false });
-
-    grid.innerHTML = (matches || []).map(m => `
-        <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px;">
-            <div style="color:#94a3b8; font-size:11px;">${m.teams?.name}</div>
-            <h3 style="color:white; margin:10px 0;">${m.title}</h3>
-            <button class="btn" onclick="openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">
-                GESTISCI CONVOCATI
-            </button>
-        </div>
-    `).join('');
+// Gestione Sottomenu Sidebar
+function toggleSubmenu(id) {
+    const sub = document.getElementById(id);
+    if(sub) {
+        const isHidden = (sub.style.display === 'none' || sub.style.display === '');
+        sub.style.display = isHidden ? 'block' : 'none';
+    }
 }
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
