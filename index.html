@@ -2982,38 +2982,82 @@ window.deleteMatchSession = async function(id) {
     initPartite('sintesi');
 };
 /* ============================================================
-   MODULO: CONVOCAZIONI_01 (LOGICA INTEGRATA)
+   MODULO GESTIONE CONVOCAZIONI (convocazioni_01)
    ============================================================ */
 
-// 1. RENDERIZZA LE CARD DELLE PARTITE
+/**
+ * Inizializzatore principale per la sezione Partite/Convocazioni
+ */
+window.initPartite = async function(sub = 'sintesi') {
+    window._currentPartiteSub = sub;
+    const content = document.getElementById('match-main-content');
+    const subtitle = document.getElementById('match-subtitle');
+    const actions = document.getElementById('match-header-actions');
+    
+    if (!content) return;
+
+    // 1. Gestione Filtri Società (se non già popolati)
+    const selectSoc = document.getElementById('f-match-soc');
+    if (selectSoc && selectSoc.options.length <= 1) {
+        const { data: socs } = await client.from('societies').select('id, name').order('name');
+        if (socs) {
+            selectSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id === window._currentSocietyId ? 'selected' : ''}>${s.name}</option>`).join('');
+            if (!window._currentSocietyId) window._currentSocietyId = socs[0].id;
+            await reloadMatchSubFilters();
+        }
+    }
+
+    const currentSoc = selectSoc?.value || window._currentSocietyId;
+    actions.innerHTML = '';
+
+    // 2. Routing delle Sottosezioni
+    if (sub === 'convocazioni') {
+        subtitle.innerText = "SELEZIONE ATLETI PER GARA (CONVOCAZIONI)";
+        await renderConvocazioniPartite(content, currentSoc);
+    } else if (sub === 'sintesi') {
+        subtitle.innerText = "ELENCO GENERALE GARE";
+        actions.innerHTML = `<button class="btn" onclick="openMatchModal()" style="background:#2563eb; color:white;">+ NUOVA GARA</button>`;
+        await renderSintesiPartite(content, currentSoc);
+    } else if (sub === 'risultati') {
+        subtitle.innerText = "TABELLINI E MARCATORI";
+        await renderRisultatiPartite(content, currentSoc);
+    }
+};
+
+/**
+ * Rendering dell'elenco partite filtrato per Type "Partita"
+ */
 window.renderConvocazioniPartite = async function(container, socId) {
     const teamId = document.getElementById('f-match-team')?.value;
-    container.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Caricamento gare...</div>';
+    container.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Caricamento partite...</div>';
 
     try {
-        // Recupero dinamico ID tipo "Partita"
+        // Recupera l'ID univoco per il tipo "Partita"
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
         
+        if (!typeData) {
+            container.innerHTML = "Errore: Tipo sessione 'Partita' non configurato.";
+            return;
+        }
+
         let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
         if (teamId) query = query.eq('team_id', teamId);
         
         const { data: matches } = await query.order('session_date', { ascending: false });
 
         if (!matches || matches.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">Nessuna gara trovata. Crea una partita per iniziare.</div>`;
+            container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">Nessuna partita trovata per questa società/squadra.</div>`;
             return;
         }
 
         container.innerHTML = `
         <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
             ${matches.map(m => `
-                <div class="card-gara" style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px; border-top: 3px solid #2563eb;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:11px;">
-                        <span style="color:#2563eb; font-weight:bold;">${m.teams?.name}</span>
-                        <span style="color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</span>
-                    </div>
-                    <h4 style="margin:0 0 15px 0; color:white; font-size:14px;">${m.title}</h4>
-                    <button class="btn" style="width:100%; background:#2563eb; color:white; font-size:12px; padding:10px; border-radius:6px; border:none; cursor:pointer;" 
+                <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px; border-left: 4px solid #2563eb;">
+                    <div style="font-size:10px; color:#2563eb; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'N.D.'}</div>
+                    <h4 style="margin:0 0 12px 0; color:white;">${m.title}</h4>
+                    <div style="font-size:11px; color:#94a3b8; margin-bottom:15px;">Data: ${new Date(m.session_date).toLocaleDateString()}</div>
+                    <button class="btn" style="width:100%; font-size:12px; background:#2563eb; color:white;" 
                             onclick="openConvocazioni01Modal('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">
                         📋 GESTISCI CONVOCATI
                     </button>
@@ -3022,12 +3066,13 @@ window.renderConvocazioniPartite = async function(container, socId) {
     } catch (e) { container.innerHTML = "Errore: " + e.message; }
 };
 
-// 2. MODALE SELEZIONE ATLETI
+/**
+ * Modale per la selezione fisica dei giocatori
+ */
 window.openConvocazioni01Modal = async function(sessionId, teamId, title) {
     const m = getModal();
-    m.open(`CONVOCATI: ${title}`, `<div id="modal-loader" style="padding:20px; text-align:center; color:white;">Recupero atleti...</div>`);
+    m.open(`CONVOCATI: ${title}`, `<div id="mod-load" style="padding:20px; text-align:center; color:white;">Recupero rosa squadra...</div>`);
 
-    // Caricamento parallelo Atleti e Convocazioni esistenti
     const [resAth, resAtt] = await Promise.all([
         client.from('athletes').select('id, first_name, last_name').eq('team_id', teamId).order('last_name'),
         client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId)
@@ -3037,60 +3082,55 @@ window.openConvocazioni01Modal = async function(sessionId, teamId, title) {
     const calledIds = new Set((resAtt.data || []).filter(a => a.is_called_up).map(a => a.athlete_id));
 
     let html = `
-    <div style="max-height:400px; overflow-y:auto; border:1px solid #333; border-radius:8px; background:#0f1117;">
+    <div style="max-height:400px; overflow-y:auto; border-radius:8px; background:#0f1117; border:1px solid #333;">
         <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
-            <thead style="position:sticky; top:0; background:#1e212a; color:#94a3b8; z-index:10;">
+            <thead style="position:sticky; top:0; background:#1e212a; z-index:5;">
                 <tr>
                     <th style="padding:12px; text-align:left;">ATLETA</th>
-                    <th style="padding:12px; text-align:center;">CONVOCATO</th>
+                    <th style="padding:12px; text-align:center;">CONVOCA</th>
                 </tr>
             </thead>
             <tbody>
                 ${athletes.map(a => `
                 <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:12px;"><b>${a.last_name.toUpperCase()}</b> ${a.first_name}</td>
-                    <td style="padding:12px; text-align:center;">
+                    <td style="padding:10px;">${a.last_name.toUpperCase()} ${a.first_name}</td>
+                    <td style="padding:10px; text-align:center;">
                         <input type="checkbox" class="chk-conv-01" data-id="${a.id}" 
                                ${calledIds.has(a.id) ? 'checked' : ''} 
-                               style="width:18px; height:18px; cursor:pointer;">
+                               style="width:20px; height:20px; cursor:pointer; accent-color:#2563eb;">
                     </td>
                 </tr>`).join('')}
             </tbody>
         </table>
     </div>
-    <div style="margin-top:20px;">
-        <button onclick="saveConvocazioni01('${sessionId}')" 
-                style="width:100%; background:#10b981; color:white; padding:14px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">
-            💾 SALVA LISTA CONVOCATI
-        </button>
-    </div>`;
+    <button onclick="saveConvocazioni01('${sessionId}')" 
+            style="width:100%; background:#10b981; color:white; border:none; padding:14px; margin-top:15px; border-radius:8px; font-weight:bold; cursor:pointer;">
+        💾 SALVA CONVOCAZIONI
+    </button>`;
     
-    document.getElementById('modal-loader').parentElement.innerHTML = html;
+    document.getElementById('mod-load').parentElement.innerHTML = html;
 };
 
-// 3. SALVATAGGIO DATI
+/**
+ * Salvataggio su DB (Tabella Attendances)
+ */
 window.saveConvocazioni01 = async function(sessionId) {
-    const checks = document.querySelectorAll('.chk-conv-01');
-    const dataToSave = Array.from(checks).map(c => ({
+    const boxes = document.querySelectorAll('.chk-conv-01');
+    const records = Array.from(boxes).map(b => ({
         session_id: sessionId,
-        athlete_id: c.getAttribute('data-id'),
-        is_called_up: c.checked,
-        status: c.checked ? 'Presente' : 'Assente', // Allinea la presenza alla convocazione
+        athlete_id: b.getAttribute('data-id'),
+        is_called_up: b.checked,
+        status: b.checked ? 'Presente' : 'Assente',
         is_justified: false
     }));
 
     try {
-        const { error } = await client.from('attendances').upsert(dataToSave, { onConflict: 'session_id, athlete_id' });
+        const { error } = await client.from('attendances').upsert(records, { onConflict: 'session_id, athlete_id' });
         if (error) throw error;
-        
-        alert("Lista convocati salvata!");
+        alert("Convocazioni salvate con successo!");
         getModal().close();
-        // Aggiorna la vista corrente
-        renderConvocazioniPartite(document.getElementById('match-main-content'), window._currentSocietyId);
-        
-    } catch (err) {
-        alert("Errore salvataggio: " + err.message);
-    }
+        initPartite('convocazioni');
+    } catch (e) { alert("Errore: " + e.message); }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
