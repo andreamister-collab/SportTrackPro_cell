@@ -2910,6 +2910,74 @@ function renderGareCards(container, data, mode) {
         `).join('')}
     </div>`;
 }
+// --- IN FONDO AL TUO SCRIPT ESISTENTE ---
+
+function templateConvocazioni() {
+    return `
+    <div class="card" style="background: transparent; border: none; box-shadow: none;">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+            <div>
+                <h2 style="margin:0; color:white; font-size:24px;">📋 GESTIONE CONVOCAZIONI</h2>
+            </div>
+        </div>
+        <div id="conv-filters-area" style="display:none; background:#13151e; padding:15px; border-radius:12px; border:1px solid #2d303e; margin-bottom:20px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+                <div id="wrapper-soc-conv">
+                    <select id="f-conv-soc" onchange="initConvocazioni()" style="width:100%; background:#1c1f2e; color:white; border:1px solid #333; padding:8px; border-radius:6px;"></select>
+                </div>
+            </div>
+        </div>
+        <div id="conv-grid-results" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+            </div>
+    </div>`;
+}
+
+async function initConvocazioni() {
+    const grid = document.getElementById('conv-grid-results');
+    if (!grid) return;
+    
+    // Logica Admin/Manager vs User
+    const myRole = (window._userRole || '').toLowerCase();
+    const isAdminOrManager = ['admin', 'manager'].includes(myRole);
+    const userSocId = window._currentSocietyId;
+
+    // Se admin, mostriamo il filtro società
+    if (isAdminOrManager && document.getElementById('conv-filters-area')) {
+        document.getElementById('conv-filters-area').style.display = 'block';
+        const selSoc = document.getElementById('f-conv-soc');
+        if (selSoc && selSoc.options.length === 0) {
+            const { data: socs } = await client.from('societies').select('id, name').order('name');
+            selSoc.innerHTML = '<option value="">Tutte le Società</option>' + 
+                               socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+    }
+
+    // Query filtrata solo per "Partita"
+    const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+    if (!typeData) return;
+
+    let query = client.from('sessions').select(`*, teams(name), attendances(id, status)`).eq('type_id', typeData.id);
+
+    // LOGICA CRUCIALE: Se non è admin, filtra per società dell'utente
+    if (!isAdminOrManager) {
+        query = query.eq('society_id', userSocId);
+    } else {
+        const uiSoc = document.getElementById('f-conv-soc')?.value;
+        if (uiSoc) query = query.eq('society_id', uiSoc);
+    }
+
+    const { data: matches } = await query.order('session_date', { ascending: false });
+
+    grid.innerHTML = (matches || []).map(m => `
+        <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px;">
+            <div style="color:#94a3b8; font-size:11px;">${m.teams?.name}</div>
+            <h3 style="color:white; margin:10px 0;">${m.title}</h3>
+            <button class="btn" onclick="openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">
+                GESTISCI CONVOCATI
+            </button>
+        </div>
+    `).join('');
+}
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
