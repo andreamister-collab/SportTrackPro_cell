@@ -2871,44 +2871,38 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 
 /* ──────────────────────────────────────────────────────────────────────────
-   MODULO GARE E CONVOCAZIONI - FIX DEFINITIVO (AUTO-DETECTION)
+   MODULO INTEGRALE: GESTIONE GARE E CONVOCAZIONI SELETTIVE
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. RILEVATORE INTELLIGENTE DEL CLIENT (Risolve l'errore del DEBUG)
-function getSupabaseInstance() {
-    const candidates = [window.supabase, window.client, supabase, client];
-    
-    for (let cand of candidates) {
-        if (!cand) continue;
-        // Se il candidato ha .from, è lui
-        if (typeof cand.from === 'function') return cand;
-        // Se è annidato (alcune versioni lo mettono dentro .supabase)
-        if (cand.supabase && typeof cand.supabase.from === 'function') return cand.supabase;
-    }
-    
-    // Se arriviamo qui, il log ci aiuterà a capire cosa c'è "dentro"
-    console.warn("Ricerca profonda client fallita. Oggetto attuale:", window.supabase || window.client);
+// 1. RILEVATORE AUTOMATICO DATABASE (Risolve errori di inizializzazione)
+function getDbInstance() {
+    if (typeof supabase !== 'undefined' && typeof supabase.from === 'function') return supabase;
+    if (typeof client !== 'undefined' && typeof client.from === 'function') return client;
+    if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
+    if (window.client && typeof window.client.from === 'function') return window.client;
     return null;
 }
 
-// 2. GESTIONE MENU SIDEBAR
+// 2. LOGICA MENU SIDEBAR
 window.toggleSubmenu = function(id) {
     const sub = document.getElementById(id);
     if (sub) {
-        sub.style.display = (sub.style.display === 'none' || sub.style.display === '') ? 'block' : 'none';
+        const isHidden = (sub.style.display === 'none' || sub.style.display === '');
+        sub.style.display = isHidden ? 'block' : 'none';
     }
 };
 
-// 3. PREPARAZIONE INTERFACCIA
+// 3. PREPARAZIONE DASHBOARD GARE
 window.preparePartite = function(sezione) {
     const main = document.getElementById('content'); 
     if (!main) return;
 
+    // Reset interfaccia con loading
     main.innerHTML = `
-    <div class="card" style="width: 100%; border-radius: 15px; background: var(--panel); border: 1px solid var(--border); padding: 25px;">
+    <div class="card" style="width: 100%; border-radius: 15px; background: #13151e; border: 1px solid #2d303e; padding: 25px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
-            <h2 id="match-title-display" style="margin:0; color:white; font-size: 20px; font-weight:700;"></h2>
-            <button class="btn" onclick="if(window.openSessionModal) openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">+ Nuova Gara</button>
+            <h2 id="match-title-display" style="margin:0; color:white; font-size: 20px; font-weight:700; text-transform: uppercase; letter-spacing: 1px;"></h2>
+            <button class="btn" onclick="if(window.openSessionModal) openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:600; font-size: 13px;">+ NUOVA GARA</button>
         </div>
         <div id="match-main-content">
             <div style="text-align:center; padding:60px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
@@ -2921,18 +2915,21 @@ window.preparePartite = function(sezione) {
     window.initPartite(sezione);
 };
 
-// 4. CARICAMENTO DATI
+// 4. CARICAMENTO LISTA GARE
 window.initPartite = async function(sub) {
     const container = document.getElementById('match-main-content');
-    const db = getSupabaseInstance();
+    const db = getDbInstance();
 
     if (!db) {
-        container.innerHTML = "<b style='color:#ef4444;'>Errore: Impossibile trovare il comando .from() nel database.</b>";
+        container.innerHTML = "<b style='color:#ef4444;'>Errore: Database non connesso.</b>";
         return;
     }
 
     try {
+        // Recupero ID tipo "Partita"
         const { data: typeData } = await db.from('session_types').select('id').ilike('name', 'Partita').single();
+        
+        // Recupero Gare
         const { data: matches, error } = await db.from('sessions')
             .select(`*, teams(name)`)
             .eq('type_id', typeData?.id)
@@ -2941,91 +2938,110 @@ window.initPartite = async function(sub) {
         if (error) throw error;
 
         if (sub === 'sintesi') {
+            // VISTA TABELLA
             container.innerHTML = `
             <table style="width:100%; color:white; border-collapse:collapse;">
-                <thead style="color:#94a3b8; font-size:12px; text-align:left; border-bottom:1px solid #333;">
-                    <tr><th style="padding:10px;">DATA</th><th>SQUADRA</th><th>GARA</th><th style="text-align:right;">AZIONI</th></tr>
+                <thead style="color:#94a3b8; font-size:11px; text-align:left; border-bottom:1px solid #333; text-transform:uppercase;">
+                    <tr><th style="padding:10px;">Data</th><th>Squadra</th><th>Gara</th><th style="text-align:right;">Azioni</th></tr>
                 </thead>
                 <tbody>
                     ${matches.map(m => `
-                    <tr style="border-bottom:1px solid #2d303e;">
+                    <tr style="border-bottom:1px solid #2d303e; font-size:14px;">
                         <td style="padding:15px; color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</td>
-                        <td style="font-weight:600; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
+                        <td style="font-weight:600; color:#2563eb;">${m.teams?.name || '-'}</td>
                         <td>${m.title}</td>
                         <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')" style="background:#1e293b; color:white; border:1px solid #334155; padding:6px 12px; border-radius:6px; cursor:pointer;">Dettagli</button></td>
                     </tr>`).join('')}
                 </tbody>
             </table>`;
         } else {
-            container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+            // VISTA CARDS
+            container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
                 ${matches.map(m => `
-                <div style="background:#13151e; border:1px solid #2d303e; padding:20px; border-radius:15px; border-top:5px solid #2563eb;">
-                    <div style="font-size:11px; color:#64748b; margin-bottom:8px;">${new Date(m.session_date).toLocaleDateString()}</div>
-                    <h4 style="margin:0 0 15px 0; color:white; font-size:16px;">${m.title}</h4>
-                    <button class="btn" onclick="window.openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">📋 CONVOCAZIONI</button>
+                <div style="background:#1a1d29; border:1px solid #2d303e; padding:20px; border-radius:15px; border-top:4px solid #2563eb;">
+                    <div style="font-size:11px; color:#64748b; margin-bottom:5px; font-weight:700;">${new Date(m.session_date).toLocaleDateString()}</div>
+                    <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                    <button class="btn" onclick="window.openAttendanceModal('${m.id}')" style="width:100%; background:#2563eb; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:12px;">📋 GESTISCI CONVOCATI</button>
                 </div>`).join('')}
             </div>`;
         }
     } catch (e) { 
-        console.error("Errore initPartite:", e);
+        console.error(e);
         container.innerHTML = "Errore nel caricamento.";
     }
 };
 
-// 5. MODALE CONVOCAZIONI
+// 5. MODALE CONVOCAZIONI (LOGICA SELEZIONE ATLETA PER ATLETA)
 window.openAttendanceModal = async function(sessionId) {
     const modal = document.getElementById('modal-attendance');
     const list = document.getElementById('attendance-list');
-    const db = getSupabaseInstance();
+    const db = getDbInstance();
     
     if (!modal || !list || !db) return;
+
     modal.style.display = 'flex';
-    list.innerHTML = 'Caricamento...';
+    list.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i></div>';
 
     try {
-        const { data: session } = await db.from('sessions').select('*').eq('id', sessionId).single();
+        const { data: session } = await db.from('sessions').select('team_id, title').eq('id', sessionId).single();
         const { data: players } = await db.from('players').select('*').eq('team_id', session.team_id).order('last_name');
-        const { data: att } = await db.from('attendances').select('*').eq('session_id', sessionId);
+        const { data: currentAtt } = await db.from('attendances').select('player_id, status').eq('session_id', sessionId);
 
-        list.innerHTML = players.map(p => {
-            const rowAtt = (att || []).find(a => a.player_id === p.id);
-            const status = rowAtt ? rowAtt.status : 'Escluso';
-            const isConvocato = status === 'Convocato';
-            
-            return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'transparent'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:10px; margin-bottom:8px;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div style="width:30px; height:30px; background:#0f1117; border-radius:6px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; border:1px solid ${isConvocato ? '#2563eb' : '#333'}">
-                        ${p.shirt_number || '-'}
+        list.innerHTML = `
+            <div style="margin-bottom: 15px; padding: 10px; background: rgba(37,99,235,0.1); border-radius: 8px; color: #2563eb; font-size: 12px; font-weight:bold; text-align:center;">
+                LISTA CONVOCATI: ${session.title}
+            </div>
+            ${players.map(p => {
+                const status = currentAtt?.find(a => a.player_id === p.id)?.status;
+                const isConvocato = status === 'Convocato';
+                
+                return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'transparent'}; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; border-radius:10px; margin-bottom:8px; transition: 0.3s;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:30px; height:30px; background:#0f1117; border-radius:6px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; border: 1px solid ${isConvocato ? '#2563eb' : '#333'}">
+                            ${p.shirt_number || '-'}
+                        </div>
+                        <div style="color:white; font-weight:600; font-size:14px;">${p.last_name} ${p.first_name}</div>
                     </div>
-                    <div style="color:white; font-weight:600;">${p.last_name} ${p.first_name}</div>
-                </div>
-                <div style="display:flex; gap:6px;">
-                    <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Convocato')" 
-                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isConvocato ? '#2563eb' : '#1c202e'}; color:white;">CONVOCA</button>
-                    <button onclick="window.salvaConvocazione('${p.id}', '${sessionId}', 'Escluso')" 
-                        style="padding:7px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${status === 'Escluso' ? '#ef4444' : '#1c202e'}; color:white;">ESCLUDI</button>
-                </div>
-            </div>`;
-        }).join('');
-    } catch (e) { console.error(e); }
+                    <div style="display:flex; gap:6px;">
+                        <button onclick="window.salvaStatoGara('${p.id}', '${sessionId}', 'Convocato')" 
+                            style="padding:8px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${isConvocato ? '#2563eb' : '#1c202e'}; color:white;">
+                            ${isConvocato ? '✓' : 'CONVOCA'}
+                        </button>
+                        <button onclick="window.salvaStatoGara('${p.id}', '${sessionId}', 'Escluso')" 
+                            style="padding:8px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:bold; font-size:10px; background:${status === 'Escluso' ? '#ef4444' : '#1c202e'}; color:white;">
+                            ESCLUDI
+                        </button>
+                    </div>
+                </div>`;
+            }).join('')}`;
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = "Errore nel caricamento atleti.";
+    }
 };
 
-// 6. SALVATAGGIO
-window.salvaConvocazione = async function(playerId, sessionId, nuovoStato) {
-    const db = getSupabaseInstance();
+// 6. FUNZIONE DI SALVATAGGIO (DIVERSA DA ALLENAMENTO)
+window.salvaStatoGara = async function(playerId, sessionId, nuovoStato) {
+    const db = getDbInstance();
+    if (!db) return;
+
     try {
-        await db.from('attendances').upsert({
+        const { error } = await db.from('attendances').upsert({
             player_id: playerId,
             session_id: sessionId,
             status: nuovoStato,
             updated_at: new Date()
         }, { onConflict: 'player_id, session_id' });
 
+        if (error) throw error;
+        
+        // Refresh istantaneo della lista per feedback visivo
         window.openAttendanceModal(sessionId);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error("Errore salvataggio:", e);
+    }
 };
-
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
