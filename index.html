@@ -2860,17 +2860,18 @@ window.saveSessionNotes = saveSessionNotes;
 
 
 
+<script>
 /**
- * GESTIONE GARE - ARCHITETTURA COMPLETA
- * Include: Riepilogo, Convocazioni e Tabellino Marcatori
+ * GESTIONE GARE - ARCHITETTURA INTEGRATA (BUILD FINALE)
+ * Ripristina la logica ruoli e società della versione funzionante
  */
 
-function preparePartite(sezione) {
+window.preparePartite = function(sezione) {
     console.log("Navigazione sezione gare:", sezione);
-    const main = document.getElementById('content'); // ID del contenitore principale nel tuo index.html
+    const main = document.getElementById('content'); // ID del tuo contenitore principale
     if (!main) return;
 
-    // Layout Full-Width
+    // Reset layout per occupare tutto lo spazio (Richiesto)
     main.style.width = "100%";
     main.style.maxWidth = "none";
     main.style.padding = "20px";
@@ -2879,18 +2880,17 @@ function preparePartite(sezione) {
     main.innerHTML = templatePartite();
     
     setTimeout(() => {
-        // Aggiornamento Titolo Dinamico
         const title = document.getElementById('match-title-display');
         if (title) {
             const nomi = { 
-                'sintesi': '📊 RIEPILOGO E STATISTICHE GARE', 
+                'sintesi': '📊 RIEPILOGO E STATISTICHE', 
                 'convocazioni': '📋 GESTIONE CONVOCAZIONI', 
-                'risultati': '⚽ TABELLINO MARCATORI E VOTI' 
+                'risultati': '⚽ TABELLINO MARCATORI' 
             };
             title.innerText = nomi[sezione] || 'GESTIONE GARE';
         }
-        // Caricamento Dati
-        initPartite(sezione);
+        // Chiama la logica di inizializzazione corretta
+        window.initPartite(sezione);
     }, 50);
 }
 
@@ -2899,30 +2899,35 @@ function templatePartite() {
     <div class="card" style="width: 100%; border-radius: 15px; background: var(--panel); border: 1px solid var(--border);">
         <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; padding: 10px 20px;">
             <h2 id="match-title-display" style="margin:0; color:white; font-size: 20px; font-weight: 700;">GESTIONE GARE</h2>
-            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border-radius:10px; padding: 10px 18px; font-weight:600;">+ Nuova Gara</button>
+            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border-radius:10px; padding: 10px 18px;">+ Nuova Gara</button>
         </div>
         
         <div id="gare-filters-container" style="display:none; margin: 0 20px 25px 20px; background: rgba(255,255,255,0.02); padding:15px; border-radius:12px; border:1px solid var(--border);">
             <label style="color:#94a3b8; font-size:10px; font-weight:bold; text-transform:uppercase; display:block; margin-bottom:8px;">Società Visualizzata (Admin)</label>
-            <select id="f-match-soc" onchange="initPartite()" style="width:100%; max-width:350px; background:#0f1117; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
+            <select id="f-match-soc" onchange="window.initPartite()" style="width:100%; max-width:350px; background:#0f1117; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
         </div>
 
-        <div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px; padding: 0 20px 20px 20px;">
-            <div style="grid-column: 1/-1; text-align:center; padding:80px; color:#64748b;">
+        <div id="match-main-content" style="width:100%; padding: 0 20px 20px 20px;">
+            <div style="text-align:center; padding:80px; color:#64748b;">
                 <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Caricamento in corso...
             </div>
         </div>
     </div>`;
 }
 
-async function initPartite(sub = 'sintesi') {
+/**
+ * LOGICA DI CARICAMENTO (COPIATA DAL TUO BLOCCO FUNZIONANTE)
+ */
+window.initPartite = async function(sub = 'sintesi') {
     const container = document.getElementById('match-main-content');
     if (!container) return;
 
+    // 1. IDENTIFICAZIONE RUOLO E SOCIETÀ
     const myRole = (window._userRole || '').toLowerCase();
     const isAdminOrManager = ['admin', 'manager'].includes(myRole);
+    let targetSociety = window._currentSocietyId;
 
-    // Configurazione filtri se Admin
+    // Gestione Filtri UI per Admin
     if (isAdminOrManager) {
         const filterDiv = document.getElementById('gare-filters-container');
         if (filterDiv) filterDiv.style.display = 'block';
@@ -2935,103 +2940,113 @@ async function initPartite(sub = 'sintesi') {
     }
 
     try {
-        // Recupero ID della tipologia "Partita"
+        // 2. LOOKUP TIPO "PARTITA"
         const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
-        if (!typeData) return container.innerHTML = "Errore: Tipo 'Partita' non configurato nel DB.";
+        if (!typeData) {
+            container.innerHTML = "Errore: Tipo 'Partita' non trovato.";
+            return;
+        }
 
-        let query = client.from('sessions').select(`*, teams(name)`).eq('type_id', typeData.id);
+        // 3. COSTRUZIONE QUERY
+        let query = client.from('sessions').select(`*, teams(id, name, categories(name))`).eq('type_id', typeData.id);
 
-        // Logica visibilità: Admin vede tutto (anche record senza society_id), Mister solo sua società
-        if (!isAdminOrManager) {
-            query = query.eq('society_id', window._currentSocietyId);
+        if (isAdminOrManager) {
+            const uiSocId = document.getElementById('f-match-soc')?.value;
+            if (uiSocId && uiSocId !== "") query = query.eq('society_id', uiSocId);
+            // Se Admin e non seleziona nulla, vede TUTTO (inclusa PARTIA_01)
         } else {
-            const sId = document.getElementById('f-match-soc')?.value;
-            if (sId) query = query.eq('society_id', sId);
+            if (targetSociety) query = query.eq('society_id', targetSociety);
+            else {
+                container.innerHTML = "Accesso negato: Nessuna società associata.";
+                return;
+            }
         }
 
         const { data: matches, error } = await query.order('session_date', { ascending: false });
         if (error) throw error;
 
         if (!matches || matches.length === 0) {
-            container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#64748b; border: 1px dashed #2d303e; border-radius:12px;">Nessuna gara trovata per questa selezione.</div>`;
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">Nessuna gara trovata.</div>';
             return;
         }
 
-        container.innerHTML = matches.map(m => {
-            const dateStr = new Date(m.session_date).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric'});
-            
-            // Configurazione specifica in base al sottomenu scelto
-            let config = {
-                btnText: "VEDI DETTAGLI",
-                btnColor: "#2563eb",
-                icon: "fas fa-info-circle",
-                label: "Info Gara",
-                footer: `<div style="font-size:11px; color:#64748b;">Località: ${m.location || 'Non definita'}</div>`
-            };
+        // 4. RENDERING DIFFERENZIATO
+        if (sub === 'convocazioni') renderGareCards(container, matches, 'convocazioni');
+        else if (sub === 'risultati') renderGareCards(container, matches, 'risultati');
+        else renderGareTable(container, matches);
 
-            if (sub === 'convocazioni') {
-                config = {
-                    btnText: "📋 GESTISCI CONVOCATI",
-                    btnColor: "#2563eb",
-                    icon: "fas fa-users-check",
-                    label: "PRESENZE / CONVOCAZIONI",
-                    footer: `<div style="font-size:11px; color:#94a3b8;"><i class="fas fa-exclamation-circle"></i> Definisci la lista dei partecipanti</div>`
-                };
-            } else if (sub === 'risultati') {
-                config = {
-                    btnText: "⚽ COMPILA TABELLINO",
-                    btnColor: "#10b981",
-                    icon: "fas fa-stopwatch",
-                    label: "EVENTI E MARCATORI",
-                    footer: `<div style="font-size:11px; color:#10b981;"><i class="fas fa-bullseye"></i> Inserisci gol, ammonizioni e voti</div>`
-                };
-            } else {
-                // RIEPILOGO
-                config = {
-                    btnText: "📊 STATISTICHE",
-                    btnColor: "#f59e0b",
-                    icon: "fas fa-chart-line",
-                    label: "RIEPILOGO GARA",
-                    footer: `<div style="display:flex; justify-content:space-between; font-size:11px;">
-                                <span style="color:#64748b;">${m.location === 'Casa' ? '🏠 In Casa' : '🚌 Trasferta'}</span>
-                                <span style="color:white; font-weight:bold;">VS Avversario</span>
-                             </div>`
-                };
-            }
-
-            return `
-            <div class="match-card" style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px; border-top: 4px solid ${config.btnColor}; transition: transform 0.2s;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <span style="font-size:10px; font-weight:800; color:${config.btnColor}; text-transform:uppercase; letter-spacing:1px;">${config.label}</span>
-                    <span style="font-size:11px; color:#64748b;">${dateStr}</span>
-                </div>
-                <div style="color:#94a3b8; font-size:11px; font-weight:600; margin-bottom:5px;">${m.teams?.name || 'SQUADRA N.D.'}</div>
-                <h3 style="color:white; margin:0 0 18px 0; font-size:17px; line-height:1.4;">${m.title}</h3>
-                
-                <button class="btn" onclick="openAttendanceModal('${m.id}')" style="width:100%; background:${config.btnColor}; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
-                    <i class="${config.icon}"></i> ${config.btnText}
-                </button>
-                
-                <div style="margin-top:15px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05);">
-                    ${config.footer}
-                </div>
-            </div>`;
-        }).join('');
-
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = `<div style="grid-column:1/-1; color:#ef4444; text-align:center; padding:20px;">Errore nel caricamento: ${e.message}</div>`;
+    } catch (err) {
+        console.error("Errore query gare:", err);
+        container.innerHTML = "Errore nel caricamento dati.";
     }
+};
+
+/**
+ * RENDER TABELLA SINTESI (Occupazione spazio totale)
+ */
+function renderGareTable(container, data) {
+    container.innerHTML = `
+    <div style="overflow-x:auto; background:#13151e; border-radius:12px; border:1px solid #2d303e;">
+        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+            <thead style="background:rgba(255,255,255,0.03); color:#94a3b8; text-align:left;">
+                <tr>
+                    <th style="padding:18px;">DATA</th>
+                    <th style="padding:18px;">SQUADRA</th>
+                    <th style="padding:18px;">AVVERSARIO / GARA</th>
+                    <th style="padding:18px;">CASA/TRASFERTA</th>
+                    <th style="padding:18px; text-align:right;">AZIONI</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(m => `
+                <tr style="border-bottom:1px solid #2d303e;">
+                    <td style="padding:18px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                    <td style="padding:18px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
+                    <td style="padding:18px;">${m.title}</td>
+                    <td style="padding:18px; color:#94a3b8;">${m.location || 'N.D.'}</td>
+                    <td style="padding:18px; text-align:right;">
+                        <button class="btn-sm btn-info" onclick="openAttendanceModal('${m.id}')" style="background:#2563eb; border:none; color:white; padding:6px 12px; border-radius:6px; cursor:pointer;">📊 Riepilogo</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>`;
 }
 
-// Gestione Sottomenu Sidebar
+/**
+ * RENDER CARDS (Occupazione spazio totale)
+ */
+function renderGareCards(container, data, mode) {
+    const isConv = mode === 'convocazioni';
+    const accent = isConv ? '#2563eb' : '#10b981';
+    
+    container.innerHTML = `
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+        ${data.map(m => `
+            <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:22px; border-top:5px solid ${accent};">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span style="font-size:10px; color:${accent}; font-weight:bold; text-transform:uppercase;">${isConv ? 'Presenze' : 'Eventi'}</span>
+                    <span style="font-size:11px; color:#64748b;">${new Date(m.session_date).toLocaleDateString()}</span>
+                </div>
+                <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">${m.teams?.name || 'Squadra'}</div>
+                <h4 style="margin:0 0 20px 0; color:white; font-size:17px; line-height:1.4;">${m.title}</h4>
+                <button class="btn" style="width:100%; background:${accent}; color:white; padding:12px; border-radius:8px; font-weight:bold; border:none; cursor:pointer;"
+                    onclick="openAttendanceModal('${m.id}')">
+                    ${isConv ? '📋 GESTISCI CONVOCATI' : '⚽ COMPILA TABELLINO'}
+                </button>
+                <div style="margin-top:12px; font-size:11px; color:#64748b;">
+                    <i class="fas fa-map-marker-alt"></i> ${m.location || 'Località n.d.'}
+                </div>
+            </div>
+        `).join('')}
+    </div>`;
+}
+
 function toggleSubmenu(id) {
     const sub = document.getElementById(id);
-    if(sub) {
-        const isHidden = (sub.style.display === 'none' || sub.style.display === '');
-        sub.style.display = isHidden ? 'block' : 'none';
-    }
+    if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
 }
+</script>
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
