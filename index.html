@@ -3,545 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SportTrackPro</title>
+    <title>SportTrackPro - Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
     <style>
-        /* ─── TOKENS ─── */
-        :root {
-            --bg:      #08090c;
-            --surface: #0f1117;
-            --panel:   #13151e;
-            --border:  rgba(255,255,255,0.07);
-            --border2: rgba(255,255,255,0.13);
-            --text:    #e8eaf0;
-            --muted:   #565c73;
-            --accent:  #4f7cff;
-            --accent2: #7b9fff;
-            --green:   #22c55e;
-            --red:     #ef4444;
-            --amber:   #f59e0b;
-            --sw: 220px;
-            --r:  10px;
-            --r2: 14px;
-            --fh: 'Syne', sans-serif;
-            --fb: 'DM Sans', sans-serif;
-            /* legacy aliases usati dal vecchio JS */
-            --primary: #4f7cff;
-            --danger:  #ef4444;
-            --warning: #f59e0b;
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: var(--fb);
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            font-size: 14px;
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-        }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-        /* ── LOGIN ── */
-        #login-wrap {
-            display: flex; align-items: center; justify-content: center;
-            min-height: 100vh; padding: 24px;
-            background:
-                radial-gradient(ellipse 55% 45% at 25% 20%, rgba(79,124,255,.13) 0%, transparent 65%),
-                radial-gradient(ellipse 45% 40% at 80% 75%, rgba(79,124,255,.07) 0%, transparent 65%),
-                var(--bg);
-        }
-        .login-box {
-            background: var(--panel); border: 1px solid var(--border2);
-            border-radius: var(--r2); padding: 44px 40px;
-            width: 100%; max-width: 400px;
-            box-shadow: 0 32px 80px rgba(0,0,0,.5);
-            animation: fadeUp .45s ease both;
-        }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:none} }
-        .login-brand { display:flex;align-items:center;gap:12px;margin-bottom:34px; }
-        .login-brand-icon { width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
-        .login-brand-name { font-family:var(--fh);font-size:19px;font-weight:800;letter-spacing:-.4px; }
-        .login-brand-sub  { font-size:11px;color:var(--muted);margin-top:1px; }
-        .lf { margin-bottom:16px; }
-        .lf label { display:block;font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin-bottom:6px; }
-        .lf input { width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:11px 14px;color:var(--text);font-family:var(--fb);font-size:14px;outline:none;transition:border-color .15s;margin:0; }
-        .lf input:focus { border-color:var(--accent); }
-        .login-submit { width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:background .15s,transform .1s; }
-        .login-submit:hover  { background:#3a6be8; }
-        .login-submit:active { transform:scale(.98); }
-        #error-msg { margin-top:14px;padding:10px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:var(--r);color:#f87171;font-size:13px;display:none; }
-
-        /* ── APP SHELL ── */
-        #app { display: none; }
-
-        /* ── Sidebar ── */
-        #sidebar {
-            width: var(--sw); background: var(--panel); border-right: 1px solid var(--border);
-            position: fixed; top:0; left:0; height:100vh;
-            display:flex; flex-direction:column; overflow-y:auto; z-index:50;
-        }
-        .sb-top { padding:20px 18px 16px; border-bottom:1px solid var(--border); }
-        .sb-brand { display:flex;align-items:center;gap:10px; }
-        .sb-brand-icon { width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0; }
-        .sb-brand-name { font-family:var(--fh);font-size:14px;font-weight:800;letter-spacing:-.3px; }
-        .sb-nav { padding:14px 10px; flex:1; }
-        .sb-grp { font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin:14px 0 5px;display:block; }
-        .sb-grp:first-child { margin-top:0; }
-        #sidebar a {
-            display:flex;align-items:center;gap:9px;
-            padding:8px 10px;border-radius:8px;
-            color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;
-            cursor:pointer;margin-bottom:1px;transition:background .12s,color .12s;
-        }
-        #sidebar a svg { width:15px;height:15px;flex-shrink:0;opacity:.6; }
-        #sidebar a:hover  { background:rgba(255,255,255,.05);color:var(--text); }
-        #sidebar a.active { background:rgba(79,124,255,.15);color:var(--accent2); }
-        #sidebar a.active svg { opacity:1; }
-        .sb-foot { padding:14px 10px 16px; border-top:1px solid var(--border); }
-        #user-info { font-size:11px;color:var(--muted);padding:0 8px;margin-bottom:10px;display:block;word-break:break-word; }
-        #btn-logout {
-            width:100%;display:flex;align-items:center;gap:8px;
-            padding:9px 10px;border-radius:8px;
-            background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);
-            color:#f87171;font-family:var(--fb);font-size:13px;font-weight:500;
-            cursor:pointer;transition:background .12s;
-        }
-        #btn-logout:hover { background:rgba(239,68,68,.15); }
-
-        /* ── Topbar ── */
-        #topbar {
-            position:fixed;top:0;left:var(--sw);right:0;height:52px;
-            background:rgba(8,9,12,.88);
-            backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--border);
-            display:flex;align-items:center;padding:0 28px;z-index:40;
-        }
-        #topbar-title { font-family:var(--fh);font-size:14px;font-weight:700;letter-spacing:-.2px; }
-
-        /* ── Content ── */
-        #content {
-            margin-left: var(--sw);
-            padding: 72px 28px 28px;
-            min-height: 100vh;
-        }
-
-        /* ── COMPONENTI ── */
-        .card {
-            width: 100%;
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: var(--r2);
-            padding: 28px 32px;
-        }
-        .header {
-            display:flex;justify-content:space-between;align-items:center;
-            margin-bottom:24px;
-        }
-        .header h2 { font-family:var(--fh);font-size:17px;font-weight:700;letter-spacing:-.3px; }
-
-        /* ── BUTTONS ── */
-        .btn {
-            display:inline-flex;align-items:center;gap:6px;
-            padding:9px 18px;background:var(--accent);color:#fff;
-            border:none;border-radius:var(--r);
-            font-family:var(--fb);font-size:13px;font-weight:600;
-            cursor:pointer;transition:background .14s,transform .1s;letter-spacing:.2px;
-            white-space:nowrap;
-        }
-        .btn:hover  { background:#3a6be8; }
-        .btn:active { transform:scale(.97); }
-
-        /* btn-sm: icona quadrata 32×32, oppure .wide per testo */
-        .btn-sm {
-            display:inline-flex;align-items:center;justify-content:center;
-            width:32px;height:32px;
-            border:none;border-radius:8px;color:#fff;
-            cursor:pointer;font-size:15px;margin-left:5px;
-            transition:opacity .15s,transform .1s;flex-shrink:0;
-        }
-        .btn-sm:hover  { opacity:.82; }
-        .btn-sm:active { transform:scale(.92); }
-        .btn-sm.wide   { width:auto;padding:0 14px;font-size:12px;font-weight:600; }
-        .btn-warning { background:#f59e0b; }   /* matita gialla */
-        .btn-danger  { background:#ef4444; }   /* cestino rosso */
-        .btn-info    { background:#8b5cf6; }   /* presenze viola */
-        .btn-safe    { background:#22c55e; }   /* attiva verde */
-        .btn-neutral { background:#475569; }   /* spegni grigio */
-        .btn-logout-old { background:var(--red); }
-
-        /* btn-icon-atleta (sezione anagrafica) */
-        .btn-icon-atleta {
-            border:none;width:32px;height:32px;
-            display:inline-flex;align-items:center;justify-content:center;
-            border-radius:8px;cursor:pointer;transition:.15s;margin-left:5px;font-size:15px;
-        }
-        .btn-icon-atleta.edit   { background:rgba(245,158,11,.15);color:#fbbf24; }
-        .btn-icon-atleta.delete { background:rgba(239,68,68,.15);color:#f87171; }
-        .btn-icon-atleta.link   { background:rgba(34,197,94,.12);color:#4ade80; }
-        .btn-icon-atleta:hover  { opacity:.8; }
-
-        /* ── TABLE ── */
-        table { width:100%;border-collapse:collapse; }
-        thead tr { border-bottom:1px solid var(--border2); }
-        th {
-            padding:10px 14px;text-align:left;
-            font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
-            color:var(--muted);background:transparent;
-        }
-        td { padding:13px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle; }
-        tr:last-child td { border-bottom:none; }
-        tbody tr { transition:background .1s; }
-        tbody tr:hover td, .att-row-data:hover { background:rgba(255,255,255,.025) !important; }
-
-        /* ── BADGES ── */
-        .badge { display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px; }
-        .badge-active, .active    { background:rgba(34,197,94,.15);color:#4ade80; }
-        .badge-inactive, .inactive{ background:rgba(255,255,255,.06);color:var(--muted); }
-        .badge-default            { background:rgba(255,255,255,.06);color:var(--muted); }
-
-        /* ── INPUTS ── */
-        input, select, textarea {
-            width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);
-            padding:9px 12px;color:var(--text);font-family:var(--fb);font-size:13px;
-            outline:none;margin-bottom:10px;margin-top:3px;transition:border-color .14s;
-        }
-        input:focus, select:focus, textarea:focus { border-color:var(--accent); }
-        select option { background:var(--panel); }
-        label { display:block;font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-top:4px; }
-
-        /* ── MODAL ── */
-        .modal-overlay {
-            position:fixed;inset:0;background:rgba(0,0,0,.65);
-            display:none;align-items:center;justify-content:center;
-            z-index:1000;backdrop-filter:blur(4px);
-        }
-        .modal-active { display:flex !important; }
-        .modal-content {
-            background:var(--panel);border:1px solid var(--border2);
-            border-radius:var(--r2);width:90%;max-width:480px;
-            box-shadow:0 24px 80px rgba(0,0,0,.6);
-            animation:mIn .18s ease both;overflow:hidden;padding:0;
-        }
-        @keyframes mIn { from{opacity:0;transform:scale(.96) translateY(8px)} to{opacity:1;transform:none} }
-        #modal-title { font-family:var(--fh);font-size:15px;font-weight:700;padding:18px 24px;border-bottom:1px solid var(--border);margin:0; }
-        #modal-body  { padding:20px 24px 8px; }
-        .modal-content > div:last-child {
-            display:flex;gap:10px;justify-content:flex-end;
-            padding:14px 24px 18px;border-top:1px solid var(--border);
-        }
-        #btn-modal-close {
-            background:transparent;border:1px solid var(--border2);
-            color:var(--muted);font-family:var(--fb);font-size:13px;font-weight:500;cursor:pointer;
-            padding:9px 18px;border-radius:var(--r);transition:background .13s,color .13s;
-        }
-        #btn-modal-close:hover { background:rgba(255,255,255,.05);color:var(--text); }
-
-        /* ── MISC ── */
-        .star-rating { display:flex;gap:3px;user-select:none; }
-        .star { font-size:1.4rem;color:var(--border2);transition:all .14s;cursor:pointer; }
-        .star.active { color:var(--amber) !important; }
-        .star:hover  { transform:scale(1.2); }
-        #filter-society-sess {
-            padding:8px 12px;border-radius:8px;border:1px solid var(--border2);
-            font-weight:600;color:var(--accent2);background:var(--panel);
-            outline:none;width:auto;margin:0;
-        }
-        h2, h3 { font-family:var(--fh);letter-spacing:-.3px; }
-        p { color:var(--muted);font-size:13px; }
-		/* Container del sottomenu */
-.nav-submenu {
-    display: none; /* Nascosto di base */
-    padding-left: 20px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 0 0 8px 8px;
+        :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
+        * { box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
+        
+        /* LOGIN */
+        #login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
+        
+        /* APP LAYOUT */
+        #app { display:none; flex-direction:row; min-height:100vh; }
+        #sidebar { 
+    width: 260px; 
+    background: var(--sidebar); 
+    color: #cbd5e1; 
+    padding: 1rem; 
+    display: flex; 
+    flex-direction: column; 
+    position: fixed; 
+    height: 100vh; 
+    overflow-y: auto; /* <--- AGGIUNGI QUESTA */
 }
+        #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
+        #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
+        #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
+        #content { flex:1; margin-left:260px; padding:2rem; overflow-x:auto; }
 
-/* Mostra il sottomenu quando si passa sopra al genitore o alla voce stessa */
-.nav-item-group:hover .nav-submenu {
-    display: block;
-    animation: fadeIn 0.3s ease;
-}
+        /* COMPONENTS */
+        .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #eee; padding-bottom:10px; }
+        .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-logout { background:var(--danger); margin-top:auto; padding:0.7rem; border-radius:6px; border:none; color:white; cursor:pointer; }
+        
+        /* TABLE & MODAL */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:0.8rem; border-bottom:1px solid #e2e8f0; text-align:left; }
+        th { background:#f8fafc; font-size:0.85rem; color:#64748b; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:white; padding:2rem; border-radius:12px; width:90%; max-width:450px; }
+        .modal-active { display:flex; }
+        input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:1rem; margin-top:0.3rem; }
+        .badge { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; }
+        .badge-active { background:#dcfce7; color:#166534; }
+        .badge-inactive { background:#f1f5f9; color:#475569; }
+		.btn-sm { padding: 0.4rem 0.6rem; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 0.8rem; margin-left: 4px; }
+        .btn-warning { background: #f59e0b; }
+        .btn-danger { background: #ef4444; }
+		.star-rating { display: flex; gap: 5px; cursor: pointer; }
+        /* =====blocco aggiunto con sessioi =====*/
+        /* --- BUILD 1.2: SESSIONI & RATING --- */
+/* --- BUILD 1.2: SESSIONI & RATING --- */
+.badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.badge-default { background: #e2e8f0; color: #475569; }
+.star-rating { display: flex; gap: 3px; user-select: none; }
+.star { font-size: 1.5rem; color: #cbd5e1; transition: all 0.2s ease; cursor: pointer; }
+.star.active { color: #f59e0b !important; }
+.star:hover { transform: scale(1.2); }
+.att-row-data:hover { background: #f8fafc; }
 
-.nav-submenu-item {
-    padding: 10px 15px;
-    font-size: 13px;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: 0.2s;
-    display: block;
-}
-
-.nav-submenu-item:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.05);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-#convocazioni_01 .nav-item:hover {
-    background: rgba(37, 99, 235, 0.1);
-    border-left: 4px solid #2563eb;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#convocazioni_01 i {
-    font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
-}
+#filter-society-sess {
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px solid #2563eb;
+    font-weight: 600;
+    color: #2563eb;
+    background: white;
+    outline: none;
+	}
+		 /* ===== fine blocco aggiunto con sessioi =====*/
     </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-wrap">
-    <div class="login-box">
-        <div class="login-brand">
-            <div class="login-brand-icon">⚽</div>
-            <div>
-                <div class="login-brand-name">SportTrackPro</div>
-                <div class="login-brand-sub">Gestione attività sportiva</div>
-            </div>
-        </div>
-        <form id="login-form">
-            <div class="lf"><label>Username</label><input type="text" id="username" placeholder="Il tuo username" required autocomplete="username"></div>
-            <div class="lf"><label>Password</label><input type="password" id="password" placeholder="••••••••" required autocomplete="current-password"></div>
-            <button type="submit" class="login-submit">Accedi</button>
-            <div id="error-msg"></div>
-        </form>
-    </div>
+    <h2 style="text-align:center; margin-bottom:1.5rem;">SportTrackPro</h2>
+    <form id="login-form">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Inserisci username" required>
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+        <button type="submit" class="btn" style="width:100%">Accedi</button>
+        <div id="error-msg" style="color:red; margin-top:10px; display:none; font-size:0.9rem;"></div>
+    </form>
 </div>
 
-<!-- APP -->
 <div id="app">
     <nav id="sidebar">
-        <div class="sb-top">
-            <div class="sb-brand">
-                <div class="sb-brand-icon">⚽</div>
-                <div class="sb-brand-name">SportTrackPro</div>
-            </div>
-        </div>
-        <div class="sb-nav">
-            <span class="sb-grp">Generale</span>
-            <a data-section="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard</a>
-
-            <span class="sb-grp">Configurazione</span>
-            <a data-section="stagioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>Stagioni</a>
-            <a data-section="sport"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.987 7.987 0 0 1 5.08 16zm2.95-8H5.08a7.987 7.987 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>Sport</a>
-            <a data-section="societa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>Società</a>
-            <a data-section="categoria"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l-5.5 9h11L12 2zm0 14.5c-1.38 0-2.5 1.12-2.5 2.5S10.62 21.5 12 21.5s2.5-1.12 2.5-2.5S13.38 16.5 12 16.5zM3 15.5h7v7H3z"/></svg>Categorie</a>
-            <a data-section="squadra"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Squadre</a>
-
-            <span class="sb-grp">Persone</span>
-            <a data-section="staff"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Anagrafica Staff</a>
-            <a data-section="anagrafica-pura"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Anagrafica Atleti</a>
-            <a data-section="assegnazioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Assegnazioni Tecniche</a>
-            <a data-section="atleti"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg>Anagrafica Squadra</a>
-
-            <span class="sb-grp">Attività</span>
-            <a data-section="sessioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>Gestione Sessioni</a>
-
-
-
-<script>
-/**
- * Funzione principale richiamata dai tasti del menu
- */
-function preparePartite(sezione) {
-    console.log("Avvio sezione:", sezione); 
-    // Correzione: Il tuo div principale nel file index.html ha id="content"
-    const main = document.getElementById('content'); 
-    
-    if (main) {
-        // 1. Inserisce la struttura della pagina
-        main.innerHTML = templatePartite();
-        
-        setTimeout(() => {
-            // 2. Aggiorna il titolo visibile
-            const title = document.getElementById('match-title-display');
-            if (title) {
-                const nomi = { 
-                    'sintesi': 'RIEPILOGO GARE', 
-                    'convocazioni': 'GESTIONE CONVOCAZIONI', 
-                    'risultati': 'TABELLINI E RISULTATI' 
-                };
-                title.innerText = nomi[sezione] || 'GESTIONE GARE';
-            }
-
-            // 3. Carica i dati dal database
-            initPartite(sezione);
-        }, 50);
-    }
-}
-
-function templatePartite() {
-    return `
-    <div class="card">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 id="match-title-display" style="margin:0; color:white; text-transform:uppercase;">GESTIONE GARE</h2>
-            <button class="btn" onclick="openSessionModal()" style="background:#2563eb; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">+ Nuova Gara</button>
-        </div>
-        
-        <div id="gare-filters-container" style="display:none; background:#13151e; padding:15px; border-radius:12px; border:1px solid #2d303e; margin-bottom:20px;">
-            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:5px; font-weight:bold;">FILTRO SOCIETÀ (ADMIN)</label>
-            <select id="f-match-soc" onchange="initPartite()" style="width:100%; max-width:300px; background:#1c1f2e; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
-        </div>
-
-        <div id="match-main-content" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
-            <div style="grid-column:1/-1; text-align:center; padding:50px; color:#64748b;">
-                <i class="fas fa-spinner fa-spin"></i> Caricamento gare...
-            </div>
-        </div>
-    </div>`;
-}
-
-async function initPartite(sub = 'sintesi') {
-    const container = document.getElementById('match-main-content');
-    if (!container) return;
-
-    const myRole = (window._userRole || '').toLowerCase();
-    const isAdminOrManager = ['admin', 'manager'].includes(myRole);
-    const userSocId = window._currentSocietyId;
-
-    // Se Admin, mostra il selettore società
-    if (isAdminOrManager) {
-        const fContainer = document.getElementById('gare-filters-container');
-        if (fContainer) fContainer.style.display = 'block';
-        const selSoc = document.getElementById('f-match-soc');
-        if (selSoc && selSoc.options.length === 0) {
-            const { data: socs } = await client.from('societies').select('id, name').order('name');
-            selSoc.innerHTML = '<option value="">Tutte le Società (Vedi Tutto)</option>' + 
-                               (socs || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        }
-    }
-
-    try {
-        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
-        if (!typeData) return container.innerHTML = "Errore: Tipo sessione 'Partita' non trovato.";
-
-        let query = client.from('sessions').select(`*, teams(name), attendances(id, status)`).eq('type_id', typeData.id);
-
-        // LOGICA VISIBILITÀ: L'admin vede tutto (anche i record senza società) a meno che non ne selezioni una
-        if (!isAdminOrManager) {
-            query = query.eq('society_id', userSocId);
-        } else {
-            const selectedSoc = document.getElementById('f-match-soc')?.value;
-            if (selectedSoc) query = query.eq('society_id', selectedSoc);
-        }
-
-        const { data: matches, error } = await query.order('session_date', { ascending: false });
-        if (error) throw error;
-
-        if (!matches || matches.length === 0) {
-            container.innerHTML = "<div style='grid-column:1/-1; text-align:center; padding:40px; color:#64748b;'>Nessuna gara programmata trovata.</div>";
-            return;
-        }
-
-        container.innerHTML = matches.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:20px; border-top:4px solid ${sub === 'risultati' ? '#10b981' : '#2563eb'};">
-                <div style="color:#94a3b8; font-size:11px; text-transform:uppercase; font-weight:bold; margin-bottom:10px;">${m.teams?.name || 'SQUADRA DA ASSEGNARE'}</div>
-                <h3 style="color:white; margin:0 0 15px 0; font-size:18px;">${m.title}</h3>
-                <div style="color:#64748b; font-size:13px; margin-bottom:20px;"><i class="far fa-calendar-alt"></i> ${new Date(m.session_date).toLocaleDateString()}</div>
-                <button class="btn" style="width:100%; background:${sub === 'risultati' ? '#10b981' : '#2563eb'}; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold;" 
-                   onclick="window.testConvocazioni('${m.id}')"
-                    ${sub === 'risultati' ? '⚽ TABELLINO E VOTI' : '📋 GESTISCI CONVOCATI'}
-                </button>
-            </div>
-        `).join('');
-
-    } catch (e) {
-        container.innerHTML = `<div style="grid-column:1/-1; color:#ef4444;">Errore nel caricamento: ${e.message}</div>`;
-    }
-}
-
-function toggleSubmenu(id) {
-    const sub = document.getElementById(id);
-    if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
-}
-</script>
-
-
-<span class="sb-grp">Attività</span>
-<a data-section="sessioni">
-    <svg viewBox="0 0 24 24" fill="currentColor" width="18"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>
-    Gestione Sessioni
-</a>
-
-<div class="nav-item-group" style="margin-top: 5px;">
-    <a href="javascript:void(0)" onclick="window.toggleSubmenu('menu-gare')" style="display: flex; align-items: center; justify-content: space-between; background: rgba(37,99,235,0.05); border-left: 3px solid #2563eb;">
-        <span>
-            <i class="fas fa-trophy" style="margin-right: 12px; color: #2563eb; width: 18px; text-align: center;"></i> 
-            Gestione Gare
-        </span>
-        <i class="fas fa-chevron-down" style="font-size: 10px; opacity: 0.5;"></i>
-    </a>
-    
-    <div id="menu-gare" style="display: none; background: rgba(0,0,0,0.1); margin-bottom: 10px;">
-        <a onclick="window.preparePartite('sintesi')" style="padding-left: 45px; font-size: 13px; color: #94a3b8;">
-            <i class="fas fa-chart-line" style="margin-right: 8px;"></i> Riepilogo
-        </a>
-        <a onclick="window.preparePartite('convocazioni')" style="padding-left: 45px; font-size: 13px; color: #94a3b8;">
-            <i class="fas fa-clipboard-list" style="margin-right: 8px;"></i> Convocazioni
-        </a>
-    </div>
-</div>
-
-
-
-
-
-
-
-
-
-
-<button class="btn" onclick="window.testConvocazioni('${m.id}')">
-    📋 GESTISCI CONVOCATI
-</button>
-
-
-
-
-
-
-
-
-
-
-
-        </div>
-        <div class="sb-foot">
-            <span id="user-info"></span>
-            <button id="btn-logout">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-                Esci
-            </button>
-        </div>
+        <h3>SportTrackPro</h3>
+        <a data-section="dashboard">DASHBOARD</a>
+        <a data-section="stagioni">STAGIONI</a>
+        <a data-section="sport">SPORT</a>
+        <a data-section="societa">SOCIETÀ</a>
+        <a data-section="categoria">CATEGORIA</a>
+        <a data-section="squadra">SQUADRA</a>
+        <a data-section="staff">👥 ANAGRAFICA STAFF</a>
+		<a data-section="anagrafica-pura">👤 Anagrafica Atleti</a>
+        <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
+        <a data-section="atleti">🔗 Anagrafica Squadra</a>
+        <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
+		<a data-section="partite">📅 GESTIONE PARTITE</a>
+        <button id="btn-logout" class="btn-logout">Esci</button>
     </nav>
 
-    <div id="topbar"><div id="topbar-title">Dashboard</div></div>
-
-    <main id="content"></main>
+    <main id="content">
+        </main>
 </div>
 
-<!-- MODAL -->
 <div id="modal-overlay" class="modal-overlay">
     <div class="modal-content">
-        <h3 id="modal-title">Titolo Modal</h3>
+        <h3 id="modal-title" style="margin-top:0">Titolo Modal</h3>
         <div id="modal-body"></div>
-        <div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
             <button class="btn" id="btn-modal-save">Salva</button>
-            <button id="btn-modal-close">Annulla</button>
+            <button class="btn" id="btn-modal-close" style="background:#64748b">Annulla</button>
         </div>
     </div>
 </div>
@@ -610,10 +189,16 @@ function toggleSubmenu(id) {
             window.CURRENT_USER = userRow; // Popoliamo l'oggetto per la dashboard
 
             // 4. UI Setup
+            document.documentElement.style.fontSize = "18px";
             document.getElementById('login-wrap').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
+            document.getElementById('app').style.display = 'flex'; // Usiamo flex per il layout a due colonne
+            
+            // Update Info Utente nel menu (se presente l'elemento nel tuo HTML)
             const userInfo = document.getElementById('user-info');
-            if(userInfo) userInfo.innerText = `👤 ${userRow.name} — ${userRow.role.toUpperCase()}`;
+            if(userInfo) {
+                userInfo.innerText = `👤 ${userRow.name} (${userRow.role.toUpperCase()})`;
+                if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
+            }
 
             // 5. Navigazione iniziale
             loadPage('dashboard');
@@ -628,12 +213,10 @@ function toggleSubmenu(id) {
        NAVIGAZIONE (LOADER PAGINE)
        ============================================================ */
     window.loadPage = (section) => {
+        // Gestione classi active nel sidebar
         document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
         const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
         if (link) link.classList.add('active');
-        const titles = { dashboard:'Dashboard', stagioni:'Stagioni', sport:'Sport', societa:'Società', categoria:'Categorie', squadra:'Squadre', staff:'Anagrafica Staff', 'anagrafica-pura':'Anagrafica Atleti', assegnazioni:'Assegnazioni Tecniche', atleti:'Anagrafica Squadra', sessioni:'Gestione Sessioni', partite:'Gestione Partite' };
-        const tb = document.getElementById('topbar-title');
-        if (tb) tb.textContent = titles[section] || section;
 
         const content = document.getElementById('content');
         if (!content) return;
@@ -772,11 +355,11 @@ async function initStagioni() {
                 </span>
             </td>
             <td style="text-align:right">
-                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" class="${s.is_active ? 'btn-neutral' : 'btn-safe'} wide">
+                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">
                     ${s.is_active ? 'Spegni' : 'Attiva'}
                 </button>
-                <button class="btn-sm btn-warning btn-action-edit" data-id="${s.id}" data-name="${s.name}" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger btn-action-delete" data-id="${s.id}" title="Elimina">🗑️</button>
+                <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:orange">✏️</button>
+                <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:red">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4" style="text-align:center">Nessuna stagione trovata.</td></tr>';
@@ -886,8 +469,8 @@ async function initSport() {
             <td style="font-size:1.5rem">${s.icon || '🏐'}</td>
             <td><strong>${s.name}</strong></td>
             <td style="text-align:right">
-                <button class="btn-sm btn-warning btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger btn-sport-delete" data-id="${s.id}" title="Elimina">🗑️</button>
+                <button class="btn-sm btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" style="background:var(--warning)">✏️</button>
+                <button class="btn-sm btn-sport-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="3">Nessun dato.</td></tr>';
@@ -1581,9 +1164,9 @@ window.handleDeleteStaff = async function(id) {
     const style = document.createElement('style');
     style.innerHTML = `
         .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-left: 4px; }
-        .btn-icon-atleta.edit { background-color: rgba(245,158,11,.15); color: #fbbf24; background-color: #eff6ff; color: #2563eb; }
-        .btn-icon-atleta.delete { background-color: rgba(239,68,68,.15); color: #f87171; }
-        .btn-icon-atleta.link { background-color: rgba(34,197,94,.12); color: #4ade80; }
+        .btn-icon-atleta.edit { background-color: #eff6ff; color: #2563eb; }
+        .btn-icon-atleta.delete { background-color: #fef2f2; color: #ef4444; }
+        .btn-icon-atleta.link { background-color: #f0fdf4; color: #16a34a; }
         .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     `;
     document.head.appendChild(style);
@@ -2639,9 +2222,9 @@ async function initSessioni() {
             <td style="padding:10px; text-align:center; font-weight:bold; color:#8b5cf6;">${stats.i}</td>
             <td style="padding:10px; text-align:center;"><strong>${perc}%</strong></td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm btn-info wide" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
-                <button class="btn-sm btn-warning" onclick="openSessionModal('${s.id}')" title="Modifica">✏️</button>
-                <button class="btn-sm btn-danger" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
+                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
+                <button class="btn-sm" onclick="openSessionModal('${s.id}')">✏️</button>
+                <button class="btn-sm" style="background:#ef4444; color:white; border:none;" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
             </td>
         </tr>`;
     }).join('') || '<tr><td colspan="9" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
@@ -2878,9 +2461,178 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+/* ============================================================
+   MODULO: GESTIONE PARTITE - VERSION 2.1.4 (FIX DEFINITIVE)
+   ============================================================ */
 
+/**
+ * 1. TEMPLATE HTML PRINCIPALE
+ */
+function templatePartite() {
+    return `
+    <div class="card" id="main-match-card">
+        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin:0; color:#1e293b;">🏆 GESTIONE PARTITE</h2>
+            <button class="btn" onclick="openMatchModal()" style="background:#059669; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer;">+ Nuova Partita</button>
+        </div>
+        
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+            <select id="f-match-soc" onchange="reloadMatchSubFilters()"><option value="">Caricamento società...</option></select>
+            <select id="f-match-cat" onchange="reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
+            <select id="f-match-team" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
+        </div>
 
+        <div class="table-container" style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; min-width:600px;">
+                <thead>
+                    <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:12px; width:100px;">DATA</th>
+                        <th style="padding:12px;">PARTITA</th>
+                        <th style="padding:12px;">SQUADRA</th>
+                        <th style="padding:12px; text-align:right;">AZIONI</th>
+                    </tr>
+                </thead>
+                <tbody id="list-partite-body"></tbody>
+            </table>
+        </div>
+    </div>`;
+}
 
+/**
+ * 2. LOGICA INIZIALIZZAZIONE
+ */
+async function initPartite() {
+    const tbody = document.getElementById('list-partite-body');
+    if (!tbody) return;
+
+    const selSoc = document.getElementById('f-match-soc');
+    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
+        const { data: socs } = await client.from('societies').select('id, name').order('name');
+        if (socs?.length > 0) {
+            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            window._currentSocietyId = socs[0].id;
+            selSoc.value = window._currentSocietyId;
+            return reloadMatchSubFilters();
+        }
+    }
+
+    const socId = selSoc?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    const { data: types } = await client.from('session_types').select('id, name');
+    const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+
+    let query = client.from('sessions').select('id, title, session_date, team_id, teams(name)').eq('society_id', socId).in('type_id', validIds);
+    const { data: matches } = await query.order('session_date', { ascending: false });
+
+    tbody.innerHTML = (matches || []).map(m => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+            <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
+            <td style="padding:12px;">${m.teams?.name || '---'}</td>
+            <td style="padding:12px; text-align:right;">
+                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:#3b82f6; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;">Modifica</button>
+                <button class="btn-sm" onclick="deleteMatchSession('${m.id}')" style="background:#ef4444; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;">Elimina</button>
+            </td>
+        </tr>`).join('') || '<tr><td colspan="4" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
+}
+
+/**
+ * 3. GESTIONE MODALE (Con fallback se openGenericModal manca)
+ */
+async function openMatchModal(id = null) {
+    let editData = null;
+    if (id) {
+        const cleanId = id.toString().split(':')[0];
+        const { data } = await client.from('sessions').select('*').eq('id', cleanId).single();
+        editData = data;
+    }
+
+    const html = `
+        <div style="padding:20px; display:grid; gap:10px;">
+            <h3>${id ? 'Modifica' : 'Nuova'} Gara</h3>
+            <input type="text" id="m-title" placeholder="Titolo" value="${editData?.title || ''}" style="padding:8px;">
+            <input type="date" id="m-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="padding:8px;">
+            <select id="m-team" style="padding:8px;">
+                <option value="">Squadra...</option>
+                ${(window._matchTeams || []).map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+            </select>
+            <button onclick="saveMatch('${id || ''}')" style="background:#059669; color:white; padding:10px; border:none; border-radius:4px; cursor:pointer;">SALVA</button>
+        </div>`;
+
+    if (typeof window.openGenericModal === 'function') {
+        window.openGenericModal(html);
+    } else {
+        const div = document.createElement('div');
+        div.id = 'generic-modal-overlay';
+        div.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;";
+        div.innerHTML = `<div style="background:white; padding:10px; border-radius:8px; width:300px;">${html}</div>`;
+        document.body.appendChild(div);
+    }
+}
+
+/**
+ * 4. SALVATAGGIO (Risolve il ReferenceError)
+ */
+async function saveMatch(id) {
+    const title = document.getElementById('m-title').value;
+    const date = document.getElementById('m-date').value;
+    const teamId = document.getElementById('m-team').value;
+
+    if (!teamId) return alert("Scegli la squadra!");
+
+    const { data: types } = await client.from('session_types').select('id, name');
+    const typeId = types?.find(t => t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('partita'))?.id;
+
+    const payload = { title, session_date: date, team_id: teamId, society_id: window._currentSocietyId, type_id: typeId };
+
+    const { error } = id && id !== '' 
+        ? await client.from('sessions').update(payload).eq('id', id.toString().split(':')[0])
+        : await client.from('sessions').insert([payload]);
+
+    if (!error) {
+        const overlay = document.getElementById('generic-modal-overlay');
+        if (overlay) overlay.remove();
+        initPartite();
+    } else {
+        alert("Errore salvataggio: " + error.message);
+    }
+}
+
+async function deleteMatchSession(id) {
+    if (confirm("Eliminare?")) {
+        await client.from('sessions').delete().eq('id', id.toString().split(':')[0]);
+        initPartite();
+    }
+}
+
+async function reloadMatchSubFilters() {
+    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
+    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    window._matchTeams = teams || [];
+    reloadMatchTeamsOnly();
+}
+
+function reloadMatchTeamsOnly() {
+    const catId = document.getElementById('f-match-cat')?.value;
+    let filtered = window._matchTeams || [];
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    document.getElementById('f-match-team').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    initPartite();
+}
+
+/**
+ * 5. AGGANCIO A WINDOW (Obbligatorio per i bottoni)
+ */
+window.templatePartite = templatePartite;
+window.initPartite = initPartite;
+window.openMatchModal = openMatchModal;
+window.saveMatch = saveMatch; // <--- Questo risolve il tuo errore
+window.deleteMatchSession = deleteMatchSession;
+window.reloadMatchSubFilters = reloadMatchSubFilters;
+window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
