@@ -2774,18 +2774,25 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
-/* ============================================================
-   LOGICA UNIFICATA GARE - FILTRO RUOLI (ADMIN/MANAGER vs USER)
-   ============================================================ */
-
+/**
+ * INIZIALIZZAZIONE GARE - LOGICA RUOLI DIFFERENZIATA
+ */
 window.initPartite = async function(sub = 'sintesi') {
-    const content = document.getElementById('match-main-content');
-    if (!content) return;
+    const container = document.getElementById('match-main-content');
+    if (!container) return;
 
-    content.innerHTML = '<div style="text-align:center; padding:50px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento in corso...</div>';
+    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+
+    // 1. IDENTIFICAZIONE RUOLO
+    const myRole = (window._userRole || '').toLowerCase();
+    // Admin e Manager saltano i filtri di appartenenza societaria
+    const isAdminOrManager = ['admin', 'manager'].includes(myRole);
+    
+    // Recuperiamo la società corrente (se presente nella sessione dell'utente)
+    let targetSociety = window._currentSocietyId;
 
     try {
-        // 1. Identifica l'ID del tipo "Partita" (Subquery logica)
+        // 2. LOOKUP TIPO "PARTITA" (Necessario per entrambe le query)
         const { data: typeData } = await client
             .from('session_types')
             .select('id')
@@ -2793,114 +2800,114 @@ window.initPartite = async function(sub = 'sintesi') {
             .single();
 
         if (!typeData) {
-            content.innerHTML = `<div class="alert-error">Errore: Tipo "Partita" non configurato.</div>`;
+            container.innerHTML = "Errore: Tipo 'Partita' non trovato in session_types.";
             return;
         }
 
-        const matchTypeId = typeData.id;
-        
-        // Recupero Ruolo e Società dell'utente corrente
-        const userRole = window._userRole; // Assicurati che questa variabile sia popolata al login
-        const userSocId = window._currentSocietyId; 
-
-        // 2. Costruzione Query Supabase
+        // 3. COSTRUZIONE QUERY BASE (Usa la logica della tua Build 1.9.3)
         let query = client
             .from('sessions')
-            .select(`*, teams(name)`)
-            .eq('type_id', matchTypeId);
+            .select(`*, session_types(name), teams(id, name, categories(name))`)
+            .eq('type_id', typeData.id);
 
-        /**
-         * APPLICAZIONE FILTRI SQL DINAMICI
-         * Se NON è Admin o Manager, applichiamo il vincolo della society_id
-         */
-        const isAdminOrManager = (userRole === 'Admin' || userRole === 'Manager');
-
-        if (!isAdminOrManager) {
-            // Filtro obbligatorio per utenti standard
-            if (userSocId) {
-                query = query.eq('society_id', userSocId);
-            } else {
-                console.warn("Utente senza society_id rilevato!");
-            }
-        } else {
-            // Se è Admin/Manager, controlliamo se ha comunque selezionato una società specifica dai filtri UI
+        /* -----------------------------------------------------------
+           LOGICA DI ACCESSO (ADMIN vs ALTRI)
+           ----------------------------------------------------------- */
+        if (isAdminOrManager) {
+            // QUERY ADMIN: Non aggiungiamo .eq('society_id') di default.
+            // Se però l'Admin ha selezionato una società specifica nel filtro UI, la applichiamo.
             const uiSocId = document.getElementById('f-match-soc')?.value;
             if (uiSocId && uiSocId !== "" && uiSocId !== "null") {
                 query = query.eq('society_id', uiSocId);
             }
+            // Risultato SQL: SELECT * FROM sessions WHERE type_id = X (Senza vincoli di società)
+        } else {
+            // QUERY TUTTI GLI ALTRI: Il filtro società è OBBLIGATORIO.
+            // Possono vedere solo i dati della società a cui appartengono.
+            if (targetSociety) {
+                query = query.eq('society_id', targetSociety);
+            } else {
+                // Sicurezza: se non c'è società e non è admin, blocchiamo tutto.
+                container.innerHTML = "Accesso negato: Nessuna società associata.";
+                return;
+            }
+            // Risultato SQL: SELECT * FROM sessions WHERE type_id = X AND society_id = 'USER_SOC_ID'
         }
+        /* ----------------------------------------------------------- */
 
-        // Aggiunta eventuale filtro squadra dalla UI
-        const uiTeamId = document.getElementById('f-match-team')?.value;
-        if (uiTeamId && uiTeamId !== "" && uiTeamId !== "null") {
-            query = query.eq('team_id', uiTeamId);
-        }
+        // Filtro Squadra (opzionale dalla UI)
+        const fTeam = document.getElementById('f-match-team')?.value;
+        if (fTeam) query = query.eq('team_id', fTeam);
 
-        // Esecuzione Query ordinata per data decrescente
         const { data: matches, error } = await query.order('session_date', { ascending: false });
 
         if (error) throw error;
 
-        // 3. Gestione Risultati Vuoti
+        // 4. RENDERING (Sintesi, Convocazioni o Risultati)
         if (!matches || matches.length === 0) {
-            content.innerHTML = `
-            <div style="text-align:center; padding:60px; color:#64748b; border:1px dashed #333; border-radius:12px;">
-                <i class="fas fa-search" style="font-size:24px; margin-bottom:10px;"></i><br>
-                Nessuna gara trovata per questa selezione.
-            </div>`;
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">Nessuna gara trovata.</div>';
             return;
         }
 
-        // 4. Rendering Dinamico
-        if (sub === 'convocazioni') renderViewConvocazioni(content, matches);
-        else if (sub === 'risultati') renderViewRisultati(content, matches);
-        else renderViewSintesi(content, matches);
+        if (sub === 'convocazioni') renderGareCards(container, matches, 'convocazioni');
+        else if (sub === 'risultati') renderGareCards(container, matches, 'risultati');
+        else renderGareTable(container, matches);
 
     } catch (err) {
-        console.error("Errore initPartite:", err);
-        content.innerHTML = `<div class="alert-error">Errore caricamento: ${err.message}</div>`;
+        console.error("Errore query gare:", err);
+        container.innerHTML = "Errore nel caricamento dati.";
     }
 };
 
-/* --- Funzioni di Rendering (Invariate) --- */
-function renderViewSintesi(container, matches) {
+/**
+ * RENDER TABELLA SINTESI
+ */
+function renderGareTable(container, data) {
     container.innerHTML = `
-    <table style="width:100%; border-collapse:collapse; color:white; font-size:13px; background:#13151e;">
-        <thead>
-            <tr style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
-                <th style="padding:15px;">DATA</th><th style="padding:15px;">SQUADRA</th><th style="padding:15px;">GARA</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${matches.map(m => `
-            <tr style="border-bottom:1px solid #2d303e;">
-                <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                <td style="padding:15px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
-                <td style="padding:15px;">${m.title}</td>
-            </tr>`).join('')}
-        </tbody>
-    </table>`;
-}
-
-function renderViewConvocazioni(container, matches) {
-    container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
-        ${matches.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-left:4px solid #2563eb;">
-                <div style="font-size:10px; color:#2563eb; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
-                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#2563eb; color:white;" onclick="apriModaleConvocati('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">📋 GESTISCI CONVOCATI</button>
-            </div>`).join('')}
+    <div style="overflow-x:auto; background:#13151e; border-radius:8px; border:1px solid #2d303e;">
+        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+            <thead style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
+                <tr>
+                    <th style="padding:15px;">DATA</th>
+                    <th style="padding:15px;">SQUADRA</th>
+                    <th style="padding:15px;">GARA</th>
+                    <th style="padding:15px; text-align:right;">AZIONI</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(m => `
+                <tr style="border-bottom:1px solid #2d303e;">
+                    <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                    <td style="padding:15px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
+                    <td style="padding:15px;">${m.title}</td>
+                    <td style="padding:15px; text-align:right;">
+                        <button class="btn-sm btn-info" onclick="openAttendanceModal('${m.id}')">👥 Presenze</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
     </div>`;
 }
 
-function renderViewRisultati(container, matches) {
-    container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
-        ${matches.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #10b981;">
-                <div style="font-size:10px; color:#10b981; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
+/**
+ * RENDER CARDS (CONVOCAZIONI / RISULTATI)
+ */
+function renderGareCards(container, data, mode) {
+    const isConv = mode === 'convocazioni';
+    const accent = isConv ? '#2563eb' : '#10b981';
+    
+    container.innerHTML = `
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+        ${data.map(m => `
+            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid ${accent};">
+                <div style="font-size:10px; color:${accent}; font-weight:bold; margin-bottom:5px;">${m.teams?.name}</div>
                 <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#10b981; color:white;" onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">⚽ TABELLINO E VOTI</button>
-            </div>`).join('')}
+                <button class="btn" style="width:100%; background:${accent}; color:white; padding:10px; border-radius:6px; font-weight:bold; border:none;"
+                    onclick="${isConv ? `openAttendanceModal('${m.id}')` : `openTabellinoModal('${m.id}')`}">
+                    ${isConv ? '📋 CONVOCA' : '⚽ TABELLINO'}
+                </button>
+            </div>
+        `).join('')}
     </div>`;
 }
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
