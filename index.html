@@ -2469,336 +2469,174 @@ window.saveSessionNotes = saveSessionNotes;
 
 
 
-/* ============================================================
-   MODULO: GARE & MATCH CENTER - VERSION 3.2.2 (TABELLA USERS)
-   ============================================================ */
-
 /**
- * 1. TEMPLATE HTML
- */
-function templatePartite() {
-    return `
-    <div class="card" id="main-match-card">
-        <div class="header" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
-            <h2 style="margin:0; color:#1e293b;">🏆 MATCH CENTER</h2>
-        </div>
-        
-        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
-            <div id="soc-filter-container">
-                <label style="font-size:11px; color:#64748b; font-weight:bold;">SOCIETÀ</label>
-                <select id="f-match-soc" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchSubFilters()">
-                    <option value="">Caricamento...</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:11px; color:#64748b; font-weight:bold;">CATEGORIA</label>
-                <select id="f-match-cat" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchTeamsOnly()">
-                    <option value="">Tutte</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:11px; color:#64748b; font-weight:bold;">SQUADRA</label>
-                <select id="f-match-team" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
-                    <option value="">Tutte</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:11px; color:#64748b; font-weight:bold;">DA DATA</label>
-                <input type="date" id="f-match-from" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
-            </div>
-            <div>
-                <label style="font-size:11px; color:#64748b; font-weight:bold;">A DATA</label>
-                <input type="date" id="f-match-to" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
-            </div>
-        </div>
-
-        <div class="table-container" style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:12px; min-width:850px;">
-                <thead>
-                    <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:12px; width:100px;">DATA</th>
-                        <th style="padding:12px;">PARTITA</th>
-                        <th style="padding:12px;">SQUADRA</th>
-                        <th style="padding:12px; text-align:center; background:rgba(37,99,235,0.03);">GESTIONE MATCH</th>
-                        <th style="padding:12px; text-align:right;">AZIONI</th>
-                    </tr>
-                </thead>
-                <tbody id="list-partite-body"></tbody>
-            </table>
-        </div>
-    </div>
-    <div id="sub-section-container" style="margin-top:20px;"></div>`;
-}
-
-/**
- * 2. LOGICA INIZIALIZZAZIONE (Puntando alla tabella 'users')
- */
-async function initPartite() {
-    const tbody = document.getElementById('list-partite-body');
-    if (!tbody) return;
-
-    const selSoc = document.getElementById('f-match-soc');
-    
-    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
-        try {
-            const { data: { user: authUser } } = await client.auth.getUser();
-            if (!authUser) throw new Error("Utente non autenticato");
-
-            // --- LETTURA DALLA TABELLA USERS ---
-            const { data: userData, error: userError } = await client.from('users')
-                .select('role, society_id')
-                .eq('id', authUser.id)
-                .single();
-
-            const role = userData?.role || 'manager';
-            const societyId = userData?.society_id;
-
-            if (role === 'admin') {
-                // ADMIN: Carica tutte le società in ordine alfabetico
-                const { data: socs } = await client.from('societies').select('id, name').order('name', { ascending: true });
-                if (socs && socs.length > 0) {
-                    selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                    // Se l'admin ha una society_id specifica la usa, altrimenti la prima della lista
-                    window._currentSocietyId = societyId || socs[0].id;
-                    selSoc.value = window._currentSocietyId;
-                }
-            } else {
-                // MANAGER: Nasconde filtro e forza società
-                const container = document.getElementById('soc-filter-container');
-                if (container) container.style.display = 'none';
-
-                if (societyId) {
-                    selSoc.innerHTML = `<option value="${societyId}" selected>Società corrente</option>`;
-                    window._currentSocietyId = societyId;
-                } else {
-                    selSoc.innerHTML = `<option value="">Nessuna società</option>`;
-                    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Utente senza società assegnata.</td></tr>';
-                    return;
-                }
-            }
-            return reloadMatchSubFilters();
-        } catch (err) {
-            console.error("Errore initPartite:", err);
-            // Fallback estremo se la tabella users fallisce: prova a caricare come admin se possibile
-            const { data: socs } = await client.from('societies').select('id, name').order('name');
-            if (socs?.length > 0) {
-                selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                window._currentSocietyId = socs[0].id;
-                return reloadMatchSubFilters();
-            }
-        }
-    }
-
-    const socId = selSoc?.value || window._currentSocietyId;
-    if (!socId) return;
-
-    // --- FILTRI E QUERY SESSIONS ---
-    const dateFrom = document.getElementById('f-match-from')?.value;
-    const dateTo = document.getElementById('f-match-to')?.value;
-    const teamFilter = document.getElementById('f-match-team')?.value;
-
-    const { data: types } = await client.from('session_types').select('id, name');
-    const validIds = (types || []).filter(t => 
-        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
-    ).map(t => t.id);
-
-    let query = client.from('sessions')
-        .select('id, title, session_date, team_id, teams(name)')
-        .eq('society_id', socId)
-        .in('type_id', validIds);
-
-    if (teamFilter) query = query.eq('team_id', teamFilter);
-    if (dateFrom) query = query.gte('session_date', dateFrom);
-    if (dateTo) query = query.lte('session_date', dateTo);
-
-    const { data: matches } = await query.order('session_date', { ascending: false });
-
-    tbody.innerHTML = (matches || []).map(m => `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-            <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
-            <td style="padding:12px;"><span style="color:#64748b;">${m.teams?.name || '---'}</span></td>
-            <td style="padding:12px; text-align:center; display:flex; gap:6px; justify-content:center;">
-                <button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📋 CONVOCA</button>
-                <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">⚽ TABELLINO</button>
-                <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
-            </td>
-            <td style="padding:12px; text-align:right;">
-                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer; font-size:11px;">MODIFICA</button>
-            </td>
-        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato.</td></tr>';
-}
-
-/**
- * 3. LOGICA FILTRI SECONDARI
- */
-async function reloadMatchSubFilters() {
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    if (!socId) return;
-
-    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-    const catSelect = document.getElementById('f-match-cat');
-    if (catSelect) catSelect.innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
-
-    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
-    window._matchTeams = teams || [];
-    reloadMatchTeamsOnly();
-}
-
-function reloadMatchTeamsOnly() {
-    const catId = document.getElementById('f-match-cat')?.value;
-    let filtered = window._matchTeams || [];
-    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
-    
-    const teamSelect = document.getElementById('f-match-team');
-    if (teamSelect) teamSelect.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    initPartite();
-}
-
-// Global Wrappers
-window.openConvocazioni = function(id) { if (typeof window.testConvocazioni === 'function') window.testConvocazioni(id); else alert("ID: " + id); };
-window.openTabellino = function(id) { alert("Tabellino ID: " + id); };
-window.openStatistiche = function(id) { alert("Stats ID: " + id); };
-
-window.templatePartite = templatePartite;
-window.initPartite = initPartite;
-window.reloadMatchSubFilters = reloadMatchSubFilters;
-window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
-
-
-
-
-
-/**
- * 4. GESTIONE SOTTO-SEZIONI DINAMICHE
+ * ==========================================
+ * MATCH CENTER - BLOCCO COMPLETO AGGIORNATO
+ * ==========================================
  */
 
+// Configurazione Colori High-Contrast
+const MC_THEME = {
+    bg: "#08090c",
+    card: "#12141c",
+    input: "#1a1d26",
+    border: "#334155",
+    text: "#ffffff",
+    muted: "#94a3b8",
+    accent: "#3b82f6",
+    success: "#10b981",
+    danger: "#ef4444"
+};
+
+/**
+ * 1. UTILITÀ DI PREPARAZIONE
+ */
 function prepareSubSection(sessionId) {
     const container = document.getElementById('sub-section-container');
     if (!container) return null;
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:white;">Caricamento in corso...</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:40px; color:${MC_THEME.muted};">Caricamento in corso...</div>`;
     container.scrollIntoView({ behavior: 'smooth' });
     return container;
 }
 
-// --- A. CONVOCAZIONI (Lista stile screenshot) ---
+/**
+ * 2. SEZIONE CONVOCAZIONI (LISTA & ESPORTA)
+ */
 window.openConvocazioni = async function(sessionId) {
     const container = prepareSubSection(sessionId);
     
-    const { data: session } = await client.from('sessions').select('team_id, title').eq('id', sessionId).single();
-    // Prendiamo gli atleti legati a questa squadra/stagione
+    // Recupero dati sessione e atleti
+    const { data: session } = await client.from('sessions').select('team_id, title, date').eq('id', sessionId).single();
     const { data: athletes } = await client.from('athlete_team_seasons')
         .select('athlete_id, jersey_number, role, athletes(name, surname)')
         .eq('team_id', session.team_id);
-
-    const { data: currentAttendances } = await client.from('attendances')
-        .select('athlete_id, is_called_up')
-        .eq('session_id', sessionId);
-
+    const { data: currentAttendances } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
+    
     const convocatiIds = new Set(currentAttendances?.filter(a => a.is_called_up).map(a => a.athlete_id) || []);
 
     container.innerHTML = `
-        <div class="card" style="background:var(--surface); border:1px solid var(--border); padding:20px; border-radius:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:white;">📋 Convocazioni: ${session.title}</h3>
-                <button onclick="saveConvocazioni('${sessionId}')" class="btn-primary" style="padding:8px 16px;">SALVA LISTA</button>
-            </div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                ${athletes.map(a => {
-                    const isChecked = convocatiIds.has(a.athlete_id);
-                    return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:${isChecked ? 'rgba(37,99,235,0.1)' : 'var(--panel)'}; border:1px solid ${isChecked ? 'var(--primary)' : 'var(--border)'}; border-radius:8px;">
-                        <div style="display:flex; align-items:center; gap:15px;">
-                            <span style="width:30px; font-weight:bold; color:var(--primary);">${a.jersey_number || '-'}</span>
-                            <span style="color:white; font-weight:500;">${a.athletes.surname} ${a.athletes.name}</span>
-                            <span style="font-size:11px; color:#64748b; text-transform:uppercase;">${a.role || 'G'}</span>
-                        </div>
-                        <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:20px; height:20px; cursor:pointer;">
-                    </div>`;
-                }).join('')}
+        <div id="capture-area" style="background:${MC_THEME.bg}; padding:10px; border-radius:12px;">
+            <div class="card" style="background:${MC_THEME.card}; border:2px solid ${MC_THEME.border}; padding:25px; border-radius:12px; color:${MC_THEME.text};">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid ${MC_THEME.border}; padding-bottom:15px;">
+                    <div>
+                        <h2 style="margin:0; font-size:20px; color:${MC_THEME.accent};">CONVOCAZIONI</h2>
+                        <p style="margin:0; font-size:13px; color:${MC_THEME.muted};">${session.title} - ${new Date(session.date).toLocaleDateString()}</p>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="exportMatchCard()" style="background:${MC_THEME.success}; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">📤 ESPORTA</button>
+                        <button onclick="saveConvocazioni('${sessionId}')" style="background:${MC_THEME.accent}; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">SALVA</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    ${athletes.map(a => {
+                        const isChecked = convocatiIds.has(a.athlete_id);
+                        return `
+                        <label style="display:flex; align-items:center; justify-content:space-between; padding:15px; background:${isChecked ? '#1e293b' : MC_THEME.input}; border:1px solid ${isChecked ? MC_THEME.accent : MC_THEME.border}; border-radius:8px; cursor:pointer; transition: 0.2s;">
+                            <div style="display:flex; align-items:center; gap:20px;">
+                                <span style="font-family:monospace; font-size:18px; font-weight:bold; color:${MC_THEME.accent}; width:30px;">${a.jersey_number || '--'}</span>
+                                <div>
+                                    <div style="font-weight:700; font-size:15px; text-transform:uppercase;">${a.athletes.surname} ${a.athletes.name}</div>
+                                    <div style="font-size:11px; color:${MC_THEME.muted};">${a.role || 'G'}</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" class="conv-check" data-id="${a.athlete_id}" ${isChecked ? 'checked' : ''} style="width:22px; height:22px; accent-color:${MC_THEME.accent};">
+                        </label>`;
+                    }).join('')}
+                </div>
             </div>
         </div>`;
 };
 
-// --- B. TABELLINO & MARCATORI (A cascata) ---
+/**
+ * 3. SEZIONE TABELLINO (LOGISTICA & MARCATORI)
+ */
 window.openTabellino = async function(sessionId) {
     const container = prepareSubSection(sessionId);
     
-    // Fix Errore 406: Usiamo una selezione esplicita e gestiamo il single() con cura
-    const { data: detailsList, error } = await client.from('match_details').select('*').eq('session_id', sessionId);
-    let details = detailsList?.[0] || null;
-    
-    if (!details) {
-        const { data: newDetails } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0 }]).select();
-        details = newDetails[0];
-    }
+    const { data: detailsList } = await client.from('match_details').select('*').eq('session_id', sessionId);
+    let d = detailsList?.[0] || { goals_for:0, goals_against:0 };
 
-    // Carichiamo i convocati per il selettore marcatori
     const { data: players } = await client.from('attendances')
         .select('athlete_id, athletes(name, surname)')
         .eq('session_id', sessionId)
         .eq('is_called_up', true);
 
     container.innerHTML = `
-        <div class="card" style="background:var(--surface); border:1px solid var(--border); padding:20px; border-radius:12px;">
-            <h3 style="color:white; margin-bottom:20px;">⚽ Report Partita</h3>
+        <div class="card" style="background:${MC_THEME.card}; border:2px solid ${MC_THEME.border}; padding:25px; border-radius:12px; color:${MC_THEME.text};">
+            <h3 style="margin-top:0; color:${MC_THEME.accent}; border-bottom:1px solid ${MC_THEME.border}; padding-bottom:10px;">⚽ REPORT PARTITA</h3>
             
-            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:15px; margin-bottom:25px;">
-                <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">AVVERSARIO</label>
-                    <input type="text" id="tab-opponent" value="${details.opponent_name || ''}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px; background:${MC_THEME.input}; padding:15px; border-radius:10px;">
+                <div style="grid-column: span 2;">
+                    <label style="display:block; color:${MC_THEME.muted}; font-size:11px; margin-bottom:5px;">LUOGO / INDIRIZZO CAMPO</label>
+                    <input type="text" id="tab-address" value="${d.address || ''}" placeholder="Inserisci indirizzo..." style="width:100%; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:10px; border-radius:6px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">GOL FATTI</label>
-                    <input type="number" id="tab-gf" value="${details.goals_for || 0}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
+                    <label style="display:block; color:${MC_THEME.muted}; font-size:11px; margin-bottom:5px;">ORARIO RITROVO</label>
+                    <input type="time" id="tab-meet" value="${d.meet_time || ''}" style="width:100%; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:10px; border-radius:6px;">
                 </div>
                 <div>
-                    <label style="display:block; font-size:12px; color:#64748b;">GOL SUBITI</label>
-                    <input type="number" id="tab-gs" value="${details.goals_against || 0}" class="input-dark" style="width:100%; padding:10px; background:var(--panel); border:1px solid var(--border); color:white; border-radius:6px;">
+                    <label style="display:block; color:${MC_THEME.muted}; font-size:11px; margin-bottom:5px;">INIZIO GARA</label>
+                    <input type="time" id="tab-start" value="${d.match_start_time || ''}" style="width:100%; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:10px; border-radius:6px;">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="display:block; color:${MC_THEME.muted}; font-size:11px; margin-bottom:5px;">SQUADRA AVVERSARIA</label>
+                    <input type="text" id="tab-opp" value="${d.opponent_name || ''}" style="width:100%; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:10px; border-radius:6px;">
                 </div>
             </div>
 
-            <div style="border-top:1px solid var(--border); padding-top:20px;">
-                <h4 style="color:white; margin-bottom:10px;">🎯 Marcatori & Sanzioni</h4>
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <select id="player-selector" style="flex:2; padding:10px; background:var(--panel); color:white; border:1px solid var(--border); border-radius:6px;">
-                        <option value="">Seleziona Giocatore...</option>
-                        ${players?.map(p => `<option value="${p.athlete_id}">${p.athletes.surname} ${p.athletes.name}</option>`).join('') || ''}
-                    </select>
-                    <button onclick="addEventRow()" class="btn-primary" style="flex:1;">+ AGGIUNGI</button>
+            <div style="display:flex; gap:15px; margin-bottom:30px;">
+                <div style="flex:1; background:${MC_THEME.input}; padding:15px; border-radius:10px; text-align:center; border:1px solid ${MC_THEME.border};">
+                    <div style="font-size:11px; color:${MC_THEME.muted};">GOL FATTI</div>
+                    <input type="number" id="tab-gf" value="${d.goals_for}" style="background:transparent; border:none; color:${MC_THEME.success}; font-size:32px; font-weight:bold; width:60px; text-align:center;">
                 </div>
-                <div id="events-list" style="display:flex; flex-direction:column; gap:8px;">
-                    </div>
+                <div style="flex:1; background:${MC_THEME.input}; padding:15px; border-radius:10px; text-align:center; border:1px solid ${MC_THEME.border};">
+                    <div style="font-size:11px; color:${MC_THEME.muted};">GOL SUBITI</div>
+                    <input type="number" id="tab-gs" value="${d.goals_against}" style="background:transparent; border:none; color:${MC_THEME.danger}; font-size:32px; font-weight:bold; width:60px; text-align:center;">
+                </div>
             </div>
 
-            <button onclick="saveFullTabellino('${sessionId}', '${details.id}')" class="btn-primary" style="width:100%; margin-top:30px; padding:15px;">SALVA TUTTO IL REPORT</button>
+            <h4 style="margin-bottom:10px; color:${MC_THEME.muted};">🎯 MARCATORI E CARTELLINI</h4>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <select id="player-sel" style="flex:2; background:${MC_THEME.input}; border:1px solid ${MC_THEME.border}; color:white; padding:12px; border-radius:8px;">
+                    <option value="">Seleziona Giocatore...</option>
+                    ${players?.map(p => `<option value="${p.athlete_id}">${p.athletes.surname.toUpperCase()} ${p.athletes.name}</option>`).join('')}
+                </select>
+                <button onclick="addEventRow()" style="flex:1; background:${MC_THEME.accent}; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">+ AGGIUNGI</button>
+            </div>
+            <div id="events-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="width:100%; margin-top:30px; background:${MC_THEME.accent}; color:white; border:none; padding:18px; border-radius:10px; font-weight:800; font-size:16px; cursor:pointer; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">SALVA REPORT COMPLETO</button>
         </div>`;
 };
 
-// Logica per aggiungere una riga marcatore/sanzione
+/**
+ * 4. LOGICA AGGIUNGI RIGA EVENTO
+ */
 window.addEventRow = function() {
-    const sel = document.getElementById('player-selector');
-    const playerId = sel.value;
-    const playerName = sel.options[sel.selectedIndex].text;
-    if (!playerId) return;
+    const sel = document.getElementById('player-sel');
+    const pid = sel.value;
+    if (!pid) return;
+    const name = sel.options[sel.selectedIndex].text;
 
-    const row = document.createElement('div');
-    row.className = 'event-row';
-    row.style = "display:flex; align-items:center; gap:10px; background:var(--panel); padding:10px; border-radius:8px; border:1px solid var(--border);";
-    row.innerHTML = `
-        <span style="flex:2; color:white; font-size:13px;">${playerName}</span>
-        <input type="number" placeholder="Gol" class="ev-gol" data-id="${playerId}" style="width:50px; padding:5px; border-radius:4px; border:none;">
-        <div style="display:flex; gap:10px; flex:1; justify-content:flex-end;">
-            <label style="color:#f59e0b; font-size:11px;"><input type="checkbox" class="ev-y" data-id="${playerId}"> 🟨</label>
-            <label style="color:#ef4444; font-size:11px;"><input type="checkbox" class="ev-r" data-id="${playerId}"> 🟥</label>
-            <button onclick="this.parentElement.parentElement.remove()" style="background:none; border:none; color:#ef4444; cursor:pointer;">✕</button>
+    const div = document.createElement('div');
+    div.className = 'event-row';
+    div.style = `display:flex; align-items:center; gap:10px; background:${MC_THEME.input}; padding:12px; border-radius:8px; border:1px solid ${MC_THEME.border};`;
+    div.innerHTML = `
+        <span style="flex:2; font-weight:bold; font-size:13px;">${name}</span>
+        <div style="display:flex; align-items:center; gap:5px;">
+            <span style="font-size:10px; color:${MC_THEME.muted};">GOL</span>
+            <input type="number" class="ev-gol" data-id="${pid}" value="1" style="width:45px; background:${MC_THEME.bg}; border:1px solid ${MC_THEME.border}; color:white; padding:5px; border-radius:4px; text-align:center;">
         </div>
+        <label style="cursor:pointer; background:#ca8a0422; padding:5px 8px; border-radius:4px;"><input type="checkbox" class="ev-y" data-id="${pid}"> 🟨</label>
+        <label style="cursor:pointer; background:#ef444422; padding:5px 8px; border-radius:4px;"><input type="checkbox" class="ev-r" data-id="${pid}"> 🟥</label>
+        <button onclick="this.parentElement.remove()" style="background:none; border:none; color:${MC_THEME.danger}; cursor:pointer; padding:0 10px;">✕</button>
     `;
-    document.getElementById('events-list').appendChild(row);
+    document.getElementById('events-list').appendChild(div);
 };
 
 /**
- * 5. SALVATAGGI & FIX REFERENCE ERROR
+ * 5. SALVATAGGIO & ESPORTAZIONE
  */
 window.saveConvocazioni = async function(sessionId) {
     const checks = document.querySelectorAll('.conv-check');
@@ -2810,23 +2648,24 @@ window.saveConvocazioni = async function(sessionId) {
     }));
 
     const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
-    if (error) alert("Errore nel salvataggio convocazioni");
-    else alert("Convocazioni salvate con successo!");
+    if (!error) alert("Lista convocati salvata!");
 };
 
 window.saveFullTabellino = async function(sessionId, detailId) {
-    // 1. Salva dati generali match
-    const detailUpdate = {
-        opponent_name: document.getElementById('tab-opponent').value,
+    const details = {
+        session_id: sessionId,
+        address: document.getElementById('tab-address').value,
+        meet_time: document.getElementById('tab-meet').value || null,
+        match_start_time: document.getElementById('tab-start').value || null,
+        opponent_name: document.getElementById('tab-opp').value,
         goals_for: parseInt(document.getElementById('tab-gf').value),
         goals_against: parseInt(document.getElementById('tab-gs').value),
         match_status: 'giocata'
     };
-    await client.from('match_details').update(detailUpdate).eq('id', detailId);
+    await client.from('match_details').upsert(details, { onConflict: 'session_id' });
 
-    // 2. Salva statistiche (Marcatori/Cartellini)
     const rows = document.querySelectorAll('.event-row');
-    const statsUpdates = Array.from(rows).map(r => ({
+    const stats = Array.from(rows).map(r => ({
         session_id: sessionId,
         athlete_id: r.querySelector('.ev-gol').getAttribute('data-id'),
         goals: parseInt(r.querySelector('.ev-gol').value) || 0,
@@ -2834,18 +2673,23 @@ window.saveFullTabellino = async function(sessionId, detailId) {
         red_cards: r.querySelector('.ev-r').checked ? 1 : 0
     }));
 
-    if (statsUpdates.length > 0) {
-        await client.from('match_stats').upsert(statsUpdates, { onConflict: 'session_id, athlete_id' });
-    }
-
-    alert("Report salvato con successo!");
+    if (stats.length > 0) await client.from('match_stats').upsert(stats, { onConflict: 'session_id, athlete_id' });
+    alert("Dati partita aggiornati con successo!");
     initPartite();
 };
 
-// Registrazione mancante che causava l'errore nel tuo log
-window.openMatchModal = function(id) { 
-    if (typeof openSessionModal === 'function') openSessionModal(id);
-    else console.error("La funzione openSessionModal non è definita nel file.");
+window.exportMatchCard = function() {
+    const element = document.getElementById('capture-area');
+    html2canvas(element, { 
+        backgroundColor: MC_THEME.bg,
+        scale: 2, // Migliore qualità
+        logging: false 
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'Convocazioni_SportTrackPro.png';
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    });
 };
 
 
