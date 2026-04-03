@@ -2470,40 +2470,57 @@ window.saveSessionNotes = saveSessionNotes;
 
 
 /* ============================================================
-   MODULO: GARE & MATCH CENTER - VERSION 3.1.0 (ROLE BASED)
+   MODULO: GARE & MATCH CENTER - VERSION 3.2.0 (FINAL)
    ============================================================ */
 
 /**
- * 1. TEMPLATE HTML (Aggiunta filtri date e rimozione tasto)
+ * 1. TEMPLATE HTML
+ * Include filtri per società, categoria, squadra e intervallo date.
  */
 function templatePartite() {
     return `
     <div class="card" id="main-match-card">
-        <div class="header" style="margin-bottom:15px;">
+        <div class="header" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
             <h2 style="margin:0; color:#1e293b;">🏆 MATCH CENTER</h2>
         </div>
         
         <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
             <div id="soc-filter-container">
-                <select id="f-match-soc" style="width:100%; padding:8px;" onchange="reloadMatchSubFilters()">
-                    <option value="">Caricamento società...</option>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">SOCIETÀ</label>
+                <select id="f-match-soc" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchSubFilters()">
+                    <option value="">Caricamento...</option>
                 </select>
             </div>
-            <select id="f-match-cat" style="padding:8px;" onchange="reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
-            <select id="f-match-team" style="padding:8px;" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
-            
-            <input type="date" id="f-match-from" style="padding:8px;" onchange="initPartite()" title="Da data">
-            <input type="date" id="f-match-to" style="padding:8px;" onchange="initPartite()" title="A data">
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">CATEGORIA</label>
+                <select id="f-match-cat" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchTeamsOnly()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">SQUADRA</label>
+                <select id="f-match-team" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">DA DATA</label>
+                <input type="date" id="f-match-from" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">A DATA</label>
+                <input type="date" id="f-match-to" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+            </div>
         </div>
 
         <div class="table-container" style="overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse; font-size:12px; min-width:850px;">
                 <thead>
                     <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
-                        <th style="padding:12px; width:90px;">DATA</th>
+                        <th style="padding:12px; width:100px;">DATA</th>
                         <th style="padding:12px;">PARTITA</th>
                         <th style="padding:12px;">SQUADRA</th>
-                        <th style="padding:12px; text-align:center; background:rgba(59,130,246,0.05);">GESTIONE GARA</th>
+                        <th style="padding:12px; text-align:center; background:rgba(37,99,235,0.03);">GESTIONE MATCH</th>
                         <th style="padding:12px; text-align:right;">AZIONI</th>
                     </tr>
                 </thead>
@@ -2515,42 +2532,50 @@ function templatePartite() {
 }
 
 /**
- * 2. LOGICA INIZIALIZZAZIONE (Gestione Ruoli Admin/Manager)
+ * 2. LOGICA INIZIALIZZAZIONE (Gestione Ruoli e Fallback Admin)
  */
 async function initPartite() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
-    // --- GESTIONE SOCIETÀ E RUOLI ---
     const selSoc = document.getElementById('f-match-soc');
     
-    // Se è la prima volta che carichiamo
+    // --- STEP 1: GESTIONE AUTORIZZAZIONI E SOCIETÀ ---
     if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
         const { data: { user } } = await client.auth.getUser();
         const { data: profile } = await client.from('profiles').select('role, society_id').eq('id', user.id).single();
 
         if (profile.role === 'admin') {
-            const { data: socs } = await client.from('societies').select('id, name').order('name');
-            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            // Se Admin, carichiamo tutte le società in ordine alfabetico
+            const { data: socs } = await client.from('societies').select('id, name').order('name', { ascending: true });
+            if (socs && socs.length > 0) {
+                selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                // Fallback: se l'admin non ha società assegnata, prendi la prima alfabetica
+                window._currentSocietyId = profile.society_id || socs[0].id;
+                selSoc.value = window._currentSocietyId;
+            }
         } else {
-            // Se manager, nascondiamo il selettore e forziamo la sua società
-            document.getElementById('soc-filter-container').style.display = 'none';
-            selSoc.innerHTML = `<option value="${profile.society_id}" selected>Tua Società</option>`;
+            // Se Manager, forziamo la sua società e nascondiamo il filtro
+            const container = document.getElementById('soc-filter-container');
+            if (container) container.style.display = 'none';
+            selSoc.innerHTML = `<option value="${profile.society_id}" selected>Società corrente</option>`;
+            window._currentSocietyId = profile.society_id;
         }
-        window._currentSocietyId = selSoc.value;
         return reloadMatchSubFilters();
     }
 
     const socId = selSoc?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // --- FILTRI DATE E DATI ---
+    // --- STEP 2: RECUPERO DATI CON FILTRI ---
     const dateFrom = document.getElementById('f-match-from')?.value;
     const dateTo = document.getElementById('f-match-to')?.value;
     const teamFilter = document.getElementById('f-match-team')?.value;
 
     const { data: types } = await client.from('session_types').select('id, name');
-    const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+    const validIds = (types || []).filter(t => 
+        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
+    ).map(t => t.id);
 
     let query = client.from('sessions')
         .select('id, title, session_date, team_id, teams(name)')
@@ -2563,34 +2588,38 @@ async function initPartite() {
 
     const { data: matches } = await query.order('session_date', { ascending: false });
 
+    // --- STEP 3: RENDERING TABELLA ---
     tbody.innerHTML = (matches || []).map(m => `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
             <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
-            <td style="padding:12px;">${m.teams?.name || '---'}</td>
-            <td style="padding:12px; text-align:center; display:flex; gap:5px; justify-content:center;">
-                <button class="btn-sm" onclick="openConvocazioni('${m.id}')" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">CONVOCA</button>
-                <button class="btn-sm" onclick="openTabellino('${m.id}')" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">TABELLINO</button>
-                <button class="btn-sm" onclick="openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">STATS</button>
+            <td style="padding:12px;"><span style="color:#64748b;">${m.teams?.name || '---'}</span></td>
+            <td style="padding:12px; text-align:center; display:flex; gap:6px; justify-content:center;">
+                <button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📋 CONVOCA</button>
+                <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">⚽ TABELLINO</button>
+                <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
             </td>
             <td style="padding:12px; text-align:right;">
-                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer;">Edit</button>
+                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer; font-size:11px;">MODIFICA</button>
             </td>
-        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata nel periodo selezionato.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato per i criteri selezionati.</td></tr>';
 }
 
 /**
- * 3. AGGIORNAMENTO FILTRI SECONDARI
+ * 3. LOGICA FILTRI SECONDARI (Categorie e Squadre)
  */
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // Carica categorie
+    // Carica Categorie della società
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
-    document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
-    
-    // Carica tutte le squadre per i filtri e il modale
+    const catSelect = document.getElementById('f-match-cat');
+    if (catSelect) {
+        catSelect.innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
+    }
+
+    // Carica tutte le Squadre della società per i filtri
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
     
@@ -2602,16 +2631,34 @@ function reloadMatchTeamsOnly() {
     let filtered = window._matchTeams || [];
     if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
     
-    document.getElementById('f-match-team').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    const teamSelect = document.getElementById('f-match-team');
+    if (teamSelect) {
+        teamSelect.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
     initPartite();
 }
 
-// Esposizione globale
+/**
+ * 4. PLACEHOLDERS SOTTOSEZIONI
+ */
+window.openConvocazioni = function(id) {
+    if (typeof window.testConvocazioni === 'function') {
+        window.testConvocazioni(id);
+    } else {
+        alert("Funzione Convocazioni non collegata. ID Match: " + id);
+    }
+};
+
+window.openTabellino = function(id) { alert("Sottosezione Tabellino in sviluppo per ID: " + id); };
+window.openStatistiche = function(id) { alert("Sottosezione Statistiche in sviluppo per ID: " + id); };
+
+/**
+ * 5. ESPOSIZIONE GLOBALE
+ */
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.reloadMatchSubFilters = reloadMatchSubFilters;
 window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
-
 
 
 
