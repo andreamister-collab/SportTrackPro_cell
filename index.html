@@ -350,47 +350,68 @@
 
             <span class="sb-grp">Attività</span>
             <a data-section="sessioni"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 7h-2v2h2V7zm0 4h-2v6h2v-6zm4-9.99L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2.01-2-2.01zM17 19H7V5h10v14z"/></svg>Gestione Sessioni</a>
-<div class="nav-item-group" id="menu-gare-root">
-    <div class="nav-item" style="background: rgba(37,99,235,0.1); border-left: 4px solid #2563eb;">
-        <span style="display: flex; align-items: center; gap: 10px; color: white;">
-            <i class="fas fa-trophy"></i> <b>GESTIONE GARE</b>
+
+
+
+<div class="nav-item-group">
+    <div class="nav-item" onclick="toggleSubmenu('menu-gare')" style="background: rgba(37,99,235,0.1); border-left: 4px solid #2563eb; cursor: pointer;">
+        <span style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-trophy" style="color: #2563eb;"></i>
+            <b style="color: white;">GESTIONE GARE</b>
+            <i class="fas fa-chevron-down" style="font-size: 10px; margin-left: auto;"></i>
         </span>
     </div>
     
-    <div class="nav-submenu" style="display: block; padding-left: 15px;">
-        <div class="nav-submenu-item" onclick="preparePartite('sintesi')" style="cursor:pointer; padding:8px; color:#94a3b8;">
-            <i class="fas fa-list"></i> Riepilogo
+    <div id="menu-gare" class="nav-submenu" style="display: block; padding-left: 20px; margin-top: 5px;">
+        <div class="nav-submenu-item" onclick="preparePartite('sintesi')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
+            <i class="fas fa-list-ul"></i> Riepilogo Gare
         </div>
-        <div class="nav-submenu-item" onclick="preparePartite('convocazioni')" style="cursor:pointer; padding:8px; color:#94a3b8;">
-            <i class="fas fa-users"></i> Convocazioni
+        <div class="nav-submenu-item" onclick="preparePartite('convocazioni')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
+            <i class="fas fa-check-square"></i> Convocazioni
         </div>
-        <div class="nav-submenu-item" onclick="preparePartite('risultati')" style="cursor:pointer; padding:8px; color:#94a3b8;">
-            <i class="fas fa-star"></i> Tabellini
+        <div class="nav-submenu-item" onclick="preparePartite('risultati')" style="padding: 8px; cursor: pointer; color: #94a3b8; font-size: 13px;">
+            <i class="fas fa-futbol"></i> Tabellini e Voti
         </div>
     </div>
 </div>
 
 <script>
-// La funzione "ponte" che mancava o era nominata diversamente
+/**
+ * Funzione Ponte: Pulisce il main e chiama la logica corretta
+ */
 function preparePartite(sezione) {
+    console.log("Avvio sezione:", sezione); // Debug per verificare il click
     const main = document.getElementById('main-content');
+    
     if (main) {
-        // 1. Carica il template con i filtri
+        // Carica il template con i filtri
         if (typeof window.templatePartite === 'function') {
             main.innerHTML = window.templatePartite();
             
-            // 2. Avvia la logica JS dopo un micro-delay
             setTimeout(() => {
+                // Cambia il titolo dinamico per conferma visiva
+                const title = document.getElementById('match-title-display');
+                if (title) {
+                    const nomi = { 'sintesi': 'RIEPILOGO GARE', 'convocazioni': 'CONVOCAZIONI', 'risultati': 'TABELLINI' };
+                    title.innerText = nomi[sezione] || 'GESTIONE GARE';
+                }
+
+                // Chiama la funzione nel file JS esterno
                 if (typeof window.initPartite === 'function') {
                     window.initPartite(sezione);
                 } else {
-                    console.error("Funzione window.initPartite non trovata nel file JS!");
+                    main.innerHTML = "<div style='color:red; padding:20px;'>Errore: window.initPartite non definita.</div>";
                 }
             }, 50);
         } else {
-            console.error("Funzione window.templatePartite non trovata!");
+            main.innerHTML = "<div style='color:red; padding:20px;'>Errore: window.templatePartite non trovato.</div>";
         }
     }
+}
+
+function toggleSubmenu(id) {
+    const sub = document.getElementById(id);
+    if(sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
 }
 </script>
 
@@ -2980,65 +3001,49 @@ window.deleteMatchSession = async function(id) {
     initPartite('sintesi');
 };
 /* ============================================================
-   LOGICA UNIFICATA GARE (Sintesi, Convocazioni, Marcatori)
-   V5 - ADMIN FRIENDLY & TYPE-DRIVEN
+   LOGICA UNIFICATA GARE - VERSIONE DEFINITIVA
    ============================================================ */
 
 /**
- * Recupera l'ID del tipo "Partita" cercando nel database.
- * Evita errori se l'ID cambia tra diversi database.
+ * Recupera l'ID univoco per il tipo "Partita"
  */
 async function getMatchTypeId() {
     try {
-        const { data, error } = await client
-            .from('session_types')
-            .select('id')
-            .ilike('name', 'Partita')
-            .single();
-        if (error) throw error;
-        return data.id;
-    } catch (err) {
-        console.error("Errore recupero match_type_id:", err);
-        return null;
-    }
+        const { data } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        return data ? data.id : null;
+    } catch (e) { return null; }
 }
 
 /**
- * Funzione Master di Inizializzazione
+ * Inizializzazione Dati con logica Admin-Friendly
  */
 window.initPartite = async function(sub = 'sintesi') {
     window._currentPartiteSub = sub;
     const content = document.getElementById('match-main-content');
-    const subtitle = document.getElementById('match-subtitle');
     if (!content) return;
 
-    // Reset UI
-    content.innerHTML = '<div style="text-align:center; padding:50px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento in corso...</div>';
-
-    // 1. Recupera ID Tipo Partita
-    const matchTypeId = await getMatchTypeId();
-    if (!matchTypeId) {
-        content.innerHTML = `<div class="alert-error">Errore: Tipo "Partita" non configurato in session_types.</div>`;
-        return;
-    }
-
-    // 2. Recupera Filtri (Società e Squadra)
-    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
-    const teamId = document.getElementById('f-match-team')?.value;
+    content.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento record...</div>';
 
     try {
-        // 3. Costruzione Query con logica Admin
-        let query = client
-            .from('sessions')
-            .select(`*, teams(name), session_types(name)`)
-            .eq('type_id', matchTypeId);
-
-        // Se l'utente NON è Admin (ha una socId specifica), filtra. 
-        // Se socId è null/vuoto (Amministratore), non applica il filtro e vede tutto.
-        if (socId && socId !== "") {
-            query = query.eq('society_id', socId);
+        // 1. Trova l'ID dinamico della Partita
+        const matchTypeId = await getMatchTypeId();
+        if (!matchTypeId) {
+            content.innerHTML = "Errore: Tipo sessione 'Partita' non trovato.";
+            return;
         }
 
+        // 2. Recupera filtri UI
+        const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+        const teamId = document.getElementById('f-match-team')?.value;
+
+        // 3. Costruzione Query
+        let query = client.from('sessions').select(`*, teams(name)`).eq('type_id', matchTypeId);
+
+        // LOGICA ADMIN: Se socId è vuoto/null, l'amministratore vede tutto
+        if (socId && socId !== "" && socId !== "null") {
+            query = query.eq('society_id', socId);
+        }
+        
         if (teamId) {
             query = query.eq('team_id', teamId);
         }
@@ -3047,63 +3052,51 @@ window.initPartite = async function(sub = 'sintesi') {
 
         if (error) throw error;
 
-        // 4. Gestione Risultati Vuoti
         if (!matches || matches.length === 0) {
-            content.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8; border:1px dashed #333; border-radius:12px;">
-                Nessuna gara trovata (Filtro Type ID: ${matchTypeId}).
+            content.innerHTML = `<div style="text-align:center; padding:50px; color:#64748b; border:1px dashed #333; border-radius:12px;">
+                Nessun record trovato per il tipo Partita.<br>
+                <small>(Type ID cercato: ${matchTypeId})</small>
             </div>`;
             return;
         }
 
-        // 5. Routing del Rendering
-        switch(sub) {
-            case 'convocazioni':
-                subtitle.innerText = "📋 SELEZIONE CONVOCATI";
-                renderViewConvocazioni(content, matches);
-                break;
-            case 'risultati':
-                subtitle.innerText = "⚽ TABELLINI E MARCATORI";
-                renderViewRisultati(content, matches);
-                break;
-            case 'sintesi':
-            default:
-                subtitle.innerText = "📊 RIEPILOGO GARE";
-                renderViewSintesi(content, matches);
-                break;
+        // 4. Rendering in base alla sezione selezionata
+        if (sub === 'convocazioni') {
+            renderViewConvocazioni(content, matches);
+        } else if (sub === 'risultati') {
+            renderViewRisultati(content, matches);
+        } else {
+            renderViewSintesi(content, matches);
         }
 
     } catch (err) {
-        content.innerHTML = `<div class="alert-error">Errore Query: ${err.message}</div>`;
+        content.innerHTML = "Errore critico: " + err.message;
     }
 };
 
-/* --- SUB-RENDERER: SINTESI --- */
+/* --- RENDERER SINTESI --- */
 function renderViewSintesi(container, matches) {
     container.innerHTML = `
-    <div class="table-responsive">
-        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
-            <thead>
-                <tr style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
-                    <th style="padding:12px;">DATA</th>
-                    <th style="padding:12px;">SQUADRA</th>
-                    <th style="padding:12px;">TITOLO GARA</th>
-                    <th style="padding:12px;">SOCIETÀ ID</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${matches.map(m => `
-                <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="padding:12px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
-                    <td style="padding:12px;">${m.title}</td>
-                    <td style="padding:12px; color:#64748b; font-size:11px;">${m.society_id}</td>
-                </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
+    <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+        <thead style="background:rgba(255,255,255,0.05); color:#94a3b8;">
+            <tr>
+                <th style="padding:12px; text-align:left;">DATA</th>
+                <th style="padding:12px; text-align:left;">SQUADRA</th>
+                <th style="padding:12px; text-align:left;">GARA</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${matches.map(m => `
+            <tr style="border-bottom:1px solid #2d303e;">
+                <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                <td style="padding:12px; color:#2563eb;">${m.teams?.name || 'N.D.'}</td>
+                <td style="padding:12px;">${m.title}</td>
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
 }
 
-/* --- SUB-RENDERER: CONVOCAZIONI --- */
+/* --- RENDERER CONVOCAZIONI --- */
 function renderViewConvocazioni(container, matches) {
     container.innerHTML = `
     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
@@ -3113,13 +3106,13 @@ function renderViewConvocazioni(container, matches) {
                 <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
                 <button class="btn" style="width:100%; background:#2563eb; color:white; font-size:12px;" 
                         onclick="apriModaleConvocati('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">
-                    📋 GESTISCI CONVOCATI
+                    📋 CONVOCA ATLETI
                 </button>
             </div>`).join('')}
     </div>`;
 }
 
-/* --- SUB-RENDERER: RISULTATI/TABELLINI --- */
+/* --- RENDERER RISULTATI --- */
 function renderViewRisultati(container, matches) {
     container.innerHTML = `
     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
@@ -3129,34 +3122,11 @@ function renderViewRisultati(container, matches) {
                 <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
                 <button class="btn" style="width:100%; background:#10b981; color:white; font-size:12px;" 
                         onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">
-                    ⚽ TABELLINO E VOTI
+                    ⚽ GOL E VOTI
                 </button>
             </div>`).join('')}
     </div>`;
 }
-
-/**
- * Logica salvataggio convocati (estesa per gestire stato presenza)
- */
-window.salvaConvocati01 = async function(sessionId) {
-    const boxes = document.querySelectorAll('.chk-conv-01');
-    const data = Array.from(boxes).map(b => ({
-        session_id: sessionId,
-        athlete_id: b.getAttribute('data-id'),
-        is_called_up: b.checked,
-        status: b.checked ? 'Presente' : 'Assente' // Fondamentale per i tabellini
-    }));
-
-    try {
-        const { error } = await client.from('attendances').upsert(data, { onConflict: 'session_id, athlete_id' });
-        if (error) throw error;
-        alert("Salvataggio completato!");
-        getModal().close();
-        initPartite(window._currentPartiteSub);
-    } catch (e) {
-        alert("Errore salvataggio: " + e.message);
-    }
-};
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
