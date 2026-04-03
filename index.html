@@ -2864,7 +2864,7 @@ window.saveSessionNotes = saveSessionNotes;
    GESTIONE GARE E CONVOCAZIONI - BLOCCO COMPLETO
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. PREPARAZIONE LAYOUT (Interfaccia principale)
+// 1. PREPARAZIONE INTERFACCIA (Navigazione)
 window.preparePartite = function(sezione) {
     const main = document.getElementById('content'); 
     if (!main) return;
@@ -2881,7 +2881,7 @@ window.preparePartite = function(sezione) {
         </div>
         
         <div id="gare-filters-container" style="display:none; margin: 0 20px 25px 20px; background: rgba(255,255,255,0.02); padding:15px; border-radius:12px; border:1px solid var(--border);">
-            <label style="color:#94a3b8; font-size:10px; font-weight:bold; text-transform:uppercase; display:block; margin-bottom:8px;">Filtro Società (Admin)</label>
+            <label style="color:#94a3b8; font-size:10px; font-weight:bold; text-transform:uppercase; display:block; margin-bottom:8px;">Società Visualizzata (Admin)</label>
             <select id="f-match-soc" onchange="window.initPartite('${sezione}')" style="width:100%; max-width:350px; background:#0f1117; color:white; border:1px solid #333; padding:10px; border-radius:8px;"></select>
         </div>
 
@@ -2897,7 +2897,7 @@ window.preparePartite = function(sezione) {
     }, 50);
 };
 
-// 2. INIZIALIZZAZIONE DATI (Recupero gare da Supabase)
+// 2. RECUPERO DATI GARE
 window.initPartite = async function(sub = 'sintesi') {
     const container = document.getElementById('match-main-content');
     const myRole = (window._userRole || '').toLowerCase();
@@ -2929,14 +2929,13 @@ window.initPartite = async function(sub = 'sintesi') {
         if (sub === 'sintesi') {
             renderGareTable(container, matches);
         } else {
-            // Render Cards per Convocazioni o Tabellini
             const isConv = sub === 'convocazioni';
             const accent = isConv ? '#2563eb' : '#10b981';
             container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
                 ${(matches || []).map(m => `
                     <div style="background:#13151e; border:1px solid #2d303e; border-radius:15px; padding:22px; border-top:5px solid ${accent};">
                         <div style="font-size:11px; color:#64748b; margin-bottom:10px;">${new Date(m.session_date).toLocaleDateString()}</div>
-                        <h4 style="margin:0 0 15px 0; color:white; font-size:17px;">${m.title}</h4>
+                        <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
                         <button class="btn" style="width:100%; background:${accent}; color:white; padding:12px; border-radius:8px; font-weight:bold; border:none; cursor:pointer;"
                             onclick="window.openAttendanceModal('${m.id}')">
                             ${isConv ? '📋 GESTISCI CONVOCATI' : '⚽ COMPILA TABELLINO'}
@@ -2947,7 +2946,7 @@ window.initPartite = async function(sub = 'sintesi') {
     } catch (e) { console.error(e); }
 };
 
-// 3. APERTURA MODALE CONVOCAZIONI (Il cuore della tua richiesta)
+// 3. APERTURA MODALE (LOGICA CONVOCAZIONI)
 window.openAttendanceModal = async function(sessionId) {
     const modal = document.getElementById('modal-attendance');
     const listContainer = document.getElementById('attendance-list');
@@ -2963,11 +2962,6 @@ window.openAttendanceModal = async function(sessionId) {
         const { data: players } = await client.from('players').select('*').eq('team_id', session.team_id).order('last_name');
         const { data: att } = await client.from('attendances').select('*').eq('session_id', sessionId);
 
-        if (!players || players.length === 0) {
-            listContainer.innerHTML = '<div style="color:#64748b; padding:20px;">Nessun giocatore in questa squadra.</div>';
-            return;
-        }
-
         listContainer.innerHTML = players.map(p => {
             const statusObj = (att || []).find(a => a.player_id === p.id);
             const currentStatus = statusObj ? statusObj.status : (isGara ? 'Escluso' : 'Presente');
@@ -2975,12 +2969,12 @@ window.openAttendanceModal = async function(sessionId) {
             if (isGara) {
                 const isConvocato = currentStatus === 'Convocato';
                 return `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.02)'}; border-radius:12px; margin-bottom:8px; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'}; transition: 0.2s;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:${isConvocato ? 'rgba(37,99,235,0.08)' : 'rgba(255,255,255,0.02)'}; border-radius:12px; margin-bottom:8px; border:1px solid ${isConvocato ? '#2563eb' : '#2d303e'};">
                     <div style="display:flex; align-items:center; gap:15px;">
                         <div style="width:32px; height:32px; background:#1c1f2e; border-radius:8px; display:flex; align-items:center; justify-content:center; color:${isConvocato ? '#2563eb' : '#64748b'}; font-weight:bold; border:1px solid ${isConvocato ? '#2563eb' : '#333'};">
                             ${p.shirt_number || '-'}
                         </div>
-                        <div style="color:white; font-weight:600; font-size:14px;">${p.last_name} ${p.first_name}</div>
+                        <div style="color:white; font-weight:600;">${p.last_name} ${p.first_name}</div>
                     </div>
                     <div style="display:flex; gap:8px;">
                         <button onclick="window.updateStatusAndRefresh('${p.id}', '${sessionId}', 'Convocato')" 
@@ -2994,7 +2988,6 @@ window.openAttendanceModal = async function(sessionId) {
                     </div>
                 </div>`;
             } else {
-                // Layout standard per allenamenti
                 return `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #2d303e;">
                     <span style="color:white;">${p.last_name} ${p.first_name}</span>
@@ -3008,7 +3001,7 @@ window.openAttendanceModal = async function(sessionId) {
     } catch (err) { console.error(err); }
 };
 
-// 4. LA FUNZIONE DI SALVATAGGIO (Da aggiungere qui, "libera" nel codice)
+// 4. FUNZIONE DI SALVATAGGIO (QUI VA INSERITO IL BLOCCO CHE HAI CHIESTO)
 window.updateStatusAndRefresh = async function(playerId, sessionId, newStatus) {
     try {
         const { error } = await client.from('attendances').upsert({
@@ -3027,7 +3020,6 @@ window.updateStatusAndRefresh = async function(playerId, sessionId, newStatus) {
     }
 };
 
-// Supporto tabella sintesi
 function renderGareTable(container, data) {
     container.innerHTML = `<div style="overflow-x:auto; background:#13151e; border-radius:12px; border:1px solid #2d303e;">
         <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
