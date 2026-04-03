@@ -361,24 +361,8 @@
     </div>
 </div>
 
-<script>
-// Questa funzione pulisce l'area principale e carica il template corretto
-function preparePartite(sezione) {
-    const main = document.getElementById('main-content');
-    if (main) {
-        // Forza il caricamento del template base
-        main.innerHTML = window.templatePartite();
-        // Attende un istante che il DOM sia pronto prima di caricare i dati
-        setTimeout(() => {
-            if (typeof window.initPartite === 'function') {
-                window.initPartite(sezione);
-            }
-        }, 50);
-    }
-}
-
 <div class="nav-item-group" id="convocazioni_01">
-    <div class="nav-item" onclick="prepareConvocazioni01()">
+    <div class="nav-item" onclick="prepareConvocazioni01()" style="cursor: pointer;">
         <span style="display: flex; align-items: center; gap: 10px;">
             <i class="fas fa-clipboard-list" style="color: #2563eb;"></i> 
             📋 Gestione Convocazioni
@@ -387,23 +371,30 @@ function preparePartite(sezione) {
 </div>
 
 <script>
-function prepareConvocazioni01() {
-    const main = document.getElementById('main-content');
-    if (main) {
-      
-        main.innerHTML = window.templatePartite(); 
- 
-        setTimeout(() => {
-            const title = document.getElementById('match-title-display');
-            if(title) title.innerText = "📋 CONVOCAZIONI (v01)";
-            
-             if (typeof window.initPartite === 'function') {
-                window.initPartite('convocazioni');
+    // Funzione specifica per inizializzare la sezione convocazioni_01
+    function prepareConvocazioni01() {
+        const main = document.getElementById('main-content');
+        if (main) {
+            // 1. Carica il template base (Filtri + Contenitore)
+            if (typeof window.templatePartite === 'function') {
+                main.innerHTML = window.templatePartite();
             }
-        }, 50);
+
+            // 2. Attendi che il DOM sia pronto per aggiornare titolo e dati
+            setTimeout(() => {
+                // Cambia il titolo per conferma visiva
+                const title = document.getElementById('match-title-display');
+                if (title) title.innerText = "📋 CONVOCAZIONI (v01)";
+                
+                // Avvia la logica delle convocazioni
+                if (typeof window.initPartite === 'function') {
+                    window.initPartite('convocazioni');
+                } else {
+                    console.error("Errore: initPartite non è definita nel file JS.");
+                }
+            }, 100);
+        }
     }
-}
-</script>
 </script>
         </div>
         <div class="sb-foot">
