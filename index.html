@@ -2874,103 +2874,111 @@ window.saveSessionNotes = saveSessionNotes;
 
 
 /* ──────────────────────────────────────────────────────────────────────────
-   LOGICA INTEGRATA GARE E SOTTOMENU
+   DEBUG AVANZATO GARE E CONVOCAZIONI
    ────────────────────────────────────────────────────────────────────────── */
 
-// 1. GESTIONE APERTURA/CHIUSURA SOTTOMENU
-window.toggleSubmenu = function(id) {
-    const sub = document.getElementById(id);
-    if (sub) {
-        const isHidden = (sub.style.display === 'none' || sub.style.display === '');
-        sub.style.display = isHidden ? 'block' : 'none';
-        console.log(`Menu ${id} ${isHidden ? 'aperto' : 'chiuso'}`);
-    }
-};
-
-// 2. PREPARAZIONE PAGINA (RIEPILOGO / CONVOCAZIONI)
 window.preparePartite = function(sezione) {
-    console.log("Caricamento sezione:", sezione);
+    console.log("%c [DEBUG] Chiamata preparePartite con sezione: " + sezione, "color: cyan; font-weight: bold;");
+    
     const main = document.getElementById('content'); 
-    if (!main) return;
+    if (!main) {
+        console.error("[ERRORE] Elemento 'content' non trovato nel DOM!");
+        return;
+    }
 
-    // Pulizia e caricamento struttura base
+    // Reset layout
     main.innerHTML = `
-    <div class="card" style="width: 100%; border-radius: 15px; background: var(--panel); border: 1px solid var(--border); padding: 20px;">
-        <h2 id="match-title-display" style="margin:0 0 20px 0; color:white; font-size: 20px;"></h2>
+    <div class="card" style="width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius:15px; padding:20px;">
+        <h2 id="match-title-display" style="color:white; margin-bottom:20px;">CARICAMENTO IN CORSO...</h2>
         <div id="match-main-content">
-            <div style="text-align:center; padding:50px; color:#64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+            <div style="text-align:center; padding:50px;"><i class="fas fa-spinner fa-spin fa-2x"></i>< padding-top:10px;">Verifica in corso...</div>
         </div>
     </div>`;
     
     const nomi = { 'sintesi': '📊 RIEPILOGO GARE', 'convocazioni': '📋 CONVOCAZIONI GARA' };
-    document.getElementById('match-title-display').innerText = nomi[sezione] || 'GARE';
+    const titolo = nomi[sezione] || 'GARE';
+    document.getElementById('match-title-display').innerText = titolo;
 
-    // Richiamo la funzione dati
+    console.log("[DEBUG] Interfaccia preparata, avvio initPartite...");
     window.initPartite(sezione);
 };
 
-// 3. CARICAMENTO DATI DA SUPABASE
 window.initPartite = async function(sub) {
+    console.log("%c [DEBUG] Inizio initPartite per: " + sub, "color: yellow;");
     const container = document.getElementById('match-main-content');
-    try {
-        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
-        if (!typeData) return container.innerHTML = "Errore: Tipo sessione 'Partita' non trovato.";
 
-        const { data: matches, error } = await client.from('sessions')
+    try {
+        // 1. Verifica Client
+        if (typeof client === 'undefined') {
+            throw new Error("Il 'client' di Supabase non è definito!");
+        }
+
+        // 2. Recupero ID tipo "Partita"
+        console.log("[DEBUG] Query session_types per trovare 'Partita'...");
+        const { data: typeData, error: typeError } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        
+        if (typeError) {
+            console.error("[ERRORE] Errore recupero typeData:", typeError);
+            container.innerHTML = `<div style="color:red;">Errore Database: ${typeError.message}</div>`;
+            return;
+        }
+
+        if (!typeData) {
+            console.warn("[WARN] Nessun tipo sessione 'Partita' trovato nel database.");
+            container.innerHTML = "Tipo 'Partita' non trovato nella tabella session_types.";
+            return;
+        }
+
+        console.log("[DEBUG] ID Tipo Partita trovato:", typeData.id);
+
+        // 3. Recupero Sessioni
+        console.log("[DEBUG] Eseguo query sessioni...");
+        const { data: matches, error: matchesError } = await client.from('sessions')
             .select(`*, teams(name)`)
             .eq('type_id', typeData.id)
             .order('session_date', { ascending: false });
 
-        if (error) throw error;
+        if (matchesError) {
+            console.error("[ERRORE] Errore recupero sessioni:", matchesError);
+            container.innerHTML = "Errore nel caricamento delle sessioni.";
+            return;
+        }
 
+        console.log("[DEBUG] Sessioni trovate:", matches.length, matches);
+
+        if (matches.length === 0) {
+            container.innerHTML = '<div style="color:#64748b; padding:20px;">Nessuna gara trovata nel sistema.</div>';
+            return;
+        }
+
+        // 4. Rendering
         if (sub === 'sintesi') {
-            // Layout Tabella
-            container.innerHTML = `
-            <table style="width:100%; color:white; border-collapse:collapse;">
-                <thead style="color:#64748b; font-size:12px; text-align:left; border-bottom:1px solid #333;">
-                    <tr><th style="padding:10px;">DATA</th><th>GARA</th><th style="text-align:right;">AZIONI</th></tr>
-                </thead>
-                <tbody>
-                    ${matches.map(m => `
-                    <tr style="border-bottom:1px solid #2d303e;">
-                        <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                        <td>${m.title}</td>
-                        <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')">Dettagli</button></td>
-                    </tr>`).join('')}
-                </tbody>
+            console.log("[DEBUG] Generazione tabella Riepilogo...");
+            container.innerHTML = `<table style="width:100%; color:white; border-collapse:collapse;">
+                ${matches.map(m => `
+                <tr style="border-bottom:1px solid #2d303e;">
+                    <td style="padding:15px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                    <td>${m.title}</td>
+                    <td style="text-align:right;"><button class="btn-sm" onclick="window.openAttendanceModal('${m.id}')">Dettagli</button></td>
+                </tr>`).join('')}
             </table>`;
         } else {
-            // Layout Cards per Convocazioni
+            console.log("[DEBUG] Generazione card Convocazioni...");
             container.innerHTML = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px;">
                 ${matches.map(m => `
                 <div style="background:#13151e; border:1px solid #2d303e; padding:20px; border-radius:12px; border-top:4px solid #2563eb;">
-                    <div style="font-size:11px; color:#64748b; margin-bottom:5px;">${new Date(m.session_date).toLocaleDateString()}</div>
-                    <h4 style="color:white; margin:0 0 15px 0; font-size:16px;">${m.title}</h4>
-                    <button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;" 
+                    <div style="color:#64748b; font-size:12px; margin-bottom:5px;">${new Date(m.session_date).toLocaleDateString()}</div>
+                    <h4 style="color:white; margin:0 0 15px 0;">${m.title}</h4>
+                    <button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;" 
                         onclick="window.openAttendanceModal('${m.id}')">📋 GESTISCI CONVOCATI</button>
                 </div>`).join('')}
             </div>`;
         }
-    } catch (e) { 
-        console.error(e);
-        container.innerHTML = "Errore nel caricamento dei dati.";
-    }
-};
+        console.log("%c [DEBUG] Rendering completato con successo!", "color: green; font-weight: bold;");
 
-// 4. FUNZIONE SALVATAGGIO (Necessaria per i bottoni Convoca/Escludi)
-window.updateStatusAndRefresh = async function(playerId, sessionId, newStatus) {
-    try {
-        await client.from('attendances').upsert({
-            player_id: playerId,
-            session_id: sessionId,
-            status: newStatus,
-            updated_at: new Date()
-        }, { onConflict: 'player_id, session_id' });
-
-        // Ricarica la modale per aggiornare i colori
-        window.openAttendanceModal(sessionId);
     } catch (e) {
-        console.error("Errore salvataggio:", e);
+        console.error("%c [CRASH] Errore durante l'esecuzione:", "background: red; color: white;", e);
+        container.innerHTML = `<div style="color:red; padding:20px;">Si è verificato un errore critico: ${e.message}</div>`;
     }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
