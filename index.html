@@ -287,6 +287,18 @@
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+#convocazioni_01 .nav-item:hover {
+    background: rgba(37, 99, 235, 0.1);
+    border-left: 4px solid #2563eb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#convocazioni_01 i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
     </style>
 </head>
 <body>
@@ -364,6 +376,39 @@ function preparePartite(sezione) {
         }, 50);
     }
 }
+
+<div class="nav-item-group" id="convocazioni_01">
+    <div class="nav-item" onclick="prepareConvocazioni01()">
+        <span style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-clipboard-list" style="color: #2563eb;"></i> 
+            📋 Gestione Convocazioni
+        </span>
+    </div>
+</div>
+
+<script>
+/**
+ * Funzione ponte per la nuova sezione convocazioni_01
+ * Pulisce il main-content e lancia l'inizializzazione
+ */
+function prepareConvocazioni01() {
+    const main = document.getElementById('main-content');
+    if (main) {
+        // Carica il template base delle partite (filtri, header ecc.)
+        main.innerHTML = window.templatePartite(); 
+        // Cambia il titolo per distinguerlo
+        setTimeout(() => {
+            const title = document.getElementById('match-title-display');
+            if(title) title.innerText = "📋 CONVOCAZIONI (v01)";
+            
+            // Avvia la logica specifica per le convocazioni
+            if (typeof window.initPartite === 'function') {
+                window.initPartite('convocazioni');
+            }
+        }, 50);
+    }
+}
+</script>
 </script>
         </div>
         <div class="sb-foot">
@@ -2949,6 +2994,117 @@ window.deleteMatchSession = async function(id) {
     if(!confirm("Eliminare definitivamente?")) return;
     await client.from('sessions').delete().eq('id', id);
     initPartite('sintesi');
+};
+/* ============================================================
+   MODULO: CONVOCAZIONI_01 (LOGICA INTEGRATA)
+   ============================================================ */
+
+// 1. RENDERIZZA LE CARD DELLE PARTITE
+window.renderConvocazioniPartite = async function(container, socId) {
+    const teamId = document.getElementById('f-match-team')?.value;
+    container.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Caricamento gare...</div>';
+
+    try {
+        // Recupero dinamico ID tipo "Partita"
+        const { data: typeData } = await client.from('session_types').select('id').ilike('name', 'Partita').single();
+        
+        let query = client.from('sessions').select(`*, teams(name)`).eq('society_id', socId).eq('type_id', typeData.id);
+        if (teamId) query = query.eq('team_id', teamId);
+        
+        const { data: matches } = await query.order('session_date', { ascending: false });
+
+        if (!matches || matches.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">Nessuna gara trovata. Crea una partita per iniziare.</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
+            ${matches.map(m => `
+                <div class="card-gara" style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px; border-top: 3px solid #2563eb;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:11px;">
+                        <span style="color:#2563eb; font-weight:bold;">${m.teams?.name}</span>
+                        <span style="color:#94a3b8;">${new Date(m.session_date).toLocaleDateString()}</span>
+                    </div>
+                    <h4 style="margin:0 0 15px 0; color:white; font-size:14px;">${m.title}</h4>
+                    <button class="btn" style="width:100%; background:#2563eb; color:white; font-size:12px; padding:10px; border-radius:6px; border:none; cursor:pointer;" 
+                            onclick="openConvocazioni01Modal('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">
+                        📋 GESTISCI CONVOCATI
+                    </button>
+                </div>`).join('')}
+        </div>`;
+    } catch (e) { container.innerHTML = "Errore: " + e.message; }
+};
+
+// 2. MODALE SELEZIONE ATLETI
+window.openConvocazioni01Modal = async function(sessionId, teamId, title) {
+    const m = getModal();
+    m.open(`CONVOCATI: ${title}`, `<div id="modal-loader" style="padding:20px; text-align:center; color:white;">Recupero atleti...</div>`);
+
+    // Caricamento parallelo Atleti e Convocazioni esistenti
+    const [resAth, resAtt] = await Promise.all([
+        client.from('athletes').select('id, first_name, last_name').eq('team_id', teamId).order('last_name'),
+        client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId)
+    ]);
+
+    const athletes = resAth.data || [];
+    const calledIds = new Set((resAtt.data || []).filter(a => a.is_called_up).map(a => a.athlete_id));
+
+    let html = `
+    <div style="max-height:400px; overflow-y:auto; border:1px solid #333; border-radius:8px; background:#0f1117;">
+        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+            <thead style="position:sticky; top:0; background:#1e212a; color:#94a3b8; z-index:10;">
+                <tr>
+                    <th style="padding:12px; text-align:left;">ATLETA</th>
+                    <th style="padding:12px; text-align:center;">CONVOCATO</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${athletes.map(a => `
+                <tr style="border-bottom:1px solid #2d303e;">
+                    <td style="padding:12px;"><b>${a.last_name.toUpperCase()}</b> ${a.first_name}</td>
+                    <td style="padding:12px; text-align:center;">
+                        <input type="checkbox" class="chk-conv-01" data-id="${a.id}" 
+                               ${calledIds.has(a.id) ? 'checked' : ''} 
+                               style="width:18px; height:18px; cursor:pointer;">
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>
+    <div style="margin-top:20px;">
+        <button onclick="saveConvocazioni01('${sessionId}')" 
+                style="width:100%; background:#10b981; color:white; padding:14px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">
+            💾 SALVA LISTA CONVOCATI
+        </button>
+    </div>`;
+    
+    document.getElementById('modal-loader').parentElement.innerHTML = html;
+};
+
+// 3. SALVATAGGIO DATI
+window.saveConvocazioni01 = async function(sessionId) {
+    const checks = document.querySelectorAll('.chk-conv-01');
+    const dataToSave = Array.from(checks).map(c => ({
+        session_id: sessionId,
+        athlete_id: c.getAttribute('data-id'),
+        is_called_up: c.checked,
+        status: c.checked ? 'Presente' : 'Assente', // Allinea la presenza alla convocazione
+        is_justified: false
+    }));
+
+    try {
+        const { error } = await client.from('attendances').upsert(dataToSave, { onConflict: 'session_id, athlete_id' });
+        if (error) throw error;
+        
+        alert("Lista convocati salvata!");
+        getModal().close();
+        // Aggiorna la vista corrente
+        renderConvocazioniPartite(document.getElementById('match-main-content'), window._currentSocietyId);
+        
+    } catch (err) {
+        alert("Errore salvataggio: " + err.message);
+    }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
