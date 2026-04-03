@@ -2928,36 +2928,31 @@ window.initPartite = async function(sub) {
             .eq('type_id', resType.data.id)
             .order('session_date', { ascending: false });
 
-        if (resMatches.error) throw resMatches.error;
         var matches = resMatches.data || [];
-
         if (matches.length === 0) {
-            container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#64748b;">Nessuna gara trovata.</div>';
+            container.innerHTML = "Nessuna gara trovata.";
             return;
         }
 
-        var htmlCards = '';
+        var cardsHtml = '';
         for (var i = 0; i < matches.length; i++) {
-            var m = matches[i];
-            var teamName = (m.teams && m.teams.name) ? m.teams.name : 'SQUADRA';
-            var dateStr = new Date(m.session_date).toLocaleDateString();
+            var match = matches[i];
+            
+            // COSTRUZIONE MANUALE DEL BOTTONE PER EVITARE IL BUG ${m.id}
+            var btnHtml = '<button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold;" ' +
+                          'onclick="window.testConvocazioni(\'' + match.id + '\')">' + 
+                          '📋 GESTISCI CONVOCATI</button>';
 
-            htmlCards += '<div style="background:#1a1d29; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #2563eb;">';
-            htmlCards += '<div style="color:#94a3b8; font-size:11px; font-weight:bold; margin-bottom:8px;">' + teamName + '</div>';
-            htmlCards += '<h3 style="color:white; margin:0 0 12px 0; font-size:16px;">' + m.title + '</h3>';
-            htmlCards += '<div style="color:#64748b; font-size:13px; margin-bottom:15px;"><i class="far fa-calendar-alt"></i> ' + dateStr + '</div>';
-            
-            // CONCATENAZIONE MANUALE: Qui scriviamo l'ID reale nel bottone
-            htmlCards += '<button class="btn" style="width:100%; background:#2563eb; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;" ';
-            htmlCards += 'onclick="window.testConvocazioni(\'' + m.id + '\')">';
-            htmlCards += '📋 GESTISCI CONVOCATI</button>';
-            
-            htmlCards += '</div>';
+            cardsHtml += '<div style="background:#1a1d29; border:1px solid #2d303e; border-radius:12px; padding:20px; margin-bottom:10px;">' +
+                         '<h3 style="color:white; margin:0 0 10px 0;">' + match.title + '</h3>' +
+                         '<p style="color:#64748b;">' + new Date(match.session_date).toLocaleDateString() + '</p>' +
+                         btnHtml + 
+                         '</div>';
         }
-        container.innerHTML = htmlCards;
+        container.innerHTML = cardsHtml;
 
     } catch (e) {
-        container.innerHTML = '<div style="grid-column:1/-1; color:#ef4444;">Errore: ' + e.message + '</div>';
+        container.innerHTML = "Errore: " + e.message;
     }
 };
 
