@@ -2774,22 +2774,18 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
-Avvio sezione: sintesi
-SportTrackPro_cell/:383 Avvio sezione: convocazioni
-SportTrackPro_cell/:383 Avvio sezione: risultati
 /* ============================================================
-   LOGICA UNIFICATA GARE - DEBUG MODE
+   LOGICA UNIFICATA GARE - VERSIONE 2026 (Admin & Society)
    ============================================================ */
 
 window.initPartite = async function(sub = 'sintesi') {
-    window._currentPartiteSub = sub;
     const content = document.getElementById('match-main-content');
     if (!content) return;
 
-    content.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento in corso...</div>';
+    content.innerHTML = '<div style="text-align:center; padding:50px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Caricamento in corso...</div>';
 
     try {
-        // 1. Recupero dinamico del Type ID per "Partita"
+        // 1. Recupero dinamico ID del tipo "Partita"
         const { data: typeData, error: typeErr } = await client
             .from('session_types')
             .select('id')
@@ -2797,22 +2793,16 @@ window.initPartite = async function(sub = 'sintesi') {
             .single();
 
         if (typeErr || !typeData) {
-            console.error("Errore tipo sessione:", typeErr);
-            content.innerHTML = `<div style="color:#ef4444; text-align:center; padding:20px;">
-                <b>Errore:</b> Non trovo il tipo "Partita" nella tabella session_types.
-            </div>`;
+            content.innerHTML = `<div style="padding:20px; color:#ef4444;">Errore: Tipo 'Partita' non trovato in session_types.</div>`;
             return;
         }
 
         const matchTypeId = typeData.id;
-        console.log("ID Partita individuato:", matchTypeId);
 
-        // 2. Lettura filtri (Gestione Admin)
+        // 2. Lettura Filtri UI
         const selectSoc = document.getElementById('f-match-soc');
         const socId = selectSoc?.value || window._currentSocietyId;
         const teamId = document.getElementById('f-match-team')?.value;
-
-        console.log("Filtri attivi - Soc:", socId, "Team:", teamId);
 
         // 3. Costruzione Query
         let query = client
@@ -2820,7 +2810,7 @@ window.initPartite = async function(sub = 'sintesi') {
             .select(`*, teams(name)`)
             .eq('type_id', matchTypeId);
 
-        // Se socId è presente e non è una stringa vuota o "null", applichiamo il filtro
+        // LOGICA AMMINISTRATORE: Se socId è nullo o vuoto, non filtra (vede tutto)
         if (socId && socId !== "" && socId !== "null") {
             query = query.eq('society_id', socId);
         }
@@ -2831,71 +2821,55 @@ window.initPartite = async function(sub = 'sintesi') {
 
         const { data: matches, error: matchErr } = await query.order('session_date', { ascending: false });
 
-        if (matchErr) {
-            console.error("Errore Query Sessions:", matchErr);
-            throw matchErr;
-        }
-
-        console.log("Record trovati:", matches?.length || 0, matches);
+        if (matchErr) throw matchErr;
 
         // 4. Gestione Risultati Vuoti
         if (!matches || matches.length === 0) {
             content.innerHTML = `
             <div style="text-align:center; padding:50px; color:#64748b; border:1px dashed #333; border-radius:12px;">
-                <i class="fas fa-search" style="font-size:24px; margin-bottom:10px;"></i><br>
-                Nessun record trovato per <b>${sub.toUpperCase()}</b>.<br>
-                <span style="font-size:11px;">(Cercando Type ID: ${matchTypeId} | Soc: ${socId || 'TUTTE'})</span>
+                Nessun record trovato per ${sub.toUpperCase()}.<br>
+                <small>(Filtro ID Tipo: ${matchTypeId} | Soc: ${socId || 'TOTALE'})</small>
             </div>`;
             return;
         }
 
-        // 5. Rendering in base alla sottosezione
-        if (sub === 'convocazioni') {
-            renderViewConvocazioni(content, matches);
-        } else if (sub === 'risultati') {
-            renderViewRisultati(content, matches);
-        } else {
-            renderViewSintesi(content, matches);
-        }
+        // 5. Routing Rendering
+        if (sub === 'convocazioni') renderViewConvocazioni(content, matches);
+        else if (sub === 'risultati') renderViewRisultati(content, matches);
+        else renderViewSintesi(content, matches);
 
     } catch (err) {
-        console.error("Errore fatale initPartite:", err);
-        content.innerHTML = `<div style="color:#ef4444; padding:20px;">Errore: ${err.message}</div>`;
+        content.innerHTML = `<div style="padding:20px; color:#ef4444;">Errore critico: ${err.message}</div>`;
     }
 };
 
-// Assicurati che queste funzioni siano definite globalmente o nello stesso file
+/* --- Funzioni di Rendering Specifiche --- */
+
 function renderViewSintesi(container, matches) {
     container.innerHTML = `
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
-            <thead style="background:rgba(255,255,255,0.05); color:#94a3b8;">
-                <tr>
-                    <th style="padding:12px; text-align:left;">DATA</th>
-                    <th style="padding:12px; text-align:left;">SQUADRA</th>
-                    <th style="padding:12px; text-align:left;">GARA</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${matches.map(m => `
-                <tr style="border-bottom:1px solid #2d303e;">
-                    <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
-                    <td style="padding:12px; color:#2563eb; font-weight:bold;">${m.teams?.name || 'N.D.'}</td>
-                    <td style="padding:12px;">${m.title}</td>
-                </tr>`).join('')}
-            </tbody>
-        </table>
-    </div>`;
+    <table style="width:100%; border-collapse:collapse; color:white; font-size:13px;">
+        <thead style="background:rgba(255,255,255,0.05); color:#94a3b8; text-align:left;">
+            <tr><th style="padding:12px;">DATA</th><th style="padding:12px;">SQUADRA</th><th style="padding:12px;">GARA</th></tr>
+        </thead>
+        <tbody>
+            ${matches.map(m => `
+            <tr style="border-bottom:1px solid #2d303e;">
+                <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+                <td style="padding:12px; color:#2563eb;">${m.teams?.name || 'SQUADRA N.D.'}</td>
+                <td style="padding:12px; font-weight:bold;">${m.title}</td>
+            </tr>`).join('')}
+        </tbody>
+    </table>`;
 }
 
 function renderViewConvocazioni(container, matches) {
     container.innerHTML = `
     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
         ${matches.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px; border-left:4px solid #2563eb;">
+            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-left:4px solid #2563eb;">
                 <div style="font-size:10px; color:#2563eb; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
-                <h4 style="margin:0 0 12px 0; color:white;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#2563eb; color:white; font-size:12px; padding:10px; border-radius:6px; cursor:pointer;" 
+                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                <button class="btn" style="width:100%; background:#2563eb; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;"
                         onclick="apriModaleConvocati('${m.id}', '${m.team_id}', '${m.title.replace(/'/g, "\\'")}')">
                     📋 GESTISCI CONVOCATI
                 </button>
@@ -2907,12 +2881,12 @@ function renderViewRisultati(container, matches) {
     container.innerHTML = `
     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:15px;">
         ${matches.map(m => `
-            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:15px; border-top:4px solid #10b981;">
+            <div style="background:#13151e; border:1px solid #2d303e; border-radius:12px; padding:20px; border-top:4px solid #10b981;">
                 <div style="font-size:10px; color:#10b981; font-weight:bold; margin-bottom:5px;">${m.teams?.name || 'SQUADRA'}</div>
-                <h4 style="margin:0 0 12px 0; color:white;">${m.title}</h4>
-                <button class="btn" style="width:100%; background:#10b981; color:white; font-size:12px; padding:10px; border-radius:6px; cursor:pointer;" 
+                <h4 style="margin:0 0 15px 0; color:white;">${m.title}</h4>
+                <button class="btn" style="width:100%; background:#10b981; color:white; padding:10px; border-radius:6px; cursor:pointer; font-weight:bold;"
                         onclick="openTabellinoModal('${m.id}', '${m.title.replace(/'/g, "\\'")}')">
-                    ⚽ TABELLINO E VOTI
+                    ⚽ GOL E VOTI
                 </button>
             </div>`).join('')}
     </div>`;
