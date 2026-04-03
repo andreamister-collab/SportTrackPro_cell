@@ -2461,25 +2461,39 @@ window.reloadSubFilters = reloadSubFilters;
 window.reloadTeamsOnly = reloadTeamsOnly;
 window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
+
+
+
+
+
+
+
+
 /* ============================================================
-   MODULO: GARE & MATCH CENTER - VERSION 3.0.0
+   MODULO: GARE & MATCH CENTER - VERSION 3.1.0 (ROLE BASED)
    ============================================================ */
 
 /**
- * 1. TEMPLATE HTML (Tabella con Sottosezioni)
+ * 1. TEMPLATE HTML (Aggiunta filtri date e rimozione tasto)
  */
 function templatePartite() {
     return `
     <div class="card" id="main-match-card">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <div class="header" style="margin-bottom:15px;">
             <h2 style="margin:0; color:#1e293b;">🏆 MATCH CENTER</h2>
-            <button class="btn" onclick="openMatchModal()" style="background:#059669; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">+ NUOVA GARA</button>
         </div>
         
-        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-            <select id="f-match-soc" onchange="reloadMatchSubFilters()"><option value="">Caricamento società...</option></select>
-            <select id="f-match-cat" onchange="reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
-            <select id="f-match-team" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+            <div id="soc-filter-container">
+                <select id="f-match-soc" style="width:100%; padding:8px;" onchange="reloadMatchSubFilters()">
+                    <option value="">Caricamento società...</option>
+                </select>
+            </div>
+            <select id="f-match-cat" style="padding:8px;" onchange="reloadMatchTeamsOnly()"><option value="">Tutte Categorie</option></select>
+            <select id="f-match-team" style="padding:8px;" onchange="initPartite()"><option value="">Tutte Squadre</option></select>
+            
+            <input type="date" id="f-match-from" style="padding:8px;" onchange="initPartite()" title="Da data">
+            <input type="date" id="f-match-to" style="padding:8px;" onchange="initPartite()" title="A data">
         </div>
 
         <div class="table-container" style="overflow-x:auto;">
@@ -2501,73 +2515,85 @@ function templatePartite() {
 }
 
 /**
- * 2. INIZIALIZZAZIONE LISTA
+ * 2. LOGICA INIZIALIZZAZIONE (Gestione Ruoli Admin/Manager)
  */
 async function initPartite() {
     const tbody = document.getElementById('list-partite-body');
     if (!tbody) return;
 
+    // --- GESTIONE SOCIETÀ E RUOLI ---
     const selSoc = document.getElementById('f-match-soc');
+    
+    // Se è la prima volta che carichiamo
+    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
+        const { data: { user } } = await client.auth.getUser();
+        const { data: profile } = await client.from('profiles').select('role, society_id').eq('id', user.id).single();
+
+        if (profile.role === 'admin') {
+            const { data: socs } = await client.from('societies').select('id, name').order('name');
+            selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        } else {
+            // Se manager, nascondiamo il selettore e forziamo la sua società
+            document.getElementById('soc-filter-container').style.display = 'none';
+            selSoc.innerHTML = `<option value="${profile.society_id}" selected>Tua Società</option>`;
+        }
+        window._currentSocietyId = selSoc.value;
+        return reloadMatchSubFilters();
+    }
+
     const socId = selSoc?.value || window._currentSocietyId;
     if (!socId) return;
+
+    // --- FILTRI DATE E DATI ---
+    const dateFrom = document.getElementById('f-match-from')?.value;
+    const dateTo = document.getElementById('f-match-to')?.value;
+    const teamFilter = document.getElementById('f-match-team')?.value;
 
     const { data: types } = await client.from('session_types').select('id, name');
     const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
 
-    const teamFilter = document.getElementById('f-match-team')?.value;
-    let query = client.from('sessions').select('id, title, session_date, team_id, teams(name)').eq('society_id', socId).in('type_id', validIds);
+    let query = client.from('sessions')
+        .select('id, title, session_date, team_id, teams(name)')
+        .eq('society_id', socId)
+        .in('type_id', validIds);
+
     if (teamFilter) query = query.eq('team_id', teamFilter);
+    if (dateFrom) query = query.gte('session_date', dateFrom);
+    if (dateTo) query = query.lte('session_date', dateTo);
 
     const { data: matches } = await query.order('session_date', { ascending: false });
 
     tbody.innerHTML = (matches || []).map(m => `
-        <tr style="border-bottom:1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+        <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
             <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
-            <td style="padding:12px;"><span style="background:#e2e8f0; padding:2px 6px; border-radius:4px; color:#475569;">${m.teams?.name || '---'}</span></td>
-            
+            <td style="padding:12px;">${m.teams?.name || '---'}</td>
             <td style="padding:12px; text-align:center; display:flex; gap:5px; justify-content:center;">
-                <button class="btn-sm" onclick="openConvocazioni('${m.id}')" title="Convocazioni" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;"><i class="fas fa-users"></i> CONVOCA</button>
-                <button class="btn-sm" onclick="openTabellino('${m.id}')" title="Marcatori" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;"><i class="fas fa-tally"></i> TABELLINO</button>
-                <button class="btn-sm" onclick="openStatistiche('${m.id}')" title="Statistiche" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;"><i class="fas fa-chart-bar"></i> STATS</button>
+                <button class="btn-sm" onclick="openConvocazioni('${m.id}')" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">CONVOCA</button>
+                <button class="btn-sm" onclick="openTabellino('${m.id}')" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">TABELLINO</button>
+                <button class="btn-sm" onclick="openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">STATS</button>
             </td>
-
             <td style="padding:12px; text-align:right;">
-                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:1px solid #3b82f6; padding:4px 8px; border-radius:4px; cursor:pointer;">Edit</button>
-                <button class="btn-sm" onclick="deleteMatchSession('${m.id}')" style="background:none; color:#ef4444; border:1px solid #ef4444; padding:4px 8px; border-radius:4px; cursor:pointer;">Elimina</button>
+                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer;">Edit</button>
             </td>
-        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:20px;">Nessuna gara trovata nel periodo selezionato.</td></tr>';
 }
 
 /**
- * 3. FUNZIONI SOTTOSEZIONI (Placeholder per logica specifica)
+ * 3. AGGIORNAMENTO FILTRI SECONDARI
  */
-window.openConvocazioni = function(id) {
-    console.log("Apertura Convocazioni per Gara ID:", id);
-    // Qui chiamerai la funzione che abbiamo costruito prima per caricare il roster
-    if(typeof window.testConvocazioni === 'function') {
-        window.testConvocazioni(id);
-    } else {
-        alert("Modulo Convocazioni in fase di attivazione per ID: " + id);
-    }
-};
-
-window.openTabellino = function(id) {
-    alert("Funzionalità Tabellino e Marcatori per ID: " + id + " (In Sviluppo)");
-};
-
-window.openStatistiche = function(id) {
-    alert("Funzionalità Statistiche Partita per ID: " + id + " (In Sviluppo)");
-};
-
-/* --- LOGICA FILTRI E MODALI (Dalla tua 2.1.4) --- */
-
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    // Carica categorie
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     document.getElementById('f-match-cat').innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
+    
+    // Carica tutte le squadre per i filtri e il modale
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
+    
     reloadMatchTeamsOnly();
 }
 
@@ -2575,6 +2601,7 @@ function reloadMatchTeamsOnly() {
     const catId = document.getElementById('f-match-cat')?.value;
     let filtered = window._matchTeams || [];
     if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    
     document.getElementById('f-match-team').innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     initPartite();
 }
@@ -2584,6 +2611,12 @@ window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.reloadMatchSubFilters = reloadMatchSubFilters;
 window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
+
+
+
+
+
+
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
 </body>
