@@ -2470,12 +2470,11 @@ window.saveSessionNotes = saveSessionNotes;
 
 
 /* ============================================================
-   MODULO: GARE & MATCH CENTER - VERSION 3.2.0 (FINAL)
+   MODULO: GARE & MATCH CENTER - VERSION 3.2.2 (TABELLA USERS)
    ============================================================ */
 
 /**
  * 1. TEMPLATE HTML
- * Include filtri per società, categoria, squadra e intervallo date.
  */
 function templatePartite() {
     return `
@@ -2532,7 +2531,7 @@ function templatePartite() {
 }
 
 /**
- * 2. LOGICA INIZIALIZZAZIONE (Gestione Ruoli e Fallback Admin)
+ * 2. LOGICA INIZIALIZZAZIONE (Puntando alla tabella 'users')
  */
 async function initPartite() {
     const tbody = document.getElementById('list-partite-body');
@@ -2540,34 +2539,60 @@ async function initPartite() {
 
     const selSoc = document.getElementById('f-match-soc');
     
-    // --- STEP 1: GESTIONE AUTORIZZAZIONI E SOCIETÀ ---
     if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
-        const { data: { user } } = await client.auth.getUser();
-        const { data: profile } = await client.from('profiles').select('role, society_id').eq('id', user.id).single();
+        try {
+            const { data: { user: authUser } } = await client.auth.getUser();
+            if (!authUser) throw new Error("Utente non autenticato");
 
-        if (profile.role === 'admin') {
-            // Se Admin, carichiamo tutte le società in ordine alfabetico
-            const { data: socs } = await client.from('societies').select('id, name').order('name', { ascending: true });
-            if (socs && socs.length > 0) {
-                selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                // Fallback: se l'admin non ha società assegnata, prendi la prima alfabetica
-                window._currentSocietyId = profile.society_id || socs[0].id;
-                selSoc.value = window._currentSocietyId;
+            // --- LETTURA DALLA TABELLA USERS ---
+            const { data: userData, error: userError } = await client.from('users')
+                .select('role, society_id')
+                .eq('id', authUser.id)
+                .single();
+
+            const role = userData?.role || 'manager';
+            const societyId = userData?.society_id;
+
+            if (role === 'admin') {
+                // ADMIN: Carica tutte le società in ordine alfabetico
+                const { data: socs } = await client.from('societies').select('id, name').order('name', { ascending: true });
+                if (socs && socs.length > 0) {
+                    selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                    // Se l'admin ha una society_id specifica la usa, altrimenti la prima della lista
+                    window._currentSocietyId = societyId || socs[0].id;
+                    selSoc.value = window._currentSocietyId;
+                }
+            } else {
+                // MANAGER: Nasconde filtro e forza società
+                const container = document.getElementById('soc-filter-container');
+                if (container) container.style.display = 'none';
+
+                if (societyId) {
+                    selSoc.innerHTML = `<option value="${societyId}" selected>Società corrente</option>`;
+                    window._currentSocietyId = societyId;
+                } else {
+                    selSoc.innerHTML = `<option value="">Nessuna società</option>`;
+                    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Utente senza società assegnata.</td></tr>';
+                    return;
+                }
             }
-        } else {
-            // Se Manager, forziamo la sua società e nascondiamo il filtro
-            const container = document.getElementById('soc-filter-container');
-            if (container) container.style.display = 'none';
-            selSoc.innerHTML = `<option value="${profile.society_id}" selected>Società corrente</option>`;
-            window._currentSocietyId = profile.society_id;
+            return reloadMatchSubFilters();
+        } catch (err) {
+            console.error("Errore initPartite:", err);
+            // Fallback estremo se la tabella users fallisce: prova a caricare come admin se possibile
+            const { data: socs } = await client.from('societies').select('id, name').order('name');
+            if (socs?.length > 0) {
+                selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                window._currentSocietyId = socs[0].id;
+                return reloadMatchSubFilters();
+            }
         }
-        return reloadMatchSubFilters();
     }
 
     const socId = selSoc?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // --- STEP 2: RECUPERO DATI CON FILTRI ---
+    // --- FILTRI E QUERY SESSIONS ---
     const dateFrom = document.getElementById('f-match-from')?.value;
     const dateTo = document.getElementById('f-match-to')?.value;
     const teamFilter = document.getElementById('f-match-team')?.value;
@@ -2588,7 +2613,6 @@ async function initPartite() {
 
     const { data: matches } = await query.order('session_date', { ascending: false });
 
-    // --- STEP 3: RENDERING TABELLA ---
     tbody.innerHTML = (matches || []).map(m => `
         <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
@@ -2602,27 +2626,22 @@ async function initPartite() {
             <td style="padding:12px; text-align:right;">
                 <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer; font-size:11px;">MODIFICA</button>
             </td>
-        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato per i criteri selezionati.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato.</td></tr>';
 }
 
 /**
- * 3. LOGICA FILTRI SECONDARI (Categorie e Squadre)
+ * 3. LOGICA FILTRI SECONDARI
  */
 async function reloadMatchSubFilters() {
     const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
     if (!socId) return;
 
-    // Carica Categorie della società
     const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
     const catSelect = document.getElementById('f-match-cat');
-    if (catSelect) {
-        catSelect.innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
-    }
+    if (catSelect) catSelect.innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
 
-    // Carica tutte le Squadre della società per i filtri
     const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
     window._matchTeams = teams || [];
-    
     reloadMatchTeamsOnly();
 }
 
@@ -2632,34 +2651,19 @@ function reloadMatchTeamsOnly() {
     if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
     
     const teamSelect = document.getElementById('f-match-team');
-    if (teamSelect) {
-        teamSelect.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    }
+    if (teamSelect) teamSelect.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     initPartite();
 }
 
-/**
- * 4. PLACEHOLDERS SOTTOSEZIONI
- */
-window.openConvocazioni = function(id) {
-    if (typeof window.testConvocazioni === 'function') {
-        window.testConvocazioni(id);
-    } else {
-        alert("Funzione Convocazioni non collegata. ID Match: " + id);
-    }
-};
+// Global Wrappers
+window.openConvocazioni = function(id) { if (typeof window.testConvocazioni === 'function') window.testConvocazioni(id); else alert("ID: " + id); };
+window.openTabellino = function(id) { alert("Tabellino ID: " + id); };
+window.openStatistiche = function(id) { alert("Stats ID: " + id); };
 
-window.openTabellino = function(id) { alert("Sottosezione Tabellino in sviluppo per ID: " + id); };
-window.openStatistiche = function(id) { alert("Sottosezione Statistiche in sviluppo per ID: " + id); };
-
-/**
- * 5. ESPOSIZIONE GLOBALE
- */
 window.templatePartite = templatePartite;
 window.initPartite = initPartite;
 window.reloadMatchSubFilters = reloadMatchSubFilters;
 window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
-
 
 
 
