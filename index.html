@@ -387,22 +387,17 @@ function preparePartite(sezione) {
 </div>
 
 <script>
-/**
- * Funzione ponte per la nuova sezione convocazioni_01
- * Pulisce il main-content e lancia l'inizializzazione
- */
 function prepareConvocazioni01() {
     const main = document.getElementById('main-content');
     if (main) {
-        // Carica il template base delle partite (filtri, header ecc.)
+      
         main.innerHTML = window.templatePartite(); 
-        // Cambia il titolo per distinguerlo
+ 
         setTimeout(() => {
             const title = document.getElementById('match-title-display');
             if(title) title.innerText = "📋 CONVOCAZIONI (v01)";
             
-            // Avvia la logica specifica per le convocazioni
-            if (typeof window.initPartite === 'function') {
+             if (typeof window.initPartite === 'function') {
                 window.initPartite('convocazioni');
             }
         }, 50);
