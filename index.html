@@ -3219,79 +3219,134 @@ async function initImportAtleti() {
     const selSoc = document.getElementById('import-sel-society');
     const selTeam = document.getElementById('import-sel-team');
 
-    // Carica Stagioni
-    const { data: seasons } = await client.from('seasons').select('id, name').order('name', { ascending: false });
-    if (selSeason) {
-        selSeason.innerHTML = '<option value="">Scegli Stagione...</option>' + 
-            (seasons || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    }
-
-    selSeason.onchange = async () => {
-        const { data: societies } = await client.from('societies').select('*').order('name');
-        selSoc.innerHTML = '<option value="">Scegli Società...</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        selSoc.disabled = false;
-    };
-
-    selSoc.onchange = async () => {
-        const { data: teams } = await client.from('teams').select('id, name, category_id, categories(name)').eq('society_id', selSoc.value);
-        selTeam.innerHTML = '<option value="">Scegli Squadra...</option>' + 
-            (teams || []).map(t => `<option value="${t.id}" data-catid="${t.category_id}" data-catname="${t.categories?.name}">${t.name}</option>`).join('');
-        selTeam.disabled = false;
-    };
-
-    selTeam.onchange = () => {
-        const opt = selTeam.selectedOptions[0];
-        if (selTeam.value) {
-            document.getElementById('cat-display-label').innerText = "Categoria: " + opt.getAttribute('data-catname');
-            document.getElementById('import-msg-init').style.display = 'none';
-            document.getElementById('import-action-zone').style.display = 'block';
+    try {
+        // 1. Caricamento Iniziale Stagioni
+        const { data: seasons } = await client.from('seasons').select('id, name').order('name', { ascending: false });
+        if (selSeason) {
+            selSeason.innerHTML = '<option value="">Scegli Stagione...</option>' + 
+                (seasons || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         }
-    };
 
-    document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
-
-    document.getElementById('import-excel-input').onchange = function(e) {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-            const workbook = XLSX.read(evt.target.result, { type: 'binary' });
-            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            
-            const sID = selSeason.value;
-            const socID = selSoc.value;
-            const tID = selTeam.value;
-            const cID = selTeam.selectedOptions[0].getAttribute('data-catid');
-
-            let count = 0;
-            for (let row of rows) {
-                // Utilizziamo nomi flessibili per le colonne
-                const nome = row.nome || row.Nome;
-                const cognome = row.cognome || row.Cognome;
-                const dataN = row.data_nascita || row.data || row.nascita;
-
-                if (!nome || !cognome) continue;
-
-                const { data: ath } = await client.from('athletes').insert({
-                    name: nome, surname: cognome, birth_date: dataN
-                }).select().single();
-
-                if (ath) {
-                    await client.from('athlete_team_seasons').insert({
-                        athlete_id: ath.id, season_id: sID, society_id: socID, team_id: tID, category_id: cID
-                    });
-                    count++;
-                }
-            }
-            alert("✅ Importazione riuscita! " + count + " atleti inseriti.");
-            
-            // INVECE DI RELOAD, RESETTIAMO I CAMPI
-            document.getElementById('import-excel-input').value = "";
-            selTeam.value = "";
-            document.getElementById('import-msg-init').style.display = 'block';
-            document.getElementById('import-action-zone').style.display = 'none';
+        // 2. Evento Cambio Stagione -> Carica Società
+        selSeason.onchange = async () => {
+            if (!selSeason.value) return;
+            const { data: societies } = await client.from('societies').select('*').order('name');
+            selSoc.innerHTML = '<option value="">Scegli Società...</option>' + 
+                (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            selSoc.disabled = false;
+            selTeam.disabled = true;
+            selTeam.innerHTML = '<option value="">Seleziona Società prima...</option>';
         };
-        reader.readAsBinaryString(file);
-    };
+
+        // 3. Evento Cambio Società -> Carica Squadre e relative Categorie
+        selSoc.onchange = async () => {
+            if (!selSoc.value) return;
+            const { data: teams } = await client.from('teams')
+                .select('id, name, category_id, categories(name)')
+                .eq('society_id', selSoc.value);
+            
+            selTeam.innerHTML = '<option value="">Scegli Squadra...</option>' + 
+                (teams || []).map(t => `
+                    <option value="${t.id}" data-catid="${t.category_id}" data-catname="${t.categories?.name}">
+                        ${t.name} (${t.categories?.name || 'No Cat'})
+                    </option>
+                `).join('');
+            selTeam.disabled = false;
+        };
+
+        // 4. Evento Cambio Squadra -> Sblocca Zona Upload
+        selTeam.onchange = () => {
+            const opt = selTeam.selectedOptions[0];
+            const isReady = !!selTeam.value;
+            if (isReady) {
+                document.getElementById('cat-display-label').innerText = "Categoria rilevata: " + opt.getAttribute('data-catname');
+                document.getElementById('import-msg-init').style.display = 'none';
+                document.getElementById('import-action-zone').style.display = 'block';
+            }
+        };
+
+        // 5. Gestione Click Bottone e Caricamento File
+        document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
+
+        document.getElementById('import-excel-input').onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                // Recupero ID dai selettori
+                const sID = selSeason.value;
+                const socID = selSoc.value;
+                const tID = selTeam.value;
+                const cID = selTeam.selectedOptions[0].getAttribute('data-catid');
+
+                let count = 0;
+
+                for (let row of rows) {
+                    try {
+                        // Helper per trovare le colonne indipendentemente da maiuscole/minuscole
+                        const getVal = (obj, aliases) => {
+                            const key = Object.keys(obj).find(k => aliases.includes(k.toLowerCase().trim()));
+                            return key ? obj[key] : null;
+                        };
+
+                        const nome = getVal(row, ['nome', 'name', 'firstname']);
+                        const cognome = getVal(row, ['cognome', 'surname', 'lastname']);
+                        const dataNascita = getVal(row, ['data_nascita', 'nascita', 'data', 'birth_date']);
+
+                        if (!nome || !cognome) {
+                            console.warn("Saltata riga incompleta:", row);
+                            continue;
+                        }
+
+                        // A. Inserimento Anagrafica Atleta
+                        const { data: ath, error: aErr } = await client.from('athletes').insert({
+                            name: nome, 
+                            surname: cognome, 
+                            birth_date: dataNascita // Formato atteso: YYYY-MM-DD
+                        }).select().single();
+
+                        if (aErr) {
+                            console.error("Errore DB Atleti:", aErr.message);
+                            continue;
+                        }
+
+                        // B. Inserimento Legame Stagionale (Include Società e Categoria)
+                        if (ath) {
+                            const { error: sErr } = await client.from('athlete_team_seasons').insert({
+                                athlete_id: ath.id,
+                                season_id: sID,
+                                society_id: socID,    // <--- Salvataggio Società
+                                team_id: tID,
+                                category_id: cID      // <--- Salvataggio Categoria
+                            });
+
+                            if (sErr) console.error("Errore Legame Stagione:", sErr.message);
+                            else count++;
+                        }
+
+                    } catch (err) {
+                        console.error("Errore riga Excel:", err);
+                    }
+                }
+
+                alert(`✅ IMPORTAZIONE COMPLETATA\n\nAtleti registrati: ${count}\nSocietà e Categoria associate correttamente.`);
+                
+                // Reset Interfaccia (senza ricaricare la pagina per mantenere il login)
+                document.getElementById('import-excel-input').value = "";
+                selTeam.value = "";
+                document.getElementById('import-msg-init').style.display = 'block';
+                document.getElementById('import-action-zone').style.display = 'none';
+            };
+            reader.readAsBinaryString(file);
+        };
+
+    } catch (err) {
+        console.error("Errore critico initImport:", err);
+    }
 }
 
 
