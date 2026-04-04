@@ -2964,15 +2964,16 @@ window.saveConvocazioni = async function(sessionId) {
 // --- 4.1 export CONVOCAZIONI
 window.exportConvocazioniPDF = async function(sessionId) {
     try {
-        // 1. Recupero Sessione
+        // 1. Recupero Sessione e Team
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         if (!session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Team e Dettagli Match (Inclusi orari e tipo gara)
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
+        
+        // 2. Recupero Tabellino (Avversario, Indirizzo, Orari, Tipo Gara)
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 3. RECUPERO DIRIGENTE (ucs -> users)
+        // 3. Recupero Dirigente (Logica sicura ucs -> users)
         let nomeDirigente = "";
         const { data: ucsData } = await client.from('user_category_seasons')
             .select('user_id')
@@ -2981,10 +2982,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             .maybeSingle();
 
         if (ucsData?.user_id) {
-            const { data: userData } = await client.from('users')
-                .select('name')
-                .eq('id', ucsData.user_id)
-                .maybeSingle();
+            const { data: userData } = await client.from('users').select('name').eq('id', ucsData.user_id).maybeSingle();
             nomeDirigente = userData?.name || "";
         }
 
@@ -2994,9 +2992,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             .eq('session_id', sessionId)
             .eq('is_called_up', true);
 
-        const { data: numbers } = await client.from('athlete_team_seasons')
-            .select('athlete_id, jersey_number')
-            .eq('team_id', session.team_id);
+        const { data: numbers } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number').eq('team_id', session.team_id);
             
         const numMap = {};
         numbers?.forEach(n => { numMap[n.athlete_id] = n.jersey_number; });
@@ -3006,7 +3002,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             num: numMap[c.athlete_id] || '--'
         })).sort((a, b) => a.fullname.localeCompare(b.fullname));
 
-        // 5. Generazione Documento
+        // 5. Generazione HTML
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
@@ -3056,7 +3052,6 @@ window.exportConvocazioniPDF = async function(sessionId) {
                         <div class="card"><div class="label">Gara Contro</div><div class="val">${detail?.opponent_name || '---'}</div></div>
                         <div class="card"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
                         <div class="card"><div class="label">Indirizzo</div><div class="val">${detail?.address || '---'}</div></div>
-                        
                         <div class="card"><div class="label">Ritrovo</div><div class="val">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
                         <div class="card"><div class="label">Inizio Gara</div><div class="val">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
                         <div class="card"><div class="label">Tipo Gara</div><div class="val">${detail?.match_type || 'Ufficiale'}</div></div>
