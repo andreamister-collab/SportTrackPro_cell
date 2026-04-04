@@ -2792,7 +2792,9 @@ window.openConvocazioni = async function(sessionId) {
 
 
 // --- INIZIO BLOCCO CONVOCAZIONI ---
-// 2. Generazione interfaccia UNIFICATA (Convocazioni)
+// --- INIZIO BLOCCO DA SOSTITUIRE ---
+
+// 2. Generazione interfaccia UNIFICATA
 container.innerHTML = `
 <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
     
@@ -2854,24 +2856,19 @@ container.innerHTML = `
     </div>
 </div>`;
 
-// Funzione logica associata
+// Logica per il pulsante Convoca Tutti
 window.selezionaTuttiConvocati = function() {
     const radios = document.querySelectorAll('.conv-radio[value="presente"]');
     radios.forEach(r => {
-        // Verifica se l'atleta nella stessa riga è squalificato
         const parentRow = r.closest('div');
         const isSqualificato = parentRow.querySelector('input[value="squalificato"]').checked;
-        
-        // Seleziona 'CONV.' solo se non è squalificato
         if (!isSqualificato) {
             r.checked = true;
         }
     });
 };
 
-
-
-
+// --- FINE BLOCCO ---
 
 // --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
 window.exportConvocazioniIMG = async function(sessionId) {
