@@ -2964,43 +2964,27 @@ window.saveConvocazioni = async function(sessionId) {
 // --- 4.1 export CONVOCAZIONI
 window.exportConvocazioniPDF = async function(sessionId) {
     try {
-        // 1. Recupero Dati Sessione e Team (Usiamo .maybeSingle() per evitare crash)
-        // Nota: Assicurati che il nome della tabella esterna sia 'teams' (plurale)
-        const { data: session, error: sErr } = await client
-            .from('sessions')
-            .select(`
-                *,
-                teams (name, category)
-            `)
-            .eq('id', sessionId)
-            .maybeSingle();
+        console.log("Inizio recupero dati per export...");
 
-        if (sErr || !session) throw new Error("Sessione non trovata");
-        if (!session.teams) throw new Error("Dati della squadra non collegati correttamente");
+        // 1. Recupero Sessione
+        const { data: session, error: sErr } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+        if (sErr || !session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Dati Partita (Tabellino)
-        const { data: detail } = await client
-            .from('match_details')
-            .select('*')
-            .eq('session_id', sessionId)
-            .maybeSingle();
+        // 2. Recupero Team (Query separata per evitare errori di Join/400)
+        const { data: team, error: tErr } = await client.from('teams').select('name, category').eq('id', session.team_id).maybeSingle();
+        
+        // 3. Recupero Dettagli Partita (Tabellino)
+        const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 3. Recupero Atleti Convocati
-        // NOTA: Ho separato i filtri per chiarezza
-        const { data: conv, error: cErr } = await client
-            .from('attendances')
-            .select(`
-                is_called_up, 
-                status,
-                athletes (name, surname, role, jersey_number)
-            `)
+        // 4. Recupero Atleti Convocati (filtrando per chi è 'is_called_up')
+        const { data: conv, error: cErr } = await client.from('attendances')
+            .select(`is_called_up, status, athletes(name, surname, role, jersey_number)`)
             .eq('session_id', sessionId)
             .eq('is_called_up', true);
-            // Il filtro neq.squalificato lo facciamo lato JS per sicurezza 400
 
         if (cErr) throw cErr;
 
-        // 4. Smistamento dinamico per ruoli
+        // 5. Organizzazione Dinamica per Ruoli
         const gruppi = {
             'Portiere': [],
             'Difensore': [],
@@ -3008,9 +2992,8 @@ window.exportConvocazioniPDF = async function(sessionId) {
             'Attaccante': []
         };
 
-        const convocatiEffettivi = (conv || []).filter(c => c.status !== 'squalificato');
-
-        convocatiEffettivi.forEach(c => {
+        // Filtriamo gli squalificati e smistiamo nei gruppi
+        (conv || []).filter(c => c.status !== 'squalificato').forEach(c => {
             const r = c.athletes?.role || 'Centrocampista';
             const display = `<strong>${c.athletes?.jersey_number || '--'}</strong> ${c.athletes?.surname?.toUpperCase()} ${c.athletes?.name}`;
             
@@ -3018,49 +3001,60 @@ window.exportConvocazioniPDF = async function(sessionId) {
             else gruppi['Centrocampista'].push(display);
         });
 
-        // 5. Apertura Finestra di Stampa
+        // 6. Generazione del PDF/Stampa
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
-                <title>Convocazioni - ${session.teams.name}</title>
+                <title>Convocazioni - ${team?.name || 'Gara'}</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                    body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #1e293b; }
-                    .sheet { width: 210mm; min-height: 297mm; padding: 20px; margin: auto; background: white; box-sizing: border-box; }
-                    .header-box { background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; text-align: center; }
-                    .club-name { font-size: 28px; font-weight: 900; text-transform: uppercase; }
-                    .team-info { font-size: 16px; font-weight: 700; color: #93c5fd; margin-top: 5px; }
-                    .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 30px; }
-                    .detail-item { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
-                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-                    .val { font-size: 13px; font-weight: 700; }
-                    .role-section { margin-bottom: 15px; }
-                    .role-header { background: #f1f5f9; padding: 5px 10px; border-left: 5px solid #1e3a8a; font-weight: 900; font-size: 12px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 5px; }
-                    .athlete-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 20px; padding-left: 10px; }
-                    .athlete-name { font-size: 13px; border-bottom: 1px solid #f1f5f9; padding: 4px 0; }
-                    .staff-section { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
-                    .sig-box { border-top: 1px solid #333; text-align: center; font-size: 10px; padding-top: 5px; margin-top: 30px; }
-                    @media print { .no-print { display: none; } }
+                    body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #1e293b; line-height: 1.4; }
+                    .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; box-sizing: border-box; }
+                    
+                    /* Intestazione */
+                    .header-box { background: #1e3a8a; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+                    .club-name { font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0; }
+                    .team-info { font-size: 14px; font-weight: 700; color: #93c5fd; margin-top: 5px; text-transform: uppercase; }
+
+                    /* Info Match */
+                    .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
+                    .detail-item { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; }
+                    .label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
+                    .val { font-size: 12px; font-weight: 700; color: #0f172a; }
+
+                    /* Sezioni Ruoli */
+                    .role-section { margin-bottom: 12px; }
+                    .role-header { background: #f1f5f9; padding: 4px 10px; border-left: 5px solid #1e3a8a; font-weight: 900; font-size: 11px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 6px; }
+                    .athlete-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; padding-left: 10px; }
+                    .athlete-name { font-size: 12px; border-bottom: 1px solid #f1f5f9; padding: 3px 0; }
+
+                    /* Firme */
+                    .staff-section { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+                    .sig-box { border-top: 1px solid #94a3b8; text-align: center; font-size: 9px; padding-top: 5px; margin-top: 25px; font-weight: bold; color: #64748b; }
+                    
+                    @media print { .no-print { display: none; } .sheet { padding: 0; margin: 0; } }
                 </style>
             </head>
             <body>
-                <div class="no-print" style="text-align:center; padding:20px;">
-                    <button onclick="window.print()" style="padding:10px 20px; background:#10b981; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">STAMPA PDF</button>
+                <div class="no-print" style="text-align:center; padding:15px; background:#f1f5f9;">
+                    <button onclick="window.print()" style="padding:10px 25px; background:#10b981; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:14px;">📄 CLICCA PER STAMPARE O SALVARE PDF</button>
                 </div>
                 <div class="sheet">
                     <div class="header-box">
                         <div class="club-name">ASD SANTENA 2014</div>
-                        <div class="team-info">${session.teams.category} - ${session.teams.name}</div>
+                        <div class="team-info">${team?.category || ''} - ${team?.name || ''}</div>
                     </div>
+
                     <div class="details-grid">
-                        <div class="detail-item"><div class="label">Contro</div><div class="val">${detail?.opponent_name || '---'}</div></div>
+                        <div class="detail-item"><div class="label">Avversario</div><div class="val">${detail?.opponent_name || '---'}</div></div>
                         <div class="detail-item"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
-                        <div class="detail-item"><div class="label">Campo</div><div class="val">${detail?.is_home ? '🏠 CASA' : '🚌 TRASFERTA'}</div></div>
-                        <div class="detail-item"><div class="label">Ritrovo</div><div class="val">${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="detail-item"><div class="label">Inizio</div><div class="val">${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="detail-item" style="grid-column: span 3;"><div class="label">Indirizzo</div><div class="val">${detail?.address || '---'}</div></div>
+                        <div class="detail-item"><div class="label">Location</div><div class="val">${detail?.is_home ? '🏠 CASA' : '🚌 TRASFERTA'}</div></div>
+                        <div class="detail-item"><div class="label">Ritrovo</div><div class="val">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
+                        <div class="detail-item"><div class="label">Inizio Gara</div><div class="val">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
+                        <div class="detail-item" style="grid-column: span 3;"><div class="label">Indirizzo Campo</div><div class="val">${detail?.address || '---'}</div></div>
                     </div>
+
                     ${Object.entries(gruppi).map(([ruolo, atleti]) => atleti.length > 0 ? `
                         <div class="role-section">
                             <div class="role-header">${ruolo}</div>
@@ -3069,9 +3063,20 @@ window.exportConvocazioniPDF = async function(sessionId) {
                             </div>
                         </div>
                     ` : '').join('')}
+
                     <div class="staff-section">
-                        <div><div class="label">Allenatore</div><div class="sig-box">FIRMA</div></div>
-                        <div><div class="label">Dirigente</div><div class="sig-box">FIRMA</div></div>
+                        <div>
+                            <div class="label">Staff Tecnico (Allenatore)</div>
+                            <div class="sig-box">FIRMA RESPONSABILE</div>
+                        </div>
+                        <div>
+                            <div class="label">Dirigenti Accompagnatori</div>
+                            <div class="sig-box">FIRMA DIRIGENTE</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:40px; text-align:center; font-size:9px; color:#cbd5e1; text-transform:uppercase; letter-spacing:1px;">
+                        Documento generato da SportTrackPro - Match Center
                     </div>
                 </div>
             </body>
@@ -3081,7 +3086,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
 
     } catch (err) {
         console.error("Errore export:", err);
-        alert("Errore nel caricamento dati: " + err.message);
+        alert("Impossibile generare il PDF: " + err.message);
     }
 };
 /**
