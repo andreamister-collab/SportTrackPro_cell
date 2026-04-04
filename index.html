@@ -2792,155 +2792,80 @@ window.openConvocazioni = async function(sessionId) {
 
 
 
-// --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
-window.exportConvocazioniIMG = async function(sessionId) {
-    try {
-        // 1. Recupero Sessione e Team
-        const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
-        if (!session) throw new Error("Sessione non trovata.");
+// 2. Generazione interfaccia UNIFICATA
+container.innerHTML = `
+<div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
+        <div>
+            <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
+            <div style="margin-top:8px; display:flex; gap:10px;">
+                <button onclick="window.exportConvocazioniIMG('${sessionId}')" 
+                    style="background:#6366f1; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    🖼️ ESPORTA IMMAGINE
+                </button>
+            </div> 
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="window.selezionaTuttiConvocati()" 
+                style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                ✅ CONVOCA TUTTI
+            </button>
 
-        const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
-        const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
-
-        // 2. Recupero Dirigente
-        let nomeDirigente = "";
-        const { data: ucsData } = await client.from('user_category_seasons')
-            .select('user_id').eq('team_id', session.team_id).eq('role', 'Dirigente').maybeSingle();
-
-        if (ucsData?.user_id) {
-            const { data: userData } = await client.from('users').select('name').eq('id', ucsData.user_id).maybeSingle();
-            nomeDirigente = userData?.name || "";
-        }
-
-        // 3. Recupero Atleti, Numeri e RUOLI
-        const { data: conv } = await client.from('attendances')
-            .select(`athlete_id, athletes(name, surname)`)
-            .eq('session_id', sessionId).eq('is_called_up', true);
-
-        const { data: details } = await client.from('athlete_team_seasons')
-            .select('athlete_id, jersey_number, role')
-            .eq('team_id', session.team_id);
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" 
+                style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                ANNULLA
+            </button>
             
-        const detailMap = {};
-        details?.forEach(d => { 
-            detailMap[d.athlete_id] = { 
-                num: d.jersey_number || '--', 
-                role: d.role || 'Non specificato' 
-            }; 
-        });
+            <button onclick="window.saveConvocazioni('${sessionId}')" 
+                style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                SALVA
+            </button>
+        </div>
+    </div>
 
-        // 4. LOGICA DI RAGGRUPPAMENTO
-        const ordineRuoli = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
-        
-        const atletiRaggruppati = (conv || []).reduce((acc, c) => {
-            const info = detailMap[c.athlete_id] || { num: '--', role: 'Altro' };
-            const r = info.role;
-            if (!acc[r]) acc[r] = [];
-            acc[r].push({
-                fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(),
-                num: info.num
-            });
-            return acc;
-        }, {});
+    <div style="display:grid; gap:8px;">
+        ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
+            const current = attendanceMap[a.athlete_id] || {};
+            const isConv = current.is_called_up === true && current.status !== 'squalificato';
+            const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
+            const isSq = current.status === 'squalificato';
 
-        // Ordina alfabeticamente dentro ogni ruolo
-        Object.keys(atletiRaggruppati).forEach(r => {
-            atletiRaggruppati[r].sort((a, b) => a.fullname.localeCompare(b.fullname));
-        });
-
-        // 5. Creazione Contenitore Temporaneo per il Rendering
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
-        tempContainer.innerHTML = `
-            <div id="export-container" style="width: 700px; padding: 40px; background: white; font-family: 'Inter', sans-serif; color: #1e293b;">
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-                    .header-box { background: #2b4991; color: white; padding: 30px; border-radius: 15px; margin-bottom: 25px; text-align:center; }
-                    .title { font-size: 28px; font-weight: 800; margin: 0; letter-spacing: 1px; }
-                    .subtitle { font-size: 16px; margin-top: 5px; font-weight: 700; color: #93c5fd; text-transform: uppercase; }
-                    
-                    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
-                    .card { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-align:center; }
-                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom:3px; }
-                    .val { font-size: 12px; font-weight: 700; color: #0f172a; }
-
-                    .role-title { 
-                        background: #2b4991; color: white; padding: 8px 15px; 
-                        font-weight: 800; border-radius: 6px; margin: 20px 0 10px 0; 
-                        text-transform: uppercase; font-size: 13px; display: flex; justify-content: space-between;
-                    }
-                    .athlete-row { 
-                        display: flex; justify-content: space-between; padding: 8px 15px; 
-                        border-bottom: 1px solid #f1f5f9; font-size: 14px; 
-                    }
-                    .footer-grid { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-                    .sig-line { border-top: 2px solid #0f172a; padding-top: 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; text-align: center; }
-                </style>
-
-                <div class="header-box">
-                    <div class="title">ASD SANTENA 2014</div>
-                    <div class="subtitle">${team?.name || ''} vs ${detail?.opponent_name || '---'}</div>
+            return `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
+                    <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
                 </div>
-
-                <div class="grid">
-                    <div class="card"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
-                    <div class="card"><div class="label">Ritrovo</div><div class="val">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
-                    <div class="card"><div class="label">Inizio Gara</div><div class="val">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
-                    <div class="card" style="grid-column: span 3;"><div class="label">Indirizzo</div><div class="val">${detail?.address || '---'}</div></div>
+                
+                <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
+                    <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
+                    </label>
+                    <label style="color:#94a3b8; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
+                    </label>
+                    <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
+                        SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
+                    </label>
                 </div>
+            </div>`;
+        }).join('')}
+    </div>
+</div>`;
 
-                <div id="lista-atleti">
-                    ${ordineRuoli.map(ruolo => {
-                        const atleti = atletiRaggruppati[ruolo] || [];
-                        if (atleti.length === 0) return '';
-                        return `
-                            <div class="role-title">
-                                <span>${ruolo}s</span>
-                                <span>${atleti.length}</span>
-                            </div>
-                            ${atleti.map(a => `
-                                <div class="athlete-row">
-                                    <span><strong>${a.fullname}</strong></span>
-                                    <span style="color:#2b4991; font-weight:900;">${a.num}</span>
-                                </div>
-                            `).join('')}
-                        `;
-                    }).join('')}
-                </div>
-
-                <div class="footer-grid">
-                    <div class="sig-area"><div style="height:35px"></div><div class="sig-line">Firma Resp. Tecnico</div></div>
-                    <div class="sig-area">
-                        <div style="height:35px; text-align:center; font-weight:bold; font-size:13px; color:#2b4991;">${nomeDirigente}</div>
-                        <div class="sig-line">Firma Dirigente Accompagnatore</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(tempContainer);
-
-        // 6. Conversione in Immagine
-        const canvas = await html2canvas(document.getElementById('export-container'), {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        });
-
-        // 7. Download
-        const link = document.createElement('a');
-        link.download = `Convocazioni_${team?.name}_${detail?.opponent_name}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-
-        // 8. Pulizia
-        document.body.removeChild(tempContainer);
-
-    } catch (err) { 
-        console.error("Errore export:", err); 
-        alert("Impossibile generare l'immagine. Controlla la console.");
-    }
+// Logica per il pulsante Convoca Tutti
+window.selezionaTuttiConvocati = function() {
+    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
+    radios.forEach(r => {
+        const parentRow = r.closest('div');
+        const isSqualificato = parentRow.querySelector('input[value="squalificato"]').checked;
+        if (!isSqualificato) {
+            r.checked = true;
+        }
+    });
 };
+
 
 // --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
 window.exportConvocazioniIMG = async function(sessionId) {
