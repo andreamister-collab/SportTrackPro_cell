@@ -2932,6 +2932,140 @@ window.saveConvocazioni = async function(sessionId) {
     } catch (err) { alert("Errore: " + err.message); }
 };
 
+// --- 4.1 export CONVOCAZIONI
+window.exportConvocazioniPDF = async function(sessionId) {
+    const session = await window.safeGetSession(sessionId);
+    
+    // 1. Recupero dettagli partita e info Società/Team
+    const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
+    const { data: teamInfo } = await client.from('teams').select('name, category').eq('id', session.team_id).single();
+
+    // 2. Recupero atleti convocati con il loro ruolo
+    const { data: conv } = await client.from('attendances')
+        .select(`
+            is_called_up, 
+            status,
+            athletes(name, surname, role)
+        `)
+        .eq('session_id', sessionId)
+        .eq('is_called_up', true)
+        .neq('status', 'squalificato');
+
+    // 3. Raggruppamento per ruolo
+    const gruppi = {
+        'Portiere': [],
+        'Difensore': [],
+        'Centrocampista': [],
+        'Attaccante': []
+    };
+
+    conv?.forEach(c => {
+        const r = c.athletes.role || 'Centrocampista'; // Fallback se non settato
+        if (gruppi[r]) gruppi[r].push(`${c.athletes.surname.toUpperCase()} ${c.athletes.name}`);
+        else gruppi['Centrocampista'].push(`${c.athletes.surname.toUpperCase()} ${c.athletes.name}`);
+    });
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Convocazioni - ${teamInfo?.name}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+                body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; color: #1e293b; background: #f1f5f9; }
+                .sheet { width: 210mm; min-height: 297mm; padding: 20px; margin: auto; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+                
+                .header-box { background: #1e3a8a; color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; position: relative; }
+                .club-name { font-size: 28px; font-weight: 800; letter-spacing: -1px; text-transform: uppercase; }
+                .match-info { font-size: 18px; opacity: 0.9; margin-top: 5px; }
+                
+                .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+                .detail-item { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                .detail-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
+                .detail-value { font-size: 14px; font-weight: 700; }
+
+                .role-section { margin-bottom: 20px; }
+                .role-header { background: #f1f5f9; padding: 8px 15px; border-left: 4px solid #1e3a8a; font-weight: 800; font-size: 12px; color: #1e3a8a; text-transform: uppercase; margin-bottom: 10px; }
+                .athlete-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 15px; }
+                .athlete-name { font-size: 14px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
+
+                .staff-section { margin-top: 40px; padding-top: 20px; border-top: 2px dashed #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .staff-box { font-size: 13px; }
+
+                @media print { 
+                    body { background: white; }
+                    .sheet { box-shadow: none; width: 100%; padding: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="no-print" style="background:#475569; padding:15px; text-align:center;">
+                <button onclick="window.print()" style="padding:12px 25px; background:#10b981; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:16px;">📥 SCARICA PDF / STAMPA</button>
+            </div>
+
+            <div class="sheet">
+                <div class="header-box">
+                    <div class="club-name">SPORT TRACK PRO - ${teamInfo?.name || 'SOCIETÀ'}</div>
+                    <div class="match-info">${teamInfo?.category || ''} | ${detail?.is_home ? '🏠 CASA' : '🚌 TRASFERTA'}</div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Gara contro</div>
+                        <div class="detail-value">${detail?.opponent_name || 'Da definire'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Data e Luogo</div>
+                        <div class="detail-value">${new Date(session.session_date).toLocaleDateString()}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Indirizzo</div>
+                        <div class="detail-value">${detail?.address || 'Vedi convocazione'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Ritrovo</div>
+                        <div class="detail-value">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Inizio Gara</div>
+                        <div class="detail-value">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Tipo</div>
+                        <div class="detail-value">${detail?.is_friendly ? 'Amichevole' : 'Ufficiale'}</div>
+                    </div>
+                </div>
+
+                ${Object.entries(gruppi).map(([ruolo, atleti]) => atleti.length > 0 ? `
+                    <div class="role-section">
+                        <div class="role-header">${ruolo}</div>
+                        <div class="athlete-grid">
+                            ${atleti.map(a => `<div class="athlete-name">${a}</div>`).join('')}
+                        </div>
+                    </div>
+                ` : '').join('')}
+
+                <div class="staff-section">
+                    <div class="staff-box">
+                        <div class="detail-label">Staff Tecnico (Allenatore)</div>
+                        <div style="margin-top:5px; font-weight:600;">__________________________</div>
+                    </div>
+                    <div class="staff-box">
+                        <div class="detail-label">Dirigenti Accompagnatori</div>
+                        <div style="margin-top:5px; font-weight:600;">__________________________</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:50px; text-align:center; font-size:10px; color:#cbd5e1; text-transform:uppercase; letter-spacing:2px;">
+                    Generated by SportTrackPro Match Center
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
 /**
  * ============================================================
  * MODULO: ANALYTICS AVANZATE (SQUADRA & ATLETI)
