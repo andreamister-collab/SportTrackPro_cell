@@ -2968,25 +2968,32 @@ window.exportConvocazioniPDF = async function(sessionId) {
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         if (!session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Team (Solo colonna name per evitare Errore 400)
+        // 2. Recupero Team (Solo name per evitare errore 400)
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         
-        // 3. Recupero Tabellino (Indirizzo e dettagli gara)
+        // 3. Recupero Tabellino (Indirizzo, Avversario, Orari)
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 4. Recupero Dirigente da user_category_seasons
+        // 4. RECUPERO DIRIGENTE (Relazione user_category_seasons -> users)
+        // Usiamo la relazione definita dalla FK per tirare fuori direttamente il 'name' dalla tabella users
         const { data: dirigenteData } = await client.from('user_category_seasons')
-            .select('name_surname')
+            .select(`
+                role,
+                users ( name )
+            `)
             .eq('team_id', session.team_id)
             .eq('role', 'Dirigente')
             .maybeSingle();
 
-        // 5. Recupero Convocati e Numeri Maglia
+        const nomeDirigente = dirigenteData?.users?.name || '';
+
+        // 5. Recupero Convocati (Anagrafica)
         const { data: conv } = await client.from('attendances')
             .select(`athlete_id, athletes(name, surname)`)
             .eq('session_id', sessionId)
             .eq('is_called_up', true);
 
+        // 6. Recupero Numeri (Stagionali)
         const { data: numbers } = await client.from('athlete_team_seasons')
             .select('athlete_id, jersey_number')
             .eq('team_id', session.team_id);
@@ -2999,7 +3006,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             num: numMap[c.athlete_id] || ''
         })).sort((a, b) => a.name.localeCompare(b.name));
 
-        // 6. Generazione PDF
+        // 7. Generazione HTML (Layout Santena)
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
@@ -3010,14 +3017,12 @@ window.exportConvocazioniPDF = async function(sessionId) {
                     .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; }
                     .blue-header { background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; }
                     .club-title { font-size: 26px; font-weight: 800; text-transform: uppercase; margin: 0; }
-                    .sub-header { font-size: 16px; font-weight: 700; margin-top: 5px; opacity: 0.9; }
                     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
                     .box { background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
                     .label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-                    .value { font-size: 13px; font-weight: 700; color: #0f172a; }
-                    .section-bar { background: #1e3a8a; color: white; padding: 10px 15px; font-weight: 800; border-radius: 6px; margin: 20px 0 10px 0; text-transform: uppercase; font-size: 14px; }
+                    .value { font-size: 13px; font-weight: 700; }
                     .row { display: flex; justify-content: space-between; padding: 6px 5px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-                    .footer { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+                    .footer { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
                     .sig-line { border-top: 2px solid #1e293b; margin-top: 40px; text-align: center; font-size: 10px; font-weight: 800; padding-top: 5px; }
                     @media print { .no-print { display: none; } }
                 </style>
@@ -3027,17 +3032,14 @@ window.exportConvocazioniPDF = async function(sessionId) {
                 <div class="sheet">
                     <div class="blue-header">
                         <div class="club-title">SPORT TRACK PRO - ASD SANTENA 2014</div>
-                        <div class="sub-header">| 🚌 ${detail?.is_home ? 'CASA' : 'TRASFERTA'}</div>
+                        <div class="value" style="color: #93c5fd; margin-top:5px;">| ${team?.name || ''}</div>
                     </div>
                     <div class="info-grid">
                         <div class="box"><div class="label">Gara Contro</div><div class="value">${detail?.opponent_name || '---'}</div></div>
-                        <div class="box"><div class="label">Data e Luogo</div><div class="value">${new Date(session.session_date).toLocaleDateString()}</div></div>
+                        <div class="box"><div class="label">Data</div><div class="value">${new Date(session.session_date).toLocaleDateString()}</div></div>
                         <div class="box"><div class="label">Indirizzo</div><div class="value">${detail?.address || '---'}</div></div>
-                        <div class="box"><div class="label">Ritrovo</div><div class="value">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="box"><div class="label">Inizio Gara</div><div class="value">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="box"><div class="label">Tipo</div><div class="value">${detail?.match_type || 'Ufficiale'}</div></div>
                     </div>
-                    <div class="section-bar">Atleti Convocati</div>
+                    <div style="background:#1e3a8a; color:white; padding:10px; font-weight:800; border-radius:6px; margin-bottom:10px;">ATLETI CONVOCATI</div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 30px;">
                         ${listaAtleti.map((a, i) => `
                             <div class="row">
@@ -3050,7 +3052,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
                         <div><div class="label">Responsabile Tecnico</div><div class="sig-line">FIRMA ALLENATORE</div></div>
                         <div>
                             <div class="label">Dirigente Accompagnatore</div>
-                            <div style="text-align:center; font-weight:700; font-size:13px; margin-bottom:-32px;">${dirigenteData?.name_surname || ''}</div>
+                            <div style="text-align:center; font-weight:700; font-size:14px; margin-bottom:-32px;">${nomeDirigente}</div>
                             <div class="sig-line">FIRMA DIRIGENTE</div>
                         </div>
                     </div>
