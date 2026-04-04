@@ -2905,46 +2905,34 @@ window.saveFullTabellino = async function(sessionId, detailId) {
 // --- 5. EXPORT IMMAGINE ---
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
-        // 1. DATI SESSIONE E TEAM
+        // 1. RECUPERO DATI SESSIONE E MATCH
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 2. RECUPERO DIRIGENTE (Percorso: user_category_seasons -> users)
-        const { data: dirData } = await client
-            .from('user_category_seasons')
-            .select(`
-                user:users!user_id (
-                    name
-                )
-            `)
-            .eq('team_id', session.team_id)
-            .eq('role', 'Dirigente')
-            .limit(1)
-            .maybeSingle();
+        // 2. RECUPERO STAFF (Join esplicita tra user_category_seasons.user_id e users.id)
+        const fetchStaff = async (role) => {
+            const { data } = await client
+                .from('user_category_seasons')
+                .select(`
+                    users!user_id ( 
+                        name 
+                    )
+                `)
+                .eq('team_id', session.team_id)
+                .eq('role', role)
+                .limit(1)
+                .maybeSingle();
+            return data?.users?.name || "Da definire";
+        };
 
-        // 3. RECUPERO ALLENATORE
-        const { data: allData } = await client
-            .from('user_category_seasons')
-            .select(`
-                user:users!user_id (
-                    name
-                )
-            `)
-            .eq('team_id', session.team_id)
-            .eq('role', 'Allenatore')
-            .limit(1)
-            .maybeSingle();
+        const nomeDirigente = await fetchStaff('Dirigente');
+        const nomeAllenatore = await fetchStaff('Allenatore');
 
-        // Estrazione sicura del nome
-        const nomeDirigente = dirData?.user?.name || "Da definire";
-        const nomeAllenatore = allData?.user?.name || "Da definire";
-
-        // 4. RECUPERO ATLETI E RUOLI
+        // 3. RECUPERO ATLETI E RUOLI
         const { data: conv } = await client.from('attendances')
             .select(`athlete_id, athletes(name, surname)`)
-            .eq('session_id', sessionId)
-            .eq('is_called_up', true);
+            .eq('session_id', sessionId).eq('is_called_up', true);
 
         const { data: athleteDetails } = await client.from('athlete_team_seasons')
             .select('athlete_id, jersey_number, role')
@@ -2964,7 +2952,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
             return acc;
         }, {});
 
-        // 5. GENERAZIONE HTML (STILE CAMPO DA CALCIO)
+        // 4. GENERAZIONE HTML (STILE "CAMPO DA CALCIO")
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
@@ -2974,22 +2962,22 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 
                 <div style="position: relative; z-index: 1; padding: 25px;">
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px;">ASD SANTENA 2014</h1>
-                        <div style="background: #fbbf24; color: #1a472a; display: inline-block; padding: 2px 15px; font-weight: 900; margin-top: 5px; border-radius: 3px;">
+                        <h1 style="margin: 0; font-size: 26px; text-transform: uppercase;">ASD SANTENA 2014</h1>
+                        <div style="background: #fbbf24; color: #1a472a; display: inline-block; padding: 2px 15px; font-weight: 900; margin-top: 5px; border-radius: 3px; font-size: 14px;">
                             ${team?.name}
                         </div>
                     </div>
 
-                    <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.2); line-height: 1.6;">
-                        <div>⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'} (${detail?.is_home ? 'CASA' : 'TRASFERTA'})</div>
-                        <div>📍 <strong>CAMPO:</strong> ${detail?.address || '---'}</div>
+                    <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; border: 1px solid rgba(255,255,255,0.2);">
+                        <div>⚽ <strong>AVVERSARIO:</strong> ${detail?.opponent_name || '---'}</div>
+                        <div>🏟️ <strong>LUOGO:</strong> ${detail?.address || '---'} (${detail?.is_home ? 'CASA' : 'TRASFERTA'})</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
                             <span>🕒 <strong>RITROVO:</strong> ${detail?.meet_time?.substring(0,5) || '--:--'}</span>
                             <span>⚽ <strong>INIZIO:</strong> ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 20px; font-size: 13px; border-left: 5px solid #fbbf24; padding-left: 12px;">
+                    <div style="margin-bottom: 20px; font-size: 13px; border-left: 5px solid #fbbf24; padding-left: 12px; background: rgba(255,255,255,0.05); padding-top: 5px; padding-bottom: 5px;">
                         <div style="margin-bottom: 4px;"><strong>ALLENATORE:</strong> ${nomeAllenatore}</div>
                         <div><strong>DIRIGENTE:</strong> ${nomeDirigente}</div>
                     </div>
@@ -2999,11 +2987,12 @@ window.exportConvocazioniIMG = async function(sessionId) {
                             const lista = atletiRaggruppati[ruolo] || [];
                             if (lista.length === 0) return '';
                             return `
-                                <div style="background: #fff; color: #1a472a; padding: 4px 10px; font-size: 12px; font-weight: 900; text-transform: uppercase; margin-top: 15px; border-radius: 2px;">
-                                    ${ruolo}S
+                                <div style="background: #fff; color: #1a472a; padding: 3px 10px; font-size: 11px; font-weight: 900; text-transform: uppercase; margin-top: 12px; border-radius: 2px; display: flex; justify-content: space-between;">
+                                    <span>${ruolo}S</span>
+                                    <span>${lista.length}</span>
                                 </div>
                                 ${lista.map(a => `
-                                    <div style="display: flex; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; font-family: 'Arial', sans-serif;">
                                         <span>${a.fullname}</span>
                                         <span style="color: #fbbf24; font-weight: 900;">${a.num}</span>
                                     </div>
@@ -3011,20 +3000,33 @@ window.exportConvocazioniIMG = async function(sessionId) {
                             `;
                         }).join('')}
                     </div>
+
+                    <div style="text-align: center; margin-top: 25px; font-size: 9px; opacity: 0.4; letter-spacing: 1px;">
+                        SPORTTRACKPRO • MATCH CENTER
+                    </div>
                 </div>
-            </div>`;
+            </div>
+        `;
         
         document.body.appendChild(tempContainer);
 
-        const canvas = await html2canvas(document.getElementById('capture-area'), { scale: 2, useCORS: true });
+        // 5. CATTURA IMMAGINE
+        const canvas = await html2canvas(document.getElementById('capture-area'), { 
+            scale: 2, 
+            useCORS: true,
+            backgroundColor: "#1a472a"
+        });
+
         const link = document.createElement('a');
         link.download = `Convocazioni_${team?.name}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
+
         document.body.removeChild(tempContainer);
 
     } catch (err) {
         console.error("Errore esportazione:", err);
+        alert("Errore nella generazione dell'immagine.");
     }
 };
 // --- 6. ANALYTICS ---
