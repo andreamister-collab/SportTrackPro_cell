@@ -108,8 +108,9 @@
         <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
 		<a data-section="partite">📅 GESTIONE PARTITE</a>
-		<button id="btn-logout" class="btn-logout">Esci</button>
 		<a data-section="import-atleti" style="background: #1e3a8a; color: #93c5fd; font-weight: 800;">📥 IMPORTA ATLETI</a>
+		<button id="btn-logout" class="btn-logout">Esci</button>
+		
     </nav>
 
     <main id="content">
@@ -3077,53 +3078,111 @@ window.openStatistiche = async function(sessionId) {
 };
 
 
-/**
- * ============================================================
- * MODULO: import atleti
- * ============================================================
- */
+// 1. IL TEMPLATE (Genera l'HTML)
 function templateImportAtleti() {
     return `
-        <section id="section-import-atleti" class="content-section">
-            <div class="header-box" style="background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
-                <h2 style="margin:0; font-size: 24px; font-weight: 800;">📥 IMPORTAZIONE MASSIVA ATLETI</h2>
-                <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Carica l'elenco atleti tramite file Excel (.xlsx)</p>
-            </div>
+        <div class="header-box" style="background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+            <h2 style="margin:0; font-size: 24px; font-weight: 800;">📥 IMPORTAZIONE MASSIVA ATLETI</h2>
+            <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Carica l'elenco atleti tramite file Excel (.xlsx)</p>
+        </div>
 
-            <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
-                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">1. Stagione</label>
-                    <select id="import-sel-season" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;"></select>
-                </div>
-                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">2. Società</label>
-                    <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
-                        <option value="">Seleziona Stagione...</option>
-                    </select>
-                </div>
-                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">3. Squadra</label>
-                    <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
-                        <option value="">Seleziona Società...</option>
-                    </select>
-                </div>
+        <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+            <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">1. Stagione</label>
+                <select id="import-sel-season" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;"></select>
             </div>
+            <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">2. Società</label>
+                <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
+                    <option value="">Seleziona Stagione...</option>
+                </select>
+            </div>
+            <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">3. Squadra</label>
+                <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
+                    <option value="">Seleziona Società...</option>
+                </select>
+            </div>
+        </div>
 
-            <div id="import-upload-zone" style="background: #f8fafc; border: 3px dashed #cbd5e1; padding: 50px; border-radius: 15px; text-align: center;">
-                <div id="import-msg-init">
-                    <p style="color: #64748b; font-weight: 600;">Configura i filtri sopra per abilitare l'importazione.</p>
-                </div>
-                <div id="import-action-zone" style="display: none;">
-                    <p style="margin-bottom: 20px; color: #1e293b; font-weight: 700;">✅ Filtri pronti! Carica il file Excel.</p>
-                    <input type="file" id="import-excel-input" accept=".xlsx" style="display: none;">
-                    <button id="btn-trigger-file" style="background: #1e3a8a; color: white; border: none; padding: 15px 40px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase;">
-                        Seleziona File Excel
-                    </button>
-                    <p style="margin-top: 15px; font-size: 11px; color: #94a3b8;">Il file deve contenere le colonne esatte: <b>nome, cognome, data_nascita</b></p>
-                </div>
+        <div id="import-upload-zone" style="background: #f8fafc; border: 3px dashed #cbd5e1; padding: 50px; border-radius: 15px; text-align: center;">
+            <div id="import-msg-init">
+                <p style="color: #64748b; font-weight: 600;">Configura i filtri sopra per abilitare l'importazione.</p>
             </div>
-        </section>
+            <div id="import-action-zone" style="display: none;">
+                <p style="margin-bottom: 20px; color: #1e293b; font-weight: 700;">✅ Filtri pronti! Carica il file Excel.</p>
+                <input type="file" id="import-excel-input" accept=".xlsx" style="display: none;">
+                <button id="btn-trigger-file" style="background: #1e3a8a; color: white; border: none; padding: 15px 40px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase;">
+                    Seleziona File Excel
+                </button>
+                <p style="margin-top: 15px; font-size: 11px; color: #94a3b8;">Colonne Excel richieste: <b>nome, cognome, data_nascita</b></p>
+            </div>
+        </div>
     `;
+}
+
+// 2. LA LOGICA (Gestisce i dati)
+async function initImportAtleti() {
+    const selSeason = document.getElementById('import-sel-season');
+    const selSoc = document.getElementById('import-sel-society');
+    const selTeam = document.getElementById('import-sel-team');
+    
+    // Caricamento Stagioni
+    const { data: seasons } = await client.from('seasons').select('*').order('year', { ascending: false });
+    if (selSeason) {
+        selSeason.innerHTML = '<option value="">Seleziona Stagione...</option>' + 
+            seasons.map(s => `<option value="${s.id}">${s.year}</option>`).join('');
+    }
+
+    // Listener Filtri
+    selSeason.onchange = async () => {
+        const { data: societies } = await client.from('societies').select('*').order('name');
+        selSoc.innerHTML = '<option value="">Seleziona Società...</option>' + societies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        selSoc.disabled = false;
+    };
+
+    selSoc.onchange = async () => {
+        const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', selSoc.value);
+        selTeam.innerHTML = '<option value="">Seleziona Squadra...</option>' + teams.map(t => `<option value="${t.id}" data-cat="${t.category_id}">${t.name}</option>`).join('');
+        selTeam.disabled = false;
+    };
+
+    selTeam.onchange = () => {
+        document.getElementById('import-msg-init').style.display = selTeam.value ? 'none' : 'block';
+        document.getElementById('import-action-zone').style.display = selTeam.value ? 'block' : 'none';
+    };
+
+    document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
+
+    document.getElementById('import-excel-input').onchange = async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            
+            const sID = selSeason.value;
+            const socID = selSoc.value;
+            const tID = selTeam.value;
+            const cID = selTeam.selectedOptions[0].getAttribute('data-cat');
+
+            for (let row of rows) {
+                const { data: ath } = await client.from('athletes').insert({
+                    name: row.nome, surname: row.cognome, birth_date: row.data_nascita
+                }).select().single();
+
+                if (ath) {
+                    await client.from('athlete_team_seasons').insert({
+                        athlete_id: ath.id, season_id: sID, society_id: socID, team_id: tID, category_id: cID
+                    });
+                }
+            }
+            alert("Importazione completata!");
+            initImportAtleti(); // Reset
+        };
+        reader.readAsBinaryString(file);
+    };
 }
 
 
