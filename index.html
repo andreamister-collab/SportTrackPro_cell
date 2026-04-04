@@ -3235,10 +3235,9 @@ async function initImportAtleti() {
                 (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             selSoc.disabled = false;
             selTeam.disabled = true;
-            selTeam.innerHTML = '<option value="">Seleziona Società prima...</option>';
         };
 
-        // 3. Evento Cambio Società -> Carica Squadre e relative Categorie
+        // 3. Evento Cambio Società -> Carica Squadre
         selSoc.onchange = async () => {
             if (!selSoc.value) return;
             const { data: teams } = await client.from('teams')
@@ -3257,15 +3256,14 @@ async function initImportAtleti() {
         // 4. Evento Cambio Squadra -> Sblocca Zona Upload
         selTeam.onchange = () => {
             const opt = selTeam.selectedOptions[0];
-            const isReady = !!selTeam.value;
-            if (isReady) {
-                document.getElementById('cat-display-label').innerText = "Categoria rilevata: " + opt.getAttribute('data-catname');
+            if (selTeam.value) {
+                document.getElementById('cat-display-label').innerText = "Categoria: " + opt.getAttribute('data-catname');
                 document.getElementById('import-msg-init').style.display = 'none';
                 document.getElementById('import-action-zone').style.display = 'block';
             }
         };
 
-        // 5. Gestione Click Bottone e Caricamento File
+        // 5. Gestione Caricamento File
         document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
 
         document.getElementById('import-excel-input').onchange = function(e) {
@@ -3277,7 +3275,6 @@ async function initImportAtleti() {
                 const workbook = XLSX.read(evt.target.result, { type: 'binary' });
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                // Recupero ID dai selettori
                 const sID = selSeason.value;
                 const socID = selSoc.value;
                 const tID = selTeam.value;
@@ -3287,55 +3284,50 @@ async function initImportAtleti() {
 
                 for (let row of rows) {
                     try {
-                        // Helper per trovare le colonne indipendentemente da maiuscole/minuscole
                         const getVal = (obj, aliases) => {
                             const key = Object.keys(obj).find(k => aliases.includes(k.toLowerCase().trim()));
                             return key ? obj[key] : null;
                         };
 
-                        const nome = getVal(row, ['nome', 'name', 'firstname']);
-                        const cognome = getVal(row, ['cognome', 'surname', 'lastname']);
-                        const dataNascita = getVal(row, ['data_nascita', 'nascita', 'data', 'birth_date']);
+                        const nome = getVal(row, ['nome', 'name']);
+                        const cognome = getVal(row, ['cognome', 'surname']);
+                        const dataNascita = getVal(row, ['data_nascita', 'nascita', 'data', 'born_date', 'birth_date']);
 
-                        if (!nome || !cognome) {
-                            console.warn("Saltata riga incompleta:", row);
-                            continue;
-                        }
+                        if (!nome || !cognome) continue;
 
-                        // A. Inserimento Anagrafica Atleta
+                        // A. Inserimento Anagrafica (Usando BORN_DATE)
                         const { data: ath, error: aErr } = await client.from('athletes').insert({
                             name: nome, 
                             surname: cognome, 
-                            birth_date: dataNascita // Formato atteso: YYYY-MM-DD
+                            born_date: dataNascita // <--- CORRETTO DA birth_date A born_date
                         }).select().single();
 
                         if (aErr) {
-                            console.error("Errore DB Atleti:", aErr.message);
+                            console.error("Errore Atleti:", aErr.message);
                             continue;
                         }
 
-                        // B. Inserimento Legame Stagionale (Include Società e Categoria)
+                        // B. Inserimento Legame Stagionale
                         if (ath) {
                             const { error: sErr } = await client.from('athlete_team_seasons').insert({
                                 athlete_id: ath.id,
                                 season_id: sID,
-                                society_id: socID,    // <--- Salvataggio Società
+                                society_id: socID,
                                 team_id: tID,
-                                category_id: cID      // <--- Salvataggio Categoria
+                                category_id: cID
                             });
 
-                            if (sErr) console.error("Errore Legame Stagione:", sErr.message);
-                            else count++;
+                            if (!sErr) count++;
+                            else console.error("Errore Legame:", sErr.message);
                         }
-
                     } catch (err) {
-                        console.error("Errore riga Excel:", err);
+                        console.error("Errore riga:", err);
                     }
                 }
 
-                alert(`✅ IMPORTAZIONE COMPLETATA\n\nAtleti registrati: ${count}\nSocietà e Categoria associate correttamente.`);
+                alert(`✅ Importazione completata!\nAtleti registrati correttamente: ${count}`);
                 
-                // Reset Interfaccia (senza ricaricare la pagina per mantenere il login)
+                // Reset UI
                 document.getElementById('import-excel-input').value = "";
                 selTeam.value = "";
                 document.getElementById('import-msg-init').style.display = 'block';
@@ -3345,10 +3337,9 @@ async function initImportAtleti() {
         };
 
     } catch (err) {
-        console.error("Errore critico initImport:", err);
+        console.error("Errore initImport:", err);
     }
 }
-
 
 
 
