@@ -2905,115 +2905,129 @@ window.saveFullTabellino = async function(sessionId, detailId) {
 // --- 5. EXPORT IMMAGINE ---
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
-        // 1. Recupero Dati Sessione e Team
+        // 1. RECUPERO DATI BASE (Sessione e Dettagli Match)
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 2. Recupero STAFF (Allenatori e Dirigenti) dal Team
-        const { data: staffData } = await client.from('user_category_seasons')
-            .select('role, users(name)')
+        // 2. RECUPERO STAFF (Solo Name come richiesto)
+        // Query per il Dirigente
+        const { data: dirData } = await client
+            .from('user_category_seasons')
+            .select('u:user_id ( name )')
             .eq('team_id', session.team_id)
-            .in('role', ['Allenatore', 'Dirigente']);
+            .eq('role', 'Dirigente')
+            .limit(1).maybeSingle();
 
-        const allenatori = staffData?.filter(s => s.role === 'Allenatore').map(s => s.users.name).join(', ') || '---';
-        const dirigenti = staffData?.filter(s => s.role === 'Dirigente').map(s => s.users.name).join(', ') || '---';
+        // Query per l'Allenatore
+        const { data: allData } = await client
+            .from('user_category_seasons')
+            .select('u:user_id ( name )')
+            .eq('team_id', session.team_id)
+            .eq('role', 'Allenatore')
+            .limit(1).maybeSingle();
 
-        // 3. Recupero Atleti Convocati
+        const nomeDirigente = dirData?.u?.name || "Da definire";
+        const nomeAllenatore = allData?.u?.name || "Da definire";
+
+        // 3. RECUPERO ATLETI CONVOCATI E RUOLI/NUMERI
         const { data: conv } = await client.from('attendances')
             .select(`athlete_id, athletes(name, surname)`)
             .eq('session_id', sessionId).eq('is_called_up', true);
 
-        const { data: details } = await client.from('athlete_team_seasons')
+        const { data: athleteDetails } = await client.from('athlete_team_seasons')
             .select('athlete_id, jersey_number, role')
             .eq('team_id', session.team_id);
             
         const detailMap = {};
-        details?.forEach(d => { 
-            detailMap[d.athlete_id] = { num: d.jersey_number || '--', role: d.role || 'Altro' }; 
+        athleteDetails?.forEach(d => { 
+            detailMap[d.athlete_id] = { num: d.jersey_number || '', role: d.role || 'Altro' }; 
         });
 
-        // Raggruppamento per Ruolo
         const ordineRuoli = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
         const atletiRaggruppati = (conv || []).reduce((acc, c) => {
-            const info = detailMap[c.athlete_id] || { num: '--', role: 'Altro' };
+            const info = detailMap[c.athlete_id] || { num: '', role: 'Altro' };
             const r = info.role;
             if (!acc[r]) acc[r] = [];
             acc[r].push({ fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(), num: info.num });
             return acc;
         }, {});
 
-        // 4. GENERAZIONE HTML CON SFONDO "CAMPO"
+        // 4. GENERAZIONE HTML (STILE CAMPO DA CALCIO)
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
         tempContainer.innerHTML = `
-            <div id="export-container" style="width: 650px; padding: 0; background: #1a472a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; position: relative; border: 5px solid #fff;">
+            <div id="capture-area" style="width: 500px; background: #1a472a; color: white; font-family: 'Arial Black', sans-serif; position: relative; border: 4px solid #fff;">
                 
-                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, #1a472a 25%, #2d5a27 100%); z-index: 0; opacity: 0.8;"></div>
+                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(180deg, #1a472a 0%, #2d5a27 100%); z-index: 0;"></div>
                 
-                <div style="position: relative; z-index: 1; padding: 30px;">
-                    <div style="text-align: center; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 15px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 32px; letter-spacing: 2px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">ASD SANTENA 2014</h1>
-                        <h2 style="margin: 5px 0; color: #fbbf24; font-size: 18px;">${team?.name} vs ${detail?.opponent_name || '---'}</h2>
+                <div style="position: relative; z-index: 1; padding: 25px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h1 style="margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px;">ASD SANTENA 2014</h1>
+                        <div style="background: #fbbf24; color: #1a472a; display: inline-block; padding: 2px 15px; font-weight: 900; margin-top: 5px; border-radius: 3px;">
+                            ${team?.name}
+                        </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; border: 1px solid rgba(255,255,255,0.1);">
-                        <div>📅 <strong>DATA:</strong> ${new Date(session.session_date).toLocaleDateString()}</div>
-                        <div>🏟️ <strong>TIPO:</strong> ${detail?.is_home ? 'CASA' : 'TRASFERTA'} ${detail?.is_friendly ? '(Amichevole)' : ''}</div>
-                        <div>📍 <strong>CAMPO:</strong> ${detail?.address || '---'}</div>
-                        <div>🕒 <strong>RITROVO:</strong> Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div>
-                        <div>⚽ <strong>INIZIO GARA:</strong> Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div>
+                    <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; border: 1px solid rgba(255,255,255,0.2); line-height: 1.6;">
+                        <div>⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'} (${detail?.is_home ? 'CASA' : 'TRASFERTA'})</div>
+                        <div>📍 <strong>CAMPO:</strong> ${detail?.address || 'Vedi calendario'}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                            <span>🕒 <strong>RITROVO:</strong> ${detail?.meet_time?.substring(0,5) || '--:--'}</span>
+                            <span>⚽ <strong>INIZIO:</strong> ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
+                        </div>
                     </div>
 
-                    <div style="background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbbf24; font-size: 13px;">
-                        <div><strong>ALLENATORI:</strong> ${allenatori}</div>
-                        <div><strong>DIRIGENTI:</strong> ${dirigenti}</div>
+                    <div style="margin-bottom: 20px; font-size: 13px; border-left: 5px solid #fbbf24; padding-left: 12px;">
+                        <div style="margin-bottom: 4px;"><strong>ALLENATORE:</strong> ${nomeAllenatore}</div>
+                        <div><strong>DIRIGENTE:</strong> ${nomeDirigente}</div>
                     </div>
 
-                    <div id="lista-atleti">
+                    <div>
                         ${ordineRuoli.map(ruolo => {
-                            const atleti = atletiRaggruppati[ruolo] || [];
-                            if (atleti.length === 0) return '';
+                            const lista = atletiRaggruppati[ruolo] || [];
+                            if (lista.length === 0) return '';
                             return `
-                                <div style="background: rgba(255,255,255,0.9); color: #1a472a; padding: 5px 15px; font-weight: 800; border-radius: 4px; margin: 15px 0 5px 0; text-transform: uppercase; font-size: 12px; display: flex; justify-content: space-between;">
-                                    <span>${ruolo}s</span>
-                                    <span>${atleti.length}</span>
+                                <div style="background: #fff; color: #1a472a; padding: 4px 10px; font-size: 12px; font-weight: 900; text-transform: uppercase; margin-top: 15px; border-radius: 2px;">
+                                    ${ruolo}S
                                 </div>
-                                ${atleti.map(a => `
-                                    <div style="display: flex; justify-content: space-between; padding: 6px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; font-weight: 600;">
+                                ${lista.map(a => `
+                                    <div style="display: flex; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px;">
                                         <span>${a.fullname}</span>
-                                        <span style="color:#fbbf24; font-weight:900; font-size:16px;">${a.num}</span>
+                                        <span style="color: #fbbf24; font-weight: 900;">${a.num}</span>
                                     </div>
                                 `).join('')}
                             `;
                         }).join('')}
                     </div>
-                    
-                    <div style="margin-top: 30px; text-align: center; font-size: 10px; opacity: 0.6; font-style: italic;">
-                        Generato da SportTrackPro Match Center
+
+                    <div style="text-align: center; margin-top: 30px; font-size: 9px; opacity: 0.5;">
+                        SPORTTRACKPRO DIGITAL CARD
                     </div>
                 </div>
-            </div>`;
+            </div>
+        `;
         
         document.body.appendChild(tempContainer);
 
-        const canvas = await html2canvas(document.getElementById('export-container'), { 
-            scale: 2, 
-            useCORS: true, 
-            backgroundColor: "#1a472a" 
+        // 5. CATTURA E DOWNLOAD
+        const canvas = await html2canvas(document.getElementById('capture-area'), { 
+            scale: 2, // Alta qualità
+            useCORS: true,
+            logging: false
         });
 
         const link = document.createElement('a');
-        link.download = `Convocazioni_${team?.name}_${new Date(session.session_date).toLocaleDateString()}.png`;
+        link.download = `Convocazioni_${team?.name}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
 
         document.body.removeChild(tempContainer);
 
-    } catch (err) { 
-        console.error("Errore export:", err); 
-        alert("Errore nella generazione immagine.");
+    } catch (err) {
+        console.error("Errore esportazione:", err);
+        alert("Errore tecnico durante la generazione dell'immagine.");
     }
 };
 
