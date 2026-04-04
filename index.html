@@ -155,6 +155,72 @@
     };
     document.getElementById('btn-modal-close').onclick = () => modal.close();
 
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+       CONTROLLO SESSIONE ATTIVA (Anti-Logout al Refresh)
+       ============================================================ */
+    async function checkActiveSession() {
+        // Recuperiamo la sessione corrente da Supabase Auth (token salvato nel browser)
+        const { data: { session } } = await client.auth.getSession();
+
+        if (session) {
+            try {
+                // Recuperiamo i dati dell'utente dalla tabella 'users' usando l'email della sessione
+                const { data: userRow, error: userErr } = await client
+                    .from('users')
+                    .select('*')
+                    .eq('email', session.user.email)
+                    .maybeSingle();
+
+                if (userRow) {
+                    // Ripopoliamo lo Stato Globale
+                    window._userRole = userRow.role;
+                    window._currentSocietyId = userRow.society_id;
+                    window._currentUserId = userRow.id;
+                    window.CURRENT_USER = userRow;
+
+                    // Prepariamo la UI (mostriamo l'app, nascondiamo il login)
+                    document.getElementById('login-wrap').style.display = 'none';
+                    document.getElementById('app').style.display = 'flex';
+                    
+                    const userInfo = document.getElementById('user-info');
+                    if(userInfo) {
+                        userInfo.innerText = `👤 ${userRow.name} (${userRow.role.toUpperCase()})`;
+                    }
+
+                    // Carichiamo la dashboard (o l'ultima pagina salvata)
+                    loadPage('dashboard');
+                    console.log("✅ Sessione ripristinata correttamente.");
+                }
+            } catch (err) {
+                console.error("Errore nel ripristino sessione:", err);
+            }
+        }
+    }
+
+    // ESECUZIONE IMMEDIATA AL CARICAMENTO
+    checkActiveSession();
+
+
+
+
+
+
+
+
+
+
+
+
     /* ============================================================
        LOGICA DI AUTENTICAZIONE E LOGIN
        ============================================================ */
@@ -3085,7 +3151,18 @@ function templateImportAtleti() {
     return `
         <div class="header-box" style="background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
             <h2 style="margin:0; font-size: 24px; font-weight: 800;">📥 IMPORTAZIONE MASSIVA ATLETI</h2>
-            <p style="margin:5px 0 0 0; opacity: 0.8; font-size: 14px;">Carica l'elenco atleti tramite file Excel (.xlsx)</p>
+            <p style="margin:5px 0 0 0; opacity: 0.8; font-size: 14px;">Configura i filtri e carica il file Excel</p>
+        </div>
+
+        <div style="background: #fffbeb; border: 1px solid #fef3c7; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+            <h4 style="margin:0 0 10px 0; color: #92400e; font-size: 14px; font-weight: 800;">⚠️ ISTRUZIONI FILE EXCEL</h4>
+            <p style="margin:0; font-size: 13px; color: #b45309; line-height: 1.5;">
+                Il file deve essere in formato <b>.xlsx</b> e contenere nella prima riga queste colonne: <br>
+                <b>nome</b> | <b>cognome</b> | <b>data_nascita</b> <br>
+                <span style="display:inline-block; margin-top:5px; background:#fef3c7; padding:2px 5px; border-radius:4px;">
+                    💡 La data deve essere nel formato: <b>AAAA-MM-GG</b> (es: 2012-05-24)
+                </span>
+            </p>
         </div>
 
         <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
@@ -3095,135 +3172,108 @@ function templateImportAtleti() {
             </div>
             <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                 <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">2. Società</label>
-                <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" disabled>
-                    <option value="">Seleziona Stagione...</option>
-                </select>
+                <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" disabled></select>
             </div>
             <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                 <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">3. Squadra</label>
-                <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" disabled>
-                    <option value="">Seleziona Società...</option>
-                </select>
+                <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" disabled></select>
             </div>
         </div>
 
         <div id="import-upload-zone" style="background: #f8fafc; border: 3px dashed #cbd5e1; padding: 50px; border-radius: 15px; text-align: center;">
             <div id="import-msg-init">
-                <p style="color: #64748b; font-weight: 600;">Configura i filtri sopra per abilitare l'importazione.</p>
+                <p style="color: #64748b; font-weight: 600;">Seleziona i filtri sopra per caricare il file.</p>
             </div>
             <div id="import-action-zone" style="display: none;">
-                <div id="category-badge" style="display: inline-block; background: #dbeafe; color: #1e3a8a; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: 800; margin-bottom: 15px; text-transform: uppercase;"></div>
-                <p style="margin-bottom: 20px; color: #1e293b; font-weight: 700;">✅ Filtri pronti! Carica il file Excel.</p>
+                <p id="cat-display-label" style="margin-bottom: 15px; font-weight: 800; color: #1e3a8a;"></p>
                 <input type="file" id="import-excel-input" accept=".xlsx" style="display: none;">
                 <button id="btn-trigger-file" style="background: #1e3a8a; color: white; border: none; padding: 15px 40px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase;">
                     Seleziona File Excel
                 </button>
-                <p style="margin-top: 15px; font-size: 11px; color: #94a3b8;">Colonne richieste: <b>nome, cognome, data_nascita</b></p>
             </div>
         </div>
     `;
 }
 
-
-
-
-// 2. LA LOGICA (Gestisce i dati)
 async function initImportAtleti() {
     const selSeason = document.getElementById('import-sel-season');
     const selSoc = document.getElementById('import-sel-society');
     const selTeam = document.getElementById('import-sel-team');
 
-    try {
-        // 1. Carica Stagioni (Usando 'name' come da tua tabella)
-        const { data: seasons } = await client.from('seasons').select('id, name').order('name', { ascending: false });
-        if (selSeason) {
-            selSeason.innerHTML = '<option value="">Seleziona Stagione...</option>' + 
-                (seasons || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    // Carica Stagioni
+    const { data: seasons } = await client.from('seasons').select('id, name').order('name', { ascending: false });
+    if (selSeason) {
+        selSeason.innerHTML = '<option value="">Scegli Stagione...</option>' + 
+            (seasons || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+
+    selSeason.onchange = async () => {
+        const { data: societies } = await client.from('societies').select('*').order('name');
+        selSoc.innerHTML = '<option value="">Scegli Società...</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        selSoc.disabled = false;
+    };
+
+    selSoc.onchange = async () => {
+        const { data: teams } = await client.from('teams').select('id, name, category_id, categories(name)').eq('society_id', selSoc.value);
+        selTeam.innerHTML = '<option value="">Scegli Squadra...</option>' + 
+            (teams || []).map(t => `<option value="${t.id}" data-catid="${t.category_id}" data-catname="${t.categories?.name}">${t.name}</option>`).join('');
+        selTeam.disabled = false;
+    };
+
+    selTeam.onchange = () => {
+        const opt = selTeam.selectedOptions[0];
+        if (selTeam.value) {
+            document.getElementById('cat-display-label').innerText = "Categoria: " + opt.getAttribute('data-catname');
+            document.getElementById('import-msg-init').style.display = 'none';
+            document.getElementById('import-action-zone').style.display = 'block';
         }
+    };
 
-        // Cambio Stagione
-        selSeason.onchange = async () => {
-            const { data: societies } = await client.from('societies').select('*').order('name');
-            selSoc.innerHTML = '<option value="">Seleziona Società...</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            selSoc.disabled = false;
-        };
+    document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
 
-        // Cambio Società -> Carica Squadre E CATEGORIE
-        selSoc.onchange = async () => {
-            const { data: teams } = await client.from('teams')
-                .select('id, name, category_id, categories(name)')
-                .eq('society_id', selSoc.value);
+    document.getElementById('import-excel-input').onchange = function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
-            selTeam.innerHTML = '<option value="">Seleziona Squadra...</option>' + 
-                (teams || []).map(t => `<option value="${t.id}" data-catid="${t.category_id}" data-catname="${t.categories?.name}">${t.name}</option>`).join('');
-            selTeam.disabled = false;
-        };
+            const sID = selSeason.value;
+            const socID = selSoc.value;
+            const tID = selTeam.value;
+            const cID = selTeam.selectedOptions[0].getAttribute('data-catid');
 
-        // Cambio Squadra -> Mostra Info Categoria e Sblocca Upload
-        selTeam.onchange = () => {
-            const selectedOpt = selTeam.selectedOptions[0];
-            const isReady = !!selTeam.value;
-            
-            if (isReady) {
-                document.getElementById('category-badge').innerText = "Categoria: " + selectedOpt.getAttribute('data-catname');
-                document.getElementById('import-msg-init').style.display = 'none';
-                document.getElementById('import-action-zone').style.display = 'block';
-            } else {
-                document.getElementById('import-msg-init').style.display = 'block';
-                document.getElementById('import-action-zone').style.display = 'none';
-            }
-        };
+            let count = 0;
+            for (let row of rows) {
+                // Utilizziamo nomi flessibili per le colonne
+                const nome = row.nome || row.Nome;
+                const cognome = row.cognome || row.Cognome;
+                const dataN = row.data_nascita || row.data || row.nascita;
 
-        // Logica Importazione
-        document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
+                if (!nome || !cognome) continue;
 
-        document.getElementById('import-excel-input').onchange = function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                const workbook = XLSX.read(evt.target.result, { type: 'binary' });
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                
-                const sID = selSeason.value;
-                const socID = selSoc.value;
-                const tID = selTeam.value;
-                const cID = selTeam.selectedOptions[0].getAttribute('data-catid'); // Recupero ID Categoria
+                const { data: ath } = await client.from('athletes').insert({
+                    name: nome, surname: cognome, birth_date: dataN
+                }).select().single();
 
-                let count = 0;
-                for (let row of rows) {
-                    // Normalizzazione nomi colonne Excel
-                    const nome = row.nome || row.Nome;
-                    const cognome = row.cognome || row.Cognome;
-                    const dataN = row.data_nascita || row.data;
-
-                    const { data: ath, error: aErr } = await client.from('athletes').insert({
-                        name: nome, surname: cognome, birth_date: dataN
-                    }).select().single();
-
-                    if (ath) {
-                        await client.from('athlete_team_seasons').insert({
-                            athlete_id: ath.id, season_id: sID, society_id: socID, team_id: tID, category_id: cID
-                        });
-                        count++;
-                    } else if (aErr) {
-                        console.error("Errore riga:", aErr);
-                    }
+                if (ath) {
+                    await client.from('athlete_team_seasons').insert({
+                        athlete_id: ath.id, season_id: sID, society_id: socID, team_id: tID, category_id: cID
+                    });
+                    count++;
                 }
-                alert("Importazione completata: " + count + " atleti.");
-                location.reload(); 
-            };
-            reader.readAsBinaryString(file);
+            }
+            alert("✅ Importazione riuscita! " + count + " atleti inseriti.");
+            
+            // INVECE DI RELOAD, RESETTIAMO I CAMPI
+            document.getElementById('import-excel-input').value = "";
+            selTeam.value = "";
+            document.getElementById('import-msg-init').style.display = 'block';
+            document.getElementById('import-action-zone').style.display = 'none';
         };
-
-    } catch (err) { console.error(err); }
+        reader.readAsBinaryString(file);
+    };
 }
-
-
-
-
-
-
-
 
 
 
