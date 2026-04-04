@@ -2707,9 +2707,9 @@ window.selezionaTuttiConvocati = function() {
         if (!isSqualificato) r.checked = true;
     });
 };
-// --- 3.1 LOGICA SALVATAGGIO CONVOCAZIONI ---
+// --- 3.1 LOGICA SALVATAGGIO CONVOCAZIONI (Versione Ottimizzata) ---
 window.saveConvocazioni = async function(sessionId) {
-    // 1. Raccogliamo tutti i radio button della sezione
+    // 1. Recuperiamo tutti i radio button selezionati (class "conv-radio")
     const radios = document.querySelectorAll('.conv-radio:checked');
     const attendanceData = [];
 
@@ -2720,12 +2720,11 @@ window.saveConvocazioni = async function(sessionId) {
         attendanceData.push({
             session_id: sessionId,
             athlete_id: athleteId,
-            // Logica booleana per is_called_up: 
-            // - true se 'presente'
-            // - false se 'assente' o 'squalificato' (perché non può giocare)
-            is_called_up: statusValue === 'presente',
             status: statusValue,
-            updated_at: new Date().toISOString()
+            // Per la tua tabella: true se presente, altrimenti false
+            is_called_up: statusValue === 'presente',
+            // Impostiamo valori di default per evitare problemi di cache se necessario
+            is_justified: statusValue === 'assente' 
         });
     });
 
@@ -2735,30 +2734,38 @@ window.saveConvocazioni = async function(sessionId) {
     }
 
     try {
-        // Mostriamo un feedback visivo sul tasto
-        const btn = event.target;
-        const originalText = btn.innerText;
-        btn.innerText = "SALVATAGGIO...";
-        btn.disabled = true;
+        // Feedback visivo sul pulsante di invio
+        const btn = event?.target || document.querySelector('button[onclick*="saveConvocazioni"]');
+        const originalText = btn ? btn.innerText : "SALVA";
+        if (btn) {
+            btn.innerText = "⏳ SALVATAGGIO...";
+            btn.disabled = true;
+        }
 
-        // 2. Sincronizzazione con Supabase (Upsert: inserisce o aggiorna se esiste già)
+        // 2. Sincronizzazione con Supabase
+        // Utilizziamo l'identificatore unico (session_id, athlete_id) definito nel tuo DDL
         const { error } = await client
             .from('attendances')
-            .upsert(attendanceData, { onConflict: 'session_id, athlete_id' });
+            .upsert(attendanceData, { 
+                onConflict: 'session_id, athlete_id' 
+            });
 
         if (error) throw error;
 
-        alert("✅ Convocazioni salvate correttamente!");
+        alert("✅ Convocazioni salvate con successo!");
         
-        // 3. Chiudiamo la sezione e aggiorniamo la lista principale se necessario
-        document.getElementById('sub-section-container').innerHTML = '';
+        // 3. Pulizia interfaccia
+        const subContainer = document.getElementById('sub-section-container');
+        if (subContainer) subContainer.innerHTML = '';
+        
+        // Ricarica la lista principale se la funzione esiste
         if (typeof initPartite === 'function') initPartite(); 
 
     } catch (err) {
         console.error("Errore salvataggio convocazioni:", err);
-        alert("Errore durante il salvataggio: " + err.message);
+        alert("Errore durante il salvataggio: " + (err.message || "Problema di connessione"));
     } finally {
-        // Ripristiniamo il pulsante
+        // Ripristino pulsante
         const btn = document.querySelector('button[onclick*="saveConvocazioni"]');
         if (btn) {
             btn.innerText = "SALVA";
