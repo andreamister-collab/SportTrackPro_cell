@@ -2964,25 +2964,35 @@ window.saveConvocazioni = async function(sessionId) {
 // --- 4.1 export CONVOCAZIONI
 window.exportConvocazioniPDF = async function(sessionId) {
     try {
-        // 1. Recupero Sessione
+        console.log("Inizio export dinamico...");
+
+        // 1. RECUPERO SESSIONE (Base)
         const { data: session, error: sErr } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         if (sErr || !session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Team (Query ultra-sicura)
+        // 2. RECUPERO TEAM (Nome e Categoria)
         const { data: team } = await client.from('teams').select('name, category').eq('id', session.team_id).maybeSingle();
         
-        // 3. Recupero Dettagli Partita (Tabellino)
+        // 3. RECUPERO DETTAGLI PARTITA (Indirizzo, Avversario, Orari)
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 4. Recupero Atleti Convocati (Prendiamo solo nome e cognome per evitare errori di colonna)
-        const { data: conv, error: cErr } = await client.from('attendances')
+        // 4. RECUPERO DIRIGENTI (Query specifica sulla tabella team_staff)
+        // Cerchiamo tutti i membri dello staff della squadra con ruolo 'Dirigente'
+        const { data: staffMembers } = await client.from('team_staff')
+            .select('name_surname')
+            .eq('team_id', session.team_id)
+            .ilike('role', '%Dirigente%'); // Uso ilike per essere meno rigido su maiuscole/minuscole
+
+        const nomiDirigenti = staffMembers?.map(s => s.name_surname).join(' - ') || '';
+
+        // 5. RECUPERO CONVOCATI E NUMERI DI MAGLIA
+        // Prendiamo i convocati
+        const { data: conv } = await client.from('attendances')
             .select(`is_called_up, status, athlete_id, athletes(name, surname)`)
             .eq('session_id', sessionId)
             .eq('is_called_up', true);
 
-        if (cErr) throw cErr;
-
-        // 5. Recupero Numeri di Maglia (Dalla tabella corretta: athlete_team_seasons)
+        // Prendiamo i numeri di maglia dalla tabella delle stagioni
         const { data: numbers } = await client.from('athlete_team_seasons')
             .select('athlete_id, jersey_number')
             .eq('team_id', session.team_id);
@@ -2990,70 +3000,101 @@ window.exportConvocazioniPDF = async function(sessionId) {
         const numMap = {};
         numbers?.forEach(n => { numMap[n.athlete_id] = n.jersey_number; });
 
-        // 6. Preparazione Lista
+        // Prepariamo la lista finale
         const listaConvocati = (conv || [])
             .filter(c => c.status !== 'squalificato' && c.athletes)
             .map(c => ({
-                fullname: `${c.athletes.surname} ${c.athletes.name}`,
+                fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(),
                 number: numMap[c.athlete_id] || '--'
             }))
             .sort((a, b) => a.fullname.localeCompare(b.fullname));
 
-        // 7. Generazione PDF
+        // 6. GENERAZIONE HTML (Indirizzo e Dirigenti inclusi)
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
-                <title>Convocazioni</title>
+                <title>Convocazioni - ASD SANTENA 2014</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
                     body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; color: #1e293b; }
                     .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; box-sizing: border-box; }
-                    .header { background: #1e3a8a; color: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
-                    .details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
-                    .item { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; }
-                    .label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-                    .val { font-size: 12px; font-weight: 700; }
-                    .athlete-row { display: flex; justify-content: space-between; padding: 5px 10px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-                    .footer { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
-                    .sig { border-top: 1px solid #333; margin-top: 30px; text-align: center; font-size: 10px; font-weight: bold; padding-top: 5px; }
-                    @media print { .no-print { display: none; } }
+                    
+                    /* Header stile Santena */
+                    .header { background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+                    .club-name { font-size: 26px; font-weight: 900; margin: 0; text-transform: uppercase; }
+                    .team-info { font-size: 16px; color: #93c5fd; font-weight: 700; margin-top: 5px; }
+
+                    /* Griglia logistica */
+                    .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
+                    .detail-item { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
+                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+                    .val { font-size: 13px; font-weight: 700; color: #0f172a; }
+
+                    /* Lista Atleti */
+                    .list-title { background: #1e3a8a; color: white; padding: 8px 15px; font-weight: 900; font-size: 14px; text-transform: uppercase; border-radius: 4px; margin-bottom: 10px; }
+                    .athlete-row { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+                    
+                    /* Firme e Dirigenti */
+                    .footer-grid { margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+                    .signature-box { border-top: 1px solid #333; margin-top: 35px; text-align: center; font-size: 10px; font-weight: bold; padding-top: 5px; }
+
+                    @media print { .no-print { display: none; } .sheet { margin: 0; box-shadow: none; } }
                 </style>
             </head>
             <body>
-                <div class="no-print" style="text-align:center; padding:10px;"><button onclick="window.print()">STAMPA PDF</button></div>
+                <div class="no-print" style="text-align:center; padding:15px; background:#f1f5f9;">
+                    <button onclick="window.print()" style="padding:10px 30px; background:#10b981; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">STAMPA / SALVA PDF</button>
+                </div>
+
                 <div class="sheet">
                     <div class="header">
-                        <h1 style="margin:0; font-size:24px;">ASD SANTENA 2014</h1>
-                        <p style="margin:5px 0 0; opacity:0.8;">${team?.category || ''} - ${team?.name || ''}</p>
+                        <div class="club-name">ASD SANTENA 2014</div>
+                        <div class="team-info">${team?.category || 'CAMPIONATO'} - ${team?.name || ''}</div>
                     </div>
-                    <div class="details">
-                        <div class="item"><div class="label">Contro</div><div class="val">${detail?.opponent_name || '---'}</div></div>
-                        <div class="item"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
-                        <div class="item"><div class="label">Location</div><div class="val">${detail?.is_home ? 'CASA' : 'TRASFERTA'}</div></div>
-                        <div class="item"><div class="label">Ritrovo</div><div class="val">${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="item"><div class="label">Inizio</div><div class="val">${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
-                        <div class="item" style="grid-column: span 3;"><div class="label">Indirizzo Campo</div><div class="val">${detail?.address || '---'}</div></div>
+
+                    <div class="details-grid">
+                        <div class="detail-item"><div class="label">Avversario</div><div class="val">${detail?.opponent_name || '---'}</div></div>
+                        <div class="detail-item"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
+                        <div class="detail-item"><div class="label">Location</div><div class="val">${detail?.is_home ? 'CASA' : 'TRASFERTA'}</div></div>
+                        <div class="detail-item" style="grid-column: span 3;"><div class="label">Indirizzo Campo</div><div class="val">${detail?.address || 'Indirizzo non specificato'}</div></div>
+                        <div class="detail-item"><div class="label">Ritrovo</div><div class="val">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
+                        <div class="detail-item"><div class="label">Inizio Gara</div><div class="val">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
+                        <div class="detail-item"><div class="label">Tipo Gara</div><div class="val">${detail?.match_type || 'Ufficiale'}</div></div>
                     </div>
-                    <div style="font-weight:bold; margin-bottom:10px; border-bottom:2px solid #1e3a8a;">ELENCO CONVOCATI</div>
-                    ${listaConvocati.map((a, i) => `
-                        <div class="athlete-row">
-                            <span>${i+1}. <strong>${a.fullname.toUpperCase()}</strong></span>
-                            <span style="color:#1e3a8a; font-weight:900;">${a.number}</span>
+
+                    <div class="list-title">Atleti Convocati</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 40px;">
+                        ${listaConvocati.map((a, i) => `
+                            <div class="athlete-row">
+                                <span>${i + 1}. <strong>${a.fullname}</strong></span>
+                                <span style="color:#1e3a8a; font-weight:900;">${a.number}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="footer-grid">
+                        <div>
+                            <div class="label">Responsabile Tecnico</div>
+                            <div class="signature-box">FIRMA ALLENATORE</div>
                         </div>
-                    `).join('')}
-                    <div class="footer">
-                        <div><div class="label">Allenatore</div><div class="sig">FIRMA</div></div>
-                        <div><div class="label">Dirigente Accompagnatore</div><div class="sig">FIRMA</div></div>
+                        <div>
+                            <div class="label">Dirigente Accompagnatore</div>
+                            <div style="text-align:center; font-weight:bold; font-size:12px; height:20px; margin-bottom:-30px;">
+                                ${nomiDirigenti || '____________________'}
+                            </div>
+                            <div class="signature-box">FIRMA DIRIGENTE</div>
+                        </div>
                     </div>
                 </div>
             </body>
             </html>
         `);
         printWindow.document.close();
+
     } catch (err) {
         console.error(err);
-        alert("Errore durante l'export: " + err.message);
+        alert("Errore nell'export: " + err.message);
     }
 };
 /**
