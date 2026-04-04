@@ -2567,8 +2567,6 @@ window.initPartite = initPartite;
 window.reloadMatchSubFilters = reloadMatchSubFilters;
 window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
-
-
 /**
  * ============================================================
  * SPORTTRACKPRO - MATCH CENTER COMPLETE MODULE (v2.1)
@@ -2624,7 +2622,93 @@ window.addEventRow = async function(sessionId, existingData = null) {
     list.appendChild(div);
 };
 
-// --- 3. TABELLINO (MATCH DETAILS) ---
+// --- 3. GESTIONE CONVOCAZIONI (UI UNIFICATA) ---
+window.openConvocazioni = async function(sessionId) {
+    const container = window.prepareSubSection(sessionId);
+    if (!container) return;
+
+    const session = await window.safeGetSession(sessionId);
+    
+    // Recupero Atleti del Team
+    const { data: athletes } = await client.from('athlete_team_seasons')
+        .select('athlete_id, jersey_number, athletes(name, surname)')
+        .eq('team_id', session.team_id);
+
+    // Recupero presenze attuali
+    const { data: attendances } = await client.from('attendances')
+        .select('*').eq('session_id', sessionId);
+
+    const attendanceMap = {};
+    attendances?.forEach(att => { attendanceMap[att.athlete_id] = att; });
+
+    container.innerHTML = `
+    <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
+            <div>
+                <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
+                <div style="margin-top:8px; display:flex; gap:10px;">
+                    <button onclick="window.exportConvocazioniIMG('${sessionId}')" 
+                        style="background:#6366f1; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                        🖼️ ESPORTA IMMAGINE
+                    </button>
+                </div> 
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="window.selezionaTuttiConvocati()" 
+                    style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                    ✅ CONVOCA TUTTI
+                </button>
+                <button onclick="document.getElementById('sub-section-container').innerHTML=''" 
+                    style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                    ANNULLA
+                </button>
+                <button onclick="window.saveConvocazioni('${sessionId}')" 
+                    style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                    SALVA
+                </button>
+            </div>
+        </div>
+
+        <div style="display:grid; gap:8px;">
+            ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
+                const current = attendanceMap[a.athlete_id] || {};
+                const isConv = current.is_called_up === true && current.status !== 'squalificato';
+                const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
+                const isSq = current.status === 'squalificato';
+
+                return `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
+                        <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
+                    </div>
+                    <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
+                        <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
+                        </label>
+                        <label style="color:#94a3b8; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
+                        </label>
+                        <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
+                            SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
+                        </label>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>
+    </div>`;
+};
+
+window.selezionaTuttiConvocati = function() {
+    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
+    radios.forEach(r => {
+        const row = r.closest('div');
+        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
+        if (!isSqualificato) r.checked = true;
+    });
+};
+
+// --- 4. TABELLINO (MATCH DETAILS) ---
 window.openTabellino = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
@@ -2709,14 +2793,11 @@ window.openTabellino = async function(sessionId) {
 
 window.saveFullTabellino = async function(sessionId, detailId) {
     const eventRows = document.querySelectorAll('.event-row');
-    
-    // 1. Mappiamo gli eventi dal DOM
     const events = Array.from(eventRows).map(row => ({
         athlete_id: row.querySelector('.ev-athlete').value,
         type: row.querySelector('.ev-type').value
     })).filter(ev => ev.athlete_id !== "");
 
-    // 2. Preparazione dati per match_details (Generale)
     const updateData = {
         opponent_name: document.getElementById('tab-opponent').value,
         match_status: document.getElementById('tab-status').value,
@@ -2727,11 +2808,9 @@ window.saveFullTabellino = async function(sessionId, detailId) {
         goals_against: parseInt(document.getElementById('tab-gs').value) || 0,
         is_home: document.getElementById('tab-is-home').value === 'true',
         is_friendly: document.getElementById('tab-is-friendly').value === 'true',
-        scorers: JSON.stringify(events) // Manteniamo il JSON per compatibilità/storico veloci
+        scorers: JSON.stringify(events)
     };
 
-    // 3. Preparazione dati per match_stats (Individuale)
-    // Aggreghiamo i dati per atleta (es: se uno segna 2 gol)
     const statsMap = {};
     events.forEach(ev => {
         if (!statsMap[ev.athlete_id]) {
@@ -2744,114 +2823,27 @@ window.saveFullTabellino = async function(sessionId, detailId) {
     const statsToInsert = Object.values(statsMap);
 
     try {
-        // OPERAZIONE A: Aggiorna i dettagli match
-        const { error: errDetail } = await client.from('match_details').update(updateData).eq('id', detailId);
-        if (errDetail) throw errDetail;
-
-        // OPERAZIONE B: Sincronizza Match Stats
-        // Prima eliminiamo le vecchie stats di questa sessione per evitare duplicati
+        await client.from('match_details').update(updateData).eq('id', detailId);
         await client.from('match_stats').delete().eq('session_id', sessionId);
-        
-        // Poi inseriamo le nuove (se ci sono eventi)
         if (statsToInsert.length > 0) {
-            const { error: errStats } = await client.from('match_stats').insert(statsToInsert);
-            if (errStats) throw errStats;
+            await client.from('match_stats').insert(statsToInsert);
         }
-
         alert("✅ Tabellino e Statistiche sincronizzati!");
         document.getElementById('sub-section-container').innerHTML = '';
         if (typeof initPartite === 'function') initPartite();
-        
     } catch (err) { 
         console.error(err);
-        alert("Errore durante il salvataggio: " + err.message); 
+        alert("Errore durante il salvataggio."); 
     }
 };
 
-// --- INIZIO BLOCCO DA SOSTITUIRE ---
-
-// 2. Generazione interfaccia UNIFICATA
-container.innerHTML = `
-<div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
-        <div>
-            <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
-            <div style="margin-top:8px; display:flex; gap:10px;">
-                <button onclick="window.exportConvocazioniIMG('${sessionId}')" 
-                    style="background:#6366f1; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    🖼️ ESPORTA IMMAGINE
-                </button>
-            </div> 
-        </div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="window.selezionaTuttiConvocati()" 
-                style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
-                ✅ CONVOCA TUTTI
-            </button>
-            <button onclick="document.getElementById('sub-section-container').innerHTML=''" 
-                style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
-                ANNULLA
-            </button>
-            <button onclick="window.saveConvocazioni('${sessionId}')" 
-                style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
-                SALVA
-            </button>
-        </div>
-    </div>
-
-    <div style="display:grid; gap:8px;">
-        ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
-            const current = attendanceMap[a.athlete_id] || {};
-            const isConv = current.is_called_up === true && current.status !== 'squalificato';
-            const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
-            const isSq = current.status === 'squalificato';
-
-            return `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
-                    <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
-                </div>
-                <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
-                    <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
-                    </label>
-                    <label style="color:#94a3b8; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
-                    </label>
-                    <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
-                        SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
-                    </label>
-                </div>
-            </div>`;
-        }).join('')}
-    </div>
-</div>`;
-
-// Logica per il pulsante Convoca Tutti
-window.selezionaTuttiConvocati = function() {
-    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
-    radios.forEach(r => {
-        const row = r.closest('div');
-        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
-        if (!isSqualificato) {
-            r.checked = true;
-        }
-    });
-};
-
-// --- FINE DEL BLOCCO (Assicurati che dopo questa riga ci sia la graffa di chiusura della funzione principale) ---
-// --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
+// --- 5. EXPORT IMMAGINE ---
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
-        // 1. Recupero Sessione e Team
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
-        if (!session) throw new Error("Sessione non trovata.");
-
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 2. Recupero Dirigente
         let nomeDirigente = "";
         const { data: ucsData } = await client.from('user_category_seasons')
             .select('user_id').eq('team_id', session.team_id).eq('role', 'Dirigente').maybeSingle();
@@ -2861,7 +2853,6 @@ window.exportConvocazioniIMG = async function(sessionId) {
             nomeDirigente = userData?.name || "";
         }
 
-        // 3. Recupero Atleti, Numeri e RUOLI
         const { data: conv } = await client.from('attendances')
             .select(`athlete_id, athletes(name, surname)`)
             .eq('session_id', sessionId).eq('is_called_up', true);
@@ -2872,32 +2863,18 @@ window.exportConvocazioniIMG = async function(sessionId) {
             
         const detailMap = {};
         details?.forEach(d => { 
-            detailMap[d.athlete_id] = { 
-                num: d.jersey_number || '--', 
-                role: d.role || 'Non specificato' 
-            }; 
+            detailMap[d.athlete_id] = { num: d.jersey_number || '--', role: d.role || 'Altro' }; 
         });
 
-        // 4. LOGICA DI RAGGRUPPAMENTO
         const ordineRuoli = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
-        
         const atletiRaggruppati = (conv || []).reduce((acc, c) => {
             const info = detailMap[c.athlete_id] || { num: '--', role: 'Altro' };
             const r = info.role;
             if (!acc[r]) acc[r] = [];
-            acc[r].push({
-                fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(),
-                num: info.num
-            });
+            acc[r].push({ fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(), num: info.num });
             return acc;
         }, {});
 
-        // Ordina alfabeticamente dentro ogni ruolo
-        Object.keys(atletiRaggruppati).forEach(r => {
-            atletiRaggruppati[r].sort((a, b) => a.fullname.localeCompare(b.fullname));
-        });
-
-        // 5. Creazione Contenitore Temporaneo per il Rendering
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
@@ -2907,95 +2884,36 @@ window.exportConvocazioniIMG = async function(sessionId) {
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
                     .header-box { background: #2b4991; color: white; padding: 30px; border-radius: 15px; margin-bottom: 25px; text-align:center; }
                     .title { font-size: 28px; font-weight: 800; margin: 0; letter-spacing: 1px; }
-                    .subtitle { font-size: 16px; margin-top: 5px; font-weight: 700; color: #93c5fd; text-transform: uppercase; }
-                    
-                    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
-                    .card { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; text-align:center; }
-                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom:3px; }
-                    .val { font-size: 12px; font-weight: 700; color: #0f172a; }
-
-                    .role-title { 
-                        background: #2b4991; color: white; padding: 8px 15px; 
-                        font-weight: 800; border-radius: 6px; margin: 20px 0 10px 0; 
-                        text-transform: uppercase; font-size: 13px; display: flex; justify-content: space-between;
-                    }
-                    .athlete-row { 
-                        display: flex; justify-content: space-between; padding: 8px 15px; 
-                        border-bottom: 1px solid #f1f5f9; font-size: 14px; 
-                    }
-                    .footer-grid { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-                    .sig-line { border-top: 2px solid #0f172a; padding-top: 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; text-align: center; }
+                    .role-title { background: #2b4991; color: white; padding: 8px 15px; font-weight: 800; border-radius: 6px; margin: 20px 0 10px 0; text-transform: uppercase; font-size: 13px; display: flex; justify-content: space-between; }
+                    .athlete-row { display: flex; justify-content: space-between; padding: 8px 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
                 </style>
-
                 <div class="header-box">
                     <div class="title">ASD SANTENA 2014</div>
-                    <div class="subtitle">${team?.name || ''} vs ${detail?.opponent_name || '---'}</div>
+                    <div style="font-weight:700; color:#93c5fd;">${team?.name || ''} vs ${detail?.opponent_name || '---'}</div>
                 </div>
-
-                <div class="grid">
-                    <div class="card"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
-                    <div class="card"><div class="label">Ritrovo</div><div class="val">Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</div></div>
-                    <div class="card"><div class="label">Inizio Gara</div><div class="val">Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</div></div>
-                    <div class="card" style="grid-column: span 3;"><div class="label">Indirizzo</div><div class="val">${detail?.address || '---'}</div></div>
-                </div>
-
                 <div id="lista-atleti">
                     ${ordineRuoli.map(ruolo => {
                         const atleti = atletiRaggruppati[ruolo] || [];
                         if (atleti.length === 0) return '';
                         return `
-                            <div class="role-title">
-                                <span>${ruolo}s</span>
-                                <span>${atleti.length}</span>
-                            </div>
-                            ${atleti.map(a => `
-                                <div class="athlete-row">
-                                    <span><strong>${a.fullname}</strong></span>
-                                    <span style="color:#2b4991; font-weight:900;">${a.num}</span>
-                                </div>
-                            `).join('')}
+                            <div class="role-title"><span>${ruolo}s</span><span>${atleti.length}</span></div>
+                            ${atleti.map(a => `<div class="athlete-row"><span><strong>${a.fullname}</strong></span><span style="color:#2b4991; font-weight:900;">${a.num}</span></div>`).join('')}
                         `;
                     }).join('')}
                 </div>
-
-                <div class="footer-grid">
-                    <div class="sig-area"><div style="height:35px"></div><div class="sig-line">Firma Resp. Tecnico</div></div>
-                    <div class="sig-area">
-                        <div style="height:35px; text-align:center; font-weight:bold; font-size:13px; color:#2b4991;">${nomeDirigente}</div>
-                        <div class="sig-line">Firma Dirigente Accompagnatore</div>
-                    </div>
-                </div>
-            </div>
-        `;
+            </div>`;
         document.body.appendChild(tempContainer);
 
-        // 6. Conversione in Immagine
-        const canvas = await html2canvas(document.getElementById('export-container'), {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        });
-
-        // 7. Download
+        const canvas = await html2canvas(document.getElementById('export-container'), { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
         const link = document.createElement('a');
-        link.download = `Convocazioni_${team?.name}_${detail?.opponent_name}.png`;
+        link.download = `Convocazioni_${team?.name}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
-
-        // 8. Pulizia
         document.body.removeChild(tempContainer);
-
-    } catch (err) { 
-        console.error("Errore export:", err); 
-        alert("Impossibile generare l'immagine. Controlla la console.");
-    }
+    } catch (err) { console.error(err); }
 };
-/**
- * ============================================================
- * MODULO: ANALYTICS AVANZATE (SQUADRA & ATLETI)
- * ============================================================
- */
 
+// --- 6. ANALYTICS ---
 window.openStatistiche = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
@@ -3003,138 +2921,52 @@ window.openStatistiche = async function(sessionId) {
     const currentSession = await window.safeGetSession(sessionId);
     const teamId = currentSession.team_id;
 
-    // 1. Identifichiamo i tipi sessione "Gara/Partita"
     const { data: types } = await client.from('session_types').select('id, name');
-    const validTypeIds = (types || []).filter(t => 
-        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
-    ).map(t => t.id);
+    const validTypeIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
 
-    // 2. Recupero Match Details (per stats generali squadra)
-    const { data: allMatches } = await client.from('match_details')
-        .select(`*, sessions!inner(team_id, type_id)`)
-        .eq('sessions.team_id', teamId)
-        .in('sessions.type_id', validTypeIds);
+    const { data: allMatches } = await client.from('match_details').select(`*, sessions!inner(team_id, type_id)`).eq('sessions.team_id', teamId).in('sessions.type_id', validTypeIds);
+    const { data: allAttendances } = await client.from('attendances').select(`athlete_id, status, is_called_up, athletes(name, surname), sessions!inner(type_id)`).eq('sessions.team_id', teamId).in('sessions.type_id', validTypeIds);
+    const { data: performanceStats } = await client.from('match_stats').select(`*, sessions!inner(type_id)`).eq('sessions.team_id', teamId).in('sessions.type_id', validTypeIds);
 
-    // 3. Recupero Presenze (per % presenze e squalifiche)
-    const { data: allAttendances } = await client.from('attendances')
-        .select(`athlete_id, status, is_called_up, athletes(name, surname), sessions!inner(type_id)`)
-        .eq('sessions.team_id', teamId)
-        .in('sessions.type_id', validTypeIds);
-
-    // 4. Recupero Match Stats (GOL, CARTELLINI, MINUTI dalla tua tabella dedicata)
-    const { data: performanceStats } = await client.from('match_stats')
-        .select(`*, sessions!inner(type_id)`)
-        .eq('sessions.team_id', teamId)
-        .in('sessions.type_id', validTypeIds);
-
-    // --- ELABORAZIONE SQUADRA (Invariata) ---
-    const calcTeam = (matches) => {
-        const stats = { giocate: 0, vinte: 0, pari: 0, perse: 0, gf: 0, gs: 0 };
-        matches?.forEach(m => {
-            stats.giocate++;
-            stats.gf += (m.goals_for || 0);
-            stats.gs += (m.goals_against || 0);
-            if (m.match_status === 'vittoria') stats.vinte++;
-            else if (m.match_status === 'pareggio') stats.pari++;
-            else if (m.match_status === 'sconfitta') stats.perse++;
-        });
-        return stats;
-    };
-
-    const gen = calcTeam(allMatches);
-    const casa = calcTeam(allMatches?.filter(m => m.is_home));
-    const trasf = calcTeam(allMatches?.filter(m => !m.is_home));
-
-    // --- ELABORAZIONE ATLETI (Mapping combinato Attendances + Match_Stats) ---
     const athleteMap = {};
-
-    // Base: Presenze e Squalifiche
     allAttendances?.forEach(att => {
-        if (!athleteMap[att.athlete_id]) {
-            athleteMap[att.athlete_id] = { 
-                name: `${att.athletes.surname} ${att.athletes.name}`, 
-                presenze: 0, totali: 0, gol: 0, amm: 0, esp: 0, squal: 0, min: 0 
-            };
-        }
+        if (!athleteMap[att.athlete_id]) athleteMap[att.athlete_id] = { name: `${att.athletes.surname} ${att.athletes.name}`, presenze: 0, totali: 0, gol: 0, amm: 0, esp: 0, squal: 0, min: 0 };
         athleteMap[att.athlete_id].totali++; 
         if (att.is_called_up && att.status !== 'squalificato') athleteMap[att.athlete_id].presenze++;
         if (att.status === 'squalificato') athleteMap[att.athlete_id].squal++;
     });
 
-    // Integrazione: Dati tecnici dalla tabella match_stats
     performanceStats?.forEach(st => {
         const a = athleteMap[st.athlete_id];
-        if (a) {
-            a.gol += (st.goals || 0);
-            a.amm += (st.yellow_cards || 0);
-            a.esp += (st.red_cards || 0);
-            a.min += (st.minutes_played || 0);
-        }
+        if (a) { a.gol += (st.goals || 0); a.amm += (st.yellow_cards || 0); a.esp += (st.red_cards || 0); a.min += (st.minutes_played || 0); }
     });
 
-    // --- RENDER HTML ---
     container.innerHTML = `
     <div style="background:#f1f5f9; border-radius:12px; padding:20px; font-family:sans-serif;">
-        <h2 style="margin-bottom:20px; color:#1e293b; display:flex; align-items:center; gap:10px;">
-            📊 Performance Analysis <small style="font-size:12px; color:#64748b; font-weight:normal;">(Solo Gare)</small>
-        </h2>
-
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-bottom:30px;">
-            ${[
-                { label: 'GENERALE', data: gen, color: '#3b82f6' },
-                { label: 'CASA', data: casa, color: '#10b981' },
-                { label: 'TRASFERTA', data: trasf, color: '#f59e0b' }
-            ].map(tab => `
-                <div style="background:white; padding:15px; border-radius:10px; border-top:4px solid ${tab.color}; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-                    <h4 style="margin:0 0 10px 0; color:${tab.color}; font-size:11px;">${tab.label}</h4>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:13px;">
-                        <div>G: <strong>${tab.data.giocate}</strong></div>
-                        <div>V: <strong style="color:#10b981;">${tab.data.vinte}</strong></div>
-                        <div>P: <strong>${tab.data.pari}</strong></div>
-                        <div>S: <strong style="color:#ef4444;">${tab.data.perse}</strong></div>
-                        <div style="grid-column: span 2; margin-top:5px; padding-top:5px; border-top:1px solid #f1f5f9; font-weight:bold;">
-                            Reti: <span style="color:#10b981;">${tab.data.gf}</span> - <span style="color:#ef4444;">${tab.data.gs}</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-
-        <div style="background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin-bottom:20px; color:#1e293b;">📊 Performance Analysis</h2>
+        <div style="background:white; border-radius:10px; overflow:hidden;">
             <table style="width:100%; border-collapse:collapse; font-size:12px;">
                 <thead>
-                    <tr style="background:#f8fafc; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0;">
+                    <tr style="background:#f8fafc; text-align:left; border-bottom:1px solid #e2e8f0;">
                         <th style="padding:12px;">ATLETA</th>
-                        <th style="padding:12px; text-align:center;">PRES. %</th>
                         <th style="padding:12px; text-align:center;">GOL</th>
-                        <th style="padding:12px; text-align:center;">AMM</th>
-                        <th style="padding:12px; text-align:center;">ESP</th>
                         <th style="padding:12px; text-align:center;">SQUAL</th>
-                        <th style="padding:12px; text-align:center;">MIN</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${Object.values(athleteMap).sort((a,b) => b.gol - a.gol).map(a => {
-                        const perc = a.totali > 0 ? Math.round((a.presenze / a.totali) * 100) : 0;
-                        return `
+                    ${Object.values(athleteMap).sort((a,b) => b.gol - a.gol).map(a => `
                         <tr style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:12px; font-weight:bold; color:#1e293b;">${a.name}</td>
-                            <td style="padding:12px; text-align:center;">
-                                <strong>${perc}%</strong><br><small>(${a.presenze}/${a.totali})</small>
-                            </td>
-                            <td style="padding:12px; text-align:center; font-weight:bold; color:#10b981; font-size:14px;">${a.gol}</td>
-                            <td style="padding:12px; text-align:center; color:#f59e0b; font-weight:bold;">${a.amm}</td>
-                            <td style="padding:12px; text-align:center; color:#ef4444; font-weight:bold;">${a.esp}</td>
-                            <td style="padding:12px; text-align:center; background:#fff7ed; color:#c2410c;">${a.squal} gg</td>
-                            <td style="padding:12px; text-align:center; color:#64748b;">${a.min}'</td>
-                        </tr>`;
-                    }).join('')}
+                            <td style="padding:12px; font-weight:bold;">${a.name}</td>
+                            <td style="padding:12px; text-align:center; color:#10b981; font-weight:bold;">${a.gol}</td>
+                            <td style="padding:12px; text-align:center; color:#ef4444;">${a.squal} gg</td>
+                        </tr>`).join('')}
                 </tbody>
             </table>
         </div>
-        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Chiudi Analisi</button>
+        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer;">Chiudi</button>
     </div>`;
 };
+
 
 // 1. IL TEMPLATE (Genera l'HTML)
 
