@@ -2964,24 +2964,25 @@ window.saveConvocazioni = async function(sessionId) {
 // --- 4.1 export CONVOCAZIONI
 window.exportConvocazioniPDF = async function(sessionId) {
     try {
-        // 1. Recupero dati base della Sessione
+        // 1. Recupero Sessione
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         if (!session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Team e Dettagli Match (Indirizzo e Avversario)
+        // 2. Recupero dati Team e Partita
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
-        // 3. RECUPERO DIRIGENTE (Passaggio 1: Trova user_id)
+        // 3. RECUPERO DIRIGENTE (Logica rinforzata)
         let nomeDirigente = "";
+        // Cerchiamo l'utente nella tabella user_category_seasons per il team specifico
         const { data: ucsData } = await client.from('user_category_seasons')
-            .select('user_id')
+            .select('user_id, role')
             .eq('team_id', session.team_id)
             .eq('role', 'Dirigente')
             .maybeSingle();
 
-        // (Passaggio 2: Se abbiamo la user_id, prendiamo il nome da users)
-        if (ucsData && ucsData.user_id) {
+        if (ucsData?.user_id) {
+            // Se troviamo la user_id, recuperiamo il nome dalla tabella users
             const { data: userData } = await client.from('users')
                 .select('name')
                 .eq('id', ucsData.user_id)
@@ -2989,7 +2990,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             nomeDirigente = userData?.name || "";
         }
 
-        // 4. Recupero Atleti e Numeri (Unione logica)
+        // 4. Recupero Atleti e Numeri
         const { data: conv } = await client.from('attendances')
             .select(`athlete_id, athletes(name, surname)`)
             .eq('session_id', sessionId)
@@ -3007,70 +3008,80 @@ window.exportConvocazioniPDF = async function(sessionId) {
             num: numMap[c.athlete_id] || '--'
         })).sort((a, b) => a.fullname.localeCompare(b.fullname));
 
-        // 5. Generazione HTML (Layout Santena 2014)
+        // 5. Generazione PDF con nuovo layout tasto e dirigente
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-                    body { font-family: 'Inter', sans-serif; padding: 20px; color: #1e293b; background: #f1f5f9; }
-                    .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                    body { font-family: 'Inter', sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; }
+                    .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }
                     
-                    .no-print { text-align: center; margin-bottom: 25px; }
+                    /* Tasto Stampa migliorato */
+                    .no-print { text-align: center; padding: 30px 0; }
                     .btn-print {
-                        background: #1e3a8a; color: white; border: none; padding: 14px 40px;
-                        font-size: 13px; font-weight: 800; border-radius: 50px; cursor: pointer;
-                        text-transform: uppercase; letter-spacing: 1.5px;
-                        box-shadow: 0 10px 15px -3px rgba(30, 58, 138, 0.3);
+                        background: #1e3a8a; color: white; border: none; padding: 12px 35px;
+                        font-size: 14px; font-weight: 800; border-radius: 50px; cursor: pointer;
+                        text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+                        box-shadow: 0 4px 6px rgba(30, 58, 138, 0.2);
                     }
+                    .btn-print:hover { background: #1e40af; transform: translateY(-2px); }
 
-                    .header-box { background: #2b4991; color: white; padding: 35px; border-radius: 15px; margin-bottom: 30px; }
-                    .title { font-size: 32px; font-weight: 800; margin: 0; }
-                    .subtitle { font-size: 18px; margin-top: 8px; font-weight: 700; color: #93c5fd; }
+                    /* Header e Contenuto */
+                    .header-blue { background: #1e3a8a; color: white; padding: 35px; border-radius: 12px; margin-bottom: 30px; }
+                    .title { font-size: 30px; font-weight: 800; margin: 0; }
+                    .subtitle { font-size: 18px; font-weight: 700; color: #93c5fd; margin-top: 5px; }
 
-                    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
-                    .card { background: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; }
-                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
-                    .val { font-size: 14px; font-weight: 700; color: #0f172a; }
+                    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+                    .info-card { background: #f1f5f9; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; }
+                    .label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+                    .value { font-size: 14px; font-weight: 700; }
 
-                    .list-header { background: #2b4991; color: white; padding: 12px 20px; font-weight: 800; border-radius: 8px; margin-bottom: 15px; text-transform: uppercase; }
-                    .athlete-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+                    .list-bar { background: #1e3a8a; color: white; padding: 12px 20px; font-weight: 800; border-radius: 6px; margin-bottom: 15px; text-transform: uppercase; }
+                    .row { display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
                     
-                    .footer-grid { margin-top: 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
-                    .sig-area { text-align: center; }
-                    .name-out { height: 25px; font-weight: 700; font-size: 15px; color: #1e293b; margin-bottom: 8px; }
-                    .sig-line { border-top: 2px solid #0f172a; padding-top: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+                    /* Firme */
+                    .footer-sig { margin-top: 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+                    .sig-box { text-align: center; }
+                    .dirigente-nome { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px; height: 20px; }
+                    .line { border-top: 2px solid #1e293b; padding-top: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #475569; }
 
-                    @media print { .no-print { display: none; } body { background: white; padding: 0; } .sheet { box-shadow: none; margin: 0; width: 100%; } }
+                    @media print { .no-print { display: none; } body { background: white; padding: 0; } .sheet { box-shadow: none; margin: 0; } }
                 </style>
             </head>
             <body>
-                <div class="no-print"><button class="btn-print" onclick="window.print()">Stampa Documento</button></div>
+                <div class="no-print"><button class="btn-print" onclick="window.print()">Stampa Distinta</button></div>
                 <div class="sheet">
-                    <div class="header-box">
+                    <div class="header-blue">
                         <div class="title">ASD SANTENA 2014</div>
                         <div class="subtitle">| ${team?.name || ''} vs ${detail?.opponent_name || '---'}</div>
                     </div>
-                    <div class="grid">
-                        <div class="card"><div class="label">Gara Contro</div><div class="val">${detail?.opponent_name || '---'}</div></div>
-                        <div class="card"><div class="label">Data</div><div class="val">${new Date(session.session_date).toLocaleDateString()}</div></div>
-                        <div class="card"><div class="label">Indirizzo</div><div class="val">${detail?.address || '---'}</div></div>
+
+                    <div class="info-grid">
+                        <div class="info-card"><div class="label">Gara Contro</div><div class="value">${detail?.opponent_name || '---'}</div></div>
+                        <div class="info-card"><div class="label">Data</div><div class="value">${new Date(session.session_date).toLocaleDateString()}</div></div>
+                        <div class="info-card"><div class="label">Indirizzo</div><div class="value">${detail?.address || '---'}</div></div>
                     </div>
-                    <div class="list-header">Atleti Convocati</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 50px;">
+
+                    <div class="list-bar">Atleti Convocati</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 40px;">
                         ${listaAtleti.map((a, i) => `
-                            <div class="athlete-row">
+                            <div class="row">
                                 <span>${i+1}. <strong>${a.fullname}</strong></span>
-                                <span style="color:#2b4991; font-weight:900;">${a.num}</span>
+                                <span style="color:#1e3a8a; font-weight:900;">${a.num}</span>
                             </div>
                         `).join('')}
                     </div>
-                    <div class="footer-grid">
-                        <div class="sig-area"><div class="name-out"></div><div class="sig-line">Firma Responsabile Tecnico</div></div>
-                        <div class="sig-area">
-                            <div class="name-out">${nomeDirigente}</div>
-                            <div class="sig-line">Firma Dirigente Accompagnatore</div>
+
+                    <div class="footer-sig">
+                        <div class="sig-box">
+                            <div class="dirigente-nome"></div>
+                            <div class="line">Firma Allenatore</div>
+                        </div>
+                        <div class="sig-box">
+                            <div class="dirigente-nome">${nomeDirigente}</div>
+                            <div class="line">Firma Dirigente Accompagnatore</div>
                         </div>
                     </div>
                 </div>
@@ -3078,7 +3089,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             </html>
         `);
         printWindow.document.close();
-    } catch (err) { console.error("Errore export:", err); }
+    } catch (err) { console.error(err); }
 };
 /**
  * ============================================================
