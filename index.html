@@ -2790,57 +2790,85 @@ window.openConvocazioni = async function(sessionId) {
         attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; 
     });
 
-    // 2. Generazione interfaccia UNIFICATA
-    container.innerHTML = `
-    <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
+// 2. Generazione interfaccia UNIFICATA (Convocazioni)
+container.innerHTML = `
+<div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
+        <div>
+            <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
+            <div style="margin-top:8px; display:flex; gap:10px;">
+                <button onclick="window.exportConvocazioniIMG('${sessionId}')" 
+                    style="background:#6366f1; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    🖼️ ESPORTA IMMAGINE
+                </button>
+            </div> 
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="window.selezionaTuttiConvocati()" 
+                style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                ✅ CONVOCA TUTTI
+            </button>
+
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" 
+                style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                ANNULLA
+            </button>
+            
+            <button onclick="window.saveConvocazioni('${sessionId}')" 
+                style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                SALVA
+            </button>
+        </div>
+    </div>
+
+    <div style="display:grid; gap:8px;">
+        ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
+            const current = attendanceMap[a.athlete_id] || {};
+            const isConv = current.is_called_up === true && current.status !== 'squalificato';
+            const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
+            const isSq = current.status === 'squalificato';
+
+            return `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
+                    <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
+                </div>
+                
+                <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
+                    <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
+                    </label>
+                    <label style="color:#94a3b8; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
+                    </label>
+                    <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
+                        SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
+                    </label>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>
+</div>`;
+
+
+
+// Funzione logica per il pulsante (da inserire nel tuo script globale o subito sotto il blocco sopra)
+window.selezionaTuttiConvocati = function() {
+    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
+    radios.forEach(r => {
+        // Seleziona il radio 'presente' solo se non è già squalificato 
+        // (così non sovrascrivi per errore chi non può giocare)
+        const row = r.closest('div');
+        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
         
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
-            <div>
-                <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
-                <div style="margin-top:8px; display:flex; gap:10px;">
-                  <button onclick="window.exportConvocazioniIMG('${sessionId}')" 
-                   style="background:#6366f1; color:white; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                  🖼 ESPORTA IMMAGINE
-                 </button>
-<               </div> 
-            </div>
-            <div style="display:flex; gap:10px;">
-                <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">ANNULLA</button>
-                <button onclick="window.saveConvocazioni('${sessionId}')" style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">SALVA</button>
-            </div>
-        </div>
-
-        <div style="display:grid; gap:8px;">
-            ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
-                const current = attendanceMap[a.athlete_id] || {};
-                const isConv = current.is_called_up === true && current.status !== 'squalificato';
-                const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
-                const isSq = current.status === 'squalificato';
-
-                return `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
-                        <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
-                    </div>
-                    
-                    <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
-                        <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                            CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
-                        </label>
-                        <label style="color:#94a3b8; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                            ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
-                        </label>
-                        <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
-                            SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
-                        </label>
-                    </div>
-                </div>`;
-            }).join('')}
-        </div>
-    </div>`;
+        if (!isSqualificato) {
+            r.checked = true;
+        }
+    });
+    console.log("Sistema: Tutti gli atleti disponibili sono stati selezionati.");
 };
-
 window.saveConvocazioni = async function(sessionId) {
     const selectedRadios = document.querySelectorAll('.conv-radio:checked');
     if (selectedRadios.length === 0) return;
