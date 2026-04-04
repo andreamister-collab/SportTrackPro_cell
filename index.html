@@ -2707,7 +2707,65 @@ window.selezionaTuttiConvocati = function() {
         if (!isSqualificato) r.checked = true;
     });
 };
+// --- 3.1 LOGICA SALVATAGGIO CONVOCAZIONI ---
+window.saveConvocazioni = async function(sessionId) {
+    // 1. Raccogliamo tutti i radio button della sezione
+    const radios = document.querySelectorAll('.conv-radio:checked');
+    const attendanceData = [];
 
+    radios.forEach(radio => {
+        const athleteId = radio.getAttribute('data-id');
+        const statusValue = radio.value; // 'presente', 'assente', 'squalificato'
+
+        attendanceData.push({
+            session_id: sessionId,
+            athlete_id: athleteId,
+            // Logica booleana per is_called_up: 
+            // - true se 'presente'
+            // - false se 'assente' o 'squalificato' (perché non può giocare)
+            is_called_up: statusValue === 'presente',
+            status: statusValue,
+            updated_at: new Date().toISOString()
+        });
+    });
+
+    if (attendanceData.length === 0) {
+        alert("Nessun dato da salvare.");
+        return;
+    }
+
+    try {
+        // Mostriamo un feedback visivo sul tasto
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "SALVATAGGIO...";
+        btn.disabled = true;
+
+        // 2. Sincronizzazione con Supabase (Upsert: inserisce o aggiorna se esiste già)
+        const { error } = await client
+            .from('attendances')
+            .upsert(attendanceData, { onConflict: 'session_id, athlete_id' });
+
+        if (error) throw error;
+
+        alert("✅ Convocazioni salvate correttamente!");
+        
+        // 3. Chiudiamo la sezione e aggiorniamo la lista principale se necessario
+        document.getElementById('sub-section-container').innerHTML = '';
+        if (typeof initPartite === 'function') initPartite(); 
+
+    } catch (err) {
+        console.error("Errore salvataggio convocazioni:", err);
+        alert("Errore durante il salvataggio: " + err.message);
+    } finally {
+        // Ripristiniamo il pulsante
+        const btn = document.querySelector('button[onclick*="saveConvocazioni"]');
+        if (btn) {
+            btn.innerText = "SALVA";
+            btn.disabled = false;
+        }
+    }
+};
 // --- 4. TABELLINO (MATCH DETAILS) ---
 window.openTabellino = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
