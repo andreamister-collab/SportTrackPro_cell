@@ -8,6 +8,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
         * { box-sizing:border-box; }
@@ -107,7 +108,8 @@
         <a data-section="atleti">🔗 Anagrafica Squadra</a>
         <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
 		<a data-section="partite">📅 GESTIONE PARTITE</a>
-        <button id="btn-logout" class="btn-logout">Esci</button>
+		<button id="btn-logout" class="btn-logout">Esci</button>
+		<a data-section="import-atleti" style="background: #1e3a8a; color: #93c5fd; font-weight: 800;">📥 IMPORTA ATLETI</a>
     </nav>
 
     <main id="content">
@@ -286,7 +288,10 @@
                 content.innerHTML = templatePartite();
                 initPartite();
                 break;
-
+             case 'import-atleti':
+                content.innerHTML = templateImportAtleti();
+                initImportAtleti();
+                break;
             default: 
                 content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>Modulo in fase di configurazione.</p></div>`;
         }
@@ -1440,158 +1445,6 @@ window.handleDeleteStaff = async function(id) {
         }
     };
 })(); // Chiusura IIFE corretta
-/* ============================================================
-   EXCEL FUNZIONE IMPORT ATLETI: MAPPATURA UUID E CREAZIONE ANAGRAFICA
-   ============================================================ */
-window.importAtleti = async function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        console.group("🚀 Debug Importazione Atleti");
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
-            console.log("Righe rilevate nell'Excel:", jsonData.length);
-
-            // 1. Scarichiamo i riferimenti dal DB per trasformare i NOMI in ID
-            const [socs, seas, cats, teams, existingAths] = await Promise.all([
-                client.from('societies').select('id, name'),
-                client.from('seasons').select('id, name'),
-                client.from('categories').select('id, name'),
-                client.from('teams').select('id, name'),
-                client.from('athletes').select('id, name, surname')
-            ]);
-
-            const findId = (list, name, context) => {
-                if (!name) return null;
-                const match = list.find(i => i.name?.toString().trim().toLowerCase() === name.toString().trim().toLowerCase());
-                if (!match) console.warn(`⚠️ "${name}" non trovato nel DB (${context})`);
-                return match?.id;
-            };
-
-            const finalAssignments = [];
-            let newAthletesCreated = 0;
-
-            // 2. Elaborazione righe
-            for (let i = 0; i < jsonData.length; i++) {
-                const row = jsonData[i];
-                const nRiga = i + 2;
-
-                // Il campo Atleta contiene solo il cognome (anche composto es. "Trimboli Maciste")
-                let surname = row.Atleta?.toString().trim() || "";
-                if (!surname) continue;
-                let name = null;
-
-                // A. Cerchiamo l'atleta nell'anagrafica
-                let athleteId = existingAths.data.find(a =>
-                    a.surname?.trim().toLowerCase() === surname.toLowerCase()
-                )?.id;
-
-                if (!athleteId) {
-                    console.log(`👤 Riga ${nRiga}: Atleta nuovo (${surname}). Creazione in corso...`);
-                    const { data: newA, error: errA } = await client.from('athletes')
-                        .insert([{ name, surname }]).select('id').single();
-
-                    if (errA) {
-                        console.error(`❌ Errore creazione atleta riga ${nRiga}:`, errA.message);
-                        continue;
-                    }
-                    athleteId = newA.id;
-                    newAthletesCreated++;
-                    existingAths.data.push({ id: athleteId, name, surname });
-                }
-
-                // B. Trasformazione Nomi -> ID (UUID)
-                const sId = findId(socs.data, row.Società, "Società");
-                const seaId = findId(seas.data, row.Stagione, "Stagioni");
-                const cId = findId(cats.data, row.Categoria, "Categorie");
-                const tId = findId(teams.data, row.Squadra, "Squadre");
-
-                if (athleteId && sId && seaId) {
-                    finalAssignments.push({
-                        athlete_id: athleteId,
-                        society_id: sId,
-                        season_id: seaId,
-                        category_id: cId || null,
-                        team_id: tId || null,
-                        role: row.Ruolo || 'Atleta',
-                        jersey_number: row['N°'] || row.Numero || null,
-                        nickname: row.Nickname || null
-                    });
-                } else {
-                    console.error(`❌ Riga ${nRiga}: Impossibile procedere. Società o Stagione mancanti o errate.`);
-                }
-            }
-
-            // 3. Inserimento massivo finale
-            if (finalAssignments.length > 0) {
-                console.log(`📤 Invio di ${finalAssignments.length} record a Supabase...`);
-                const { error: errIns } = await client.from('athlete_team_seasons').insert(finalAssignments);
-
-                if (errIns) {
-                    console.error("❌ ERRORE DATABASE:", errIns.message);
-                    alert("Errore Database: " + errIns.message);
-                } else {
-                    console.log("✅ Importazione completata con successo!");
-                    alert(`Import riuscito!\n- Nuovi atleti creati: ${newAthletesCreated}\n- Totale righe inserite: ${finalAssignments.length}`);
-                }
-            } else {
-                alert("Nessun dato valido da importare. Controlla la console (F12) per i dettagli.");
-            }
-
-        } catch (err) {
-            console.error("🔥 Errore critico script:", err);
-        }
-        console.groupEnd();
-        if (window.loadAtletiData) await window.loadAtletiData();
-        event.target.value = "";
-    };
-    reader.readAsArrayBuffer(file);
-};
-// 4. EXPORT EXCEL REALE (Richiede libreria SheetJS)
-window.exportAtleti = function() {
-    const table = document.querySelector("table");
-    if (!table || table.rows.length <= 1) return alert("Tabella vuota!");
-
-    // Esportiamo tutte le colonne tranne l'ultima ("Azioni")
-    const rows = Array.from(table.querySelectorAll("tr"));
-    const dataForExcel = rows.map(tr => {
-        const cells = Array.from(tr.querySelectorAll("th, td"));
-        return cells.slice(0, -1).map(c => c.innerText.trim());
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
-    
-    // Impostazione larghezza colonne per leggibilità
-    ws['!cols'] = [{wch:25}, {wch:20}, {wch:15}, {wch:20}, {wch:20}, {wch:15}, {wch:8}];
-
-    XLSX.utils.book_append_sheet(wb, ws, "Atleti_SportTrackPro");
-    XLSX.writeFile(wb, "Export_Atleti_Completo.xlsx");
-};
-window.importAtleti = async function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-
-        if (confirm(`Vuoi importare ${json.length} atleti?`)) {
-            // Qui andrà la logica di loop per salvare gli atleti nel DB
-            console.log("Dati pronti per import:", json);
-            alert("Logica di salvataggio in fase di implementazione...");
-        }
-    };
-    reader.readAsArrayBuffer(file);
-};
 
 /* ============================================================
    MODULO ASSEGNAZIONI TECNICHE - FILTRI PROGRESSIVI
@@ -3222,6 +3075,70 @@ window.openStatistiche = async function(sessionId) {
         <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Chiudi Analisi</button>
     </div>`;
 };
+
+
+/**
+ * ============================================================
+ * MODULO: import atleti
+ * ============================================================
+ */
+function templateImportAtleti() {
+    return `
+        <section id="section-import-atleti" class="content-section">
+            <div class="header-box" style="background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h2 style="margin:0; font-size: 24px; font-weight: 800;">📥 IMPORTAZIONE MASSIVA ATLETI</h2>
+                <p style="margin:5px 0 0 0; opacity: 0.9; font-size: 14px;">Carica l'elenco atleti tramite file Excel (.xlsx)</p>
+            </div>
+
+            <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">1. Stagione</label>
+                    <select id="import-sel-season" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;"></select>
+                </div>
+                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">2. Società</label>
+                    <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
+                        <option value="">Seleziona Stagione...</option>
+                    </select>
+                </div>
+                <div class="card" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <label style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">3. Squadra</label>
+                    <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" disabled>
+                        <option value="">Seleziona Società...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="import-upload-zone" style="background: #f8fafc; border: 3px dashed #cbd5e1; padding: 50px; border-radius: 15px; text-align: center;">
+                <div id="import-msg-init">
+                    <p style="color: #64748b; font-weight: 600;">Configura i filtri sopra per abilitare l'importazione.</p>
+                </div>
+                <div id="import-action-zone" style="display: none;">
+                    <p style="margin-bottom: 20px; color: #1e293b; font-weight: 700;">✅ Filtri pronti! Carica il file Excel.</p>
+                    <input type="file" id="import-excel-input" accept=".xlsx" style="display: none;">
+                    <button id="btn-trigger-file" style="background: #1e3a8a; color: white; border: none; padding: 15px 40px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase;">
+                        Seleziona File Excel
+                    </button>
+                    <p style="margin-top: 15px; font-size: 11px; color: #94a3b8;">Il file deve contenere le colonne esatte: <b>nome, cognome, data_nascita</b></p>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
