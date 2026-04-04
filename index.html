@@ -2867,6 +2867,30 @@ window.openConvocazioni = async function(sessionId) {
     if (!container) return;
 
     const session = await window.safeGetSession(sessionId);
+	
+	// AGGIUNGI QUESTI PULSANTI NELL'HEADER DEL CONTAINER
+    container.innerHTML = `
+    <div style="background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0; font-family:sans-serif;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:white; padding:15px; border-radius:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <div>
+                <h3 style="margin:0; color:#1e293b;">📋 Convocazioni: ${session.title}</h3>
+                <div style="margin-top:10px; display:flex; gap:10px;">
+                    <button onclick="window.exportConvocazioniPDF('${sessionId}')" style="background:#6366f1; color:white; border:none; padding:8px 15px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                        📄 ESPORTA PDF
+                    </button>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="background:#cbd5e1; color:#1e293b; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">ANNULLA</button>
+                <button onclick="window.saveConvocazioni('${sessionId}')" style="background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA</button>
+            </div>
+        </div>
+
+        <div id="convocazioni-list">
+            </div>
+    </div>`;
+	
+	
     const { data: athletes } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes(name, surname)').eq('team_id', session.team_id);
     const { data: att } = await client.from('attendances').select('athlete_id, is_called_up, status').eq('session_id', sessionId);
     
