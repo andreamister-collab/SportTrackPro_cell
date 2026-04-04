@@ -2463,9 +2463,210 @@ window.openSessionNotesModal = openSessionNotesModal;
 window.saveSessionNotes = saveSessionNotes;
 
 
+
+
+/* ============================================================
+   MODULO: GARE & MATCH CENTER - VERSION 3.2.2 (TABELLA USERS)
+   ============================================================ */
+
+/**
+ * 1. TEMPLATE HTML
+ */
+function templatePartite() {
+    return `
+    <div class="card" id="main-match-card">
+        <div class="header" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0; color:#1e293b;">🏆 MATCH CENTER</h2>
+        </div>
+        
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+            <div id="soc-filter-container">
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">SOCIETÀ</label>
+                <select id="f-match-soc" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchSubFilters()">
+                    <option value="">Caricamento...</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">CATEGORIA</label>
+                <select id="f-match-cat" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchTeamsOnly()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">SQUADRA</label>
+                <select id="f-match-team" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+                    <option value="">Tutte</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">DA DATA</label>
+                <input type="date" id="f-match-from" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#64748b; font-weight:bold;">A DATA</label>
+                <input type="date" id="f-match-to" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
+            </div>
+        </div>
+
+        <div class="table-container" style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; min-width:850px;">
+                <thead>
+                    <tr style="text-align:left; background:#f1f5f9; color:#475569; border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:12px; width:100px;">DATA</th>
+                        <th style="padding:12px;">PARTITA</th>
+                        <th style="padding:12px;">SQUADRA</th>
+                        <th style="padding:12px; text-align:center; background:rgba(37,99,235,0.03);">GESTIONE MATCH</th>
+                        <th style="padding:12px; text-align:right;">AZIONI</th>
+                    </tr>
+                </thead>
+                <tbody id="list-partite-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div id="sub-section-container" style="margin-top:20px;"></div>`;
+}
+
+/**
+ * 2. LOGICA INIZIALIZZAZIONE (Puntando alla tabella 'users')
+ */
+async function initPartite() {
+    const tbody = document.getElementById('list-partite-body');
+    if (!tbody) return;
+
+    const selSoc = document.getElementById('f-match-soc');
+    
+    if (selSoc && (selSoc.value === "" || selSoc.options[0].text.includes("Caricamento"))) {
+        try {
+            const { data: { user: authUser } } = await client.auth.getUser();
+            if (!authUser) throw new Error("Utente non autenticato");
+
+            // --- LETTURA DALLA TABELLA USERS ---
+            const { data: userData, error: userError } = await client.from('users')
+                .select('role, society_id')
+                .eq('id', authUser.id)
+                .single();
+
+            const role = userData?.role || 'manager';
+            const societyId = userData?.society_id;
+
+            if (role === 'admin') {
+                // ADMIN: Carica tutte le società in ordine alfabetico
+                const { data: socs } = await client.from('societies').select('id, name').order('name', { ascending: true });
+                if (socs && socs.length > 0) {
+                    selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                    // Se l'admin ha una society_id specifica la usa, altrimenti la prima della lista
+                    window._currentSocietyId = societyId || socs[0].id;
+                    selSoc.value = window._currentSocietyId;
+                }
+            } else {
+                // MANAGER: Nasconde filtro e forza società
+                const container = document.getElementById('soc-filter-container');
+                if (container) container.style.display = 'none';
+
+                if (societyId) {
+                    selSoc.innerHTML = `<option value="${societyId}" selected>Società corrente</option>`;
+                    window._currentSocietyId = societyId;
+                } else {
+                    selSoc.innerHTML = `<option value="">Nessuna società</option>`;
+                    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Utente senza società assegnata.</td></tr>';
+                    return;
+                }
+            }
+            return reloadMatchSubFilters();
+        } catch (err) {
+            console.error("Errore initPartite:", err);
+            // Fallback estremo se la tabella users fallisce: prova a caricare come admin se possibile
+            const { data: socs } = await client.from('societies').select('id, name').order('name');
+            if (socs?.length > 0) {
+                selSoc.innerHTML = socs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                window._currentSocietyId = socs[0].id;
+                return reloadMatchSubFilters();
+            }
+        }
+    }
+
+    const socId = selSoc?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    // --- FILTRI E QUERY SESSIONS ---
+    const dateFrom = document.getElementById('f-match-from')?.value;
+    const dateTo = document.getElementById('f-match-to')?.value;
+    const teamFilter = document.getElementById('f-match-team')?.value;
+
+    const { data: types } = await client.from('session_types').select('id, name');
+    const validIds = (types || []).filter(t => 
+        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
+    ).map(t => t.id);
+
+    let query = client.from('sessions')
+        .select('id, title, session_date, team_id, teams(name)')
+        .eq('society_id', socId)
+        .in('type_id', validIds);
+
+    if (teamFilter) query = query.eq('team_id', teamFilter);
+    if (dateFrom) query = query.gte('session_date', dateFrom);
+    if (dateTo) query = query.lte('session_date', dateTo);
+
+    const { data: matches } = await query.order('session_date', { ascending: false });
+
+    tbody.innerHTML = (matches || []).map(m => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
+            <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
+            <td style="padding:12px;"><span style="color:#64748b;">${m.teams?.name || '---'}</span></td>
+            <td style="padding:12px; text-align:center; display:flex; gap:6px; justify-content:center;">
+                <button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📋 CONVOCA</button>
+                <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="background:#f59e0b; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">⚽ TABELLINO</button>
+                <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
+            </td>
+            <td style="padding:12px; text-align:right;">
+                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer; font-size:11px;">MODIFICA</button>
+            </td>
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato.</td></tr>';
+}
+
+/**
+ * 3. LOGICA FILTRI SECONDARI
+ */
+async function reloadMatchSubFilters() {
+    const socId = document.getElementById('f-match-soc')?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+    const catSelect = document.getElementById('f-match-cat');
+    if (catSelect) catSelect.innerHTML = '<option value="">Tutte Categorie</option>' + (cats?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '');
+
+    const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', socId).order('name');
+    window._matchTeams = teams || [];
+    reloadMatchTeamsOnly();
+}
+
+function reloadMatchTeamsOnly() {
+    const catId = document.getElementById('f-match-cat')?.value;
+    let filtered = window._matchTeams || [];
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    
+    const teamSelect = document.getElementById('f-match-team');
+    if (teamSelect) teamSelect.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    initPartite();
+}
+
+// Global Wrappers
+window.openConvocazioni = function(id) { if (typeof window.testConvocazioni === 'function') window.testConvocazioni(id); else alert("ID: " + id); };
+window.openTabellino = function(id) { alert("Tabellino ID: " + id); };
+window.openStatistiche = function(id) { alert("Stats ID: " + id); };
+
+window.templatePartite = templatePartite;
+window.initPartite = initPartite;
+window.reloadMatchSubFilters = reloadMatchSubFilters;
+window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
+
+
+
 /**
  * ============================================================
- * SPORTTRACKPRO - MATCH CENTER COMPLETE MODULE
+ * SPORTTRACKPRO - MATCH CENTER COMPLETE MODULE (v2.1)
+ * Integrato: Stato Squalificato & Gestione Tabellino Avanzata
  * ============================================================
  */
 
@@ -2499,6 +2700,7 @@ window.addEventRow = async function(sessionId, existingData = null) {
 
     const div = document.createElement('div');
     div.id = rowId;
+    div.className = 'event-row';
     div.style = "display:flex; gap:5px; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; padding:8px; border-radius:8px; margin-bottom:5px;";
 
     div.innerHTML = `
@@ -2525,7 +2727,7 @@ window.openTabellino = async function(sessionId) {
     
     if (!d) {
         const { data: newD } = await client.from('match_details').insert([{ 
-            session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da disputare', is_home: true 
+            session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da disputare', is_home: true, is_friendly: false 
         }]).select().single();
         d = newD;
     }
@@ -2601,9 +2803,9 @@ window.openTabellino = async function(sessionId) {
 
 window.saveFullTabellino = async function(sessionId, detailId) {
     const eventRows = document.querySelectorAll('.event-row');
-    const events = Array.from(document.querySelectorAll('.ev-athlete')).map((el, i) => ({
-        athlete_id: el.value,
-        type: document.querySelectorAll('.ev-type')[i].value
+    const events = Array.from(eventRows).map(row => ({
+        athlete_id: row.querySelector('.ev-athlete').value,
+        type: row.querySelector('.ev-type').value
     })).filter(ev => ev.athlete_id !== "");
 
     const updateData = {
@@ -2627,17 +2829,18 @@ window.saveFullTabellino = async function(sessionId, detailId) {
     } catch (err) { alert("Errore: " + err.message); }
 };
 
-// --- 4. CONVOCAZIONI (FIX COLONNA STATUS) ---
+// --- 4. CONVOCAZIONI (INCLUSO STATO SQUALIFICATO) ---
 window.openConvocazioni = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
     const session = await window.safeGetSession(sessionId);
     const { data: athletes } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes(name, surname)').eq('team_id', session.team_id);
-    const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
+    const { data: att } = await client.from('attendances').select('athlete_id, is_called_up, status').eq('session_id', sessionId);
     
-    const convocatiIds = new Set(att?.filter(a => a.is_called_up === true).map(a => a.athlete_id));
-    const esclusiIds = new Set(att?.filter(a => a.is_called_up === false).map(a => a.athlete_id));
+    // Mappatura stati esistenti
+    const attendanceMap = {};
+    att?.forEach(a => { attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; });
 
     container.innerHTML = `
         <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif;">
@@ -2647,20 +2850,26 @@ window.openConvocazioni = async function(sessionId) {
             </div>
             <div style="display:grid; gap:8px;">
                 ${athletes?.map(a => {
-                    const isConv = convocatiIds.has(a.athlete_id);
-                    const isExcl = esclusiIds.has(a.athlete_id);
+                    const current = attendanceMap[a.athlete_id] || {};
+                    const isConv = current.is_called_up === true && current.status !== 'squalificato';
+                    const isExcl = current.is_called_up === false && current.status !== 'squalificato';
+                    const isSq = current.status === 'squalificato';
+
                     return `
                     <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
                         <div style="display:flex; align-items:center; gap:12px;">
                             <span style="color:#3b82f6; font-weight:bold; width:25px;">${a.jersey_number || '--'}</span>
                             <span style="color:white;">${a.athletes?.surname} ${a.athletes?.name}</span>
                         </div>
-                        <div style="display:flex; gap:15px; align-items:center; background:#111827; padding:5px 12px; border-radius:20px;">
-                            <label style="color:#10b981; font-size:11px; font-weight:bold; cursor:pointer;">
-                                CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="true" ${isConv ? 'checked' : ''}>
+                        <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px;">
+                            <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
                             </label>
-                            <label style="color:#ef4444; font-size:11px; font-weight:bold; cursor:pointer;">
-                                ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="false" ${isExcl ? 'checked' : ''}>
+                            <label style="color:#ef4444; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
+                            </label>
+                            <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
+                                SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
                             </label>
                         </div>
                     </div>`;
@@ -2671,22 +2880,25 @@ window.openConvocazioni = async function(sessionId) {
 
 window.saveConvocazioni = async function(sessionId) {
     const selectedRadios = document.querySelectorAll('.conv-radio:checked');
-    const updates = Array.from(selectedRadios).map(r => ({
-        session_id: sessionId,
-        athlete_id: r.getAttribute('data-id'),
-        is_called_up: r.value === 'true',
-        status: r.value === 'true' ? 'presente' : 'assente' // Colonna corretta: status
-    }));
+    const updates = Array.from(selectedRadios).map(r => {
+        const val = r.value;
+        return {
+            session_id: sessionId,
+            athlete_id: r.getAttribute('data-id'),
+            // Se è squalificato o assente, is_called_up è false
+            is_called_up: val === 'presente', 
+            status: val // 'presente', 'assente' o 'squalificato'
+        };
+    });
 
     try {
         const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
         if (error) throw error;
-        alert("✅ Convocazioni salvate!");
+        alert("✅ Convocazioni e squalifiche salvate!");
         document.getElementById('sub-section-container').innerHTML = '';
         if (typeof initPartite === 'function') initPartite();
     } catch (err) { alert("Errore: " + err.message); }
 };
-
 
 
 
