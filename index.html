@@ -2803,11 +2803,14 @@ window.openTabellino = async function(sessionId) {
 
 window.saveFullTabellino = async function(sessionId, detailId) {
     const eventRows = document.querySelectorAll('.event-row');
+    
+    // 1. Mappiamo gli eventi dal DOM
     const events = Array.from(eventRows).map(row => ({
         athlete_id: row.querySelector('.ev-athlete').value,
         type: row.querySelector('.ev-type').value
     })).filter(ev => ev.athlete_id !== "");
 
+    // 2. Preparazione dati per match_details (Generale)
     const updateData = {
         opponent_name: document.getElementById('tab-opponent').value,
         match_status: document.getElementById('tab-status').value,
@@ -2818,17 +2821,46 @@ window.saveFullTabellino = async function(sessionId, detailId) {
         goals_against: parseInt(document.getElementById('tab-gs').value) || 0,
         is_home: document.getElementById('tab-is-home').value === 'true',
         is_friendly: document.getElementById('tab-is-friendly').value === 'true',
-        scorers: JSON.stringify(events)
+        scorers: JSON.stringify(events) // Manteniamo il JSON per compatibilità/storico veloci
     };
 
-    try {
-        const { error } = await client.from('match_details').update(updateData).eq('id', detailId);
-        if (error) throw error;
-        alert("✅ Tabellino salvato!");
-        if (typeof initPartite === 'function') initPartite();
-    } catch (err) { alert("Errore: " + err.message); }
-};
+    // 3. Preparazione dati per match_stats (Individuale)
+    // Aggreghiamo i dati per atleta (es: se uno segna 2 gol)
+    const statsMap = {};
+    events.forEach(ev => {
+        if (!statsMap[ev.athlete_id]) {
+            statsMap[ev.athlete_id] = { session_id: sessionId, athlete_id: ev.athlete_id, goals: 0, yellow_cards: 0, red_cards: 0 };
+        }
+        if (ev.type.includes('⚽')) statsMap[ev.athlete_id].goals++;
+        if (ev.type.includes('🟨')) statsMap[ev.athlete_id].yellow_cards++;
+        if (ev.type.includes('🟥')) statsMap[ev.athlete_id].red_cards++;
+    });
+    const statsToInsert = Object.values(statsMap);
 
+    try {
+        // OPERAZIONE A: Aggiorna i dettagli match
+        const { error: errDetail } = await client.from('match_details').update(updateData).eq('id', detailId);
+        if (errDetail) throw errDetail;
+
+        // OPERAZIONE B: Sincronizza Match Stats
+        // Prima eliminiamo le vecchie stats di questa sessione per evitare duplicati
+        await client.from('match_stats').delete().eq('session_id', sessionId);
+        
+        // Poi inseriamo le nuove (se ci sono eventi)
+        if (statsToInsert.length > 0) {
+            const { error: errStats } = await client.from('match_stats').insert(statsToInsert);
+            if (errStats) throw errStats;
+        }
+
+        alert("✅ Tabellino e Statistiche sincronizzati!");
+        document.getElementById('sub-section-container').innerHTML = '';
+        if (typeof initPartite === 'function') initPartite();
+        
+    } catch (err) { 
+        console.error(err);
+        alert("Errore durante il salvataggio: " + err.message); 
+    }
+};
 // --- 4. CONVOCAZIONI (INCLUSO STATO SQUALIFICATO) ---
 window.openConvocazioni = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
@@ -2910,28 +2942,37 @@ window.openStatistiche = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
-    // Recuperiamo la sessione corrente per sapere qual è il team_id
     const currentSession = await window.safeGetSession(sessionId);
     const teamId = currentSession.team_id;
 
-    // 1. Recupero tutti i match details di questa squadra per le statistiche globali
+    // 1. Identifichiamo i tipi sessione "Gara/Partita"
+    const { data: types } = await client.from('session_types').select('id, name');
+    const validTypeIds = (types || []).filter(t => 
+        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
+    ).map(t => t.id);
+
+    // 2. Recupero Match Details (per stats generali squadra)
     const { data: allMatches } = await client.from('match_details')
-        .select(`*, sessions!inner(team_id, session_date)`)
-        .eq('sessions.team_id', teamId);
+        .select(`*, sessions!inner(team_id, type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
 
-    // 2. Recupero tutte le presenze/stats atleti di questa squadra
-    const { data: allStats } = await client.from('attendances')
-        .select(`
-            athlete_id, status, is_called_up,
-            athletes(name, surname),
-            sessions!inner(team_id)
-        `)
-        .eq('sessions.team_id', teamId);
+    // 3. Recupero Presenze (per % presenze e squalifiche)
+    const { data: allAttendances } = await client.from('attendances')
+        .select(`athlete_id, status, is_called_up, athletes(name, surname), sessions!inner(type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
 
-    // --- ELABORAZIONE DATI SQUADRA ---
+    // 4. Recupero Match Stats (GOL, CARTELLINI, MINUTI dalla tua tabella dedicata)
+    const { data: performanceStats } = await client.from('match_stats')
+        .select(`*, sessions!inner(type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
+
+    // --- ELABORAZIONE SQUADRA (Invariata) ---
     const calcTeam = (matches) => {
         const stats = { giocate: 0, vinte: 0, pari: 0, perse: 0, gf: 0, gs: 0 };
-        matches.forEach(m => {
+        matches?.forEach(m => {
             stats.giocate++;
             stats.gf += (m.goals_for || 0);
             stats.gs += (m.goals_against || 0);
@@ -2942,31 +2983,43 @@ window.openStatistiche = async function(sessionId) {
         return stats;
     };
 
-    const gen = calcTeam(allMatches || []);
-    const casa = calcTeam((allMatches ||渲染).filter(m => m.is_home));
-    const trasf = calcTeam((allMatches || []).filter(m => !m.is_home));
+    const gen = calcTeam(allMatches);
+    const casa = calcTeam(allMatches?.filter(m => m.is_home));
+    const trasf = calcTeam(allMatches?.filter(m => !m.is_home));
 
-    // --- ELABORAZIONE DATI ATLETI ---
+    // --- ELABORAZIONE ATLETI (Mapping combinato Attendances + Match_Stats) ---
     const athleteMap = {};
-    // Inizializzazione mappa con tutti gli atleti della squadra
-    allStats?.forEach(s => {
-        if (!athleteMap[s.athlete_id]) {
-            athleteMap[s.athlete_id] = { 
-                name: `${s.athletes.surname} ${s.athletes.name}`, 
-                presenze: 0, totali: 0, gol: 0, amm: 0, esp: 0, squal: 0 
+
+    // Base: Presenze e Squalifiche
+    allAttendances?.forEach(att => {
+        if (!athleteMap[att.athlete_id]) {
+            athleteMap[att.athlete_id] = { 
+                name: `${att.athletes.surname} ${att.athletes.name}`, 
+                presenze: 0, totali: 0, gol: 0, amm: 0, esp: 0, squal: 0, min: 0 
             };
         }
-        athleteMap[s.athlete_id].totali++;
-        if (s.is_called_up) athleteMap[s.athlete_id].presenze++;
-        if (s.status === 'squalificato') athleteMap[s.athlete_id].squal++;
+        athleteMap[att.athlete_id].totali++; 
+        if (att.is_called_up && att.status !== 'squalificato') athleteMap[att.athlete_id].presenze++;
+        if (att.status === 'squalificato') athleteMap[att.athlete_id].squal++;
     });
 
-    // Nota: I gol/cartellini specifici andrebbero estratti dai JSON 'scorers' 
-    // o da una tabella 'events' se presente. Qui mostriamo la struttura:
+    // Integrazione: Dati tecnici dalla tabella match_stats
+    performanceStats?.forEach(st => {
+        const a = athleteMap[st.athlete_id];
+        if (a) {
+            a.gol += (st.goals || 0);
+            a.amm += (st.yellow_cards || 0);
+            a.esp += (st.red_cards || 0);
+            a.min += (st.minutes_played || 0);
+        }
+    });
 
+    // --- RENDER HTML ---
     container.innerHTML = `
     <div style="background:#f1f5f9; border-radius:12px; padding:20px; font-family:sans-serif;">
-        <h2 style="margin-bottom:20px; color:#1e293b;">📊 Analytics Performance Team</h2>
+        <h2 style="margin-bottom:20px; color:#1e293b; display:flex; align-items:center; gap:10px;">
+            📊 Performance Analysis <small style="font-size:12px; color:#64748b; font-weight:normal;">(Solo Gare)</small>
+        </h2>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-bottom:30px;">
             ${[
@@ -2975,14 +3028,14 @@ window.openStatistiche = async function(sessionId) {
                 { label: 'TRASFERTA', data: trasf, color: '#f59e0b' }
             ].map(tab => `
                 <div style="background:white; padding:15px; border-radius:10px; border-top:4px solid ${tab.color}; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-                    <h4 style="margin:0 0 10px 0; color:${tab.color}; font-size:12px;">${tab.label}</h4>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:13px;">
-                        <div>Giocate: <strong>${tab.data.giocate}</strong></div>
-                        <div>Vinte: <strong style="color:#10b981;">${tab.data.vinte}</strong></div>
-                        <div>Pareggi: <strong>${tab.data.pari}</strong></div>
-                        <div>Perse: <strong style="color:#ef4444;">${tab.data.perse}</strong></div>
-                        <div style="grid-column: span 2; margin-top:5px; padding-top:5px; border-top:1px solid #f1f5f9;">
-                            Gol: <span style="color:#10b981; font-weight:bold;">${tab.data.gf}</span> / <span style="color:#ef4444; font-weight:bold;">${tab.data.gs}</span>
+                    <h4 style="margin:0 0 10px 0; color:${tab.color}; font-size:11px;">${tab.label}</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:13px;">
+                        <div>G: <strong>${tab.data.giocate}</strong></div>
+                        <div>V: <strong style="color:#10b981;">${tab.data.vinte}</strong></div>
+                        <div>P: <strong>${tab.data.pari}</strong></div>
+                        <div>S: <strong style="color:#ef4444;">${tab.data.perse}</strong></div>
+                        <div style="grid-column: span 2; margin-top:5px; padding-top:5px; border-top:1px solid #f1f5f9; font-weight:bold;">
+                            Reti: <span style="color:#10b981;">${tab.data.gf}</span> - <span style="color:#ef4444;">${tab.data.gs}</span>
                         </div>
                     </div>
                 </div>
@@ -2990,43 +3043,38 @@ window.openStatistiche = async function(sessionId) {
         </div>
 
         <div style="background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-            <div style="padding:15px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:bold; color:#475569;">
-                📈 Statistiche Individuali Atleti (Stagionali)
-            </div>
-            <div style="overflow-x:auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
-                    <thead>
-                        <tr style="background:#f1f5f9; color:#64748b;">
-                            <th style="padding:12px;">ATLETA</th>
-                            <th style="padding:12px; text-align:center;">PRESENZE %</th>
-                            <th style="padding:12px; text-align:center;">GOL</th>
-                            <th style="padding:12px; text-align:center;">AMM.</th>
-                            <th style="padding:12px; text-align:center;">ESP.</th>
-                            <th style="padding:12px; text-align:center;">SQUAL.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${Object.values(athleteMap).map(a => {
-                            const perc = a.totali > 0 ? Math.round((a.presenze / a.totali) * 100) : 0;
-                            return `
-                            <tr style="border-bottom:1px solid #f1f5f9;">
-                                <td style="padding:12px; font-weight:bold; color:#1e293b;">${a.name}</td>
-                                <td style="padding:12px; text-align:center;">
-                                    <div style="font-weight:bold;">${perc}%</div>
-                                    <div style="font-size:10px; color:#94a3b8;">(${a.presenze}/${a.totali})</div>
-                                </td>
-                                <td style="padding:12px; text-align:center; font-weight:bold; color:#10b981;">${a.gol}</td>
-                                <td style="padding:12px; text-align:center; color:#f59e0b;">🟨 ${a.amm}</td>
-                                <td style="padding:12px; text-align:center; color:#ef4444;">🟥 ${a.esp}</td>
-                                <td style="padding:12px; text-align:center; background:#fff7ed; font-weight:bold; color:#c2410c;">${a.squal} gg</td>
-                            </tr>`;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                    <tr style="background:#f8fafc; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0;">
+                        <th style="padding:12px;">ATLETA</th>
+                        <th style="padding:12px; text-align:center;">PRES. %</th>
+                        <th style="padding:12px; text-align:center;">GOL</th>
+                        <th style="padding:12px; text-align:center;">AMM</th>
+                        <th style="padding:12px; text-align:center;">ESP</th>
+                        <th style="padding:12px; text-align:center;">SQUAL</th>
+                        <th style="padding:12px; text-align:center;">MIN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.values(athleteMap).sort((a,b) => b.gol - a.gol).map(a => {
+                        const perc = a.totali > 0 ? Math.round((a.presenze / a.totali) * 100) : 0;
+                        return `
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:12px; font-weight:bold; color:#1e293b;">${a.name}</td>
+                            <td style="padding:12px; text-align:center;">
+                                <strong>${perc}%</strong><br><small>(${a.presenze}/${a.totali})</small>
+                            </td>
+                            <td style="padding:12px; text-align:center; font-weight:bold; color:#10b981; font-size:14px;">${a.gol}</td>
+                            <td style="padding:12px; text-align:center; color:#f59e0b; font-weight:bold;">${a.amm}</td>
+                            <td style="padding:12px; text-align:center; color:#ef4444; font-weight:bold;">${a.esp}</td>
+                            <td style="padding:12px; text-align:center; background:#fff7ed; color:#c2410c;">${a.squal} gg</td>
+                            <td style="padding:12px; text-align:center; color:#64748b;">${a.min}'</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
         </div>
-
-        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Chiudi Statistiche</button>
+        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Chiudi Analisi</button>
     </div>`;
 };
 
