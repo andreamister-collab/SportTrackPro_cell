@@ -2907,15 +2907,29 @@ window.saveFullTabellino = async function(sessionId, detailId) {
 
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
-        // 1. RECUPERO DATI BASE (Sessione, Dettagli Match, Team e Categoria)
-        const { data: session } = await client.from('sessions').select('*, teams(name, categories(name))').eq('id', sessionId).maybeSingle();
-        if (!session) throw new Error("Sessione non trovata");
+        // 1. RECUPERO DATI NIDIFICATI (Sessione -> Team -> Club + Category)
+        const { data: session, error: sessError } = await client
+            .from('sessions')
+            .select(`
+                *,
+                teams (
+                    id,
+                    name,
+                    clubs ( name ), 
+                    categories ( name )
+                )
+            `)
+            .eq('id', sessionId)
+            .maybeSingle();
 
-        const teamName = session.teams?.name || "CONVOCAZIONI";
-        const categoryName = session.teams?.categories?.name || "";
-        const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
+        if (sessError || !session) throw new Error("Errore nel recupero sessione");
 
-        // 2. RECUPERO STAFF (Dirigente e Allenatore con percorso corretto: user_category_seasons -> users)
+        // Parametri dinamici dall'oggetto session
+        const nomeSocieta = session.teams?.clubs?.name || "SOCIETÀ NON DEFINITA";
+        const nomeSquadra = session.teams?.name || "";
+        const nomeCategoria = session.teams?.categories?.name || "";
+
+        // 2. RECUPERO STAFF PARAMETRICO (Dirigente e Allenatore)
         const fetchStaffMember = async (roleName) => {
             const { data } = await client
                 .from('user_category_seasons')
@@ -2926,76 +2940,63 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 .eq('role', roleName)
                 .limit(1)
                 .maybeSingle();
+            
+            // Ritorna il nome trovato in users, altrimenti "Da definire"
             return data?.user?.name || "Da definire";
         };
 
         const nomeDirigente = await fetchStaffMember('Dirigente');
         const nomeAllenatore = await fetchStaffMember('Allenatore');
 
-        // 3. RECUPERO ATLETI CONVOCATI E DETTAGLI (Numeri e Ruoli)
-        const { data: conv } = await client.from('attendances')
-            .select(`athlete_id, athletes(name, surname)`)
-            .eq('session_id', sessionId)
-            .eq('is_called_up', true);
-
-        const { data: athleteDetails } = await client.from('athlete_team_seasons')
-            .select('athlete_id, jersey_number, role')
-            .eq('team_id', session.team_id);
-            
+        // 3. RECUPERO LOGISTICA E ATLETI
+        const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
+        const { data: conv } = await client.from('attendances').select(`athlete_id, athletes(name, surname)`).eq('session_id', sessionId).eq('is_called_up', true);
+        const { data: athleteDetails } = await client.from('athlete_team_seasons').select('athlete_id, jersey_number, role').eq('team_id', session.team_id);
+        
         const detailMap = {};
-        athleteDetails?.forEach(d => { 
-            detailMap[d.athlete_id] = { num: d.jersey_number || '', role: d.role || 'Altro' }; 
-        });
+        athleteDetails?.forEach(d => { detailMap[d.athlete_id] = { num: d.jersey_number || '', role: d.role || 'Altro' }; });
 
-        // Raggruppamento per Ruolo
         const ordineRuoli = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
         const atletiRaggruppati = (conv || []).reduce((acc, c) => {
             const info = detailMap[c.athlete_id] || { num: '', role: 'Altro' };
             const r = info.role;
             if (!acc[r]) acc[r] = [];
-            acc[r].push({ 
-                fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(), 
-                num: info.num 
-            });
+            acc[r].push({ fullname: `${c.athletes.surname} ${c.athletes.name}`.toUpperCase(), num: info.num });
             return acc;
         }, {});
 
-        // 4. GENERAZIONE HTML (DESIGN PROFESSIONALE "CAMPO DA CALCIO")
+        // 4. COSTRUZIONE HTML DELLA LOCANDINA
         const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
+        tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px';
         tempContainer.innerHTML = `
-            <div id="capture-card" style="width: 550px; background: #1a472a; color: white; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; position: relative; border: 6px solid #fff; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
-                
-                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, #1a472a 0%, #2d5a27 50%, #1a472a 100%); z-index: 0;"></div>
-                
+            <div id="export-container" style="width: 550px; background: #1a472a; color: white; font-family: 'Arial Black', Gadget, sans-serif; position: relative; border: 6px solid #fff; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, #1a472a 0%, #2d5a27 100%); z-index: 0;"></div>
                 <div style="position: relative; z-index: 1; padding: 30px;">
-                    <div style="text-align: center; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 20px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 0px rgba(0,0,0,0.3);">
-                            ASD SANTENA 2014
-                        </h1>
-                        <div style="display: inline-block; background: #fbbf24; color: #1a472a; padding: 4px 20px; font-weight: 900; border-radius: 50px; margin-top: 10px; font-size: 16px;">
-                            ${teamName} ${categoryName ? `- ${categoryName}` : ''}
+                    
+                    <div style="text-align: center; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 15px; margin-bottom: 20px;">
+                        <h1 style="margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px;">${nomeSocieta}</h1>
+                        <div style="display: inline-block; background: #fbbf24; color: #1a472a; padding: 4px 20px; font-weight: 900; border-radius: 50px; margin-top: 10px; font-size: 15px;">
+                            ${nomeSquadra} ${nomeCategoria ? `| ${nomeCategoria}` : ''}
                         </div>
                     </div>
 
-                    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2); font-size: 13px;">
-                        <div style="margin-bottom: 8px;">⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'} (${detail?.is_home ? 'CASA' : 'TRASFERTA'})</div>
-                        <div style="margin-bottom: 8px;">📍 <strong>LUOGO:</strong> ${detail?.address || 'Da definire'}</div>
-                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #fbbf24;">
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2); font-size: 13px;">
+                        <div>⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'}</div>
+                        <div>📍 <strong>LUOGO:</strong> ${detail?.address || '---'}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px; color: #fbbf24; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
                             <span>🕒 RITROVO: Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</span>
-                            <span>⚽ INIZIO GARA: Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
+                            <span>⚽ INIZIO: Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; font-size: 14px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
                         <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 10px;">Allenatore</small>
-                            <strong>${nomeAllenatore}</strong>
+                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px; letter-spacing: 1px;">Allenatore</small>
+                            <strong style="font-size: 14px;">${nomeAllenatore}</strong>
                         </div>
                         <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 10px;">Dirigente</small>
-                            <strong>${nomeDirigente}</strong>
+                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px; letter-spacing: 1px;">Dirigente</small>
+                            <strong style="font-size: 14px;">${nomeDirigente}</strong>
                         </div>
                     </div>
 
@@ -3004,48 +3005,42 @@ window.exportConvocazioniIMG = async function(sessionId) {
                             const lista = atletiRaggruppati[ruolo] || [];
                             if (lista.length === 0) return '';
                             return `
-                                <div style="background: white; color: #1a472a; padding: 5px 15px; font-weight: 900; text-transform: uppercase; font-size: 12px; border-radius: 4px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="background: white; color: #1a472a; padding: 4px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; border-radius: 4px; margin-top: 12px; display: flex; justify-content: space-between;">
                                     <span>${ruolo}s</span>
-                                    <span style="font-size: 10px; opacity: 0.6;">TOT: ${lista.length}</span>
+                                    <span style="opacity: 0.5;">${lista.length}</span>
                                 </div>
                                 ${lista.map(a => `
-                                    <div style="display: flex; justify-content: space-between; padding: 8px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 15px; font-weight: 600; font-family: 'Arial', sans-serif;">
+                                    <div style="display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; font-weight: 600;">
                                         <span>${a.fullname}</span>
-                                        <span style="color: #fbbf24; font-weight: 900; font-size: 18px;">${a.num}</span>
+                                        <span style="color: #fbbf24; font-weight: 900; font-size: 16px;">${a.num}</span>
                                     </div>
                                 `).join('')}
                             `;
                         }).join('')}
                     </div>
-
-                    <div style="margin-top: 40px; text-align: center; font-size: 10px; opacity: 0.5; letter-spacing: 2px;">
-                         WWW.SPORTTRACKPRO.IT • MATCH CENTER complete module
-                    </div>
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(tempContainer);
 
-        // 5. CATTURA E GENERAZIONE IMMAGINE CON HTML2CANVAS
-        const canvas = await html2canvas(document.getElementById('capture-card'), { 
+        // 5. CATTURA E DOWNLOAD
+        const canvas = await html2canvas(document.getElementById('export-container'), { 
             scale: 2, 
             useCORS: true,
-            backgroundColor: "#1a472a"
+            backgroundColor: "#1a472a" 
         });
 
-        // 6. DOWNLOAD AUTOMATICO
         const link = document.createElement('a');
-        link.download = `Convocazioni_${teamName}_${categoryName || 'Match'}.png`;
+        link.download = `Convocazioni_${nomeSquadra}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
 
-        // Pulizia del DOM
         document.body.removeChild(tempContainer);
 
     } catch (err) {
         console.error("Errore esportazione:", err);
-        alert("Si è verificato un errore nel generare l'immagine. Controlla la console.");
+        alert("Errore durante la generazione dell'immagine.");
     }
 };
 
