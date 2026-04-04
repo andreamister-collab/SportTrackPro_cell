@@ -2662,42 +2662,11 @@ window.reloadMatchTeamsOnly = reloadMatchTeamsOnly;
 
 /**
  * ============================================================
- * MATCH CENTER - FIX FUNZIONI GLOBALI E COERENZA ID
+ * MATCH CENTER - TABELLINO MODALE & FIX SALVATAGGIO
  * ============================================================
  */
 
-// 1. DEFINIZIONE IMMEDIATA DELLE FUNZIONI DI SUPPORTO (Evita ReferenceError)
-window.prepareSubSection = function(sessionId) {
-    console.log("Preparazione sezione per ID:", sessionId);
-    const container = document.getElementById('sub-section-container');
-    if (!container) {
-        alert("Errore: Sezione 'sub-section-container' non trovata nel DOM.");
-        return null;
-    }
-    container.innerHTML = `<div style="text-align:center; padding:30px; color:#9ca3af;">Caricamento in corso...</div>`;
-    container.scrollIntoView({ behavior: 'smooth' });
-    return container;
-};
-
-window.safeGetSession = async function(sessionId) {
-    try {
-        const { data, error } = await client
-            .from('sessions')
-            .select('id, team_id, title, session_date')
-            .eq('id', sessionId)
-            .maybeSingle(); 
-
-        if (error) throw error;
-        return data;
-    } catch (e) {
-        console.error("Errore recupero sessione:", e);
-        return null;
-    }
-};
-
-/**
- * 2. TABELLINO (FIXATO)
- */
+// 1. FUNZIONE DI APERTURA TABELLINO (STILE ANAGRAFICA)
 window.openTabellino = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
@@ -2705,105 +2674,112 @@ window.openTabellino = async function(sessionId) {
     const session = await window.safeGetSession(sessionId);
     let { data: d } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
     
+    // Se non esiste il dettaglio, lo creiamo inizialmente
     if (!d) {
-        const { data: newD } = await client.from('match_details').insert([{ session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da giocare' }]).select().single();
+        const { data: newD } = await client.from('match_details').insert([{ 
+            session_id: sessionId, 
+            goals_for: 0, 
+            goals_against: 0, 
+            match_status: 'da disputare' 
+        }]).select().single();
         d = newD;
     }
 
     container.innerHTML = `
-    <div style="max-width:600px; margin:auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); color:#333;">
-        <div style="background:#f8fafc; padding:20px; border-bottom:1px solid #e2e8f0;">
-            <h2 style="margin:0; font-size:18px; color:#1e293b;">⚽ Dettagli Match</h2>
-            <p style="margin:5px 0 0; font-size:13px; color:#64748b;">Compila i dati della gara e i dettagli logistici</p>
+    <div style="max-width:600px; margin:20px auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); color:#333; font-family: sans-serif;">
+        <div style="background:#f8fafc; padding:20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h2 style="margin:0; font-size:18px; color:#1e293b;">⚽ Report Gara</h2>
+                <p style="margin:5px 0 0; font-size:12px; color:#64748b;">Dati logistici e risultato finale</p>
+            </div>
+            <div style="background:#3b82f6; color:white; padding:5px 12px; border-radius:20px; font-size:11px; font-weight:bold; text-transform:uppercase;">
+                ID: ${sessionId.substring(0,8)}
+            </div>
         </div>
 
         <div style="padding:20px; display:grid; gap:20px;">
-            <div style="display:grid; gap:5px;">
-                <label style="font-weight:600; font-size:13px;">Avversario *</label>
-                <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="Es: Victoria Academy" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:700; font-size:12px; color:#475569;">AVVERSARIO</label>
+                    <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="Nome squadra" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px;">
+                </div>
+                <div style="display:grid; gap:5px;">
+                    <label style="font-weight:700; font-size:12px; color:#475569;">STATO GARA</label>
+                    <select id="tab-status" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; background:white; font-size:14px;">
+                        <option value="da disputare" ${d.match_status === 'da disputare' ? 'selected' : ''}>⏳ Da disputare</option>
+                        <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>✅ Vittoria</option>
+                        <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>❌ Sconfitta</option>
+                        <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>🤝 Pareggio</option>
+                    </select>
+                </div>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                 <div style="display:grid; gap:5px;">
-                    <label style="font-weight:600; font-size:13px;">🕒 Orario Ritrovo</label>
+                    <label style="font-weight:700; font-size:12px; color:#475569;">🕒 ORARIO RITROVO</label>
                     <input type="time" id="tab-meeting-time" value="${d.meeting_time || ''}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
                 </div>
                 <div style="display:grid; gap:5px;">
-                    <label style="font-weight:600; font-size:13px;">🏟️ Inizio Partita</label>
+                    <label style="font-weight:700; font-size:12px; color:#475569;">🏟️ INIZIO PARTITA</label>
                     <input type="time" id="tab-match-time" value="${d.match_time || ''}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
                 </div>
             </div>
 
             <div style="display:grid; gap:5px;">
-                <label style="font-weight:600; font-size:13px;">📍 Luogo / Indirizzo Ritrovo</label>
-                <input type="text" id="tab-location-addr" value="${d.meeting_address || ''}" placeholder="Via Trinità 10, Santena (To)" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                <label style="font-weight:700; font-size:12px; color:#475569;">📍 LUOGO / INDIRIZZO RITROVO</label>
+                <input type="text" id="tab-location-addr" value="${d.meeting_address || ''}" placeholder="Via, Città, CAP" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f1f5f9; padding:15px; border-radius:8px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f1f5f9; padding:15px; border-radius:10px; border:1px dashed #cbd5e1;">
                 <div style="display:grid; gap:5px;">
-                    <label style="font-weight:600; font-size:13px; color:#10b981;">Gol Fatti</label>
-                    <input type="number" id="tab-gf" value="${d.goals_for || 0}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">
+                    <label style="font-weight:800; font-size:11px; color:#10b981;">GOL FATTI</label>
+                    <input type="number" id="tab-gf" value="${d.goals_for || 0}" style="padding:12px; border:1px solid #10b981; border-radius:6px; font-size:18px; font-weight:bold; text-align:center;">
                 </div>
                 <div style="display:grid; gap:5px;">
-                    <label style="font-weight:600; font-size:13px; color:#ef4444;">Gol Subiti</label>
-                    <input type="number" id="tab-gs" value="${d.goals_against || 0}" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">
+                    <label style="font-weight:800; font-size:11px; color:#ef4444;">GOL SUBITI</label>
+                    <input type="number" id="tab-gs" value="${d.goals_against || 0}" style="padding:12px; border:1px solid #ef4444; border-radius:6px; font-size:18px; font-weight:bold; text-align:center;">
                 </div>
             </div>
         </div>
 
-        <div style="padding:15px 20px; background:#f8fafc; display:flex; gap:10px; justify-content:flex-end;">
-            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:10px 20px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer;">Annulla</button>
-            <button onclick="saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 25px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Salva Report</button>
+        <div style="padding:15px 20px; background:#f8fafc; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #e2e8f0;">
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:10px 20px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; cursor:pointer;">Chiudi</button>
+            <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 30px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);">💾 SALVA REPORT</button>
         </div>
     </div>`;
 };
 
-/**
- * 3. CONVOCAZIONI (FIXATA)
- */
-window.openConvocazioni = async function(sessionId) {
-    const container = window.prepareSubSection(sessionId);
-    if (!container) return;
+// 2. FUNZIONE DI SALVATAGGIO (GLOBALIZZATA)
+window.saveFullTabellino = async function(sessionId, detailId) {
+    console.log("Salvataggio in corso per sessione:", sessionId);
+    
+    const updateData = {
+        opponent_name: document.getElementById('tab-opponent').value,
+        match_status: document.getElementById('tab-status').value,
+        meeting_time: document.getElementById('tab-meeting-time').value,
+        match_time: document.getElementById('tab-match-time').value,
+        meeting_address: document.getElementById('tab-location-addr').value,
+        goals_for: parseInt(document.getElementById('tab-gf').value) || 0,
+        goals_against: parseInt(document.getElementById('tab-gs').value) || 0,
+        updated_at: new Date()
+    };
 
-    const session = await window.safeGetSession(sessionId);
-    if (!session) return;
+    try {
+        const { error } = await client
+            .from('match_details')
+            .update(updateData)
+            .eq('id', detailId);
 
-    const { data: athletes } = await client.from('athlete_team_seasons')
-        .select('athlete_id, jersey_number, athletes(name, surname)')
-        .eq('team_id', session.team_id);
+        if (error) throw error;
 
-    const { data: att } = await client.from('attendances').select('athlete_id, is_called_up').eq('session_id', sessionId);
-    const convocatiIds = new Set(att?.filter(a => a.is_called_up === true).map(a => a.athlete_id));
-    const nonConvocatiIds = new Set(att?.filter(a => a.is_called_up === false).map(a => a.athlete_id));
-
-    container.innerHTML = `
-        <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:white;">📋 Convocazioni: ${session.title}</h3>
-                <button onclick="saveConvocazioni('${sessionId}')" style="background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA</button>
-            </div>
-            <div style="display:grid; gap:8px;">
-                ${athletes?.map(a => {
-                    const isConv = convocatiIds.has(a.athlete_id);
-                    const isNotConv = nonConvocatiIds.has(a.athlete_id);
-                    return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1f2937; border:1px solid #374151; border-radius:8px;">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="color:#3b82f6; font-weight:bold; width:25px;">${a.jersey_number || '--'}</span>
-                            <span style="color:white; font-weight:500;">${a.athletes?.surname} ${a.athletes?.name}</span>
-                        </div>
-                        <div style="display:flex; gap:20px; align-items:center; background:#111827; padding:5px 15px; border-radius:20px;">
-                            <label style="color:#10b981; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                                CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="true" ${isConv ? 'checked' : ''}>
-                            </label>
-                            <label style="color:#ef4444; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
-                                ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="false" ${isNotConv ? 'checked' : ''}>
-                            </label>
-                        </div>
-                    </div>`;
-                }).join('')}
-            </div>
-        </div>`;
+        alert("✅ Report salvato con successo!");
+        // Opzionale: ricarica la lista per aggiornare lo stato visivo
+        if (typeof initPartite === 'function') initPartite();
+        
+    } catch (err) {
+        console.error("Errore salvataggio tabellino:", err);
+        alert("❌ Errore durante il salvataggio: " + err.message);
+    }
 };
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
