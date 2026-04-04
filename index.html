@@ -2620,9 +2620,6 @@ async function initPartite() {
                 <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
 				<button onclick="window.exportConvocazioniPDF('${m.id}')" style="background:#ef4444; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">📄 PDF</button>
 			</td>
-            <td style="padding:12px; text-align:right;">
-                <button class="btn-sm" onclick="openMatchModal('${m.id}')" style="background:none; color:#3b82f6; border:none; cursor:pointer; font-size:11px;">MODIFICA</button>
-            </td>
         </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">Nessun match trovato.</td></tr>';
 }
 
