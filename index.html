@@ -2852,6 +2852,20 @@ container.innerHTML = `
     </div>
 </div>`;
 
+// Logica per il pulsante
+window.selezionaTuttiConvocati = function() {
+    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
+    radios.forEach(r => {
+        // Troviamo il container della riga per controllare se è squalificato
+        const row = r.closest('div').parentElement; 
+        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
+        
+        if (!isSqualificato) {
+            r.checked = true;
+        }
+    });
+};
+
 
 
 // Funzione logica per il pulsante (da inserire nel tuo script globale o subito sotto il blocco sopra)
