@@ -3134,19 +3134,22 @@ async function initImportAtleti() {
     const selTeam = document.getElementById('import-sel-team');
 
     try {
-        // Caricamento Stagioni
-        const { data: seasons, error: sErr } = await client.from('seasons').select('*').order('year', { ascending: false });
+        // Caricamento Stagioni - AGGIORNATO: ordiniamo per 'name'
+        const { data: seasons, error: sErr } = await client
+            .from('seasons')
+            .select('id, name')
+            .order('name', { ascending: false });
         
         if (sErr || !seasons) {
             console.error("Errore recupero stagioni:", sErr);
-            if(selSeason) selSeason.innerHTML = '<option>Errore dati</option>';
+            if(selSeason) selSeason.innerHTML = '<option>Errore caricamento</option>';
             return;
         }
 
         selSeason.innerHTML = '<option value="">Seleziona Stagione...</option>' + 
-            seasons.map(s => `<option value="${s.id}">${s.year}</option>`).join('');
+            seasons.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
-        // Evento 1: Stagione -> Carica Società
+        // Listener 1: Stagione -> Carica Società
         selSeason.onchange = async () => {
             if (!selSeason.value) { selSoc.disabled = true; selTeam.disabled = true; return; }
             const { data: societies } = await client.from('societies').select('*').order('name');
@@ -3156,7 +3159,7 @@ async function initImportAtleti() {
             selTeam.disabled = true;
         };
 
-        // Evento 2: Società -> Carica Squadre
+        // Listener 2: Società -> Carica Squadre
         selSoc.onchange = async () => {
             if (!selSoc.value) { selTeam.disabled = true; return; }
             const { data: teams } = await client.from('teams').select('id, name, category_id').eq('society_id', selSoc.value);
@@ -3165,14 +3168,14 @@ async function initImportAtleti() {
             selTeam.disabled = false;
         };
 
-        // Evento 3: Squadra -> Mostra pulsante upload
+        // Listener 3: Squadra -> Sblocca caricamento
         selTeam.onchange = () => {
             const isReady = !!selTeam.value;
             document.getElementById('import-msg-init').style.display = isReady ? 'none' : 'block';
             document.getElementById('import-action-zone').style.display = isReady ? 'block' : 'none';
         };
 
-        // Gestione File
+        // Gestione File Excel
         document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click();
 
         document.getElementById('import-excel-input').onchange = function(e) {
@@ -3192,7 +3195,7 @@ async function initImportAtleti() {
                 let count = 0;
                 for (let row of rows) {
                     try {
-                        // 1. Crea Atleta
+                        // 1. Inserimento Anagrafica (Assicurati che i nomi colonne Excel corrispondano)
                         const { data: ath, error: aErr } = await client.from('athletes').insert({
                             name: row.nome, 
                             surname: row.cognome, 
@@ -3200,7 +3203,7 @@ async function initImportAtleti() {
                         }).select().single();
 
                         if (ath) {
-                            // 2. Lega a Stagione/Team
+                            // 2. Inserimento Legame Team/Stagione
                             await client.from('athlete_team_seasons').insert({
                                 athlete_id: ath.id, 
                                 season_id: sID, 
@@ -3212,17 +3215,16 @@ async function initImportAtleti() {
                         }
                     } catch (err) { console.error("Errore riga:", row, err); }
                 }
-                alert(`✅ Importazione terminata! Inseriti ${count} atleti.`);
-                initImportAtleti(); // Reset interfaccia
+                alert(`✅ Importazione completata! ${count} atleti aggiunti.`);
+                initImportAtleti(); // Reset filtri
             };
             reader.readAsBinaryString(file);
         };
 
     } catch (globalErr) {
-        console.error("Errore critico initImportAtleti:", globalErr);
+        console.error("Errore critico:", globalErr);
     }
 }
-
 
 
 
