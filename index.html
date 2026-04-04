@@ -2968,20 +2968,21 @@ window.exportConvocazioniPDF = async function(sessionId) {
         const { data: session } = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
         if (!session) throw new Error("Sessione non trovata.");
 
-        // 2. Recupero Team (Nome)
+        // 2. Recupero Team
         const { data: team } = await client.from('teams').select('name').eq('id', session.team_id).maybeSingle();
         
         // 3. Recupero Tabellino (Avversario, Indirizzo, Orari)
         const { data: detail } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
 
         // 4. RECUPERO DIRIGENTE (ucs -> users)
+        // Recuperiamo l'utente con ruolo 'Dirigente' collegato a questa squadra
         const { data: ucsData } = await client.from('user_category_seasons')
             .select(`role, users ( name )`)
             .eq('team_id', session.team_id)
             .eq('role', 'Dirigente')
             .maybeSingle();
         
-        const nomeDirigente = ucsData?.users?.name || '';
+        const nomeDirigente = ucsData?.users?.name || "";
 
         // 5. Recupero Convocati e Numeri Maglia
         const { data: conv } = await client.from('attendances')
@@ -3008,29 +3009,65 @@ window.exportConvocazioniPDF = async function(sessionId) {
             <head>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-                    body { font-family: 'Inter', sans-serif; padding: 20px; color: #1e293b; }
-                    .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; }
+                    body { font-family: 'Inter', sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; }
+                    .sheet { width: 210mm; min-height: 297mm; padding: 15mm; margin: auto; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
                     
-                    /* Header con logica richiesta */
-                    .blue-header { background: #1e3a8a; color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; }
-                    .club-title { font-size: 26px; font-weight: 800; text-transform: uppercase; margin: 0; }
-                    .sub-header { font-size: 16px; font-weight: 700; margin-top: 5px; color: #93c5fd; }
+                    /* Layout Bottone Stampa */
+                    .no-print { 
+                        display: flex; 
+                        justify-content: center; 
+                        padding: 20px; 
+                        background: #f1f5f9; 
+                        margin-bottom: 20px;
+                        border-radius: 8px;
+                    }
+                    .btn-print {
+                        background: #1e3a8a;
+                        color: white;
+                        border: none;
+                        padding: 12px 30px;
+                        font-size: 14px;
+                        font-weight: 800;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        transition: all 0.2s;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    }
+                    .btn-print:hover { background: #1e40af; transform: translateY(-1px); }
+
+                    /* Header */
+                    .blue-header { background: #1e3a8a; color: white; padding: 30px; border-radius: 12px; margin-bottom: 25px; }
+                    .club-title { font-size: 28px; font-weight: 800; text-transform: uppercase; margin: 0; }
+                    .sub-header { font-size: 18px; font-weight: 700; margin-top: 5px; color: #93c5fd; }
 
                     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
                     .box { background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
                     .label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
                     .value { font-size: 13px; font-weight: 700; }
 
-                    .section-bar { background: #1e3a8a; color: white; padding: 10px 15px; font-weight: 800; border-radius: 6px; margin: 20px 0 10px 0; text-transform: uppercase; }
-                    .row { display: flex; justify-content: space-between; padding: 6px 5px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+                    .section-bar { background: #1e3a8a; color: white; padding: 10px 15px; font-weight: 800; border-radius: 6px; margin: 25px 0 10px 0; text-transform: uppercase; }
+                    .row { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
                     
-                    .footer { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-                    .sig-line { border-top: 2px solid #1e293b; margin-top: 40px; text-align: center; font-size: 10px; font-weight: 800; padding-top: 5px; }
-                    @media print { .no-print { display: none; } }
+                    /* Footer e Dirigente */
+                    .footer { margin-top: 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+                    .sig-container { display: flex; flex-direction: column; align-items: center; }
+                    .name-display { font-size: 14px; font-weight: 700; color: #1e293b; height: 20px; margin-bottom: 5px; }
+                    .sig-line { border-top: 2px solid #1e293b; width: 100%; text-align: center; font-size: 10px; font-weight: 800; padding-top: 8px; text-transform: uppercase; color: #64748b; }
+                    
+                    @media print { 
+                        .no-print { display: none; } 
+                        body { background: white; padding: 0; }
+                        .sheet { box-shadow: none; margin: 0; width: 100%; }
+                    }
                 </style>
             </head>
             <body>
-                <div class="no-print" style="text-align:center; margin-bottom:20px;"><button onclick="window.print()">STAMPA DISTINTA</button></div>
+                <div class="no-print">
+                    <button class="btn-print" onclick="window.print()">Stampa Distinta</button>
+                </div>
+
                 <div class="sheet">
                     <div class="blue-header">
                         <div class="club-title">ASD SANTENA 2014</div>
@@ -3047,7 +3084,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
                     </div>
 
                     <div class="section-bar">Atleti Convocati</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 30px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 40px;">
                         ${listaAtleti.map((a, i) => `
                             <div class="row">
                                 <span>${i+1}. <strong>${a.name}</strong></span>
@@ -3057,14 +3094,13 @@ window.exportConvocazioniPDF = async function(sessionId) {
                     </div>
 
                     <div class="footer">
-                        <div>
-                            <div class="label">Responsabile Tecnico</div>
-                            <div class="sig-line">FIRMA ALLENATORE</div>
+                        <div class="sig-container">
+                            <div class="name-display"></div>
+                            <div class="sig-line">Firma Allenatore</div>
                         </div>
-                        <div>
-                            <div class="label">Dirigente Accompagnatore</div>
-                            <div style="text-align:center; font-weight:700; font-size:13px; margin-bottom:-32px;">${nomeDirigente}</div>
-                            <div class="sig-line">FIRMA DIRIGENTE</div>
+                        <div class="sig-container">
+                            <div class="name-display">${nomeDirigente}</div>
+                            <div class="sig-line">Firma Dirigente</div>
                         </div>
                     </div>
                 </div>
@@ -3072,7 +3108,7 @@ window.exportConvocazioniPDF = async function(sessionId) {
             </html>
         `);
         printWindow.document.close();
-    } catch (err) { alert("Errore: " + err.message); }
+    } catch (err) { alert("Errore durante l'export: " + err.message); }
 };
 /**
  * ============================================================
