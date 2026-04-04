@@ -2768,10 +2768,11 @@ window.saveFullTabellino = async function(sessionId, detailId) {
     }
 };
 
+// --- INIZIO BLOCCO DA SOSTITUIRE ---
+
 // 2. Generazione interfaccia UNIFICATA
 container.innerHTML = `
 <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
-    
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:#1f2937; padding:15px; border-radius:10px; border:1px solid #374151;">
         <div>
             <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
@@ -2787,12 +2788,10 @@ container.innerHTML = `
                 style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
                 ✅ CONVOCA TUTTI
             </button>
-
             <button onclick="document.getElementById('sub-section-container').innerHTML=''" 
                 style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
                 ANNULLA
             </button>
-            
             <button onclick="window.saveConvocazioni('${sessionId}')" 
                 style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
                 SALVA
@@ -2813,7 +2812,6 @@ container.innerHTML = `
                     <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
                     <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
                 </div>
-                
                 <div style="display:flex; gap:12px; align-items:center; background:#111827; padding:6px 12px; border-radius:20px; border:1px solid #374151;">
                     <label style="color:#10b981; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
                         CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
@@ -2834,14 +2832,15 @@ container.innerHTML = `
 window.selezionaTuttiConvocati = function() {
     const radios = document.querySelectorAll('.conv-radio[value="presente"]');
     radios.forEach(r => {
-        // Cerchiamo la riga corrente per controllare lo stato squalificato
         const row = r.closest('div');
         const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
         if (!isSqualificato) {
             r.checked = true;
         }
     });
+};
 
+// --- FINE DEL BLOCCO (Assicurati che dopo questa riga ci sia la graffa di chiusura della funzione principale) ---
 // --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
@@ -2991,39 +2990,6 @@ window.exportConvocazioniIMG = async function(sessionId) {
         alert("Impossibile generare l'immagine. Controlla la console.");
     }
 };
-
-
-
-
-
-
-
-
-// --- 4. CONVOCAZIONI (INCLUSO STATO SQUALIFICATO ED EXPORT) ---
-window.openConvocazioni = async function(sessionId) {
-    const container = window.prepareSubSection(sessionId);
-    if (!container) return;
-
-    const session = await window.safeGetSession(sessionId);
-
-    // 1. Recupero dati atleti e presenze esistenti
-    const { data: athletes } = await client.from('athlete_team_seasons')
-        .select('athlete_id, jersey_number, athletes(name, surname)')
-        .eq('team_id', session.team_id);
-        
-    const { data: att } = await client.from('attendances')
-        .select('athlete_id, is_called_up, status')
-        .eq('session_id', sessionId);
-
-    // Mappatura stati per caricamento veloce
-    const attendanceMap = {};
-    att?.forEach(a => { 
-        attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; 
-    });
-
-
-
-
 /**
  * ============================================================
  * MODULO: ANALYTICS AVANZATE (SQUADRA & ATLETI)
