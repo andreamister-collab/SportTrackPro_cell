@@ -2768,30 +2768,6 @@ window.saveFullTabellino = async function(sessionId, detailId) {
     }
 };
 
-// --- 4. CONVOCAZIONI (INCLUSO STATO SQUALIFICATO ED EXPORT) ---
-window.openConvocazioni = async function(sessionId) {
-    const container = window.prepareSubSection(sessionId);
-    if (!container) return;
-
-    const session = await window.safeGetSession(sessionId);
-
-    // 1. Recupero dati atleti e presenze esistenti
-    const { data: athletes } = await client.from('athlete_team_seasons')
-        .select('athlete_id, jersey_number, athletes(name, surname)')
-        .eq('team_id', session.team_id);
-        
-    const { data: att } = await client.from('attendances')
-        .select('athlete_id, is_called_up, status')
-        .eq('session_id', sessionId);
-
-    // Mappatura stati per caricamento veloce
-    const attendanceMap = {};
-    att?.forEach(a => { 
-        attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; 
-    });
-
-
-
 // 2. Generazione interfaccia UNIFICATA
 container.innerHTML = `
 <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
@@ -2858,15 +2834,14 @@ container.innerHTML = `
 window.selezionaTuttiConvocati = function() {
     const radios = document.querySelectorAll('.conv-radio[value="presente"]');
     radios.forEach(r => {
-        const parentRow = r.closest('div');
-        const isSqualificato = parentRow.querySelector('input[value="squalificato"]').checked;
+        // Cerchiamo la riga corrente per controllare lo stato squalificato
+        const row = r.closest('div');
+        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
         if (!isSqualificato) {
             r.checked = true;
         }
     });
 };
-
-
 // --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
@@ -3016,6 +2991,39 @@ window.exportConvocazioniIMG = async function(sessionId) {
         alert("Impossibile generare l'immagine. Controlla la console.");
     }
 };
+
+
+
+
+
+
+
+
+// --- 4. CONVOCAZIONI (INCLUSO STATO SQUALIFICATO ED EXPORT) ---
+window.openConvocazioni = async function(sessionId) {
+    const container = window.prepareSubSection(sessionId);
+    if (!container) return;
+
+    const session = await window.safeGetSession(sessionId);
+
+    // 1. Recupero dati atleti e presenze esistenti
+    const { data: athletes } = await client.from('athlete_team_seasons')
+        .select('athlete_id, jersey_number, athletes(name, surname)')
+        .eq('team_id', session.team_id);
+        
+    const { data: att } = await client.from('attendances')
+        .select('athlete_id, is_called_up, status')
+        .eq('session_id', sessionId);
+
+    // Mappatura stati per caricamento veloce
+    const attendanceMap = {};
+    att?.forEach(a => { 
+        attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; 
+    });
+
+
+
+
 /**
  * ============================================================
  * MODULO: ANALYTICS AVANZATE (SQUADRA & ATLETI)
