@@ -2790,6 +2790,9 @@ window.openConvocazioni = async function(sessionId) {
         attendanceMap[a.athlete_id] = { is_called_up: a.is_called_up, status: a.status }; 
     });
 
+
+// --- INIZIO BLOCCO CONVOCAZIONI ---
+
 // 2. Generazione interfaccia UNIFICATA (Convocazioni)
 container.innerHTML = `
 <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #374151; font-family:sans-serif; color:white;">
@@ -2852,37 +2855,20 @@ container.innerHTML = `
     </div>
 </div>`;
 
-// Logica per il pulsante
+// 3. Logica per il pulsante "Convoca Tutti"
 window.selezionaTuttiConvocati = function() {
     const radios = document.querySelectorAll('.conv-radio[value="presente"]');
     radios.forEach(r => {
-        // Troviamo il container della riga per controllare se è squalificato
-        const row = r.closest('div').parentElement; 
-        const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
-        
-        if (!isSqualificato) {
-            r.checked = true;
-        }
-    });
-};
-
-
-
-// Funzione logica per il pulsante (da inserire nel tuo script globale o subito sotto il blocco sopra)
-window.selezionaTuttiConvocati = function() {
-    const radios = document.querySelectorAll('.conv-radio[value="presente"]');
-    radios.forEach(r => {
-        // Seleziona il radio 'presente' solo se non è già squalificato 
-        // (così non sovrascrivi per errore chi non può giocare)
         const row = r.closest('div');
         const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
-        
         if (!isSqualificato) {
             r.checked = true;
         }
     });
-    console.log("Sistema: Tutti gli atleti disponibili sono stati selezionati.");
+    console.log("Sistema: Atleti disponibili selezionati.");
 };
+
+// 4. Salvataggio Convocazioni
 window.saveConvocazioni = async function(sessionId) {
     const selectedRadios = document.querySelectorAll('.conv-radio:checked');
     if (selectedRadios.length === 0) return;
@@ -2892,23 +2878,29 @@ window.saveConvocazioni = async function(sessionId) {
         return {
             session_id: sessionId,
             athlete_id: r.getAttribute('data-id'),
-            // Logica: is_called_up è TRUE solo se il radio selezionato è 'presente'
             is_called_up: val === 'presente', 
-            status: val // Salva 'presente', 'assente' o 'squalificato'
+            status: val
         };
     });
 
     try {
         const { error } = await client.from('attendances').upsert(updates, { onConflict: 'session_id, athlete_id' });
         if (error) throw error;
-        alert("✅ Convocazioni e squalifiche salvate correttamente!");
+        alert("✅ Convocazioni salvate correttamente!");
         document.getElementById('sub-section-container').innerHTML = '';
         if (typeof initPartite === 'function') initPartite();
     } catch (err) { 
         console.error(err);
-        alert("Errore durante il salvataggio: " + err.message); 
+        alert("Errore salvataggio: " + err.message); 
     }
 };
+
+// --- FINE BLOCCO (Assicurati che ci sia la parentesi graffa di chiusura della funzione padre se necessario) ---
+
+
+
+
+
 // --- 4.1 export CONVOCAZIONI in Immagine (Raggruppato per Ruolo)
 window.exportConvocazioniIMG = async function(sessionId) {
     try {
