@@ -300,11 +300,27 @@
         }
 
         /* ── MAIN CONTENT ── */
+        /* #app viene impostato a flex dal JS al login */
         #content {
             margin-left: 240px;
             padding: 1.75rem 2rem;
             min-height: 100vh;
-            overflow-x: auto;
+            overflow-x: hidden;
+            width: calc(100% - 240px);
+            box-sizing: border-box;
+            flex: 1;
+        }
+
+        /* Assicura che tutte le card occupino la larghezza piena */
+        #content .card,
+        #content > div {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Fix: quando #app è flex, il content deve espandersi */
+        #app[style*="flex"] {
+            width: 100%;
         }
 
         /* ══════════════════════════════════════
@@ -493,7 +509,7 @@
     </div>
 </div>
 
-<div id="app">
+<div id="app" style="display:none">
     <nav id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-brand">
