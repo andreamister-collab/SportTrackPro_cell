@@ -280,15 +280,61 @@
         if (!content) return;
 
         switch(section) {
-            case 'dashboard': 
-                // Fix: usiamo window.CURRENT_USER con fallback per evitare errori undefined
-                const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-                content.innerHTML = `
-                    <div class="card">
-                        <h2>Benvenuto, ${userName}</h2>
-                        <p>Seleziona una voce dal menu laterale per gestire l'attività sportiva.</p>
-                    </div>`; 
-                break;
+case 'dashboard': 
+    const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
+    content.innerHTML = `
+        <div style="padding: 20px; font-family: sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div>
+                    <h2 style="color: #0a192f; margin: 0;">Bentornato, ${userName} 👋</h2>
+                    <p style="color: #64748b; margin: 5px 0 0 0;">Riepilogo attività sportiva</p>
+                </div>
+                <div style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                    <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; font-weight: bold;">STAGIONE</label>
+                    <select id="select-season" onchange="initDashboard()" style="border: none; font-weight: bold; color: #0a192f; outline: none; cursor: pointer;">
+                        <option value="all">Tutte le stagioni</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                <div style="background: #0a192f; color: white; padding: 20px; border-radius: 10px; border-bottom: 4px solid #fbbf24;">
+                    <small style="opacity: 0.7; font-size: 11px; text-transform: uppercase;">Gol Fatti</small>
+                    <div id="dash-gf" style="font-size: 28px; font-weight: 800; color: #fbbf24;">--</div>
+                </div>
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Gol Subiti</small>
+                    <div id="dash-gs" style="font-size: 28px; font-weight: 800; color: #0a192f;">--</div>
+                </div>
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Ammonizioni</small>
+                    <div id="dash-amm" style="font-size: 28px; font-weight: 800; color: #eab308;">--</div>
+                </div>
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Espulsioni</small>
+                    <div id="dash-esp" style="font-size: 28px; font-weight: 800; color: #ef4444;">--</div>
+                </div>
+            </div>
+
+            <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                 <h3 style="margin-top: 0; color: #0a192f;">Partite Recenti</h3>
+                 <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; background: #f8fafc;">
+                            <th style="padding: 10px;">Data</th>
+                            <th style="padding: 10px;">Squadra</th>
+                            <th style="padding: 10px;">Esito</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableMatchesBody"></tbody>
+                 </table>
+            </div>
+        </div>
+    `;
+    
+    // Esecuzione caricamento
+    loadSeasons().then(() => initDashboard());
+    break;
             
             case 'stagioni': 
                 content.innerHTML = templateStagioni(); 
@@ -366,6 +412,100 @@
         await client.auth.signOut();
         location.reload();
     };
+/* ============================================================
+   PAGINA: Dashboard
+   ============================================================ */
+/* --- FUNZIONI DI UTILITÀ DASHBOARD --- */
+
+// Questa può stare ovunque perché viene chiamata dagli eventi 'onkeyup' nell'HTML
+function tableSearch(inputId, tbodyId) {
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
+    const filter = inputEl.value.toLowerCase();
+    const rows = document.getElementById(tbodyId)?.getElementsByTagName("tr");
+    if (!rows) return;
+
+    for (let row of rows) {
+        row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
+    }
+}
+// Nel case 'dashboard' dello switch:
+content.innerHTML = `
+    <div style="padding: 20px; font-family: sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <div>
+                <h2 style="color: #0a192f; margin: 0;">Bentornato, ${userName} 👋</h2>
+                <p style="color: #64748b; margin: 5px 0 0 0;">Riepilogo attività sportiva</p>
+            </div>
+            <div style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; font-weight: bold;">STAGIONE</label>
+                <select id="select-season" onchange="initDashboard()" style="border: none; font-weight: bold; color: #0a192f; outline: none; cursor: pointer;">
+                    <option value="all">Tutte le stagioni</option>
+                    </select>
+            </div>
+        </div>
+
+        </div>
+`;
+// Carichiamo prima le stagioni, poi i dati
+loadSeasons().then(() => initDashboard());
+// Questa deve essere 'async' perché interroga Supabase
+async function initDashboard() {
+    try {
+        console.log("Aggiornamento dati Dashboard...");
+        const seasonId = document.getElementById('select-season')?.value;
+
+        // Query con filtro stagione (se non è "all")
+        let query = client.from('match_details').select(`
+            goals_for, goals_against, yellow_cards, red_cards,
+            sessions!inner(season_id)
+        `);
+
+        if (seasonId && seasonId !== 'all') {
+            query = query.eq('sessions.season_id', seasonId);
+        }
+
+        const { data: matchData, error } = await query;
+        if (error) throw error;
+
+        let gf = 0, gs = 0, amm = 0, esp = 0;
+        matchData?.forEach(m => {
+            gf += m.goals_for || 0;
+            gs += m.goals_against || 0;
+            amm += m.yellow_cards || 0;
+            esp += m.red_cards || 0;
+        });
+
+        // Scrittura nelle Card
+        const updateElem = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        updateElem('dash-gf', gf);
+        updateElem('dash-gs', gs);
+        updateElem('dash-amm', amm);
+        updateElem('dash-esp', esp);
+
+        console.log("Dashboard aggiornata!");
+    } catch (err) {
+        console.error("Errore dashboard:", err);
+    }
+}
+
+// Funzione per caricare le stagioni nel menu a tendina
+async function loadSeasons() {
+    const { data: seasons } = await client.from('seasons').select('*').order('name');
+    const select = document.getElementById('select-season');
+    if (!select || !seasons) return;
+
+    select.innerHTML = '<option value="all">Tutte le stagioni</option>';
+    seasons.forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
+}
+
+
 
 /* ============================================================
    PAGINA: STAGIONI (Versione Definitiva)
@@ -2924,19 +3064,16 @@ window.exportConvocazioniIMG = async function(sessionId) {
         const nomeSquadra = session.teams?.name || "Squadra";
         const nomeCategoria = session.categories?.name || "";
 
-        // 2. RECUPERO STAFF - NUOVA LOGICA DIRETTA (No Join complessa)
+        // 2. RECUPERO STAFF (Logica diretta per Onofrio)
         const fetchStaffNames = async () => {
             let staff = { allenatore: "Da definire", dirigente: "Da definire" };
-            
-            // Prendiamo tutti i membri dello staff per questo team_id
             const { data: staffRoles } = await client
                 .from('user_category_seasons')
                 .select('user_id, role')
                 .eq('team_id', session.team_id);
 
-            if (staffRoles && staffRoles.length > 0) {
+            if (staffRoles) {
                 for (const entry of staffRoles) {
-                    // Per ogni ID trovato, facciamo una query secca sulla tabella users
                     const { data: userData } = await client
                         .from('users')
                         .select('name')
@@ -2953,10 +3090,8 @@ window.exportConvocazioniIMG = async function(sessionId) {
         };
 
         const staffData = await fetchStaffNames();
-        const nomeAllenatore = staffData.allenatore;
-        const nomeDirigente = staffData.dirigente;
 
-        // 3. RECUPERO MATCH DETAILS (Avversario, Luogo, Orari)
+        // 3. RECUPERO DETTAGLI GARA
         const { data: detail } = await client
             .from('match_details')
             .select('*')
@@ -2986,36 +3121,37 @@ window.exportConvocazioniIMG = async function(sessionId) {
             return acc;
         }, {});
 
-        // 5. GENERAZIONE HTML
+        // 5. GENERAZIONE HTML (TEMA BLU E GIALLO)
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px';
         tempContainer.innerHTML = `
-            <div id="export-final-card" style="width: 550px; background: #1a472a; color: white; font-family: 'Arial Black', sans-serif; border: 6px solid #fff;">
-                <div style="padding: 30px; background: linear-gradient(135deg, #1a472a 0%, #2d5a27 100%);">
-                    <div style="text-align: center; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 15px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 28px; text-transform: uppercase;">${nomeSocieta}</h1>
-                        <div style="display: inline-block; background: #fbbf24; color: #1a472a; padding: 4px 20px; font-weight: 900; border-radius: 50px; margin-top: 10px; font-size: 15px;">
-                            ${nomeSquadra} ${nomeCategoria ? `- ${nomeCategoria}` : ''}
+            <div id="export-card-blue" style="width: 500px; background: #0a192f; color: white; font-family: 'Segoe UI', Roboto, sans-serif; border: 5px solid #fff;">
+                <div style="padding: 30px; background: linear-gradient(180deg, #0a192f 0%, #112240 100%);">
+                    
+                    <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid #fbbf24;">
+                        <h1 style="margin: 0; font-size: 30px; font-weight: 900; color: #ffffff; text-transform: uppercase;">${nomeSocieta}</h1>
+                        <div style="display: inline-block; background: #ffffff; color: #0a192f; padding: 4px 15px; font-weight: 800; border-radius: 4px; margin-top: 10px; margin-bottom: 15px; font-size: 13px;">
+                            ${nomeSquadra.toUpperCase()} ${nomeCategoria ? '| ' + nomeCategoria.toUpperCase() : ''}
                         </div>
                     </div>
 
-                    <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 20px; font-size: 13px;">
-                        <div>⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'}</div>
-                        <div>📍 <strong>LUOGO:</strong> ${detail?.address || '---'}</div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px; color: #fbbf24; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: #ffffff;">
+                        <div style="margin-bottom: 6px;">⚽ <b>AVVERSARIO:</b> ${detail?.opponent_name?.toUpperCase() || '---'}</div>
+                        <div style="margin-bottom: 6px;">📍 <b>CAMPO:</b> ${detail?.address || '---'}</div>
+                        <div style="display: flex; justify-content: space-between; color: #fbbf24; font-weight: bold; margin-top: 10px; padding-top: 10px; border-top: 1px dotted rgba(255,255,255,0.2);">
                             <span>🕒 RITROVO: Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</span>
                             <span>⚽ INIZIO: Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                        <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px;">Allenatore</small>
-                            <strong>${nomeAllenatore}</strong>
+                    <div style="display: flex; gap: 20px; margin-bottom: 25px; font-size: 14px; color: #ffffff;">
+                        <div style="flex: 1; border-left: 3px solid #fbbf24; padding-left: 10px;">
+                            <small style="display:block; opacity: 0.6; font-size: 10px; text-transform: uppercase;">Allenatore</small>
+                            <b>${staffData.allenatore}</b>
                         </div>
-                        <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px;">Dirigente</small>
-                            <strong>${nomeDirigente}</strong>
+                        <div style="flex: 1; border-left: 3px solid #fbbf24; padding-left: 10px;">
+                            <small style="display:block; opacity: 0.6; font-size: 10px; text-transform: uppercase;">Dirigente</small>
+                            <b>${staffData.dirigente}</b>
                         </div>
                     </div>
 
@@ -3024,13 +3160,13 @@ window.exportConvocazioniIMG = async function(sessionId) {
                             const lista = atletiRaggruppati[ruolo] || [];
                             if (lista.length === 0) return '';
                             return `
-                                <div style="background: white; color: #1a472a; padding: 4px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; margin-top: 12px;">
-                                    ${ruolo}S (${lista.length})
+                                <div style="background: rgba(255,255,255,0.1); color: #ffffff; padding: 5px 12px; font-weight: 800; font-size: 11px; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;">
+                                    ${ruolo}s
                                 </div>
                                 ${lista.map(a => `
-                                    <div style="display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 15px; font-weight: 600; color: #fbbf24;">
                                         <span>${a.fullname}</span>
-                                        <span style="color: #fbbf24; font-weight: 900;">${a.num}</span>
+                                        <span style="font-weight: 900; font-size: 17px;">${a.num}</span>
                                     </div>
                                 `).join('')}
                             `;
@@ -3041,7 +3177,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
         `;
 
         document.body.appendChild(tempContainer);
-        const canvas = await html2canvas(document.getElementById('export-final-card'), { scale: 2, useCORS: true });
+        const canvas = await html2canvas(document.getElementById('export-card-blue'), { scale: 2, useCORS: true });
         const link = document.createElement('a');
         link.download = `Convocazioni_${nomeSquadra.replace(/\s+/g, '_')}.png`;
         link.href = canvas.toDataURL("image/png");
@@ -3049,8 +3185,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
         document.body.removeChild(tempContainer);
 
     } catch (err) {
-        console.error("Errore:", err);
-        alert("Errore nell'esportazione: " + err.message);
+        console.error("Errore esportazione:", err);
     }
 };
 // --- FINE BLOCCO (Assicurati che non ci siano CANCELLAZIONI dopo questa riga!) ---
@@ -3105,6 +3240,154 @@ window.openStatistiche = async function(sessionId) {
             </table>
         </div>
         <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer;">Chiudi</button>
+    </div>`;
+};
+
+
+
+/**
+ * ============================================================
+ * MODULO: ANALYTICS AVANZATE (SQUADRA & ATLETI)
+ * ============================================================
+ */
+
+window.openStatistiche = async function(sessionId) {
+    const container = window.prepareSubSection(sessionId);
+    if (!container) return;
+
+    const currentSession = await window.safeGetSession(sessionId);
+    const teamId = currentSession.team_id;
+
+    // 1. Identifichiamo i tipi sessione "Gara/Partita"
+    const { data: types } = await client.from('session_types').select('id, name');
+    const validTypeIds = (types || []).filter(t => 
+        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
+    ).map(t => t.id);
+
+    // 2. Recupero Match Details (per stats generali squadra)
+    const { data: allMatches } = await client.from('match_details')
+        .select(`*, sessions!inner(team_id, type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
+
+    // 3. Recupero Presenze (per % presenze e squalifiche)
+    const { data: allAttendances } = await client.from('attendances')
+        .select(`athlete_id, status, is_called_up, athletes(name, surname), sessions!inner(type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
+
+    // 4. Recupero Match Stats (GOL, CARTELLINI, MINUTI dalla tua tabella dedicata)
+    const { data: performanceStats } = await client.from('match_stats')
+        .select(`*, sessions!inner(type_id)`)
+        .eq('sessions.team_id', teamId)
+        .in('sessions.type_id', validTypeIds);
+
+    // --- ELABORAZIONE SQUADRA (Invariata) ---
+    const calcTeam = (matches) => {
+        const stats = { giocate: 0, vinte: 0, pari: 0, perse: 0, gf: 0, gs: 0 };
+        matches?.forEach(m => {
+            stats.giocate++;
+            stats.gf += (m.goals_for || 0);
+            stats.gs += (m.goals_against || 0);
+            if (m.match_status === 'vittoria') stats.vinte++;
+            else if (m.match_status === 'pareggio') stats.pari++;
+            else if (m.match_status === 'sconfitta') stats.perse++;
+        });
+        return stats;
+    };
+
+    const gen = calcTeam(allMatches);
+    const casa = calcTeam(allMatches?.filter(m => m.is_home));
+    const trasf = calcTeam(allMatches?.filter(m => !m.is_home));
+
+    // --- ELABORAZIONE ATLETI (Mapping combinato Attendances + Match_Stats) ---
+    const athleteMap = {};
+
+    // Base: Presenze e Squalifiche
+    allAttendances?.forEach(att => {
+        if (!athleteMap[att.athlete_id]) {
+            athleteMap[att.athlete_id] = { 
+                name: `${att.athletes.surname} ${att.athletes.name}`, 
+                presenze: 0, totali: 0, gol: 0, amm: 0, esp: 0, squal: 0, min: 0 
+            };
+        }
+        athleteMap[att.athlete_id].totali++; 
+        if (att.is_called_up && att.status !== 'squalificato') athleteMap[att.athlete_id].presenze++;
+        if (att.status === 'squalificato') athleteMap[att.athlete_id].squal++;
+    });
+
+    // Integrazione: Dati tecnici dalla tabella match_stats
+    performanceStats?.forEach(st => {
+        const a = athleteMap[st.athlete_id];
+        if (a) {
+            a.gol += (st.goals || 0);
+            a.amm += (st.yellow_cards || 0);
+            a.esp += (st.red_cards || 0);
+            a.min += (st.minutes_played || 0);
+        }
+    });
+
+    // --- RENDER HTML ---
+    container.innerHTML = `
+    <div style="background:#f1f5f9; border-radius:12px; padding:20px; font-family:sans-serif;">
+        <h2 style="margin-bottom:20px; color:#1e293b; display:flex; align-items:center; gap:10px;">
+            📊 Performance Analysis <small style="font-size:12px; color:#64748b; font-weight:normal;">(Solo Gare)</small>
+        </h2>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-bottom:30px;">
+            ${[
+                { label: 'GENERALE', data: gen, color: '#3b82f6' },
+                { label: 'CASA', data: casa, color: '#10b981' },
+                { label: 'TRASFERTA', data: trasf, color: '#f59e0b' }
+            ].map(tab => `
+                <div style="background:white; padding:15px; border-radius:10px; border-top:4px solid ${tab.color}; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="margin:0 0 10px 0; color:${tab.color}; font-size:11px;">${tab.label}</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:13px;">
+                        <div>G: <strong>${tab.data.giocate}</strong></div>
+                        <div>V: <strong style="color:#10b981;">${tab.data.vinte}</strong></div>
+                        <div>P: <strong>${tab.data.pari}</strong></div>
+                        <div>S: <strong style="color:#ef4444;">${tab.data.perse}</strong></div>
+                        <div style="grid-column: span 2; margin-top:5px; padding-top:5px; border-top:1px solid #f1f5f9; font-weight:bold;">
+                            Reti: <span style="color:#10b981;">${tab.data.gf}</span> - <span style="color:#ef4444;">${tab.data.gs}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div style="background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                    <tr style="background:#f8fafc; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0;">
+                        <th style="padding:12px;">ATLETA</th>
+                        <th style="padding:12px; text-align:center;">PRES. %</th>
+                        <th style="padding:12px; text-align:center;">GOL</th>
+                        <th style="padding:12px; text-align:center;">AMM</th>
+                        <th style="padding:12px; text-align:center;">ESP</th>
+                        <th style="padding:12px; text-align:center;">SQUAL</th>
+                        <th style="padding:12px; text-align:center;">MIN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.values(athleteMap).sort((a,b) => b.gol - a.gol).map(a => {
+                        const perc = a.totali > 0 ? Math.round((a.presenze / a.totali) * 100) : 0;
+                        return `
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:12px; font-weight:bold; color:#1e293b;">${a.name}</td>
+                            <td style="padding:12px; text-align:center;">
+                                <strong>${perc}%</strong><br><small>(${a.presenze}/${a.totali})</small>
+                            </td>
+                            <td style="padding:12px; text-align:center; font-weight:bold; color:#10b981; font-size:14px;">${a.gol}</td>
+                            <td style="padding:12px; text-align:center; color:#f59e0b; font-weight:bold;">${a.amm}</td>
+                            <td style="padding:12px; text-align:center; color:#ef4444; font-weight:bold;">${a.esp}</td>
+                            <td style="padding:12px; text-align:center; background:#fff7ed; color:#c2410c;">${a.squal} gg</td>
+                            <td style="padding:12px; text-align:center; color:#64748b;">${a.min}'</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Chiudi Analisi</button>
     </div>`;
 };
 
