@@ -283,10 +283,18 @@
 case 'dashboard': 
     const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
     content.innerHTML = `
-        <div style="padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-            <div style="margin-bottom: 25px;">
-                <h2 style="color: #0a192f; margin: 0;">Bentornato, ${userName} 👋</h2>
-                <p style="color: #64748b; margin: 5px 0 0 0;">Ecco il riepilogo della tua società sportiva.</p>
+        <div style="padding: 20px; font-family: sans-serif;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div>
+                    <h2 style="color: #0a192f; margin: 0;">Bentornato, ${userName} 👋</h2>
+                    <p style="color: #64748b; margin: 5px 0 0 0;">Riepilogo attività sportiva</p>
+                </div>
+                <div style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                    <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; font-weight: bold;">STAGIONE</label>
+                    <select id="select-season" onchange="initDashboard()" style="border: none; font-weight: bold; color: #0a192f; outline: none; cursor: pointer;">
+                        <option value="all">Tutte le stagioni</option>
+                    </select>
+                </div>
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
@@ -294,69 +302,38 @@ case 'dashboard':
                     <small style="opacity: 0.7; font-size: 11px; text-transform: uppercase;">Gol Fatti</small>
                     <div id="dash-gf" style="font-size: 28px; font-weight: 800; color: #fbbf24;">--</div>
                 </div>
-                <div style="background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
                     <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Gol Subiti</small>
                     <div id="dash-gs" style="font-size: 28px; font-weight: 800; color: #0a192f;">--</div>
                 </div>
-                <div style="background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
                     <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Ammonizioni</small>
                     <div id="dash-amm" style="font-size: 28px; font-weight: 800; color: #eab308;">--</div>
                 </div>
-                <div style="background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <div style="background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
                     <small style="color: #64748b; font-size: 11px; text-transform: uppercase;">Espulsioni</small>
                     <div id="dash-esp" style="font-size: 28px; font-weight: 800; color: #ef4444;">--</div>
                 </div>
             </div>
 
-            <div style="background: white; border-radius: 10px; padding: 20px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #0a192f;">⚽ Partite Ultimi 30 Giorni</h3>
-                    <input type="text" id="filterMatches" placeholder="Cerca squadra o avversario..." 
-                           onkeyup="tableSearch('filterMatches', 'tableMatchesBody')"
-                           style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; width: 250px;">
-                </div>
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <thead style="background: #f8fafc; text-align: left; color: #64748b;">
-                            <tr>
-                                <th style="padding: 12px; border-bottom: 1px solid #e2e8f0;">Data</th>
-                                <th style="padding: 12px; border-bottom: 1px solid #e2e8f0;">Squadra</th>
-                                <th style="padding: 12px; border-bottom: 1px solid #e2e8f0;">Avversario</th>
-                                <th style="padding: 12px; border-bottom: 1px solid #e2e8f0;">Esito</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableMatchesBody">
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-
             <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #0a192f;">🏆 Statistiche Squadre</h3>
-                    <input type="text" id="filterTeams" placeholder="Filtra categoria..." 
-                           onkeyup="tableSearch('filterTeams', 'tableTeamsBody')"
-                           style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; width: 250px;">
-                </div>
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <thead style="background: #0a192f; color: white; text-align: left;">
-                            <tr>
-                                <th style="padding: 12px;">Squadra</th>
-                                <th style="padding: 12px;">Gol F/S</th>
-                                <th style="padding: 12px;">Amm/Esp</th>
-                                <th style="padding: 12px;">Presenze %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableTeamsBody">
-                            </tbody>
-                    </table>
-                </div>
+                 <h3 style="margin-top: 0; color: #0a192f;">Partite Recenti</h3>
+                 <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; background: #f8fafc;">
+                            <th style="padding: 10px;">Data</th>
+                            <th style="padding: 10px;">Squadra</th>
+                            <th style="padding: 10px;">Esito</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableMatchesBody"></tbody>
+                 </table>
             </div>
         </div>
     `;
-    // Chiama la funzione per caricare i dati reali
-    initDashboard();
+    
+    // Esecuzione caricamento
+    loadSeasons().then(() => initDashboard());
     break;
             
             case 'stagioni': 
@@ -452,15 +429,43 @@ function tableSearch(inputId, tbodyId) {
         row.style.display = row.textContent.toLowerCase().includes(filter) ? "" : "none";
     }
 }
+// Nel case 'dashboard' dello switch:
+content.innerHTML = `
+    <div style="padding: 20px; font-family: sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <div>
+                <h2 style="color: #0a192f; margin: 0;">Bentornato, ${userName} 👋</h2>
+                <p style="color: #64748b; margin: 5px 0 0 0;">Riepilogo attività sportiva</p>
+            </div>
+            <div style="background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; font-weight: bold;">STAGIONE</label>
+                <select id="select-season" onchange="initDashboard()" style="border: none; font-weight: bold; color: #0a192f; outline: none; cursor: pointer;">
+                    <option value="all">Tutte le stagioni</option>
+                    </select>
+            </div>
+        </div>
 
+        </div>
+`;
+// Carichiamo prima le stagioni, poi i dati
+loadSeasons().then(() => initDashboard());
 // Questa deve essere 'async' perché interroga Supabase
 async function initDashboard() {
     try {
-        console.log("Inizializzazione dati Dashboard...");
-        
-        // Eseguiamo la query su Supabase
-        const { data: matchData, error } = await client.from('match_details').select('*');
-        
+        console.log("Aggiornamento dati Dashboard...");
+        const seasonId = document.getElementById('select-season')?.value;
+
+        // Query con filtro stagione (se non è "all")
+        let query = client.from('match_details').select(`
+            goals_for, goals_against, yellow_cards, red_cards,
+            sessions!inner(season_id)
+        `);
+
+        if (seasonId && seasonId !== 'all') {
+            query = query.eq('sessions.season_id', seasonId);
+        }
+
+        const { data: matchData, error } = await query;
         if (error) throw error;
 
         let gf = 0, gs = 0, amm = 0, esp = 0;
@@ -471,21 +476,34 @@ async function initDashboard() {
             esp += m.red_cards || 0;
         });
 
-        // Verifichiamo che gli elementi esistano prima di scrivere (evita errori in console)
-        if (document.getElementById('dash-gf')) {
-            document.getElementById('dash-gf').innerText = gf;
-            document.getElementById('dash-gs').innerText = gs;
-            document.getElementById('dash-amm').innerText = amm;
-            document.getElementById('dash-esp').innerText = esp;
-        }
+        // Scrittura nelle Card
+        const updateElem = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
 
-        console.log("Dati Dashboard caricati!");
+        updateElem('dash-gf', gf);
+        updateElem('dash-gs', gs);
+        updateElem('dash-amm', amm);
+        updateElem('dash-esp', esp);
+
+        console.log("Dashboard aggiornata!");
     } catch (err) {
-        console.error("Errore inizializzazione dashboard:", err);
+        console.error("Errore dashboard:", err);
     }
 }
 
+// Funzione per caricare le stagioni nel menu a tendina
+async function loadSeasons() {
+    const { data: seasons } = await client.from('seasons').select('*').order('name');
+    const select = document.getElementById('select-season');
+    if (!select || !seasons) return;
 
+    select.innerHTML = '<option value="all">Tutte le stagioni</option>';
+    seasons.forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
+}
 
 
 
