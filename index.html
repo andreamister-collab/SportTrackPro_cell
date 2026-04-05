@@ -284,36 +284,62 @@ case 'dashboard':
     const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
     content.innerHTML = `
         <div class="header">
-            <h2>Benvenuto, ${userName}</h2>
+            <h2>Dashboard Panoramica</h2>
         </div>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1rem;">
             <div class="card" style="border-left: 5px solid #2563eb;">
-                <h4 style="margin:0; color:#64748b;">Totale Atleti</h4>
-                <h2 id="stat-atleti" style="margin:10px 0 0 0;">--</h2>
+                <h4 style="margin:0; color:#64748b; font-size:0.8rem;">Società</h4>
+                <h2 id="stat-societa" style="margin:5px 0 0 0;">--</h2>
             </div>
-            <div class="card" style="border-left: 5px solid #16a34a;">
-                <h4 style="margin:0; color:#64748b;">Gol Totali</h4>
-                <h2 id="stat-gol" style="margin:10px 0 0 0;">--</h2>
+            <div class="card" style="border-left: 5px solid #3b82f6;">
+                <h4 style="margin:0; color:#64748b; font-size:0.8rem;">Categorie</h4>
+                <h2 id="stat-categorie" style="margin:5px 0 0 0;">--</h2>
             </div>
-            <div class="card" style="border-left: 5px solid #f59e0b;">
-                <h4 style="margin:0; color:#64748b;">Presenze Medie</h4>
-                <h2 id="stat-presenze" style="margin:10px 0 0 0;">-- %</h2>
+            <div class="card" style="border-left: 5px solid #10b981;">
+                <h4 style="margin:0; color:#64748b; font-size:0.8rem;">Atleti Totali</h4>
+                <h2 id="stat-atleti" style="margin:5px 0 0 0;">--</h2>
             </div>
-            <div class="card" style="border-left: 5px solid #ef4444;">
-                <h4 style="margin:0; color:#64748b;">Ammonizioni</h4>
-                <h2 id="stat-ammonizioni" style="margin:10px 0 0 0;">--</h2>
+            <div class="card" style="border-left: 5px solid #8b5cf6;">
+                <h4 style="margin:0; color:#64748b; font-size:0.8rem;">Sessioni / Allenamenti</h4>
+                <h2 id="stat-sessioni" style="margin:5px 0 0 0;">--</h2>
             </div>
         </div>
-        <div class="card">
-            <h3>Classifica Marcatori (Top 5)</h3>
-            <table style="margin-top:10px;">
-                <thead>
-                    <tr><th>Atleta</th><th style="text-align:right">Gol</th></tr>
-                </thead>
-                <tbody id="top-scorers"></tbody>
-            </table>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:1rem; margin-bottom:2rem;">
+            <div class="card" style="background:#f8fafc;">
+                <h4 style="margin:0; color:#475569; font-size:0.75rem;">Staff Totale</h4>
+                <h3 id="staff-total" style="margin:5px 0 0 0; color:#0f172a;">--</h3>
+            </div>
+            <div class="card">
+                <h4 style="margin:0; color:#64748b; font-size:0.75rem;">Allenatori</h4>
+                <h3 id="staff-allenatori" style="margin:5px 0 0 0;">--</h3>
+            </div>
+            <div class="card">
+                <h4 style="margin:0; color:#64748b; font-size:0.75rem;">Dirigenti</h4>
+                <h3 id="staff-dirigenti" style="margin:5px 0 0 0;">--</h3>
+            </div>
+            <div class="card">
+                <h4 style="margin:0; color:#64748b; font-size:0.75rem;">Responsabili</h4>
+                <h3 id="staff-responsabili" style="margin:5px 0 0 0;">--</h3>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+            <div class="card">
+                <h3>Classifica Marcatori</h3>
+                <table style="width:100%">
+                    <thead><tr><th>Atleta</th><th style="text-align:right">Gol</th></tr></thead>
+                    <tbody id="top-scorers"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>Riepilogo Disciplina</h3>
+                <p>Ammonizioni Totali: <strong id="stat-ammonizioni">--</strong></p>
+                <p>Presenza Media: <strong id="stat-presenze">--</strong></p>
+            </div>
         </div>`;
-    initDashboardStats(); // Funzione per caricare i dati reali
+    initDashboardStats();
     break;
             
             case 'stagioni': 
@@ -3315,60 +3341,64 @@ async function initImportAtleti() {
 /* DASHBOARD */
 async function initDashboardStats() {
     try {
-        // 1. Conteggio Atleti (da athlete_team_seasons per la stagione attiva)
-        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
-        if (!activeSeason) return;
-
-        const { count: countAtleti } = await client
-            .from('athlete_team_seasons')
-            .select('*', { count: 'exact', head: true })
-            .eq('season_id', activeSeason.id);
+        // 1. Conteggi Base (Società, Categorie, Sessioni)
+        const { count: countSoc } = await client.from('societies').select('*', { count: 'exact', head: true });
+        const { count: countCat } = await client.from('categories').select('*', { count: 'exact', head: true });
+        const { count: countSess } = await client.from('sessions').select('*', { count: 'exact', head: true });
         
-        document.getElementById('stat-atleti').innerText = countAtleti || 0;
+        document.getElementById('stat-societa').innerText = countSoc || 0;
+        document.getElementById('stat-categorie').innerText = countCat || 0;
+        document.getElementById('stat-sessioni').innerText = countSess || 0;
 
-        // 2. Statistiche Match (Gol e Ammonizioni da match_stats)
-        const { data: stats } = await client
-            .from('match_stats')
-            .select('goals, yellow_cards, athletes(name, surname)');
-
-        let totalGoals = 0;
-        let totalYellows = 0;
-        let scorersMap = {};
-
-        stats?.forEach(s => {
-            totalGoals += (s.goals || 0);
-            totalYellows += (s.yellow_cards || 0);
-            
-            // Aggregazione per classifica marcatori
-            const name = `${s.athletes.name} ${s.athletes.surname}`;
-            scorersMap[name] = (scorersMap[name] || 0) + (s.goals || 0);
-        });
-
-        document.getElementById('stat-gol').innerText = totalGoals;
-        document.getElementById('stat-ammonizioni').innerText = totalYellows;
-
-        // 3. Presenze (da attendances)
-        const { data: attData } = await client.from('attendances').select('status');
-        if (attData && attData.length > 0) {
-            const presenti = attData.filter(a => a.status === 'presente').length;
-            const percentuale = ((presenti / attData.length) * 100).toFixed(1);
-            document.getElementById('stat-presenze').innerText = `${percentuale}%`;
+        // 2. Conteggio Atleti (Stagione Attiva)
+        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
+        if (activeSeason) {
+            const { count: countAth } = await client.from('athlete_team_seasons')
+                .select('*', { count: 'exact', head: true }).eq('season_id', activeSeason.id);
+            document.getElementById('stat-atleti').innerText = countAth || 0;
         }
 
-        // 4. Rendering Classifica Marcatori
-        const sortedScorers = Object.entries(scorersMap)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
+        // 3. Statistiche Staff (Basate sulla colonna 'role' nella tabella staff)
+        const { data: staffData } = await client.from('staff').select('role');
+        if (staffData) {
+            document.getElementById('staff-total').innerText = staffData.length;
+            
+            const counts = {
+                allenatore: staffData.filter(s => s.role?.toLowerCase().includes('allenatore')).length,
+                dirigente: staffData.filter(s => s.role?.toLowerCase().includes('dirigente')).length,
+                responsabile: staffData.filter(s => s.role?.toLowerCase().includes('responsabile')).length
+            };
 
-        document.getElementById('top-scorers').innerHTML = sortedScorers.map(s => `
-            <tr><td>${s[0]}</td><td style="text-align:right"><strong>${s[1]}</strong></td></tr>
-        `).join('') || '<tr><td colspan="2">Nessun dato disponibile</td></tr>';
+            document.getElementById('staff-allenatori').innerText = counts.allenatore;
+            document.getElementById('staff-dirigenti').innerText = counts.dirigente;
+            document.getElementById('staff-responsabili').innerText = counts.responsabile;
+        }
+
+        // 4. Match Stats (Gol e Ammonizioni)
+        const { data: mStats } = await client.from('match_stats').select('goals, yellow_cards, athletes(name, surname)');
+        let totalGoals = 0, totalYellows = 0, scorers = {};
+        
+        mStats?.forEach(s => {
+            totalGoals += (s.goals || 0);
+            totalYellows += (s.yellow_cards || 0);
+            if (s.goals > 0) {
+                const name = `${s.athletes.name} ${s.athletes.surname}`;
+                scorers[name] = (scorers[name] || 0) + s.goals;
+            }
+        });
+
+        document.getElementById('stat-ammonizioni').innerText = totalYellows;
+        
+        // Render Marcatori
+        const sorted = Object.entries(scorers).sort((a,b) => b[1]-a[1]).slice(0,5);
+        document.getElementById('top-scorers').innerHTML = sorted.map(s => 
+            `<tr><td>${s[0]}</td><td style="text-align:right"><strong>${s[1]}</strong></td></tr>`
+        ).join('') || '<tr><td colspan="2">Nessun gol registrato</td></tr>';
 
     } catch (err) {
-        console.error("Errore nel caricamento statistiche dashboard:", err);
+        console.error("Errore dashboard:", err);
     }
 }
-
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
