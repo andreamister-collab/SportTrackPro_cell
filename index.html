@@ -755,30 +755,9 @@
         if (!content) return;
 
         switch(section) {
-            case 'dashboard': 
-                const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-                const userRole = (window._userRole || '').toLowerCase();
-                const roleLabels = {
-                    admin: 'Amministratore', manager: 'Manager', presidente: 'Presidente',
-                    segretario: 'Segretario', responsabile: 'Responsabile', 
-                    dirigente: 'Dirigente', allenatore: 'Allenatore', genitore: 'Genitore'
-                };
-                const roleName = roleLabels[userRole] || userRole;
-                content.innerHTML = `
-                    <div style="max-width:680px;">
-                        <div class="card" style="border-left:4px solid #2563eb; margin-bottom:1.5rem;">
-                            <div style="display:flex; align-items:center; gap:16px;">
-                                <div style="width:52px; height:52px; background:linear-gradient(135deg,#2563eb,#06b6d4); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;">🏆</div>
-                                <div>
-                                    <h2 style="font-family:'Space Grotesk',sans-serif; font-size:1.3rem; font-weight:700; margin-bottom:4px;">Benvenuto, ${userName}</h2>
-                                    <p style="color:#64748b; font-size:0.85rem; margin:0;">Accesso come <strong style="color:#2563eb;">${roleName}</strong> · SportTrackPro</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card" style="background:#f8fafc;">
-                            <p style="color:#64748b; font-size:0.9rem; line-height:1.6;">Seleziona una voce dal menu laterale per gestire l'attività sportiva.</p>
-                        </div>
-                    </div>`; 
+            case 'dashboard':
+                content.innerHTML = window.templateDashboard ? window.templateDashboard() : '<div class="card"><p>Caricamento...</p></div>';
+                if (window.initDashboard) window.initDashboard();
                 break;
             
             case 'stagioni': 
@@ -3780,6 +3759,569 @@ async function initImportAtleti() {
 
 
 
+
+/* ============================================================
+   MODULO: DASHBOARD AMMINISTRATORE
+   ============================================================ */
+
+window.templateDashboard = function() {
+    const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
+    const userRole = (window._userRole || '').toLowerCase();
+    const roleLabels = {
+        admin: 'Amministratore', manager: 'Manager', presidente: 'Presidente',
+        segretario: 'Segretario', responsabile: 'Responsabile',
+        dirigente: 'Dirigente', allenatore: 'Allenatore', genitore: 'Genitore'
+    };
+    const roleName = roleLabels[userRole] || userRole;
+    const today = new Date().toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    return `
+    <div id="dashboard-wrap" style="width:100%;">
+
+        <!-- HEADER DASHBOARD -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h2 style="font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:700; margin-bottom:4px;">Dashboard ${roleName}</h2>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="color:#64748b; font-size:0.82rem;">Panoramica globale ·</span>
+                    <span id="dash-season-label" style="color:#2563eb; font-size:0.82rem; font-weight:600;">⏳ Caricamento...</span>
+                    <span style="color:#64748b; font-size:0.82rem;">· ${today}</span>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #2563eb; border-radius:8px; font-weight:600; color:#2563eb; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
+                    <option value="all">Tutte le stagioni</option>
+                </select>
+                <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:500; color:#475569; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
+                    <option value="all">Tutte le società</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div id="dash-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:1.5rem;">
+            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+        </div>
+
+        <!-- GRID TABELLE -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+
+            <!-- PARTITE ULTIMO MESE -->
+            <div class="card" style="grid-column: span 2;">
+                <div class="header" style="margin-bottom:1rem;">
+                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">🏆 Partite ultimo mese</h3>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <select id="dash-match-soc" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
+                            <option value="">Tutte le società</option>
+                        </select>
+                        <select id="dash-match-team" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
+                            <option value="">Tutte le squadre</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; color:#64748b;">
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Data</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Partita</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">Risultato</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">Esito</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-matches-body">
+                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+
+            <!-- PRESENZE SESSIONI -->
+            <div class="card">
+                <div class="header" style="margin-bottom:1rem;">
+                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">📅 Presenze Sessioni</h3>
+                    <select id="dash-pres-team" onchange="window.renderDashPresenze()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
+                        <option value="">Tutte le squadre</option>
+                    </select>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; color:#64748b;">
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Sessione</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#10b981;">P</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">A</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#f59e0b;">G</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-pres-body">
+                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- STATISTICHE GARE -->
+            <div class="card">
+                <div class="header" style="margin-bottom:1rem;">
+                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">⚽ Statistiche Gare per Squadra</h3>
+                    <select id="dash-stats-soc" onchange="window.renderDashStats()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
+                        <option value="">Tutte le società</option>
+                    </select>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; color:#64748b;">
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">P</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#10b981;">GF</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">GS</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#f59e0b;">🟨</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">🟥</th>
+                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">W/D/L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-stats-body">
+                            <tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <style>
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .kpi-card { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; border-top:3px solid var(--kpi-color,#2563eb); }
+        .kpi-card .kpi-label { font-size:0.68rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#94a3b8; margin-bottom:6px; }
+        .kpi-card .kpi-value { font-family:'Space Grotesk',sans-serif; font-size:1.8rem; font-weight:700; color:var(--kpi-color,#2563eb); line-height:1; }
+        .kpi-card .kpi-sub { font-size:0.72rem; color:#94a3b8; margin-top:4px; }
+    </style>
+    `;
+};
+
+/* ── DATI GLOBALI DASHBOARD ── */
+window._dashData = {};
+
+window.initDashboard = async function() {
+    try {
+        // Carica stagioni per il filtro
+        const { data: seasons } = await client.from('seasons').select('id, name, is_active').order('name', { ascending: false });
+        const { data: societies } = await client.from('societies').select('id, name').order('name');
+
+        const selSeason = document.getElementById('dash-season-filter');
+        const selSoc = document.getElementById('dash-soc-filter');
+        if (selSeason) {
+            (seasons || []).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name + (s.is_active ? ' ✓' : '');
+                if (s.is_active) opt.selected = true;
+                selSeason.appendChild(opt);
+            });
+        }
+        if (selSoc) {
+            (societies || []).forEach(s => {
+                selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+        }
+
+        // Label stagione attiva
+        const activeSeason = (seasons || []).find(s => s.is_active);
+        const labelEl = document.getElementById('dash-season-label');
+        if (labelEl) labelEl.textContent = '🌐 Stagione: ' + (activeSeason?.name || 'Tutte');
+
+        window._dashData._societies = societies || [];
+        window._dashData._seasons = seasons || [];
+
+        await window.refreshDashboard();
+
+    } catch(err) { console.error('initDashboard error:', err); }
+};
+
+window.refreshDashboard = async function() {
+    const seasonId = document.getElementById('dash-season-filter')?.value;
+    const socId = document.getElementById('dash-soc-filter')?.value;
+
+    // Aggiorna label stagione
+    const labelEl = document.getElementById('dash-season-label');
+    if (labelEl) {
+        if (!seasonId || seasonId === 'all') {
+            labelEl.textContent = '🌐 Tutte le stagioni';
+        } else {
+            const s = (window._dashData._seasons || []).find(x => x.id === seasonId);
+            labelEl.textContent = '🌐 Stagione: ' + (s?.name || '');
+        }
+    }
+
+    await Promise.all([
+        window.loadDashKPIs(seasonId, socId),
+        window.loadDashMatches(seasonId, socId),
+        window.loadDashPresenze(seasonId, socId),
+        window.loadDashStats(seasonId, socId),
+    ]);
+};
+
+/* ── KPI ── */
+window.loadDashKPIs = async function(seasonId, socId) {
+    const grid = document.getElementById('dash-kpi-grid');
+    if (!grid) return;
+
+    try {
+        // Base queries
+        let athQ = client.from('athlete_team_seasons').select('id, society_id, season_id', { count: 'exact', head: false });
+        let sessQ = client.from('sessions').select('id, society_id, season_id', { count: 'exact', head: false });
+        let socQ = client.from('societies').select('id', { count: 'exact', head: false });
+        let catQ = client.from('categories').select('id, society_id', { count: 'exact', head: false });
+        let staffQ = client.from('users').select('id, society_id, management_role', { count: 'exact', head: false }).neq('username', 'admin');
+        let attQ = client.from('attendances').select('status');
+
+        // Filters
+        if (seasonId && seasonId !== 'all') {
+            athQ = athQ.eq('season_id', seasonId);
+            sessQ = sessQ.eq('season_id', seasonId);
+        }
+        if (socId && socId !== 'all') {
+            athQ = athQ.eq('society_id', socId);
+            sessQ = sessQ.eq('society_id', socId);
+            catQ = catQ.eq('society_id', socId);
+            staffQ = staffQ.eq('society_id', socId);
+        }
+
+        const [athRes, sessRes, socRes, catRes, staffRes, attRes] = await Promise.all([
+            athQ, sessQ, socQ, catQ, staffQ, attQ
+        ]);
+
+        const athletes = athRes.data || [];
+        const sessions = sessRes.data || [];
+        const categories = catRes.data || [];
+        const staff = staffRes.data || [];
+        const attendances = attRes.data || [];
+
+        // KPI calculations
+        const totalAtleti = athletes.length;
+        const totalSessioni = sessions.length;
+        const totalSocieta = (socId && socId !== 'all') ? 1 : (socRes.data || []).length;
+        const totalCategorie = categories.length;
+        const totalStaff = staff.length;
+
+        const staffByRole = staff.reduce((acc, u) => {
+            const r = (u.management_role || 'Altro').toLowerCase();
+            if (r.includes('president')) acc.presidenti++;
+            else if (r.includes('allenator') || r.includes('coach')) acc.allenatori++;
+            else if (r.includes('dirigent')) acc.dirigenti++;
+            else if (r.includes('responsabil')) acc.responsabili++;
+            return acc;
+        }, { presidenti:0, allenatori:0, dirigenti:0, responsabili:0 });
+
+        // Calcolo % presenze globale
+        const tot = attendances.length;
+        const pres = attendances.filter(a => (a.status||'').toLowerCase() === 'presente').length;
+        const percPres = tot > 0 ? Math.round((pres/tot)*100) : 0;
+
+        // Calcolo categorie uniche
+        const uniqueCats = new Set(athletes.map(a => a.society_id)).size;
+
+        const kpis = [
+            { label:'Atleti Totali',      value: totalAtleti,   sub: `in ${uniqueCats || totalCategorie} categorie`, color:'#2563eb' },
+            { label:'Sessioni Registrate', value: totalSessioni,  sub: 'tutte le categorie',              color:'#10b981' },
+            { label:'% Presenze Globali',  value: percPres+'%',   sub: `${pres}/${tot} totali`,            color:'#f59e0b' },
+            { label:'Società',             value: totalSocieta,   sub: '1 sport',                          color:'#06b6d4' },
+            { label:'Categorie',           value: totalCategorie, sub: 'attive',                           color:'#8b5cf6' },
+            { label:'Staff Totale',        value: totalStaff,     sub: 'utenti registrati',                color:'#64748b' },
+            { label:'Allenatori',          value: staffByRole.allenatori, sub:'registrati',               color:'#f59e0b' },
+            { label:'Dirigenti',           value: staffByRole.dirigenti,  sub:'registrati',               color:'#ef4444' },
+            { label:'Presidenti',          value: staffByRole.presidenti, sub:'registrati',               color:'#2563eb' },
+        ];
+
+        grid.innerHTML = kpis.map(k => `
+            <div class="kpi-card" style="--kpi-color:${k.color}">
+                <div class="kpi-label">${k.label}</div>
+                <div class="kpi-value">${k.value}</div>
+                <div class="kpi-sub">${k.sub}</div>
+            </div>
+        `).join('');
+
+    } catch(err) { console.error('KPI error:', err); }
+};
+
+/* ── PARTITE ULTIMO MESE ── */
+window._dashMatches = [];
+window._dashMatchTeams = [];
+
+window.loadDashMatches = async function(seasonId, socId) {
+    try {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        const fromDate = oneMonthAgo.toISOString().split('T')[0];
+
+        // Ottieni i tipi "gara/partita"
+        const { data: types } = await client.from('session_types').select('id, name');
+        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+
+        let q = client.from('sessions')
+            .select('id, title, session_date, society_id, team_id, teams(name), societies(name)')
+            .gte('session_date', fromDate)
+            .order('session_date', { ascending: false });
+
+        if (validIds.length > 0) q = q.in('type_id', validIds);
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId && socId !== 'all') q = q.eq('society_id', socId);
+
+        const { data: sessions } = await q;
+
+        // Recupera i match_details
+        const sessionIds = (sessions || []).map(s => s.id);
+        let details = [];
+        if (sessionIds.length > 0) {
+            const { data: d } = await client.from('match_details').select('*').in('session_id', sessionIds);
+            details = d || [];
+        }
+        const detailMap = {};
+        details.forEach(d => detailMap[d.session_id] = d);
+
+        window._dashMatches = (sessions || []).map(s => ({ ...s, detail: detailMap[s.id] }));
+        window._dashMatchTeams = [...new Map((sessions||[]).filter(s=>s.teams).map(s => [s.team_id, { id:s.team_id, name:s.teams.name }])).values()];
+
+        // Popola filtro squadra
+        const selTeam = document.getElementById('dash-match-team');
+        const selSoc = document.getElementById('dash-match-soc');
+        if (selTeam) {
+            selTeam.innerHTML = '<option value="">Tutte le squadre</option>' +
+                window._dashMatchTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+        if (selSoc) {
+            const matchSocs = [...new Map((sessions||[]).filter(s=>s.societies).map(s=>[s.society_id,{id:s.society_id,name:s.societies.name}])).values()];
+            selSoc.innerHTML = '<option value="">Tutte le società</option>' +
+                matchSocs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        window.renderDashMatches();
+    } catch(err) { console.error('loadDashMatches error:', err); }
+};
+
+window.renderDashMatches = function() {
+    const tbody = document.getElementById('dash-matches-body');
+    if (!tbody) return;
+    const filterTeam = document.getElementById('dash-match-team')?.value;
+    const filterSoc = document.getElementById('dash-match-soc')?.value;
+
+    const filtered = window._dashMatches.filter(m =>
+        (!filterTeam || m.team_id === filterTeam) &&
+        (!filterSoc || m.society_id === filterSoc)
+    );
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = "<tr><td colspan=\"5\" style=\"text-align:center; padding:20px; color:#94a3b8;\">Nessuna partita nell'ultimo mese.</td></tr>";
+        return;
+    }
+
+    const esitoBadge = (status) => {
+        if (!status || status === 'da disputare') return '<span style="background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">DA GIOCARE</span>';
+        if (status === 'vittoria') return '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">VITTORIA</span>';
+        if (status === 'sconfitta') return '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">SCONFITTA</span>';
+        if (status === 'pareggio') return '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">PAREGGIO</span>';
+        return '<span style="background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">' + status.toUpperCase() + '</span>';
+    };
+
+    tbody.innerHTML = filtered.map(m => {
+        const d = m.detail;
+        const risultato = d ? `${d.goals_for ?? '-'} - ${d.goals_against ?? '-'}` : '- -';
+        const vs = d?.opponent_name ? `vs ${d.opponent_name}` : (m.title || 'Gara');
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:9px 12px; color:#64748b; white-space:nowrap;">${new Date(m.session_date).toLocaleDateString('it-IT')}</td>
+            <td style="padding:9px 12px; font-weight:600;">${vs}</td>
+            <td style="padding:9px 12px; color:#2563eb;">${m.teams?.name || '-'}</td>
+            <td style="padding:9px 12px; text-align:center; font-weight:700; font-family:'Space Grotesk',sans-serif;">${risultato}</td>
+            <td style="padding:9px 12px; text-align:center;">${esitoBadge(d?.match_status)}</td>
+        </tr>`;
+    }).join('');
+};
+
+/* ── PRESENZE SESSIONI ── */
+window._dashSessions = [];
+
+window.loadDashPresenze = async function(seasonId, socId) {
+    try {
+        let q = client.from('sessions')
+            .select('id, title, session_date, team_id, type_id, teams(name), attendances(status)')
+            .order('session_date', { ascending: false })
+            .limit(50);
+
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId && socId !== 'all') q = q.eq('society_id', socId);
+
+        const { data } = await q;
+
+        // Escludi sessioni di tipo gara/partita
+        const { data: types } = await client.from('session_types').select('id, name');
+        const garaIds = new Set((types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id));
+
+        window._dashSessions = (data||[]).filter(s => !garaIds.has(s.type_id));
+
+        // Popola filtro squadra
+        const selTeam = document.getElementById('dash-pres-team');
+        if (selTeam) {
+            const teams = [...new Map(window._dashSessions.filter(s=>s.teams).map(s=>[s.team_id,{id:s.team_id,name:s.teams.name}])).values()];
+            selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+        }
+
+        window.renderDashPresenze();
+    } catch(err) { console.error('loadDashPresenze error:', err); }
+};
+
+window.renderDashPresenze = function() {
+    const tbody = document.getElementById('dash-pres-body');
+    if (!tbody) return;
+    const filterTeam = document.getElementById('dash-pres-team')?.value;
+
+    const filtered = window._dashSessions
+        .filter(s => !filterTeam || s.team_id === filterTeam)
+        .slice(0, 15);
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Nessuna sessione trovata.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(s => {
+        const att = s.attendances || [];
+        const p = att.filter(a => (a.status||'').toLowerCase()==='presente').length;
+        const a = att.filter(x => (x.status||'').toLowerCase()==='assente').length;
+        const g = att.filter(x => (x.status||'').toLowerCase()==='giustificato').length;
+        const tot = att.length;
+        const perc = tot > 0 ? Math.round((p/tot)*100) : 0;
+        const percColor = perc >= 75 ? '#10b981' : perc >= 50 ? '#f59e0b' : '#ef4444';
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 10px;">
+                <div style="font-weight:600; font-size:0.8rem;">${s.title || 'Sessione'}</div>
+                <div style="font-size:0.7rem; color:#94a3b8;">${new Date(s.session_date).toLocaleDateString('it-IT')} · ${s.teams?.name||''}</div>
+            </td>
+            <td style="padding:8px 10px; text-align:center; color:#10b981; font-weight:700;">${p}</td>
+            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${a}</td>
+            <td style="padding:8px 10px; text-align:center; color:#f59e0b; font-weight:700;">${g}</td>
+            <td style="padding:8px 10px; text-align:center; font-weight:700; color:${percColor};">${perc}%</td>
+        </tr>`;
+    }).join('');
+};
+
+/* ── STATISTICHE GARE PER SQUADRA ── */
+window._dashMatchStats = [];
+
+window.loadDashStats = async function(seasonId, socId) {
+    try {
+        let q = client.from('sessions')
+            .select('id, team_id, society_id, season_id, teams(name), societies(name)');
+
+        const { data: types } = await client.from('session_types').select('id, name');
+        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id);
+        if (validIds.length > 0) q = q.in('type_id', validIds);
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId && socId !== 'all') q = q.eq('society_id', socId);
+
+        const { data: sessions } = await q;
+        const sessionIds = (sessions||[]).map(s=>s.id);
+
+        if (sessionIds.length === 0) {
+            window._dashMatchStats = [];
+            // Popola filtro soc
+            const selSoc = document.getElementById('dash-stats-soc');
+            if (selSoc) selSoc.innerHTML = '<option value="">Tutte le società</option>';
+            window.renderDashStats();
+            return;
+        }
+
+        const [detailsRes, statsRes] = await Promise.all([
+            client.from('match_details').select('session_id, goals_for, goals_against, match_status').in('session_id', sessionIds),
+            client.from('match_stats').select('session_id, yellow_cards, red_cards').in('session_id', sessionIds)
+        ]);
+
+        const detailMap = {};
+        (detailsRes.data||[]).forEach(d => detailMap[d.session_id] = d);
+
+        // Aggrega per squadra
+        const teamMap = {};
+        (sessions||[]).forEach(s => {
+            if (!s.team_id) return;
+            if (!teamMap[s.team_id]) teamMap[s.team_id] = {
+                name: s.teams?.name || '-',
+                soc: s.societies?.name || '-',
+                society_id: s.society_id,
+                partite:0, gf:0, gs:0, amm:0, esp:0, w:0, d:0, l:0
+            };
+            const t = teamMap[s.team_id];
+            const det = detailMap[s.id];
+            t.partite++;
+            if (det) {
+                t.gf += det.goals_for || 0;
+                t.gs += det.goals_against || 0;
+                if (det.match_status === 'vittoria') t.w++;
+                else if (det.match_status === 'pareggio') t.d++;
+                else if (det.match_status === 'sconfitta') t.l++;
+            }
+        });
+
+        (statsRes.data||[]).forEach(st => {
+            const sess = (sessions||[]).find(s=>s.id===st.session_id);
+            if (sess && teamMap[sess.team_id]) {
+                teamMap[sess.team_id].amm += st.yellow_cards || 0;
+                teamMap[sess.team_id].esp += st.red_cards || 0;
+            }
+        });
+
+        window._dashMatchStats = Object.values(teamMap);
+
+        // Filtro soc
+        const selSoc = document.getElementById('dash-stats-soc');
+        if (selSoc) {
+            const socs = [...new Map(window._dashMatchStats.map(t=>[t.society_id, t.soc])).entries()];
+            selSoc.innerHTML = '<option value="">Tutte le società</option>' + socs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+        }
+
+        window.renderDashStats();
+    } catch(err) { console.error('loadDashStats error:', err); }
+};
+
+window.renderDashStats = function() {
+    const tbody = document.getElementById('dash-stats-body');
+    if (!tbody) return;
+    const filterSoc = document.getElementById('dash-stats-soc')?.value;
+
+    const filtered = window._dashMatchStats
+        .filter(t => !filterSoc || t.society_id === filterSoc)
+        .sort((a,b) => b.gf - a.gf);
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Nessun dato gare disponibile.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(t => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 10px; font-weight:600; font-size:0.82rem;">${t.name}<br><span style="font-size:0.7rem; color:#94a3b8;">${t.soc}</span></td>
+            <td style="padding:8px 10px; text-align:center; color:#64748b; font-weight:700;">${t.partite}</td>
+            <td style="padding:8px 10px; text-align:center; color:#10b981; font-weight:700;">${t.gf}</td>
+            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${t.gs}</td>
+            <td style="padding:8px 10px; text-align:center; color:#f59e0b; font-weight:700;">${t.amm}</td>
+            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${t.esp}</td>
+            <td style="padding:8px 10px; text-align:center; font-size:0.78rem; white-space:nowrap;">
+                <span style="color:#10b981;">${t.w}V</span> · <span style="color:#64748b;">${t.d}P</span> · <span style="color:#ef4444;">${t.l}S</span>
+            </td>
+        </tr>`).join('');
+};
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
