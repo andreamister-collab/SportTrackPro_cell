@@ -280,15 +280,41 @@
         if (!content) return;
 
         switch(section) {
-            case 'dashboard': 
-                // Fix: usiamo window.CURRENT_USER con fallback per evitare errori undefined
-                const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-                content.innerHTML = `
-                    <div class="card">
-                        <h2>Benvenuto, ${userName}</h2>
-                        <p>Seleziona una voce dal menu laterale per gestire l'attività sportiva.</p>
-                    </div>`; 
-                break;
+case 'dashboard': 
+    const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
+    content.innerHTML = `
+        <div class="header">
+            <h2>Benvenuto, ${userName}</h2>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+            <div class="card" style="border-left: 5px solid #2563eb;">
+                <h4 style="margin:0; color:#64748b;">Totale Atleti</h4>
+                <h2 id="stat-atleti" style="margin:10px 0 0 0;">--</h2>
+            </div>
+            <div class="card" style="border-left: 5px solid #16a34a;">
+                <h4 style="margin:0; color:#64748b;">Gol Totali</h4>
+                <h2 id="stat-gol" style="margin:10px 0 0 0;">--</h2>
+            </div>
+            <div class="card" style="border-left: 5px solid #f59e0b;">
+                <h4 style="margin:0; color:#64748b;">Presenze Medie</h4>
+                <h2 id="stat-presenze" style="margin:10px 0 0 0;">-- %</h2>
+            </div>
+            <div class="card" style="border-left: 5px solid #ef4444;">
+                <h4 style="margin:0; color:#64748b;">Ammonizioni</h4>
+                <h2 id="stat-ammonizioni" style="margin:10px 0 0 0;">--</h2>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Classifica Marcatori (Top 5)</h3>
+            <table style="margin-top:10px;">
+                <thead>
+                    <tr><th>Atleta</th><th style="text-align:right">Gol</th></tr>
+                </thead>
+                <tbody id="top-scorers"></tbody>
+            </table>
+        </div>`;
+    initDashboardStats(); // Funzione per caricare i dati reali
+    break;
             
             case 'stagioni': 
                 content.innerHTML = templateStagioni(); 
@@ -3286,8 +3312,62 @@ async function initImportAtleti() {
         console.error("Errore initImport:", err);
     }
 }
+/* DASHBOARD */
+async function initDashboardStats() {
+    try {
+        // 1. Conteggio Atleti (da athlete_team_seasons per la stagione attiva)
+        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
+        if (!activeSeason) return;
 
+        const { count: countAtleti } = await client
+            .from('athlete_team_seasons')
+            .select('*', { count: 'exact', head: true })
+            .eq('season_id', activeSeason.id);
+        
+        document.getElementById('stat-atleti').innerText = countAtleti || 0;
 
+        // 2. Statistiche Match (Gol e Ammonizioni da match_stats)
+        const { data: stats } = await client
+            .from('match_stats')
+            .select('goals, yellow_cards, athletes(name, surname)');
+
+        let totalGoals = 0;
+        let totalYellows = 0;
+        let scorersMap = {};
+
+        stats?.forEach(s => {
+            totalGoals += (s.goals || 0);
+            totalYellows += (s.yellow_cards || 0);
+            
+            // Aggregazione per classifica marcatori
+            const name = `${s.athletes.name} ${s.athletes.surname}`;
+            scorersMap[name] = (scorersMap[name] || 0) + (s.goals || 0);
+        });
+
+        document.getElementById('stat-gol').innerText = totalGoals;
+        document.getElementById('stat-ammonizioni').innerText = totalYellows;
+
+        // 3. Presenze (da attendances)
+        const { data: attData } = await client.from('attendances').select('status');
+        if (attData && attData.length > 0) {
+            const presenti = attData.filter(a => a.status === 'presente').length;
+            const percentuale = ((presenti / attData.length) * 100).toFixed(1);
+            document.getElementById('stat-presenze').innerText = `${percentuale}%`;
+        }
+
+        // 4. Rendering Classifica Marcatori
+        const sortedScorers = Object.entries(scorersMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        document.getElementById('top-scorers').innerHTML = sortedScorers.map(s => `
+            <tr><td>${s[0]}</td><td style="text-align:right"><strong>${s[1]}</strong></td></tr>
+        `).join('') || '<tr><td colspan="2">Nessun dato disponibile</td></tr>';
+
+    } catch (err) {
+        console.error("Errore nel caricamento statistiche dashboard:", err);
+    }
+}
 
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
