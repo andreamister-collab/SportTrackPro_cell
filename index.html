@@ -343,6 +343,40 @@ case 'dashboard':
                 </div>
             </div>
         </div>`;
+		// ... sotto le card precedenti della dashboard ...
+<div style="margin-top:2rem;">
+    <h3>Sintesi Presenze Allenamenti (per Squadra)</h3>
+    <div class="card" style="padding:0; overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead style="background:#f8fafc;">
+                <tr>
+                    <th style="text-align:left; padding:12px;">Squadra</th>
+                    <th style="text-align:center; padding:12px;">Sessioni Totali</th>
+                    <th style="text-align:center; padding:12px;">Presenza Media</th>
+                </tr>
+            </thead>
+            <tbody id="team-attendance-summary"></tbody>
+        </table>
+    </div>
+</div>
+
+<div style="margin-top:2rem;">
+    <h3>Statistiche Partite (per Squadra)</h3>
+    <div class="card" style="padding:0; overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead style="background:#f8fafc;">
+                <tr>
+                    <th style="text-align:left; padding:12px;">Squadra</th>
+                    <th style="text-align:center; padding:12px;">GF</th>
+                    <th style="text-align:center; padding:12px;">GS</th>
+                    <th style="text-align:center; padding:12px;">Amm.</th>
+                    <th style="text-align:center; padding:12px;">Esp.</th>
+                </tr>
+            </thead>
+            <tbody id="team-match-summary"></tbody>
+        </table>
+    </div>
+</div>
     initDashboardStats();
     break;
             
@@ -3345,70 +3379,68 @@ async function initImportAtleti() {
 /* DASHBOARD */
 async function initDashboardStats() {
     try {
-        // 1. Recupero ID Stagione Attiva
+        // 1. Recupero Dati Base (Squadre e Stagione)
+        const { data: teams } = await client.from('teams').select('id, name');
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
-        const sID = activeSeason?.id;
-
-        // 2. Conteggi Base (Società, Categorie, Sessioni)
-        const [resSoc, resCat, resSess] = await Promise.all([
-            client.from('societies').select('*', { count: 'exact', head: true }),
-            client.from('categories').select('*', { count: 'exact', head: true }),
-            client.from('sessions').select('*', { count: 'exact', head: true })
-        ]);
         
-        document.getElementById('stat-societa').innerText = resSoc.count || 0;
-        document.getElementById('stat-categorie').innerText = resCat.count || 0;
-        document.getElementById('stat-sessioni').innerText = resSess.count || 0;
-
-        // 3. Staff: Filtro utenti escludendo admin e manager
-        const { data: userData } = await client.from('users').select('role');
-        if (userData) {
-            const staffEffettivo = userData.filter(u => {
-                const r = u.role?.toLowerCase();
-                return r && r !== 'admin' && r !== 'manager';
-            });
-
-            document.getElementById('staff-total').innerText = staffEffettivo.length;
-            document.getElementById('staff-allenatori').innerText = staffEffettivo.filter(u => u.role.toLowerCase().includes('allenatore')).length;
-            document.getElementById('staff-dirigenti').innerText = staffEffettivo.filter(u => u.role.toLowerCase().includes('dirigente')).length;
-            document.getElementById('staff-responsabili').innerText = staffEffettivo.filter(u => u.role.toLowerCase().includes('responsabile')).length;
-        }
-
-        // 4. Atleti (Stagione Attiva)
-        if (sID) {
-            const { count: athCount } = await client.from('athlete_team_seasons')
-                .select('*', { count: 'exact', head: true }).eq('season_id', sID);
-            document.getElementById('stat-atleti').innerText = athCount || 0;
-        }
-
-        // 5. Gol, Ammonizioni e Marcatori
-        const { data: mStats } = await client.from('match_stats').select('goals, yellow_cards, athletes(name, surname)');
-        let totalYellows = 0, scorers = {};
+        // 2. RECUPERO PRESENZE PER SQUADRA
+        const { data: attendances } = await client.from('attendances').select('status, sessions(team_id)');
         
-        mStats?.forEach(s => {
-            totalYellows += (s.yellow_cards || 0);
-            if (s.goals > 0 && s.athletes) {
-                const name = `${s.athletes.name} ${s.athletes.surname}`;
-                scorers[name] = (scorers[name] || 0) + s.goals;
-            }
+        let attSummaryHTML = '';
+        teams?.forEach(team => {
+            const teamAtt = attendances?.filter(a => a.sessions?.team_id === team.id) || [];
+            const totalRecords = teamAtt.length;
+            const totalPresent = teamAtt.filter(a => a.status?.toLowerCase() === 'presente').length;
+            const perc = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) + '%' : '0%';
+            
+            // Contiamo le sessioni uniche per quella squadra
+            const uniqueSessions = [...new Set(teamAtt.map(a => a.session_id))].length;
+
+            attSummaryHTML += `
+                <tr style="border-top:1px solid #eee;">
+                    <td style="padding:10px;"><strong>${team.name}</strong></td>
+                    <td style="text-align:center;">${uniqueSessions}</td>
+                    <td style="text-align:center;"><span class="badge" style="background:#dcfce7; color:#166534;">${perc}</span></td>
+                </tr>`;
         });
-        document.getElementById('stat-ammonizioni').innerText = totalYellows;
+        document.getElementById('team-attendance-summary').innerHTML = attSummaryHTML || '<tr><td colspan="3">Nessun dato</td></tr>';
 
-        // Marcatori
-        const sorted = Object.entries(scorers).sort((a,b) => b[1]-a[1]).slice(0,5);
-        document.getElementById('top-scorers').innerHTML = sorted.map(s => 
-            `<tr><td>${s[0]}</td><td style="text-align:right"><strong>${s[1]}</strong></td></tr>`
-        ).join('') || '<tr><td colspan="2">Nessun dato</td></tr>';
+        // 3. RECUPERO STATISTICHE PARTITE PER SQUADRA
+        // Nota: Assicurati che match_stats sia collegata a matches che ha team_id
+        const { data: matchStats } = await client.from('match_stats').select(`
+            goals, 
+            yellow_cards, 
+            red_cards, 
+            matches(team_id, goals_against)
+        `);
 
-        // 6. Presenze
-        const { data: attData } = await client.from('attendances').select('status');
-        if (attData && attData.length > 0) {
-            const pres = attData.filter(a => a.status?.toLowerCase() === 'presente').length;
-            document.getElementById('stat-presenze').innerText = ((pres / attData.length) * 100).toFixed(1) + '%';
-        }
+        let matchSummaryHTML = '';
+        teams?.forEach(team => {
+            const teamStats = matchStats?.filter(s => s.matches?.team_id === team.id) || [];
+            
+            const gf = teamStats.reduce((sum, s) => sum + (s.goals || 0), 0);
+            const amm = teamStats.reduce((sum, s) => sum + (s.yellow_cards || 0), 0);
+            const esp = teamStats.reduce((sum, s) => sum + (s.red_cards || 0), 0);
+            
+            // Calcolo Goal Subiti (GS) - prendendo il valore unico per ogni match
+            const uniqueMatchGS = [...new Map(teamStats.map(s => [s.match_id, s.matches?.goals_against])).values()];
+            const gs = uniqueMatchGS.reduce((sum, val) => sum + (val || 0), 0);
+
+            matchSummaryHTML += `
+                <tr style="border-top:1px solid #eee;">
+                    <td style="padding:10px;"><strong>${team.name}</strong></td>
+                    <td style="text-align:center;">${gf}</td>
+                    <td style="text-align:center; color:#ef4444;">${gs}</td>
+                    <td style="text-align:center;">${amm}</td>
+                    <td style="text-align:center;">${esp}</td>
+                </tr>`;
+        });
+        document.getElementById('team-match-summary').innerHTML = matchSummaryHTML || '<tr><td colspan="5">Nessun dato</td></tr>';
+
+        // ... (qui tieni il resto dei conteggi generali visti prima: Società, Atleti, ecc.) ...
 
     } catch (err) {
-        console.error("Errore Dashboard:", err);
+        console.error("Errore nel calcolo statistiche squadre:", err);
     }
 }
 
