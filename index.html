@@ -3341,7 +3341,11 @@ async function initImportAtleti() {
 /* DASHBOARD */
 async function initDashboardStats() {
     try {
-        // 1. Conteggi Base (Società, Categorie, Sessioni)
+        // 1. Recupero Stagione Attiva
+        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
+        const sID = activeSeason?.id;
+
+        // 2. Conteggio Società, Categorie e Sessioni
         const { count: countSoc } = await client.from('societies').select('*', { count: 'exact', head: true });
         const { count: countCat } = await client.from('categories').select('*', { count: 'exact', head: true });
         const { count: countSess } = await client.from('sessions').select('*', { count: 'exact', head: true });
@@ -3350,38 +3354,38 @@ async function initDashboardStats() {
         document.getElementById('stat-categorie').innerText = countCat || 0;
         document.getElementById('stat-sessioni').innerText = countSess || 0;
 
-        // 2. Conteggio Atleti (Stagione Attiva)
-        const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
-        if (activeSeason) {
-            const { count: countAth } = await client.from('athlete_team_seasons')
-                .select('*', { count: 'exact', head: true }).eq('season_id', activeSeason.id);
-            document.getElementById('stat-atleti').innerText = countAth || 0;
-        }
-
-        // 3. Statistiche Staff (Basate sulla colonna 'role' nella tabella staff)
-        const { data: staffData } = await client.from('staff').select('role');
-        if (staffData) {
-            document.getElementById('staff-total').innerText = staffData.length;
-            
+        // 3. Conteggio Staff (da tabella USERS filtrando per ROLE)
+        // Recuperiamo tutti gli utenti che hanno un ruolo definito
+        const { data: userData } = await client.from('users').select('role');
+        
+        if (userData) {
             const counts = {
-                allenatore: staffData.filter(s => s.role?.toLowerCase().includes('allenatore')).length,
-                dirigente: staffData.filter(s => s.role?.toLowerCase().includes('dirigente')).length,
-                responsabile: staffData.filter(s => s.role?.toLowerCase().includes('responsabile')).length
+                totale: userData.length,
+                allenatore: userData.filter(u => u.role?.toLowerCase() === 'allenatore').length,
+                dirigente: userData.filter(u => u.role?.toLowerCase() === 'dirigente').length,
+                responsabile: userData.filter(u => u.role?.toLowerCase() === 'responsabile').length
             };
 
+            document.getElementById('staff-total').innerText = counts.totale;
             document.getElementById('staff-allenatori').innerText = counts.allenatore;
             document.getElementById('staff-dirigenti').innerText = counts.dirigente;
             document.getElementById('staff-responsabili').innerText = counts.responsabile;
         }
 
-        // 4. Match Stats (Gol e Ammonizioni)
+        // 4. Conteggio Atleti (Stagione Attiva)
+        if (sID) {
+            const { count: countAth } = await client.from('athlete_team_seasons')
+                .select('*', { count: 'exact', head: true }).eq('season_id', sID);
+            document.getElementById('stat-atleti').innerText = countAth || 0;
+        }
+
+        // 5. Statistiche Match (Gol e Ammonizioni)
         const { data: mStats } = await client.from('match_stats').select('goals, yellow_cards, athletes(name, surname)');
-        let totalGoals = 0, totalYellows = 0, scorers = {};
+        let totalYellows = 0, scorers = {};
         
         mStats?.forEach(s => {
-            totalGoals += (s.goals || 0);
             totalYellows += (s.yellow_cards || 0);
-            if (s.goals > 0) {
+            if (s.goals > 0 && s.athletes) {
                 const name = `${s.athletes.name} ${s.athletes.surname}`;
                 scorers[name] = (scorers[name] || 0) + s.goals;
             }
@@ -3393,10 +3397,10 @@ async function initDashboardStats() {
         const sorted = Object.entries(scorers).sort((a,b) => b[1]-a[1]).slice(0,5);
         document.getElementById('top-scorers').innerHTML = sorted.map(s => 
             `<tr><td>${s[0]}</td><td style="text-align:right"><strong>${s[1]}</strong></td></tr>`
-        ).join('') || '<tr><td colspan="2">Nessun gol registrato</td></tr>';
+        ).join('') || '<tr><td colspan="2">Nessun dato</td></tr>';
 
     } catch (err) {
-        console.error("Errore dashboard:", err);
+        console.error("Errore nel caricamento della dashboard:", err);
     }
 }
 
