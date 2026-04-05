@@ -594,33 +594,53 @@
        GESTIONE VISIBILITÀ SIDEBAR PER RUOLO
        ============================================================ */
     window.applyRoleVisibility = function() {
-        const role = (window._userRole || '').toLowerCase();
+        // Il DB usa role='admin'|'manager'|'user' + management_role='Dirigente'|'Allenatore'|'Presidente'|'Segretario'|'Responsabile'|'Genitore'
+        // La logica effettiva di accesso si basa sulla management_role per gli 'user' normali
+        const dbRole = (window._userRole || '').toLowerCase();
+        const mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
 
-        // Mapping ruoli -> voci visibili
-        // admin / manager: tutto visibile
-        // presidente / segretario: società, categoria, squadra, staff, anagrafica, assegnazioni, atleti, sessioni, partite, import
-        // responsabile: categoria, squadra, atleti (read-only implicito)
-        // dirigente / allenatore: squadra, sessioni, partite
-        // genitore: solo atleti (read-only)
+        // Determina il ruolo funzionale effettivo
+        let effectiveRole;
+        if (dbRole === 'admin') {
+            effectiveRole = 'admin';
+        } else if (dbRole === 'manager') {
+            effectiveRole = 'manager';
+        } else {
+            // Per gli 'user' usa la management_role
+            effectiveRole = mgmtRole || 'user';
+        }
+
+        // Salva il ruolo effettivo globalmente (utile per la dashboard e altri moduli)
+        window._effectiveRole = effectiveRole;
 
         const allNavIds = ['nav-stagioni','nav-sport','nav-societa','nav-categoria','nav-squadra',
                            'nav-staff','nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
                            'nav-sessioni','nav-partite','nav-import','nav-group-admin'];
 
+        // GERARCHIA VISIBILITÀ MENU:
+        // admin/manager      → tutto
+        // presidente/segretario → dati società propria, può modificare legami
+        // responsabile       → categorie proprie, solo lettura
+        // dirigente/allenatore → squadre proprie, sessioni e partite
+        // genitore           → solo anagrafica atleta, solo lettura
         const visibility = {
-            admin:       allNavIds,
-            manager:     allNavIds,
-            presidente:  ['nav-societa','nav-categoria','nav-squadra','nav-staff','nav-anagrafica-pura','nav-assegnazioni','nav-atleti','nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            segretario:  ['nav-societa','nav-categoria','nav-squadra','nav-staff','nav-anagrafica-pura','nav-assegnazioni','nav-atleti','nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            responsabile:['nav-categoria','nav-atleti','nav-group-admin'],
-            dirigente:   ['nav-squadra','nav-sessioni','nav-partite'],
-            allenatore:  ['nav-squadra','nav-sessioni','nav-partite'],
-            genitore:    ['nav-atleti'],
+            admin:        allNavIds,
+            manager:      allNavIds,
+            presidente:   ['nav-societa','nav-categoria','nav-squadra','nav-staff',
+                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
+                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
+            segretario:   ['nav-societa','nav-categoria','nav-squadra','nav-staff',
+                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
+                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
+            responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
+            dirigente:    ['nav-anagrafica-pura','nav-atleti','nav-sessioni','nav-partite','nav-import'],
+            allenatore:   ['nav-anagrafica-pura','nav-atleti','nav-sessioni','nav-partite','nav-import'],
+            genitore:     ['nav-atleti'],
         };
 
-        const allowed = visibility[role] || visibility['manager'];
+        const allowed = visibility[effectiveRole] || ['nav-atleti'];
 
-        // Nascondi tutto prima
+        // Nascondi tutto
         allNavIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -632,11 +652,11 @@
             if (el) el.style.display = '';
         });
 
-        // Aggiorna badge ruolo nella pill utente
+        // Badge ruolo nella pill (mostra management_role se presente, altrimenti dbRole)
         const userPill = document.getElementById('user-info');
         if (userPill && window.CURRENT_USER) {
-            const roleBadge = role.charAt(0).toUpperCase() + role.slice(1);
-            userPill.innerHTML = `👤 <span>${window.CURRENT_USER.name || 'Utente'}</span> &nbsp;<em style="font-size:0.65rem; opacity:0.6; text-transform:uppercase;">${roleBadge}</em>`;
+            const displayRole = window.CURRENT_USER.management_role || dbRole;
+            userPill.innerHTML = `👤 <span>${window.CURRENT_USER.name || 'Utente'}</span> &nbsp;<em style="font-size:0.65rem; opacity:0.6; text-transform:uppercase;">${displayRole}</em>`;
         }
     };
 /* ============================================================
@@ -1519,7 +1539,7 @@ async function initStaff() {
     const tbody = document.getElementById('list-staff');
     if (!tbody) return;
 
-    const myRole = window._userRole;
+    const myRole = window._effectiveRole || window._userRole;
     const mySociety = window._currentSocietyId;
 
     // 1. Query base (esclude l'admin supremo e ordina per nome)
@@ -1578,7 +1598,7 @@ async function initStaff() {
  */
 async function openStaffModal(editData = null) {
     const isEdit = !!editData;
-    const myRole = window._userRole;
+    const myRole = window._effectiveRole || window._userRole;
 
     let societies = [];
     if (myRole === 'admin' || myRole === 'manager') {
@@ -2542,7 +2562,7 @@ async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
     if (!tbody) return;
 
-    const myRole = (window._userRole || '').toLowerCase();
+    const myRole = (window._effectiveRole || window._userRole || '').toLowerCase();
     const isAdmin = ['admin', 'manager', 'presidente', 'segretario'].includes(myRole);
     let targetSociety = window._currentSocietyId;
 
@@ -2553,7 +2573,7 @@ async function initSessioni() {
             const { data: socs } = await client.from('societies').select('id, name').order('name');
             if (socs) {
                 selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id === targetSociety ? 'selected' : ''}>${s.name}</option>`).join('');
-                if (myRole === 'admin' || myRole === 'manager') document.getElementById('wrapper-soc-filter').style.display = 'block';
+                if (['admin','manager'].includes(myRole)) document.getElementById('wrapper-soc-filter').style.display = 'block';
                 await reloadSubFilters();
                 return;
             }
@@ -3916,12 +3936,14 @@ window._dashData = {};
 
 window.initDashboard = async function() {
     try {
-        // Carica stagioni per il filtro
-        const { data: seasons } = await client.from('seasons').select('id, name, is_active').order('name', { ascending: false });
-        const { data: societies } = await client.from('societies').select('id, name').order('name');
+        const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+        const isGlobalUser = ['admin','manager'].includes(effectiveRole);
+        const isSocietyScoped = ['presidente','segretario','responsabile','dirigente','allenatore'].includes(effectiveRole);
+        const userSocietyId = window._currentSocietyId;
 
+        // Carica stagioni
+        const { data: seasons } = await client.from('seasons').select('id, name, is_active').order('name', { ascending: false });
         const selSeason = document.getElementById('dash-season-filter');
-        const selSoc = document.getElementById('dash-soc-filter');
         if (selSeason) {
             (seasons || []).forEach(s => {
                 const opt = document.createElement('option');
@@ -3931,19 +3953,39 @@ window.initDashboard = async function() {
                 selSeason.appendChild(opt);
             });
         }
-        if (selSoc) {
-            (societies || []).forEach(s => {
-                selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-            });
+
+        window._dashData._seasons = seasons || [];
+
+        // Gestione filtro società in base al ruolo
+        const selSoc = document.getElementById('dash-soc-filter');
+        const socFilterWrapper = selSoc?.parentElement;
+
+        if (isGlobalUser) {
+            // Admin/Manager: mostra tutte le società selezionabili
+            const { data: societies } = await client.from('societies').select('id, name').order('name');
+            window._dashData._societies = societies || [];
+            if (selSoc) {
+                (societies || []).forEach(s => {
+                    selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            }
+        } else if (isSocietyScoped && userSocietyId) {
+            // Ruoli societari: nasconde il filtro società, forza la propria
+            if (socFilterWrapper) socFilterWrapper.style.display = 'none';
+            window._dashData._forcedSocietyId = userSocietyId;
+            // Recupera nome società per mostrarlo
+            const { data: mySoc } = await client.from('societies').select('id, name').eq('id', userSocietyId).maybeSingle();
+            window._dashData._societies = mySoc ? [mySoc] : [];
+        } else {
+            // Genitore o ruolo sconosciuto: nasconde il filtro
+            if (socFilterWrapper) socFilterWrapper.style.display = 'none';
+            window._dashData._forcedSocietyId = userSocietyId;
         }
 
         // Label stagione attiva
         const activeSeason = (seasons || []).find(s => s.is_active);
         const labelEl = document.getElementById('dash-season-label');
         if (labelEl) labelEl.textContent = '🌐 Stagione: ' + (activeSeason?.name || 'Tutte');
-
-        window._dashData._societies = societies || [];
-        window._dashData._seasons = seasons || [];
 
         await window.refreshDashboard();
 
@@ -3952,7 +3994,9 @@ window.initDashboard = async function() {
 
 window.refreshDashboard = async function() {
     const seasonId = document.getElementById('dash-season-filter')?.value;
-    const socId = document.getElementById('dash-soc-filter')?.value;
+    // Se l'utente ha una società forzata la usa, altrimenti legge il select
+    const socId = window._dashData._forcedSocietyId ||
+                  document.getElementById('dash-soc-filter')?.value || 'all';
 
     // Aggiorna label stagione
     const labelEl = document.getElementById('dash-season-label');
