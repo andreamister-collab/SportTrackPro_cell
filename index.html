@@ -3379,123 +3379,91 @@ async function initImportAtleti() {
 async function initDashboardStats() {
     try {
         const user = window.CURRENT_USER;
-        if (!user) {
-            console.error("Nessun utente loggato trovato.");
-            return;
-        }
-
-        console.log("Dashboard - Utente loggato:", user.email, "Ruolo:", user.role);
+        if (!user) return;
 
         let filterTeamId = null;
-        // Rendiamo il controllo del ruolo case-insensitive
+        let filterCategoryId = null;
         const role = user.role?.toLowerCase() || "";
         const isStaff = role.includes('dirigente') || role.includes('allenatore');
 
         if (isStaff) {
-            console.log("Accesso Staff rilevato. Recupero team_id...");
-            const { data: assignment, error: assError } = await client
+            // 1. Recuperiamo l'assegnazione (Team e Categoria)
+            const { data: assignment } = await client
                 .from('user_category_seasons')
-                .select('team_id')
+                .select('team_id, category_id')
                 .eq('user_id', user.id)
                 .maybeSingle();
             
-            if (assError) console.error("Errore recupero assegnazione:", assError);
             if (assignment) {
                 filterTeamId = assignment.team_id;
-                console.log("Filtro Squadra Attivato per ID:", filterTeamId);
-            } else {
-                console.warn("Nessuna squadra associata a questo utente in user_category_seasons");
+                filterCategoryId = assignment.category_id;
             }
         }
 
-        // 1. Recupero Stagione Attiva
+        // 2. Recupero Stagione Attiva
         const { data: activeSeason } = await client.from('seasons').select('id').eq('is_active', true).maybeSingle();
         const sID = activeSeason?.id;
 
-        // 2. Query Conteggi (Atleti e Sessioni) filtrati
+        // 3. CONTEGGI CARD (Filtriamo per categoria e squadra se staff)
+        
+        // Categorie: Se staff mostra 1, altrimenti conta tutto
+        let catQuery = client.from('categories').select('*', { count: 'exact', head: true });
+        if (filterCategoryId) catQuery = catQuery.eq('id', filterCategoryId);
+        const { count: countCat } = await catQuery;
+
+        // Squadre: Se staff mostra 1 (la sua), altrimenti conta tutto
+        let teamCountQuery = client.from('teams').select('*', { count: 'exact', head: true });
+        if (filterTeamId) teamCountQuery = teamCountQuery.eq('id', filterTeamId);
+        const { count: countTeams } = await teamCountQuery;
+
+        // Atleti: Solo della squadra e stagione attiva
         let athQuery = client.from('athlete_team_seasons').select('*', { count: 'exact', head: true });
         if (filterTeamId) athQuery = athQuery.eq('team_id', filterTeamId);
         if (sID) athQuery = athQuery.eq('season_id', sID);
         const { count: countAth } = await athQuery;
 
-        let sessQuery = client.from('sessions').select('*', { count: 'exact', head: true });
-        if (filterTeamId) sessQuery = sessQuery.eq('team_id', filterTeamId);
-        const { count: countSess } = await sessQuery;
+        // Sessioni: Solo della squadra
+        let sessCountQuery = client.from('sessions').select('*', { count: 'exact', head: true });
+        if (filterTeamId) sessCountQuery = sessCountQuery.eq('team_id', filterTeamId);
+        const { count: countSess } = await sessCountQuery;
 
-        // 3. Aggiornamento Card Principali
-        document.getElementById('stat-atleti').innerText = countAth || 0;
+        // Aggiornamento UI Card
+        document.getElementById('stat-societa').innerText = isStaff ? "1" : (countTeams || 0); // Mostra numero squadre
+        document.getElementById('stat-categorie').innerText = countCat || 0;
         document.getElementById('stat-sessioni').innerText = countSess || 0;
+        document.getElementById('stat-atleti').innerText = countAth || 0;
 
-        // Se sei admin, mostra i totali globali società/categorie, altrimenti metti 1 o nascondi
-        const { count: countSoc } = await client.from('societies').select('*', { count: 'exact', head: true });
-        document.getElementById('stat-societa').innerText = isStaff ? "1" : (countSoc || 0);
-
-        // 4. Recupero Dati per Tabelle (Filtrati)
+        // 4. RECUPERO DATI PER TABELLE (DETTAGLIO)
         let teamsReq = client.from('teams').select('id, name');
         if (filterTeamId) teamsReq = teamsReq.eq('id', filterTeamId);
-        const { data: teams } = await teamsReq;
+        const { data: teamsList } = await teamsReq;
 
-        const { data: allSessions } = await sessQuery.select('id, team_id'); // Riuso la query filtrata
-        const sIds = allSessions?.map(s => s.id) || [];
+        // Recuperiamo tutte le sessioni della squadra/e per filtrare presenze e gol
+        let sessionsReq = client.from('sessions').select('id, team_id');
+        if (filterTeamId) sessionsReq = sessionsReq.eq('team_id', filterTeamId);
+        const { data: sessionsList } = await sessionsReq;
+        
+        const sIds = sessionsList?.map(s => s.id) || [];
 
-        // Recupero attendances e match_stats solo per le sessioni della squadra
-        const { data: allAtts } = await client.from('attendances').select('session_id, status').in('session_id', sIds);
-        const { data: allStats } = await client.from('match_stats').select('goals, yellow_cards, red_cards, session_id, athletes(name, surname)').in('session_id', sIds);
+        // Se non ci sono sessioni, svuotiamo le tabelle e usciamo
+        if (sIds.length === 0) {
+            document.getElementById('team-attendance-summary').innerHTML = '<tr><td colspan="3">Nessuna sessione trovata</td></tr>';
+            document.getElementById('team-match-summary').innerHTML = '<tr><td colspan="5">Nessun dato partita</td></tr>';
+            return;
+        }
 
-        // --- CHIAMATA AL RENDERING DELLE TABELLE ---
-        renderDashboardTables(teams, allSessions, allAtts, allStats);
+        // Query filtrate per gli ID sessione trovati
+        const [resAtt, resStats] = await Promise.all([
+            client.from('attendances').select('session_id, status').in('session_id', sIds),
+            client.from('match_stats').select('goals, yellow_cards, red_cards, session_id, athletes(name, surname)').in('session_id', sIds)
+        ]);
 
-        // 5. Staff (Solo per Admin o mostriamo solo se stessi)
-        const { data: userData } = await client.from('users').select('role');
-        const staffEffettivo = userData?.filter(u => !['admin', 'manager'].includes(u.role?.toLowerCase())) || [];
-        document.getElementById('staff-total').innerText = staffEffettivo.length;
-        document.getElementById('staff-allenatori').innerText = staffEffettivo.filter(u => u.role?.toLowerCase().includes('allenatore')).length;
-        document.getElementById('staff-dirigenti').innerText = staffEffettivo.filter(u => u.role?.toLowerCase().includes('dirigente')).length;
-        document.getElementById('staff-responsabili').innerText = staffEffettivo.filter(u => u.role?.toLowerCase().includes('responsabile')).length;
+        // Eseguiamo il rendering delle tabelle
+        renderDashboardTables(teamsList, sessionsList, resAtt.data, resStats.data);
 
     } catch (err) {
-        console.error("Errore critico initDashboardStats:", err);
+        console.error("Errore Dashboard:", err);
     }
-}
-
-// Funzione di supporto per pulire il codice
-function renderDashboardTables(teams, sessions, atts, mStats) {
-    let attHTML = '';
-    let matchHTML = '';
-    let scorers = {};
-    let totalAmm = 0;
-
-    teams?.forEach(t => {
-        const tSessIds = sessions?.filter(s => s.team_id === t.id).map(s => s.id) || [];
-        
-        // Presenze
-        const tAtts = atts?.filter(a => tSessIds.includes(a.session_id)) || [];
-        const perc = tAtts.length > 0 ? ((tAtts.filter(a => a.status?.toLowerCase()==='presente').length / tAtts.length)*100).toFixed(1)+'%' : '0%';
-        
-        attHTML += `<tr><td>${t.name}</td><td align="center">${tSessIds.length}</td><td align="center">${perc}</td></tr>`;
-
-        // Match
-        const tStats = mStats?.filter(s => tSessIds.includes(s.session_id)) || [];
-        const gf = tStats.reduce((sum, s) => sum + (s.goals || 0), 0);
-        const amm = tStats.reduce((sum, s) => sum + (s.yellow_cards || 0), 0);
-        totalAmm += amm;
-
-        matchHTML += `<tr><td>${t.name}</td><td align="center">${gf}</td><td align="center">-</td><td align="center">${amm}</td><td align="center">0</td></tr>`;
-        
-        tStats.forEach(s => {
-            if(s.goals > 0 && s.athletes) {
-                const n = `${s.athletes.name} ${s.athletes.surname}`;
-                scorers[n] = (scorers[n] || 0) + s.goals;
-            }
-        });
-    });
-
-    document.getElementById('team-attendance-summary').innerHTML = attHTML;
-    document.getElementById('team-match-summary').innerHTML = matchHTML;
-    document.getElementById('stat-ammonizioni').innerText = totalAmm;
-    
-    const top = Object.entries(scorers).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    document.getElementById('top-scorers').innerHTML = top.map(s => `<tr><td>${s[0]}</td><td align="right">${s[1]}</td></tr>`).join('') || '<tr><td>Nessun gol</td></tr>';
 }
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
