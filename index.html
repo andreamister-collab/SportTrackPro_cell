@@ -9,547 +9,112 @@
 	<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --accent: #06b6d4;
-            --bg: #f0f4f8;
-            --card: #ffffff;
-            --sidebar: #0f172a;
-            --sidebar-border: rgba(255,255,255,0.06);
-            --sidebar-active: rgba(37,99,235,0.25);
-            --sidebar-hover: rgba(255,255,255,0.06);
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'DM Sans', system-ui, sans-serif;
-            background: var(--bg);
-            min-height: 100vh;
-            color: var(--text-main);
-        }
-
-        /* ── SCROLLBAR ── */
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
-
-        /* ══════════════════════════════════════
-           LOGIN PAGE
-        ══════════════════════════════════════ */
-        #login-wrap {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0f172a 100%);
-            padding: 2rem;
-        }
-
-        .login-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 2.5rem 2rem;
-            width: 100%;
-            max-width: 360px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-        }
-
-        .login-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 0.4rem;
-        }
-
-        .login-logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #2563eb, #06b6d4);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .login-logo h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.3rem;
-            color: #fff;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .login-subtitle {
-            color: rgba(255,255,255,0.4);
-            font-size: 0.82rem;
-            margin-bottom: 2rem;
-            padding-left: 50px;
-        }
-
-        .login-card label {
-            display: block;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.45);
-            margin-bottom: 0.4rem;
-        }
-
-        .login-card input {
-            width: 100%;
-            padding: 0.7rem 1rem;
-            background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 10px;
-            color: #fff;
-            font-size: 0.9rem;
-            font-family: inherit;
-            margin-bottom: 1rem;
-            margin-top: 0;
-            transition: border-color 0.2s;
-        }
-        .login-card input:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: rgba(37,99,235,0.1);
-        }
-        .login-card input::placeholder { color: rgba(255,255,255,0.25); }
-
-        .btn-login {
-            width: 100%;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s;
-            letter-spacing: 0.03em;
-            margin-top: 0.5rem;
-        }
-        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37,99,235,0.45); }
-        .btn-login:active { transform: translateY(0); }
-
-        /* ══════════════════════════════════════
-           APP LAYOUT
-        ══════════════════════════════════════ */
-        #app { display: none; min-height: 100vh; }
-
-        /* ── SIDEBAR ── */
-        #sidebar {
-            width: 240px;
-            background: var(--sidebar);
-            color: #94a3b8;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            z-index: 100;
-            border-right: 1px solid rgba(255,255,255,0.04);
-        }
-
-        .sidebar-header {
-            padding: 1.25rem 1rem 1rem;
-            border-bottom: 1px solid var(--sidebar-border);
-        }
-
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .sidebar-brand-icon {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, #2563eb, #06b6d4);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
-
-        .sidebar-brand-name {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.3px;
-        }
-
-        .sidebar-user-pill {
-            margin-top: 0.75rem;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.5);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .sidebar-user-pill span { color: rgba(255,255,255,0.8); font-weight: 600; }
-
-        /* MENU GROUPS */
-        .sidebar-nav { padding: 0.75rem 0.75rem; flex: 1; }
-
-        .sidebar-group-label {
-            font-size: 0.65rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.2);
-            padding: 0.6rem 0.5rem 0.3rem;
-            margin-top: 0.5rem;
-        }
-
-        #sidebar a {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 0.55rem 0.75rem;
-            color: #94a3b8;
-            text-decoration: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 1px;
-            font-weight: 500;
-            font-size: 0.82rem;
-            transition: all 0.15s;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
-        #sidebar a:hover {
-            background: var(--sidebar-hover);
-            color: #e2e8f0;
-        }
-
-        #sidebar a.active {
-            background: var(--sidebar-active);
-            color: #fff;
-            font-weight: 600;
-        }
-
-        #sidebar a.active::before {
-            content: '';
-            display: block;
-            width: 3px;
-            height: 16px;
-            background: #2563eb;
-            border-radius: 2px;
-            position: absolute;
-            left: 0;
-        }
-        #sidebar a { position: relative; }
-
-        .sidebar-footer {
-            padding: 0.75rem;
-            border-top: 1px solid var(--sidebar-border);
-        }
-
-        .btn-logout {
-            width: 100%;
-            background: rgba(239,68,68,0.12);
-            border: 1px solid rgba(239,68,68,0.2);
-            color: #f87171;
-            padding: 0.6rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: 600;
-            font-family: inherit;
-            transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        .btn-logout:hover { background: rgba(239,68,68,0.2); color: #fca5a5; }
-
-        /* IMPORT SPECIAL LINK */
-        #sidebar a[data-section="import-atleti"] {
-            background: rgba(37,99,235,0.15);
-            color: #93c5fd;
-            border: 1px solid rgba(37,99,235,0.2);
-            font-weight: 800;
-            margin-top: 4px;
-        }
-        #sidebar a[data-section="import-atleti"]:hover {
-            background: rgba(37,99,235,0.25);
-        }
-
-        /* ── MAIN CONTENT ── */
-        /* #app viene impostato a flex dal JS al login */
-        #content {
-            margin-left: 240px;
-            padding: 1.75rem 2rem;
-            min-height: 100vh;
-            overflow-x: hidden;
-            width: calc(100% - 240px);
-            box-sizing: border-box;
-            flex: 1;
-        }
-
-        /* Assicura che tutte le card occupino la larghezza piena */
-        #content .card,
-        #content > div {
-            width: 100%;
-            box-sizing: border-box;
-        }
+        :root { --primary:#2563eb; --bg:#f1f5f9; --card:#ffffff; --sidebar:#0f172a; --sidebar-active:#1e293b; --danger:#ef4444; }
+        * { box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); margin:0; min-height:100vh; color:#0f172a; }
         
-        /* Fix: quando #app è flex, il content deve espandersi */
-        #app[style*="flex"] {
-            width: 100%;
-        }
+        /* LOGIN */
+        #login-wrap { background:var(--card); padding:2rem; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); width:100%; max-width:380px; margin:10vh auto; }
+        
+        /* APP LAYOUT */
+        #app { display:none; flex-direction:row; min-height:100vh; }
+        #sidebar { 
+    width: 260px; 
+    background: var(--sidebar); 
+    color: #cbd5e1; 
+    padding: 1rem; 
+    display: flex; 
+    flex-direction: column; 
+    position: fixed; 
+    height: 100vh; 
+    overflow-y: auto; /* <--- AGGIUNGI QUESTA */
+}
+        #sidebar h3 { margin:0 0 1.5rem; font-size:1.1rem; color:#fff; }
+        #sidebar a { display:block; padding:0.75rem 0.9rem; color:#cbd5e1; text-decoration:none; border-radius:6px; cursor:pointer; margin-bottom:0.25rem; font-weight:500; }
+        #sidebar a.active, #sidebar a:hover { background:var(--sidebar-active); color:#fff; }
+        #content { flex:1; margin-left:260px; padding:2rem; overflow-x:auto; }
 
-        /* ══════════════════════════════════════
-           COMPONENTS
-        ══════════════════════════════════════ */
-        .card {
-            background: var(--card);
-            padding: 1.5rem;
-            border-radius: 14px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
-            border: 1px solid var(--border);
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .header h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
-        /* BUTTONS */
-        .btn {
-            padding: 0.55rem 1.1rem;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.83rem;
-            font-family: inherit;
-            transition: all 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .btn:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
-
-        .btn-sm {
-            padding: 0.35rem 0.65rem;
-            border: none;
-            border-radius: 6px;
-            color: white;
-            cursor: pointer;
-            font-size: 0.78rem;
-            font-family: inherit;
-            font-weight: 600;
-            margin-left: 3px;
-            transition: all 0.12s;
-        }
-        .btn-sm:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
+        /* COMPONENTS */
+        .card { background:var(--card); padding:1.4rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid #eee; padding-bottom:10px; }
+        .btn { padding:0.6rem 1rem; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+        .btn-logout { background:var(--danger); margin-top:auto; padding:0.7rem; border-radius:6px; border:none; color:white; cursor:pointer; }
+        
+        /* TABLE & MODAL */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:0.8rem; border-bottom:1px solid #e2e8f0; text-align:left; }
+        th { background:#f8fafc; font-size:0.85rem; color:#64748b; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-content { background:white; padding:2rem; border-radius:12px; width:90%; max-width:450px; }
+        .modal-active { display:flex; }
+        input, select { width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:1rem; margin-top:0.3rem; }
+        .badge { padding:0.25rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; }
+        .badge-active { background:#dcfce7; color:#166534; }
+        .badge-inactive { background:#f1f5f9; color:#475569; }
+		.btn-sm { padding: 0.4rem 0.6rem; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 0.8rem; margin-left: 4px; }
         .btn-warning { background: #f59e0b; }
-        .btn-danger  { background: #ef4444; }
+        .btn-danger { background: #ef4444; }
+		.star-rating { display: flex; gap: 5px; cursor: pointer; }
+        /* =====blocco aggiunto con sessioi =====*/
+        /* --- BUILD 1.2: SESSIONI & RATING --- */
+/* --- BUILD 1.2: SESSIONI & RATING --- */
+.badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.badge-default { background: #e2e8f0; color: #475569; }
+.star-rating { display: flex; gap: 3px; user-select: none; }
+.star { font-size: 1.5rem; color: #cbd5e1; transition: all 0.2s ease; cursor: pointer; }
+.star.active { color: #f59e0b !important; }
+.star:hover { transform: scale(1.2); }
+.att-row-data:hover { background: #f8fafc; }
 
-        /* TABLES */
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem 0.9rem; border-bottom: 1px solid #f1f5f9; text-align: left; }
-        th { background: #f8fafc; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-        tr:hover td { background: #fafbff; }
-        tr:last-child td { border-bottom: none; }
-
-        /* BADGES */
-        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-        .badge-active   { background: #dcfce7; color: #166534; }
-        .badge-inactive { background: #f1f5f9; color: #475569; }
-        .badge-default  { background: #e2e8f0; color: #475569; }
-
-        /* MODAL */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-        .modal-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 450px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
-        }
-        .modal-active { display: flex; }
-
-        #modal-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 1rem;
-        }
-
-        /* FORM INPUTS */
-        input:not(.login-card input), select { 
-            width: 100%;
-            padding: 0.6rem 0.85rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 0.85rem;
-            margin-top: 0.25rem;
-            font-size: 0.875rem;
-            font-family: inherit;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.15s;
-        }
-        input:not(.login-card input):focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-        }
-
-        /* STAR RATINGS */
-        .star-rating { display: flex; gap: 3px; user-select: none; }
-        .star { font-size: 1.5rem; color: #cbd5e1; transition: all 0.2s ease; cursor: pointer; }
-        .star.active { color: #f59e0b !important; }
-        .star:hover { transform: scale(1.2); }
-        .att-row-data:hover { background: #f8fafc; }
-
-        /* SESSION FILTER */
-        #filter-society-sess {
-            padding: 8px;
-            border-radius: 8px;
-            border: 2px solid #2563eb;
-            font-weight: 600;
-            color: #2563eb;
-            background: white;
-            outline: none;
-        }
-
-        /* ROLE BADGE IN SIDEBAR */
-        .role-badge {
-            display: inline-block;
-            font-size: 0.6rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(37,99,235,0.2);
-            color: #93c5fd;
-            margin-left: auto;
-        }
-
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            #sidebar { width: 200px; }
-            #content { margin-left: 200px; padding: 1rem; }
-        }
+#filter-society-sess {
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px solid #2563eb;
+    font-weight: 600;
+    color: #2563eb;
+    background: white;
+    outline: none;
+	}
+		 /* ===== fine blocco aggiunto con sessioi =====*/
     </style>
 </head>
 <body>
 
 <div id="login-wrap">
-    <div class="login-card">
-        <div class="login-logo">
-            <div class="login-logo-icon">🏆</div>
-            <h1>SportTrackPro</h1>
-        </div>
-        <p class="login-subtitle">Gestione sportiva avanzata</p>
-        <form id="login-form">
-            <label>Username</label>
-            <input type="text" id="username" placeholder="Inserisci username" required>
-            <label>Password</label>
-            <input type="password" id="password" placeholder="••••••••" required>
-            <button type="submit" class="btn-login">Accedi →</button>
-            <div id="error-msg" style="color:#f87171; margin-top:12px; display:none; font-size:0.82rem; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(239,68,68,0.2);"></div>
-        </form>
-    </div>
+    <h2 style="text-align:center; margin-bottom:1.5rem;">SportTrackPro</h2>
+    <form id="login-form">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Inserisci username" required>
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+        <button type="submit" class="btn" style="width:100%">Accedi</button>
+        <div id="error-msg" style="color:red; margin-top:10px; display:none; font-size:0.9rem;"></div>
+    </form>
 </div>
 
-<div id="app" style="display:none">
+<div id="app">
     <nav id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <div class="sidebar-brand-icon">🏆</div>
-                <span class="sidebar-brand-name">SportTrackPro</span>
-            </div>
-            <div class="sidebar-user-pill" id="user-info">👤 Utente</div>
-        </div>
-
-        <div class="sidebar-nav">
-            <div class="sidebar-group-label">Panoramica</div>
-            <a data-section="dashboard">🏠 Dashboard</a>
-
-            <div class="sidebar-group-label" id="nav-group-admin">Configurazione</div>
-            <a data-section="stagioni" id="nav-stagioni">📅 Stagioni</a>
-            <a data-section="sport" id="nav-sport">⚽ Sport</a>
-            <a data-section="societa" id="nav-societa">🏢 Società</a>
-            <a data-section="categoria" id="nav-categoria">📂 Categoria</a>
-            <a data-section="squadra" id="nav-squadra">🛡️ Squadra</a>
-            <a data-section="staff" id="nav-staff">👥 Anagrafica Staff</a>
-
-            <div class="sidebar-group-label">Atleti</div>
-            <a data-section="anagrafica-pura" id="nav-anagrafica-pura">👤 Anagrafica Atleti</a>
-            <a data-section="assegnazioni" id="nav-assegnazioni">📋 Assegnazioni Tecniche</a>
-            <a data-section="atleti" id="nav-atleti">🔗 Anagrafica Squadra</a>
-
-            <div class="sidebar-group-label">Attività</div>
-            <a data-section="sessioni" id="nav-sessioni">📅 Gestione Sessioni</a>
-            <a data-section="partite" id="nav-partite">🏆 Gestione Partite</a>
-
-            <a data-section="import-atleti" id="nav-import">📥 Importa Atleti</a>
-        </div>
-
-        <div class="sidebar-footer">
-            <button id="btn-logout" class="btn-logout">↩ Esci</button>
-        </div>
+        <h3>SportTrackPro</h3>
+        <a data-section="dashboard">DASHBOARD</a>
+        <a data-section="stagioni">STAGIONI</a>
+        <a data-section="sport">SPORT</a>
+        <a data-section="societa">SOCIETÀ</a>
+        <a data-section="categoria">CATEGORIA</a>
+        <a data-section="squadra">SQUADRA</a>
+        <a data-section="staff">👥 ANAGRAFICA STAFF</a>
+		<a data-section="anagrafica-pura">👤 Anagrafica Atleti</a>
+        <a data-section="assegnazioni">📋 ASSEGNAZIONI TECNICHE</a>
+        <a data-section="atleti">🔗 Anagrafica Squadra</a>
+        <a data-section="sessioni">📅 GESTIONE SESSIONI</a>
+		<a data-section="partite">📅 GESTIONE PARTITE</a>
+		<a data-section="import-atleti" style="background: #1e3a8a; color: #93c5fd; font-weight: 800;">📥 IMPORTA ATLETI</a>
+		<button id="btn-logout" class="btn-logout">Esci</button>
+		
     </nav>
 
     <main id="content">
-    </main>
+        </main>
 </div>
 
 <div id="modal-overlay" class="modal-overlay">
@@ -589,76 +154,6 @@
         close() { this.el.classList.remove('modal-active'); }
     };
     document.getElementById('btn-modal-close').onclick = () => modal.close();
-
-    /* ============================================================
-       GESTIONE VISIBILITÀ SIDEBAR PER RUOLO
-       ============================================================ */
-    window.applyRoleVisibility = function() {
-        // Il DB usa role='admin'|'manager'|'user' + management_role='Dirigente'|'Allenatore'|'Presidente'|'Segretario'|'Responsabile'|'Genitore'
-        // La logica effettiva di accesso si basa sulla management_role per gli 'user' normali
-        const dbRole = (window._userRole || '').toLowerCase();
-        const mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
-
-        // Determina il ruolo funzionale effettivo
-        let effectiveRole;
-        if (dbRole === 'admin') {
-            effectiveRole = 'admin';
-        } else if (dbRole === 'manager') {
-            effectiveRole = 'manager';
-        } else {
-            // Per gli 'user' usa la management_role
-            effectiveRole = mgmtRole || 'user';
-        }
-
-        // Salva il ruolo effettivo globalmente (utile per la dashboard e altri moduli)
-        window._effectiveRole = effectiveRole;
-
-        const allNavIds = ['nav-stagioni','nav-sport','nav-societa','nav-categoria','nav-squadra',
-                           'nav-staff','nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'];
-
-        // GERARCHIA VISIBILITÀ MENU:
-        // admin/manager      → tutto
-        // presidente/segretario → dati società propria, può modificare legami
-        // responsabile       → categorie proprie, solo lettura
-        // dirigente/allenatore → squadre proprie, sessioni e partite
-        // genitore           → solo anagrafica atleta, solo lettura
-        const visibility = {
-            admin:        allNavIds,
-            manager:      allNavIds,
-            presidente:   ['nav-societa','nav-categoria','nav-squadra','nav-staff',
-                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            segretario:   ['nav-societa','nav-categoria','nav-squadra','nav-staff',
-                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
-            dirigente:    ['nav-anagrafica-pura','nav-atleti','nav-sessioni','nav-partite','nav-import'],
-            allenatore:   ['nav-anagrafica-pura','nav-atleti','nav-sessioni','nav-partite','nav-import'],
-            genitore:     ['nav-atleti'],
-        };
-
-        const allowed = visibility[effectiveRole] || ['nav-atleti'];
-
-        // Nascondi tutto
-        allNavIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-
-        // Mostra solo quelli permessi
-        allowed.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
-        });
-
-        // Badge ruolo nella pill (mostra management_role se presente, altrimenti dbRole)
-        const userPill = document.getElementById('user-info');
-        if (userPill && window.CURRENT_USER) {
-            const displayRole = window.CURRENT_USER.management_role || dbRole;
-            userPill.innerHTML = `👤 <span>${window.CURRENT_USER.name || 'Utente'}</span> &nbsp;<em style="font-size:0.65rem; opacity:0.6; text-transform:uppercase;">${displayRole}</em>`;
-        }
-    };
 /* ============================================================
        CONTROLLO SESSIONE ATTIVA (Anti-Logout al Refresh)
        ============================================================ */
@@ -685,9 +180,12 @@
                     // Prepariamo la UI (mostriamo l'app, nascondiamo il login)
                     document.getElementById('login-wrap').style.display = 'none';
                     document.getElementById('app').style.display = 'flex';
+                    
+                    const userInfo = document.getElementById('user-info');
+                    if(userInfo) {
+                        userInfo.innerText = `👤 ${userRow.name} (${userRow.role.toUpperCase()})`;
+                    }
 
-                    // Applica visibilità sidebar in base al ruolo
-                    window.applyRoleVisibility();
                     // Carichiamo la dashboard (o l'ultima pagina salvata)
                     loadPage('dashboard');
                     console.log("✅ Sessione ripristinata correttamente.");
@@ -749,11 +247,18 @@
             window.CURRENT_USER = userRow; // Popoliamo l'oggetto per la dashboard
 
             // 4. UI Setup
+            document.documentElement.style.fontSize = "18px";
             document.getElementById('login-wrap').style.display = 'none';
-            document.getElementById('app').style.display = 'flex';
+            document.getElementById('app').style.display = 'flex'; // Usiamo flex per il layout a due colonne
+            
+            // Update Info Utente nel menu (se presente l'elemento nel tuo HTML)
+            const userInfo = document.getElementById('user-info');
+            if(userInfo) {
+                userInfo.innerText = `👤 ${userRow.name} (${userRow.role.toUpperCase()})`;
+                if(userRow.role === 'admin') userInfo.style.color = "#dc2626";
+            }
 
             // 5. Navigazione iniziale
-            window.applyRoleVisibility();
             loadPage('dashboard');
 
         } catch (err) {
@@ -775,9 +280,14 @@
         if (!content) return;
 
         switch(section) {
-            case 'dashboard':
-                content.innerHTML = window.templateDashboard ? window.templateDashboard() : '<div class="card"><p>Caricamento...</p></div>';
-                if (window.initDashboard) window.initDashboard();
+            case 'dashboard': 
+                // Fix: usiamo window.CURRENT_USER con fallback per evitare errori undefined
+                const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
+                content.innerHTML = `
+                    <div class="card">
+                        <h2>Benvenuto, ${userName}</h2>
+                        <p>Seleziona una voce dal menu laterale per gestire l'attività sportiva.</p>
+                    </div>`; 
                 break;
             
             case 'stagioni': 
@@ -1539,7 +1049,7 @@ async function initStaff() {
     const tbody = document.getElementById('list-staff');
     if (!tbody) return;
 
-    const myRole = window._effectiveRole || window._userRole;
+    const myRole = window._userRole;
     const mySociety = window._currentSocietyId;
 
     // 1. Query base (esclude l'admin supremo e ordina per nome)
@@ -1598,7 +1108,7 @@ async function initStaff() {
  */
 async function openStaffModal(editData = null) {
     const isEdit = !!editData;
-    const myRole = window._effectiveRole || window._userRole;
+    const myRole = window._userRole;
 
     let societies = [];
     if (myRole === 'admin' || myRole === 'manager') {
@@ -2562,7 +2072,7 @@ async function initSessioni() {
     const tbody = document.getElementById('list-sessioni-body');
     if (!tbody) return;
 
-    const myRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+    const myRole = (window._userRole || '').toLowerCase();
     const isAdmin = ['admin', 'manager', 'presidente', 'segretario'].includes(myRole);
     let targetSociety = window._currentSocietyId;
 
@@ -2573,7 +2083,7 @@ async function initSessioni() {
             const { data: socs } = await client.from('societies').select('id, name').order('name');
             if (socs) {
                 selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id === targetSociety ? 'selected' : ''}>${s.name}</option>`).join('');
-                if (['admin','manager'].includes(myRole)) document.getElementById('wrapper-soc-filter').style.display = 'block';
+                if (myRole === 'admin' || myRole === 'manager') document.getElementById('wrapper-soc-filter').style.display = 'block';
                 await reloadSubFilters();
                 return;
             }
@@ -3779,593 +3289,6 @@ async function initImportAtleti() {
 
 
 
-
-/* ============================================================
-   MODULO: DASHBOARD AMMINISTRATORE
-   ============================================================ */
-
-window.templateDashboard = function() {
-    const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-    const userRole = (window._userRole || '').toLowerCase();
-    const roleLabels = {
-        admin: 'Amministratore', manager: 'Manager', presidente: 'Presidente',
-        segretario: 'Segretario', responsabile: 'Responsabile',
-        dirigente: 'Dirigente', allenatore: 'Allenatore', genitore: 'Genitore'
-    };
-    const roleName = roleLabels[userRole] || userRole;
-    const today = new Date().toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-
-    return `
-    <div id="dashboard-wrap" style="width:100%;">
-
-        <!-- HEADER DASHBOARD -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
-            <div>
-                <h2 style="font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:700; margin-bottom:4px;">Dashboard ${roleName}</h2>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span style="color:#64748b; font-size:0.82rem;">Panoramica globale ·</span>
-                    <span id="dash-season-label" style="color:#2563eb; font-size:0.82rem; font-weight:600;">⏳ Caricamento...</span>
-                    <span style="color:#64748b; font-size:0.82rem;">· ${today}</span>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #2563eb; border-radius:8px; font-weight:600; color:#2563eb; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                    <option value="all">Tutte le stagioni</option>
-                </select>
-                <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:500; color:#475569; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                    <option value="all">Tutte le società</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- KPI CARDS -->
-        <div id="dash-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:1.5rem;">
-            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
-            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
-            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
-            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
-            <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
-        </div>
-
-        <!-- GRID TABELLE -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
-
-            <!-- PARTITE ULTIMO MESE -->
-            <div class="card" style="grid-column: span 2;">
-                <div class="header" style="margin-bottom:1rem;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">🏆 Partite ultimo mese</h3>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <select id="dash-match-soc" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
-                            <option value="">Tutte le società</option>
-                        </select>
-                        <select id="dash-match-team" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
-                            <option value="">Tutte le squadre</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; color:#64748b;">
-                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Data</th>
-                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Partita</th>
-                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
-                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">Risultato</th>
-                                <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">Esito</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-matches-body">
-                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
-
-            <!-- PRESENZE SESSIONI -->
-            <div class="card">
-                <div class="header" style="margin-bottom:1rem;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">📅 Presenze Sessioni</h3>
-                    <select id="dash-pres-team" onchange="window.renderDashPresenze()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
-                        <option value="">Tutte le squadre</option>
-                    </select>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; color:#64748b;">
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Sessione</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#10b981;">P</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">A</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#f59e0b;">G</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">%</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-pres-body">
-                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- STATISTICHE GARE -->
-            <div class="card">
-                <div class="header" style="margin-bottom:1rem;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">⚽ Statistiche Gare per Squadra</h3>
-                    <select id="dash-stats-soc" onchange="window.renderDashStats()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:#475569;">
-                        <option value="">Tutte le società</option>
-                    </select>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-                        <thead>
-                            <tr style="background:#f8fafc; color:#64748b;">
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">P</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#10b981;">GF</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">GS</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#f59e0b;">🟨</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">🟥</th>
-                                <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;">W/D/L</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-stats-body">
-                            <tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Caricamento...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <style>
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        .kpi-card { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; border-top:3px solid var(--kpi-color,#2563eb); }
-        .kpi-card .kpi-label { font-size:0.68rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#94a3b8; margin-bottom:6px; }
-        .kpi-card .kpi-value { font-family:'Space Grotesk',sans-serif; font-size:1.8rem; font-weight:700; color:var(--kpi-color,#2563eb); line-height:1; }
-        .kpi-card .kpi-sub { font-size:0.72rem; color:#94a3b8; margin-top:4px; }
-    </style>
-    `;
-};
-
-/* ── DATI GLOBALI DASHBOARD ── */
-window._dashData = {};
-
-window.initDashboard = async function() {
-    try {
-        const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-        const isGlobalUser = ['admin','manager'].includes(effectiveRole);
-        const isSocietyScoped = ['presidente','segretario','responsabile','dirigente','allenatore'].includes(effectiveRole);
-        const userSocietyId = window._currentSocietyId;
-
-        // Carica stagioni
-        const { data: seasons } = await client.from('seasons').select('id, name, is_active').order('name', { ascending: false });
-        const selSeason = document.getElementById('dash-season-filter');
-        if (selSeason) {
-            (seasons || []).forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.name + (s.is_active ? ' ✓' : '');
-                if (s.is_active) opt.selected = true;
-                selSeason.appendChild(opt);
-            });
-        }
-
-        window._dashData._seasons = seasons || [];
-
-        // Gestione filtro società in base al ruolo
-        const selSoc = document.getElementById('dash-soc-filter');
-        const socFilterWrapper = selSoc?.parentElement;
-
-        if (isGlobalUser) {
-            // Admin/Manager: mostra tutte le società selezionabili
-            const { data: societies } = await client.from('societies').select('id, name').order('name');
-            window._dashData._societies = societies || [];
-            if (selSoc) {
-                (societies || []).forEach(s => {
-                    selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-                });
-            }
-        } else if (isSocietyScoped && userSocietyId) {
-            // Ruoli societari: nasconde il filtro società, forza la propria
-            if (socFilterWrapper) socFilterWrapper.style.display = 'none';
-            window._dashData._forcedSocietyId = userSocietyId;
-            // Recupera nome società per mostrarlo
-            const { data: mySoc } = await client.from('societies').select('id, name').eq('id', userSocietyId).maybeSingle();
-            window._dashData._societies = mySoc ? [mySoc] : [];
-        } else {
-            // Genitore o ruolo sconosciuto: nasconde il filtro
-            if (socFilterWrapper) socFilterWrapper.style.display = 'none';
-            window._dashData._forcedSocietyId = userSocietyId;
-        }
-
-        // Label stagione attiva
-        const activeSeason = (seasons || []).find(s => s.is_active);
-        const labelEl = document.getElementById('dash-season-label');
-        if (labelEl) labelEl.textContent = '🌐 Stagione: ' + (activeSeason?.name || 'Tutte');
-
-        await window.refreshDashboard();
-
-    } catch(err) { console.error('initDashboard error:', err); }
-};
-
-window.refreshDashboard = async function() {
-    const seasonId = document.getElementById('dash-season-filter')?.value;
-    // Se l'utente ha una società forzata la usa, altrimenti legge il select
-    const socId = window._dashData._forcedSocietyId ||
-                  document.getElementById('dash-soc-filter')?.value || 'all';
-
-    // Aggiorna label stagione
-    const labelEl = document.getElementById('dash-season-label');
-    if (labelEl) {
-        if (!seasonId || seasonId === 'all') {
-            labelEl.textContent = '🌐 Tutte le stagioni';
-        } else {
-            const s = (window._dashData._seasons || []).find(x => x.id === seasonId);
-            labelEl.textContent = '🌐 Stagione: ' + (s?.name || '');
-        }
-    }
-
-    await Promise.all([
-        window.loadDashKPIs(seasonId, socId),
-        window.loadDashMatches(seasonId, socId),
-        window.loadDashPresenze(seasonId, socId),
-        window.loadDashStats(seasonId, socId),
-    ]);
-};
-
-/* ── KPI ── */
-window.loadDashKPIs = async function(seasonId, socId) {
-    const grid = document.getElementById('dash-kpi-grid');
-    if (!grid) return;
-
-    try {
-        // Base queries
-        let athQ = client.from('athlete_team_seasons').select('id, society_id, season_id', { count: 'exact', head: false });
-        let sessQ = client.from('sessions').select('id, society_id, season_id', { count: 'exact', head: false });
-        let socQ = client.from('societies').select('id', { count: 'exact', head: false });
-        let catQ = client.from('categories').select('id, society_id', { count: 'exact', head: false });
-        let staffQ = client.from('users').select('id, society_id, management_role', { count: 'exact', head: false }).neq('username', 'admin');
-        let attQ = client.from('attendances').select('status');
-
-        // Filters
-        if (seasonId && seasonId !== 'all') {
-            athQ = athQ.eq('season_id', seasonId);
-            sessQ = sessQ.eq('season_id', seasonId);
-        }
-        if (socId && socId !== 'all') {
-            athQ = athQ.eq('society_id', socId);
-            sessQ = sessQ.eq('society_id', socId);
-            catQ = catQ.eq('society_id', socId);
-            staffQ = staffQ.eq('society_id', socId);
-        }
-
-        const [athRes, sessRes, socRes, catRes, staffRes, attRes] = await Promise.all([
-            athQ, sessQ, socQ, catQ, staffQ, attQ
-        ]);
-
-        const athletes = athRes.data || [];
-        const sessions = sessRes.data || [];
-        const categories = catRes.data || [];
-        const staff = staffRes.data || [];
-        const attendances = attRes.data || [];
-
-        // KPI calculations
-        const totalAtleti = athletes.length;
-        const totalSessioni = sessions.length;
-        const totalSocieta = (socId && socId !== 'all') ? 1 : (socRes.data || []).length;
-        const totalCategorie = categories.length;
-        const totalStaff = staff.length;
-
-        const staffByRole = staff.reduce((acc, u) => {
-            const r = (u.management_role || 'Altro').toLowerCase();
-            if (r.includes('president')) acc.presidenti++;
-            else if (r.includes('allenator') || r.includes('coach')) acc.allenatori++;
-            else if (r.includes('dirigent')) acc.dirigenti++;
-            else if (r.includes('responsabil')) acc.responsabili++;
-            return acc;
-        }, { presidenti:0, allenatori:0, dirigenti:0, responsabili:0 });
-
-        // Calcolo % presenze globale
-        const tot = attendances.length;
-        const pres = attendances.filter(a => (a.status||'').toLowerCase() === 'presente').length;
-        const percPres = tot > 0 ? Math.round((pres/tot)*100) : 0;
-
-        // Calcolo categorie uniche
-        const uniqueCats = new Set(athletes.map(a => a.society_id)).size;
-
-        const kpis = [
-            { label:'Atleti Totali',      value: totalAtleti,   sub: `in ${uniqueCats || totalCategorie} categorie`, color:'#2563eb' },
-            { label:'Sessioni Registrate', value: totalSessioni,  sub: 'tutte le categorie',              color:'#10b981' },
-            { label:'% Presenze Globali',  value: percPres+'%',   sub: `${pres}/${tot} totali`,            color:'#f59e0b' },
-            { label:'Società',             value: totalSocieta,   sub: '1 sport',                          color:'#06b6d4' },
-            { label:'Categorie',           value: totalCategorie, sub: 'attive',                           color:'#8b5cf6' },
-            { label:'Staff Totale',        value: totalStaff,     sub: 'utenti registrati',                color:'#64748b' },
-            { label:'Allenatori',          value: staffByRole.allenatori, sub:'registrati',               color:'#f59e0b' },
-            { label:'Dirigenti',           value: staffByRole.dirigenti,  sub:'registrati',               color:'#ef4444' },
-            { label:'Presidenti',          value: staffByRole.presidenti, sub:'registrati',               color:'#2563eb' },
-        ];
-
-        grid.innerHTML = kpis.map(k => `
-            <div class="kpi-card" style="--kpi-color:${k.color}">
-                <div class="kpi-label">${k.label}</div>
-                <div class="kpi-value">${k.value}</div>
-                <div class="kpi-sub">${k.sub}</div>
-            </div>
-        `).join('');
-
-    } catch(err) { console.error('KPI error:', err); }
-};
-
-/* ── PARTITE ULTIMO MESE ── */
-window._dashMatches = [];
-window._dashMatchTeams = [];
-
-window.loadDashMatches = async function(seasonId, socId) {
-    try {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        const fromDate = oneMonthAgo.toISOString().split('T')[0];
-
-        // Ottieni i tipi "gara/partita"
-        const { data: types } = await client.from('session_types').select('id, name');
-        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
-
-        let q = client.from('sessions')
-            .select('id, title, session_date, society_id, team_id, teams(name), societies(name)')
-            .gte('session_date', fromDate)
-            .order('session_date', { ascending: false });
-
-        if (validIds.length > 0) q = q.in('type_id', validIds);
-        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-        if (socId && socId !== 'all') q = q.eq('society_id', socId);
-
-        const { data: sessions } = await q;
-
-        // Recupera i match_details
-        const sessionIds = (sessions || []).map(s => s.id);
-        let details = [];
-        if (sessionIds.length > 0) {
-            const { data: d } = await client.from('match_details').select('*').in('session_id', sessionIds);
-            details = d || [];
-        }
-        const detailMap = {};
-        details.forEach(d => detailMap[d.session_id] = d);
-
-        window._dashMatches = (sessions || []).map(s => ({ ...s, detail: detailMap[s.id] }));
-        window._dashMatchTeams = [...new Map((sessions||[]).filter(s=>s.teams).map(s => [s.team_id, { id:s.team_id, name:s.teams.name }])).values()];
-
-        // Popola filtro squadra
-        const selTeam = document.getElementById('dash-match-team');
-        const selSoc = document.getElementById('dash-match-soc');
-        if (selTeam) {
-            selTeam.innerHTML = '<option value="">Tutte le squadre</option>' +
-                window._dashMatchTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-        }
-        if (selSoc) {
-            const matchSocs = [...new Map((sessions||[]).filter(s=>s.societies).map(s=>[s.society_id,{id:s.society_id,name:s.societies.name}])).values()];
-            selSoc.innerHTML = '<option value="">Tutte le società</option>' +
-                matchSocs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-        }
-
-        window.renderDashMatches();
-    } catch(err) { console.error('loadDashMatches error:', err); }
-};
-
-window.renderDashMatches = function() {
-    const tbody = document.getElementById('dash-matches-body');
-    if (!tbody) return;
-    const filterTeam = document.getElementById('dash-match-team')?.value;
-    const filterSoc = document.getElementById('dash-match-soc')?.value;
-
-    const filtered = window._dashMatches.filter(m =>
-        (!filterTeam || m.team_id === filterTeam) &&
-        (!filterSoc || m.society_id === filterSoc)
-    );
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = "<tr><td colspan=\"5\" style=\"text-align:center; padding:20px; color:#94a3b8;\">Nessuna partita nell'ultimo mese.</td></tr>";
-        return;
-    }
-
-    const esitoBadge = (status) => {
-        if (!status || status === 'da disputare') return '<span style="background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">DA GIOCARE</span>';
-        if (status === 'vittoria') return '<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">VITTORIA</span>';
-        if (status === 'sconfitta') return '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">SCONFITTA</span>';
-        if (status === 'pareggio') return '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">PAREGGIO</span>';
-        return '<span style="background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">' + status.toUpperCase() + '</span>';
-    };
-
-    tbody.innerHTML = filtered.map(m => {
-        const d = m.detail;
-        const risultato = d ? `${d.goals_for ?? '-'} - ${d.goals_against ?? '-'}` : '- -';
-        const vs = d?.opponent_name ? `vs ${d.opponent_name}` : (m.title || 'Gara');
-        return `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:9px 12px; color:#64748b; white-space:nowrap;">${new Date(m.session_date).toLocaleDateString('it-IT')}</td>
-            <td style="padding:9px 12px; font-weight:600;">${vs}</td>
-            <td style="padding:9px 12px; color:#2563eb;">${m.teams?.name || '-'}</td>
-            <td style="padding:9px 12px; text-align:center; font-weight:700; font-family:'Space Grotesk',sans-serif;">${risultato}</td>
-            <td style="padding:9px 12px; text-align:center;">${esitoBadge(d?.match_status)}</td>
-        </tr>`;
-    }).join('');
-};
-
-/* ── PRESENZE SESSIONI ── */
-window._dashSessions = [];
-
-window.loadDashPresenze = async function(seasonId, socId) {
-    try {
-        let q = client.from('sessions')
-            .select('id, title, session_date, team_id, type_id, teams(name), attendances(status)')
-            .order('session_date', { ascending: false })
-            .limit(50);
-
-        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-        if (socId && socId !== 'all') q = q.eq('society_id', socId);
-
-        const { data } = await q;
-
-        // Escludi sessioni di tipo gara/partita
-        const { data: types } = await client.from('session_types').select('id, name');
-        const garaIds = new Set((types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id));
-
-        window._dashSessions = (data||[]).filter(s => !garaIds.has(s.type_id));
-
-        // Popola filtro squadra
-        const selTeam = document.getElementById('dash-pres-team');
-        if (selTeam) {
-            const teams = [...new Map(window._dashSessions.filter(s=>s.teams).map(s=>[s.team_id,{id:s.team_id,name:s.teams.name}])).values()];
-            selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-        }
-
-        window.renderDashPresenze();
-    } catch(err) { console.error('loadDashPresenze error:', err); }
-};
-
-window.renderDashPresenze = function() {
-    const tbody = document.getElementById('dash-pres-body');
-    if (!tbody) return;
-    const filterTeam = document.getElementById('dash-pres-team')?.value;
-
-    const filtered = window._dashSessions
-        .filter(s => !filterTeam || s.team_id === filterTeam)
-        .slice(0, 15);
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Nessuna sessione trovata.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(s => {
-        const att = s.attendances || [];
-        const p = att.filter(a => (a.status||'').toLowerCase()==='presente').length;
-        const a = att.filter(x => (x.status||'').toLowerCase()==='assente').length;
-        const g = att.filter(x => (x.status||'').toLowerCase()==='giustificato').length;
-        const tot = att.length;
-        const perc = tot > 0 ? Math.round((p/tot)*100) : 0;
-        const percColor = perc >= 75 ? '#10b981' : perc >= 50 ? '#f59e0b' : '#ef4444';
-        return `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:8px 10px;">
-                <div style="font-weight:600; font-size:0.8rem;">${s.title || 'Sessione'}</div>
-                <div style="font-size:0.7rem; color:#94a3b8;">${new Date(s.session_date).toLocaleDateString('it-IT')} · ${s.teams?.name||''}</div>
-            </td>
-            <td style="padding:8px 10px; text-align:center; color:#10b981; font-weight:700;">${p}</td>
-            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${a}</td>
-            <td style="padding:8px 10px; text-align:center; color:#f59e0b; font-weight:700;">${g}</td>
-            <td style="padding:8px 10px; text-align:center; font-weight:700; color:${percColor};">${perc}%</td>
-        </tr>`;
-    }).join('');
-};
-
-/* ── STATISTICHE GARE PER SQUADRA ── */
-window._dashMatchStats = [];
-
-window.loadDashStats = async function(seasonId, socId) {
-    try {
-        let q = client.from('sessions')
-            .select('id, team_id, society_id, season_id, teams(name), societies(name)');
-
-        const { data: types } = await client.from('session_types').select('id, name');
-        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id);
-        if (validIds.length > 0) q = q.in('type_id', validIds);
-        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-        if (socId && socId !== 'all') q = q.eq('society_id', socId);
-
-        const { data: sessions } = await q;
-        const sessionIds = (sessions||[]).map(s=>s.id);
-
-        if (sessionIds.length === 0) {
-            window._dashMatchStats = [];
-            // Popola filtro soc
-            const selSoc = document.getElementById('dash-stats-soc');
-            if (selSoc) selSoc.innerHTML = '<option value="">Tutte le società</option>';
-            window.renderDashStats();
-            return;
-        }
-
-        const [detailsRes, statsRes] = await Promise.all([
-            client.from('match_details').select('session_id, goals_for, goals_against, match_status').in('session_id', sessionIds),
-            client.from('match_stats').select('session_id, yellow_cards, red_cards').in('session_id', sessionIds)
-        ]);
-
-        const detailMap = {};
-        (detailsRes.data||[]).forEach(d => detailMap[d.session_id] = d);
-
-        // Aggrega per squadra
-        const teamMap = {};
-        (sessions||[]).forEach(s => {
-            if (!s.team_id) return;
-            if (!teamMap[s.team_id]) teamMap[s.team_id] = {
-                name: s.teams?.name || '-',
-                soc: s.societies?.name || '-',
-                society_id: s.society_id,
-                partite:0, gf:0, gs:0, amm:0, esp:0, w:0, d:0, l:0
-            };
-            const t = teamMap[s.team_id];
-            const det = detailMap[s.id];
-            t.partite++;
-            if (det) {
-                t.gf += det.goals_for || 0;
-                t.gs += det.goals_against || 0;
-                if (det.match_status === 'vittoria') t.w++;
-                else if (det.match_status === 'pareggio') t.d++;
-                else if (det.match_status === 'sconfitta') t.l++;
-            }
-        });
-
-        (statsRes.data||[]).forEach(st => {
-            const sess = (sessions||[]).find(s=>s.id===st.session_id);
-            if (sess && teamMap[sess.team_id]) {
-                teamMap[sess.team_id].amm += st.yellow_cards || 0;
-                teamMap[sess.team_id].esp += st.red_cards || 0;
-            }
-        });
-
-        window._dashMatchStats = Object.values(teamMap);
-
-        // Filtro soc
-        const selSoc = document.getElementById('dash-stats-soc');
-        if (selSoc) {
-            const socs = [...new Map(window._dashMatchStats.map(t=>[t.society_id, t.soc])).entries()];
-            selSoc.innerHTML = '<option value="">Tutte le società</option>' + socs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
-        }
-
-        window.renderDashStats();
-    } catch(err) { console.error('loadDashStats error:', err); }
-};
-
-window.renderDashStats = function() {
-    const tbody = document.getElementById('dash-stats-body');
-    if (!tbody) return;
-    const filterSoc = document.getElementById('dash-stats-soc')?.value;
-
-    const filtered = window._dashMatchStats
-        .filter(t => !filterSoc || t.society_id === filterSoc)
-        .sort((a,b) => b.gf - a.gf);
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Nessun dato gare disponibile.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(t => `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:8px 10px; font-weight:600; font-size:0.82rem;">${t.name}<br><span style="font-size:0.7rem; color:#94a3b8;">${t.soc}</span></td>
-            <td style="padding:8px 10px; text-align:center; color:#64748b; font-weight:700;">${t.partite}</td>
-            <td style="padding:8px 10px; text-align:center; color:#10b981; font-weight:700;">${t.gf}</td>
-            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${t.gs}</td>
-            <td style="padding:8px 10px; text-align:center; color:#f59e0b; font-weight:700;">${t.amm}</td>
-            <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${t.esp}</td>
-            <td style="padding:8px 10px; text-align:center; font-size:0.78rem; white-space:nowrap;">
-                <span style="color:#10b981;">${t.w}V</span> · <span style="color:#64748b;">${t.d}P</span> · <span style="color:#ef4444;">${t.l}S</span>
-            </td>
-        </tr>`).join('');
-};
 
 /* [QUI AGGIUNGEREMO LE FUNZIONI PER SPORT, SOCIETÀ, ECC. UNA ALLA VOLTA] */
 </script>
