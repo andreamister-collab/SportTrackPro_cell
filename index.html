@@ -3356,22 +3356,34 @@ async function initDashboardStats() {
 
         // 3. Conteggio Staff (da tabella USERS filtrando per ROLE)
         // Recuperiamo tutti gli utenti che hanno un ruolo definito
-        const { data: userData } = await client.from('users').select('role');
-        
-        if (userData) {
-            const counts = {
-                totale: userData.length,
-                allenatore: userData.filter(u => u.role?.toLowerCase() === 'allenatore').length,
-                dirigente: userData.filter(u => u.role?.toLowerCase() === 'dirigente').length,
-                responsabile: userData.filter(u => u.role?.toLowerCase() === 'responsabile').length
-            };
+// ... dentro la funzione initDashboardStats ...
 
-            document.getElementById('staff-total').innerText = counts.totale;
-            document.getElementById('staff-allenatori').innerText = counts.allenatore;
-            document.getElementById('staff-dirigenti').innerText = counts.dirigente;
-            document.getElementById('staff-responsabili').innerText = counts.responsabile;
-        }
+// 3. Conteggio Staff (Escludendo Admin e Manager)
+const { data: userData, error: userError } = await client
+    .from('users')
+    .select('role')
+    .not('role', 'eq', 'admin'); // Esclude direttamente gli admin dalla query
 
+if (userData) {
+    // Filtriamo ulteriormente per escludere i manager e contare i ruoli specifici
+    const staffEffettivo = userData.filter(u => {
+        const r = u.role?.toLowerCase();
+        return r && r !== 'manager' && r !== 'admin';
+    });
+
+    const counts = {
+        totale: staffEffettivo.length,
+        allenatore: staffEffettivo.filter(u => u.role.toLowerCase().includes('allenatore')).length,
+        dirigente: staffEffettivo.filter(u => u.role.toLowerCase().includes('dirigente')).length,
+        responsabile: staffEffettivo.filter(u => u.role.toLowerCase().includes('responsabile')).length
+    };
+
+    // Aggiornamento UI
+    document.getElementById('staff-total').innerText = counts.totale;
+    document.getElementById('staff-allenatori').innerText = counts.allenatore;
+    document.getElementById('staff-dirigenti').innerText = counts.dirigente;
+    document.getElementById('staff-responsabili').innerText = counts.responsabile;
+}
         // 4. Conteggio Atleti (Stagione Attiva)
         if (sID) {
             const { count: countAth } = await client.from('athlete_team_seasons')
