@@ -6,9 +6,7 @@
     <title>SportTrackPro - Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -18,9 +16,6 @@
             --bg: #f0f4f8;
             --card: #ffffff;
             --sidebar: #0f172a;
-            --sidebar-border: rgba(255,255,255,0.06);
-            --sidebar-active: rgba(37,99,235,0.25);
-            --sidebar-hover: rgba(255,255,255,0.06);
             --danger: #ef4444;
             --warning: #f59e0b;
             --success: #10b981;
@@ -36,10 +31,6 @@
             min-height: 100vh;
             color: var(--text-main);
         }
-
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
         #login-wrap {
             min-height: 100vh;
@@ -58,7 +49,6 @@
             padding: 2.5rem 2rem;
             width: 100%;
             max-width: 360px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
         }
 
         .login-logo {
@@ -83,8 +73,6 @@
             font-family: 'Space Grotesk', sans-serif;
             font-size: 1.3rem;
             color: #fff;
-            font-weight: 700;
-            letter-spacing: -0.5px;
         }
 
         .login-subtitle {
@@ -98,7 +86,6 @@
             display: block;
             font-size: 0.72rem;
             font-weight: 600;
-            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: rgba(255,255,255,0.45);
             margin-bottom: 0.4rem;
@@ -112,17 +99,8 @@
             border-radius: 10px;
             color: #fff;
             font-size: 0.9rem;
-            font-family: inherit;
             margin-bottom: 1rem;
-            margin-top: 0;
-            transition: border-color 0.2s;
         }
-        .login-card input:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: rgba(37,99,235,0.1);
-        }
-        .login-card input::placeholder { color: rgba(255,255,255,0.25); }
 
         .btn-login {
             width: 100%;
@@ -132,34 +110,25 @@
             border: none;
             border-radius: 10px;
             font-weight: 700;
-            font-size: 0.9rem;
             cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s;
-            letter-spacing: 0.03em;
             margin-top: 0.5rem;
         }
-        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37,99,235,0.45); }
-        .btn-login:active { transform: translateY(0); }
 
         #app { display: none; min-height: 100vh; }
 
         #sidebar {
             width: 240px;
-            background: var(--sidebar);
+            background: #0f172a;
             color: #94a3b8;
-            display: flex;
-            flex-direction: column;
             position: fixed;
             height: 100vh;
             overflow-y: auto;
-            overflow-x: hidden;
             z-index: 100;
-            border-right: 1px solid rgba(255,255,255,0.04);
         }
 
         .sidebar-header {
             padding: 1.25rem 1rem 1rem;
-            border-bottom: 1px solid var(--sidebar-border);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
         .sidebar-brand {
@@ -176,8 +145,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
         }
 
         .sidebar-brand-name {
@@ -185,7 +152,6 @@
             font-size: 0.95rem;
             font-weight: 700;
             color: #fff;
-            letter-spacing: -0.3px;
         }
 
         .sidebar-user-pill {
@@ -194,20 +160,13 @@
             border-radius: 8px;
             padding: 0.5rem 0.75rem;
             font-size: 0.75rem;
-            color: rgba(255,255,255,0.5);
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .sidebar-user-pill span { color: rgba(255,255,255,0.8); font-weight: 600; }
-
-        .sidebar-nav { padding: 0.75rem 0.75rem; flex: 1; }
+        .sidebar-nav { padding: 0.75rem; flex: 1; }
 
         .sidebar-group-label {
             font-size: 0.65rem;
             font-weight: 700;
-            letter-spacing: 0.1em;
             text-transform: uppercase;
             color: rgba(255,255,255,0.2);
             padding: 0.6rem 0.5rem 0.3rem;
@@ -223,40 +182,23 @@
             text-decoration: none;
             border-radius: 8px;
             cursor: pointer;
-            margin-bottom: 1px;
-            font-weight: 500;
             font-size: 0.82rem;
-            transition: all 0.15s;
-            white-space: nowrap;
-            overflow: hidden;
         }
 
         #sidebar a:hover {
-            background: var(--sidebar-hover);
+            background: rgba(255,255,255,0.06);
             color: #e2e8f0;
         }
 
         #sidebar a.active {
-            background: var(--sidebar-active);
+            background: rgba(37,99,235,0.25);
             color: #fff;
             font-weight: 600;
         }
 
-        #sidebar a.active::before {
-            content: '';
-            display: block;
-            width: 3px;
-            height: 16px;
-            background: #2563eb;
-            border-radius: 2px;
-            position: absolute;
-            left: 0;
-        }
-        #sidebar a { position: relative; }
-
         .sidebar-footer {
             padding: 0.75rem;
-            border-top: 1px solid var(--sidebar-border);
+            border-top: 1px solid rgba(255,255,255,0.06);
         }
 
         .btn-logout {
@@ -269,52 +211,22 @@
             cursor: pointer;
             font-size: 0.8rem;
             font-weight: 600;
-            font-family: inherit;
-            transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        .btn-logout:hover { background: rgba(239,68,68,0.2); color: #fca5a5; }
-
-        #sidebar a[data-section="import-atleti"] {
-            background: rgba(37,99,235,0.15);
-            color: #93c5fd;
-            border: 1px solid rgba(37,99,235,0.2);
-            font-weight: 800;
-            margin-top: 4px;
-        }
-        #sidebar a[data-section="import-atleti"]:hover {
-            background: rgba(37,99,235,0.25);
         }
 
         #content {
             margin-left: 240px;
             padding: 1.75rem 2rem;
             min-height: 100vh;
-            overflow-x: hidden;
             width: calc(100% - 240px);
-            box-sizing: border-box;
-            flex: 1;
-        }
-
-        #content .card,
-        #content > div {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        #app[style*="flex"] {
-            width: 100%;
         }
 
         .card {
             background: var(--card);
             padding: 1.5rem;
             border-radius: 14px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
             border: 1px solid var(--border);
+            margin-bottom: 1rem;
         }
 
         .header {
@@ -330,7 +242,6 @@
             font-family: 'Space Grotesk', sans-serif;
             font-size: 1.15rem;
             font-weight: 700;
-            color: var(--text-main);
         }
 
         .btn {
@@ -342,13 +253,7 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.83rem;
-            font-family: inherit;
-            transition: all 0.15s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
         }
-        .btn:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
 
         .btn-sm {
             padding: 0.35rem 0.65rem;
@@ -357,26 +262,19 @@
             color: white;
             cursor: pointer;
             font-size: 0.78rem;
-            font-family: inherit;
             font-weight: 600;
-            margin-left: 3px;
-            transition: all 0.12s;
         }
-        .btn-sm:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
         .btn-warning { background: #f59e0b; }
-        .btn-danger  { background: #ef4444; }
+        .btn-danger { background: #ef4444; }
 
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 0.75rem 0.9rem; border-bottom: 1px solid #f1f5f9; text-align: left; }
-        th { background: #f8fafc; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-        tr:hover td { background: #fafbff; }
-        tr:last-child td { border-bottom: none; }
+        th { background: #f8fafc; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
 
         .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-        .badge-active   { background: #dcfce7; color: #166534; }
+        .badge-active { background: #dcfce7; color: #166534; }
         .badge-inactive { background: #f1f5f9; color: #475569; }
-        .badge-default  { background: #e2e8f0; color: #475569; }
 
         .modal-overlay {
             position: fixed;
@@ -388,7 +286,6 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            padding: 1rem;
         }
         .modal-content {
             background: white;
@@ -396,67 +293,22 @@
             border-radius: 16px;
             width: 90%;
             max-width: 450px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
         }
         .modal-active { display: flex; }
 
-        #modal-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 1rem;
-        }
-
-        input:not(.login-card input), select { 
+        input, select {
             width: 100%;
             padding: 0.6rem 0.85rem;
             border: 1px solid var(--border);
             border-radius: 8px;
             margin-bottom: 0.85rem;
-            margin-top: 0.25rem;
             font-size: 0.875rem;
-            font-family: inherit;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.15s;
-        }
-        input:not(.login-card input):focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-        }
-
-        .star-rating { display: flex; gap: 3px; user-select: none; }
-        .star { font-size: 1.5rem; color: #cbd5e1; transition: all 0.2s ease; cursor: pointer; }
-        .star.active { color: #f59e0b !important; }
-        .star:hover { transform: scale(1.2); }
-        .att-row-data:hover { background: #f8fafc; }
-
-        .role-badge {
-            display: inline-block;
-            font-size: 0.6rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(37,99,235,0.2);
-            color: #93c5fd;
-            margin-left: auto;
-        }
-
-        @media (max-width: 768px) {
-            #sidebar { width: 200px; }
-            #content { margin-left: 200px; padding: 1rem; }
         }
 
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         .kpi-card { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; border-top:3px solid var(--kpi-color,#2563eb); }
-        .kpi-card .kpi-label { font-size:0.68rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#94a3b8; margin-bottom:6px; }
+        .kpi-card .kpi-label { font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#94a3b8; margin-bottom:6px; }
         .kpi-card .kpi-value { font-family:'Space Grotesk',sans-serif; font-size:1.8rem; font-weight:700; color:var(--kpi-color,#2563eb); line-height:1; }
-        .kpi-card .kpi-sub { font-size:0.72rem; color:#94a3b8; margin-top:4px; }
     </style>
 </head>
 <body>
@@ -474,7 +326,7 @@
             <label>Password</label>
             <input type="password" id="password" placeholder="••••••••" required>
             <button type="submit" class="btn-login">Accedi →</button>
-            <div id="error-msg" style="color:#f87171; margin-top:12px; display:none; font-size:0.82rem; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:8px; border:1px solid rgba(239,68,68,0.2);"></div>
+            <div id="error-msg" style="color:#f87171; margin-top:12px; display:none;"></div>
         </form>
     </div>
 </div>
@@ -488,44 +340,34 @@
             </div>
             <div class="sidebar-user-pill" id="user-info">👤 Utente</div>
         </div>
-
         <div class="sidebar-nav">
             <div class="sidebar-group-label">Panoramica</div>
             <a data-section="dashboard">🏠 Dashboard</a>
-
-            <div class="sidebar-group-label" id="nav-group-admin">Configurazione</div>
-            <a data-section="stagioni" id="nav-stagioni">📅 Stagioni</a>
-            <a data-section="sport" id="nav-sport">⚽ Sport</a>
-            <a data-section="societa" id="nav-societa">🏢 Società</a>
-            <a data-section="categoria" id="nav-categoria">📂 Categoria</a>
-            <a data-section="squadra" id="nav-squadra">🛡️ Squadra</a>
-            <a data-section="staff" id="nav-staff">👥 Anagrafica Staff</a>
-            <a data-section="genitori" id="nav-genitori">👨‍👩‍👧 Anagrafica Genitori</a>
-
+            <div class="sidebar-group-label">Configurazione</div>
+            <a data-section="stagioni">📅 Stagioni</a>
+            <a data-section="sport">⚽ Sport</a>
+            <a data-section="societa">🏢 Società</a>
+            <a data-section="categoria">📂 Categoria</a>
+            <a data-section="squadra">🛡️ Squadra</a>
+            <a data-section="staff">👥 Staff</a>
             <div class="sidebar-group-label">Atleti</div>
-            <a data-section="anagrafica-pura" id="nav-anagrafica-pura">👤 Anagrafica Atleti</a>
-            <a data-section="assegnazioni" id="nav-assegnazioni">📋 Assegnazioni Tecniche</a>
-            <a data-section="atleti" id="nav-atleti">🔗 Anagrafica Squadra</a>
-
+            <a data-section="anagrafica-pura">👤 Anagrafica Atleti</a>
+            <a data-section="atleti">🔗 Anagrafica Squadra</a>
             <div class="sidebar-group-label">Attività</div>
-            <a data-section="sessioni" id="nav-sessioni">📅 Gestione Sessioni</a>
-            <a data-section="partite" id="nav-partite">🏆 Gestione Partite</a>
-
-            <a data-section="import-atleti" id="nav-import">📥 Importa Atleti</a>
+            <a data-section="sessioni">📅 Sessioni</a>
+            <a data-section="partite">🏆 Partite</a>
+            <a data-section="import-atleti">📥 Importa Atleti</a>
         </div>
-
         <div class="sidebar-footer">
             <button id="btn-logout" class="btn-logout">↩ Esci</button>
         </div>
     </nav>
-
-    <main id="content">
-    </main>
+    <main id="content"></main>
 </div>
 
 <div id="modal-overlay" class="modal-overlay">
     <div class="modal-content">
-        <h3 id="modal-title" style="margin-top:0">Titolo Modal</h3>
+        <h3 id="modal-title">Titolo</h3>
         <div id="modal-body"></div>
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
             <button class="btn" id="btn-modal-save">Salva</button>
@@ -539,7 +381,7 @@
 
     window._currentUserId = null;
     window._currentSocietyId = null;
-    window._userRole = 'user'; 
+    window._userRole = 'user';
     window.CURRENT_USER = null;
 
     const modal = {
@@ -555,734 +397,407 @@
     };
     document.getElementById('btn-modal-close').onclick = () => modal.close();
 
-    window.applyRoleVisibility = function() {
-        const dbRole = (window._userRole || '').toLowerCase();
-        const mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
-
-        let effectiveRole;
-        if (dbRole === 'admin') {
-            effectiveRole = 'admin';
-        } else if (dbRole === 'manager') {
-            effectiveRole = 'manager';
-        } else {
-            effectiveRole = mgmtRole || 'user';
-        }
-
-        window._effectiveRole = effectiveRole;
-
-        const allNavIds = ['nav-stagioni','nav-sport','nav-societa','nav-categoria','nav-squadra',
-                           'nav-staff','nav-genitori','nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'];
-
-        const visibility = {
-            admin:        allNavIds,
-            manager:      allNavIds,
-            presidente:   ['nav-categoria','nav-squadra','nav-staff',
-                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            segretario:   ['nav-categoria','nav-squadra','nav-staff',
-                           'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
-            responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
-            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-import'],
-            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-import'],
-            genitore:     [],
-        };
-
-        const allowed = visibility[effectiveRole] || ['nav-atleti'];
-
-        allNavIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-
-        allowed.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
-        });
-
-        const userPill = document.getElementById('user-info');
-        if (userPill && window.CURRENT_USER) {
-            const displayRole = window.CURRENT_USER.management_role || dbRole;
-            userPill.innerHTML = `👤 <span>${window.CURRENT_USER.name || 'Utente'}</span> &nbsp;<em style="font-size:0.65rem; opacity:0.6; text-transform:uppercase;">${displayRole}</em>`;
-        }
-    };
-
     async function checkActiveSession() {
         const { data: { session } } = await client.auth.getSession();
-
         if (session) {
-            try {
-                const { data: userRow, error: userErr } = await client
-                    .from('users')
-                    .select('*')
-                    .eq('email', session.user.email)
-                    .maybeSingle();
-
-                if (userRow) {
-                    window._userRole = userRow.role;
-                    window._currentSocietyId = userRow.society_id;
-                    window._currentUserId = userRow.id;
-                    window.CURRENT_USER = userRow;
-
-                    document.getElementById('login-wrap').style.display = 'none';
-                    document.getElementById('app').style.display = 'flex';
-
-                    window.applyRoleVisibility();
-                    loadPage('dashboard');
-                    console.log("✅ Sessione ripristinata correttamente.");
-                }
-            } catch (err) {
-                console.error("Errore nel ripristino sessione:", err);
+            const { data: userRow } = await client.from('users').select('*').eq('email', session.user.email).maybeSingle();
+            if (userRow) {
+                window._userRole = userRow.role;
+                window._currentSocietyId = userRow.society_id;
+                window._currentUserId = userRow.id;
+                window.CURRENT_USER = userRow;
+                document.getElementById('login-wrap').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                loadPage('dashboard');
             }
         }
     }
-
     checkActiveSession();
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const errDiv = document.getElementById('error-msg');
-        errDiv.style.display = 'none';
-
         const usernameInput = document.getElementById('username').value.trim().toLowerCase();
         const password = document.getElementById('password').value;
-
-        try {
-            const { data: userRow, error: userErr } = await client
-                .from('users')
-                .select('*')
-                .eq('username', usernameInput)
-                .maybeSingle();
-
-            if (userErr) throw new Error("Errore database: " + userErr.message);
-            if (!userRow) throw new Error(`Username '${usernameInput}' non trovato.`);
-
-            const { error: authError } = await client.auth.signInWithPassword({
-                email: userRow.email,
-                password: password
-            });
-
-            if (authError) throw new Error("Password errata o account non attivo.");
-
-            window._userRole = userRow.role;
-            window._currentSocietyId = userRow.society_id;
-            window._currentUserId = userRow.id;
-            window.CURRENT_USER = userRow;
-
-            document.getElementById('login-wrap').style.display = 'none';
-            document.getElementById('app').style.display = 'flex';
-
-            window.applyRoleVisibility();
-            loadPage('dashboard');
-
-        } catch (err) {
-            errDiv.innerText = "⚠️ " + err.message;
-            errDiv.style.display = 'block';
-        }
+        const { data: userRow } = await client.from('users').select('*').eq('username', usernameInput).maybeSingle();
+        if (!userRow) { alert('Utente non trovato'); return; }
+        const { error } = await client.auth.signInWithPassword({ email: userRow.email, password });
+        if (error) { alert('Password errata'); return; }
+        window._userRole = userRow.role;
+        window._currentSocietyId = userRow.society_id;
+        window._currentUserId = userRow.id;
+        window.CURRENT_USER = userRow;
+        document.getElementById('login-wrap').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        loadPage('dashboard');
     });
+
+    document.getElementById('btn-logout').onclick = async () => { await client.auth.signOut(); location.reload(); };
 
     window.loadPage = (section) => {
         document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
         const link = document.querySelector(`#sidebar a[data-section="${section}"]`);
         if (link) link.classList.add('active');
-
         const content = document.getElementById('content');
-        if (!content) return;
+        if (section === 'dashboard') {
+            content.innerHTML = window.templateDashboard();
+            window.initDashboard();
+        } else if (section === 'stagioni') { content.innerHTML = templateStagioni(); initStagioni(); }
+        else if (section === 'sport') { content.innerHTML = templateSport(); initSport(); }
+        else if (section === 'societa') { content.innerHTML = templateSocieta(); initSocieta(); }
+        else if (section === 'categoria') { content.innerHTML = templateCategoria(); initCategoria(); }
+        else if (section === 'squadra') { content.innerHTML = templateSquadra(); initSquadra(); }
+        else if (section === 'staff') { content.innerHTML = templateStaff(); initStaff(); }
+        else if (section === 'anagrafica-pura') { content.innerHTML = templateAnagraficaPura(); initAnagraficaPura(); }
+        else if (section === 'atleti') { content.innerHTML = templateAtleti(); initAtleti(); }
+        else if (section === 'sessioni') { content.innerHTML = templateSessioni(); initSessioni(); }
+        else if (section === 'partite') { content.innerHTML = templatePartite(); initPartite(); }
+        else if (section === 'import-atleti') { content.innerHTML = templateImportAtleti(); initImportAtleti(); }
+    };
 
-        switch(section) {
-            case 'dashboard':
-                if ((window._effectiveRole || window._userRole || '').toLowerCase() === 'genitore') {
-                    content.innerHTML = '<div class="card"><p style="color:#94a3b8;">⏳ Caricamento dashboard...</p></div>';
-                    if (window.initGenitoreView) window.initGenitoreView();
-                    break;
+    // TEMPLATE FUNCTIONS
+    function templateStagioni() {
+        return `<div class="card"><div class="header"><h2>GESTIONE STAGIONI</h2><button class="btn" id="btn-add-stagione">+ Nuova Stagione</button></div><table><thead><tr><th>Nome</th><th>Periodo</th><th>Stato</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-stagioni"></tbody></div>`;
+    }
+    async function initStagioni() {
+        const { data: seasons } = await client.from('seasons').select('*').order('start_date', { ascending: false });
+        const tbody = document.getElementById('list-stagioni');
+        if (tbody) tbody.innerHTML = (seasons || []).map(s => `<tr><td><strong>${s.name}</strong></td><td>${new Date(s.start_date).toLocaleDateString()} → ${new Date(s.end_date).toLocaleDateString()}</td><td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'ATTIVA' : 'INATTIVA'}</span></td><td style="text-align:right"><button class="btn-sm" style="background:#16a34a" onclick="toggleStagione('${s.id}', ${!s.is_active})">${s.is_active ? 'Spegni' : 'Attiva'}</button> <button class="btn-sm btn-warning" onclick="editStagione('${s.id}', '${s.name}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteStagione('${s.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessuna stagione</td></tr>';
+    }
+    window.toggleStagione = async (id, activate) => { if (activate) await client.from('seasons').update({ is_active: false }).eq('is_active', true); await client.from('seasons').update({ is_active: activate }).eq('id', id); initStagioni(); };
+    window.editStagione = async (id, name) => { const newName = prompt('Nuovo nome:', name); if (newName) await client.from('seasons').update({ name: newName }).eq('id', id); initStagioni(); };
+    window.deleteStagione = async (id) => { if (confirm('Eliminare?')) await client.from('seasons').delete().eq('id', id); initStagioni(); };
+
+    function templateSport() {
+        return `<div class="card"><div class="header"><h2>GESTIONE SPORT</h2><button class="btn" id="btn-add-sport">+ Nuovo Sport</button></div><table><thead><tr><th>Icona</th><th>Nome</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-sport"></tbody></div>`;
+    }
+    async function initSport() {
+        const { data } = await client.from('sports').select('*').order('name');
+        const tbody = document.getElementById('list-sport');
+        if (tbody) tbody.innerHTML = (data || []).map(s => `<tr><td style="font-size:1.5rem">${s.icon || '🏐'}</td><td><strong>${s.name}</strong></td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editSport('${s.id}', '${s.name}', '${s.icon || ''}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteSport('${s.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuno sport</td></tr>';
+    }
+    window.editSport = async (id, name, icon) => { const newName = prompt('Nuovo nome:', name); if (newName) await client.from('sports').update({ name: newName }).eq('id', id); initSport(); };
+    window.deleteSport = async (id) => { if (confirm('Eliminare?')) await client.from('sports').delete().eq('id', id); initSport(); };
+
+    function templateSocieta() {
+        return `<div class="card"><div class="header"><h2>GESTIONE SOCIETÀ</h2><button class="btn" id="btn-add-societa">+ Nuova Società</button></div><tr><thead><tr><th>Nome Società</th><th>Sport</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-societa"></tbody></div>`;
+    }
+    async function initSocieta() {
+        const { data } = await client.from('societies').select('*, sports(name, icon)').order('name');
+        const tbody = document.getElementById('list-societa');
+        if (tbody) tbody.innerHTML = (data || []).map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editSocieta('${s.id}', '${s.name.replace(/'/g, "\\'")}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteSocieta('${s.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuna società</td></tr>';
+    }
+    window.editSocieta = async (id, name) => { const newName = prompt('Nuovo nome:', name); if (newName) await client.from('societies').update({ name: newName }).eq('id', id); initSocieta(); };
+    window.deleteSocieta = async (id) => { if (confirm('Eliminare?')) await client.from('societies').delete().eq('id', id); initSocieta(); };
+
+    function templateCategoria() {
+        return `<div class="card"><div class="header"><h2>GESTIONE CATEGORIE</h2><button class="btn" id="btn-add-categoria">+ Nuova Categoria</button></div><tr><thead><tr><th>Nome Categoria</th><th>Società</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-categoria"></tbody></div>`;
+    }
+    async function initCategoria() {
+        const { data } = await client.from('categories').select('*, societies(name)').order('name');
+        const tbody = document.getElementById('list-categoria');
+        if (tbody) tbody.innerHTML = (data || []).map(c => `<tr><td><strong>${c.name}</strong></td><td>${c.societies?.name || '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editCategoria('${c.id}', '${c.name.replace(/'/g, "\\'")}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteCategoria('${c.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuna categoria</td></tr>';
+    }
+    window.editCategoria = async (id, name) => { const newName = prompt('Nuovo nome:', name); if (newName) await client.from('categories').update({ name: newName }).eq('id', id); initCategoria(); };
+    window.deleteCategoria = async (id) => { if (confirm('Eliminare?')) await client.from('categories').delete().eq('id', id); initCategoria(); };
+
+    function templateSquadra() {
+        return `<div class="card"><div class="header"><h2>GESTIONE SQUADRE</h2><button class="btn" id="btn-add-squadra">+ Nuova Squadra</button></div><div id="team-season-info" style="margin-bottom:1rem;"></div><table><thead><tr><th>Nome Squadra</th><th>Società</th><th>Categoria</th><th>Sport</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-squadra"></tbody></div>`;
+    }
+    async function initSquadra() {
+        const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle();
+        const info = document.getElementById('team-season-info');
+        if (info) info.innerText = activeSeason ? `📅 Stagione Attiva: ${activeSeason.name}` : '⚠️ Nessuna stagione attiva';
+        const { data } = await client.from('teams').select(`id,name,societies(name),categories(name),sports(name, icon)`).eq('season_id', activeSeason?.id).order('name');
+        const tbody = document.getElementById('list-squadra');
+        if (tbody) tbody.innerHTML = (data || []).map(t => `<tr><td><strong>${t.name}</strong></td><td>${t.societies?.name || '-'}</td><td>${t.categories?.name || '-'}</td><td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editSquadra('${t.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteSquadra('${t.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="5">Nessuna squadra</td></tr>';
+    }
+    window.editSquadra = async (id) => { alert('Modifica squadra in sviluppo'); };
+    window.deleteSquadra = async (id) => { if (confirm('Eliminare?')) await client.from('teams').delete().eq('id', id); initSquadra(); };
+
+    function templateStaff() {
+        return `<div class="card"><div class="header"><h2>ANAGRAFICA STAFF</h2><button class="btn" id="btn-add-staff">+ Nuovo Staff</button></div></table><thead><tr><th>Nome</th><th>Username</th><th>Ruolo</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-staff"></tbody></div>`;
+    }
+    async function initStaff() {
+        const { data } = await client.from('users').select('*').neq('username', 'admin').order('name');
+        const tbody = document.getElementById('list-staff');
+        if (tbody) tbody.innerHTML = (data || []).map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.username}</td><td>${u.management_role || 'Staff'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editStaff('${u.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteStaff('${u.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessun utente</td></tr>';
+    }
+    window.editStaff = async (id) => { alert('Modifica staff in sviluppo'); };
+    window.deleteStaff = async (id) => { if (confirm('Eliminare?')) await client.from('users').delete().eq('id', id); initStaff(); };
+
+    function templateAnagraficaPura() {
+        return `<div class="card"><div class="header"><h2>ANAGRAFICA ATLETI</h2><button class="btn" id="btn-add-atleta">+ Nuovo Atleta</button></div><table><thead><tr><th>Atleta</th><th>Data Nascita</th><th>Società</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-atleti-base"></tbody></div>`;
+    }
+    async function initAnagraficaPura() {
+        const { data } = await client.from('athletes').select('*').order('surname');
+        const tbody = document.getElementById('list-atleti-base');
+        if (tbody) tbody.innerHTML = (data || []).map(a => `<tr><td><strong>${a.surname}</strong> ${a.name}</td><td>${a.born_date || '-'}</td><td>-</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editAtletaBase('${a.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteAtletaBase('${a.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessun atleta</td></tr>';
+    }
+    window.editAtletaBase = async (id) => { alert('Modifica atleta in sviluppo'); };
+    window.deleteAtletaBase = async (id) => { if (confirm('Eliminare?')) await client.from('athletes').delete().eq('id', id); initAnagraficaPura(); };
+
+    function templateAtleti() {
+        return `<div class="card"><div class="header"><h2>ANAGRAFICA SQUADRA</h2><button class="btn" onclick="openAssociaAtleta()">+ Associa Atleta</button></div><table><thead><tr><th>Atleta</th><th>Squadra</th><th>Stagione</th><th>N° Maglia</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-atleti-squadra"></tbody></div>`;
+    }
+    async function initAtleti() {
+        const { data } = await client.from('athlete_team_seasons').select(`*, athletes(name,surname), teams(name), seasons(name)`);
+        const tbody = document.getElementById('list-atleti-squadra');
+        if (tbody) tbody.innerHTML = (data || []).map(a => `<tr><td><strong>${a.athletes?.surname || ''} ${a.athletes?.name || ''}</strong></td><td>${a.teams?.name || '-'}</td><td>${a.seasons?.name || '-'}</td><td>${a.jersey_number || '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="editAssociazione('${a.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteAssociazione('${a.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="5">Nessuna associazione</td></tr>';
+    }
+    window.openAssociaAtleta = () => { alert('Associazione atleta in sviluppo'); };
+    window.editAssociazione = async (id) => { alert('Modifica associazione in sviluppo'); };
+    window.deleteAssociazione = async (id) => { if (confirm('Rimuovere?')) await client.from('athlete_team_seasons').delete().eq('id', id); initAtleti(); };
+
+    function templateSessioni() {
+        return `<div class="card"><div class="header"><h2>GESTIONE SESSIONI</h2><button class="btn" onclick="openSessioneModal()">+ Nuova Sessione</button></div><table><thead><tr><th>Data</th><th>Titolo</th><th>Squadra</th><th>Tipo</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-sessioni"></tbody></div>`;
+    }
+    async function initSessioni() {
+        const { data } = await client.from('sessions').select('*, session_types(name), teams(name)').order('session_date', { ascending: false });
+        const tbody = document.getElementById('list-sessioni');
+        if (tbody) tbody.innerHTML = (data || []).map(s => `<tr><td>${new Date(s.session_date).toLocaleDateString()}</td><td><strong>${s.title}</strong></td><td>${s.teams?.name || '-'}</td><td>${s.session_types?.name || '-'}</td><td style="text-align:right"><button class="btn-sm" onclick="openAttendanceModal('${s.id}')" style="background:#8b5cf6">👥 Presenze</button> <button class="btn-sm btn-warning" onclick="editSessione('${s.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteSessione('${s.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="5">Nessuna sessione</td></tr>';
+    }
+    window.openSessioneModal = () => { alert('Nuova sessione in sviluppo'); };
+    window.openAttendanceModal = (id) => { alert('Registro presenze in sviluppo per sessione ' + id); };
+    window.editSessione = async (id) => { alert('Modifica sessione in sviluppo'); };
+    window.deleteSessione = async (id) => { if (confirm('Eliminare?')) await client.from('sessions').delete().eq('id', id); initSessioni(); };
+
+    function templatePartite() {
+        return `<div class="card"><div class="header"><h2>GESTIONE PARTITE</h2></div><table><thead><tr><th>Data</th><th>Partita</th><th>Squadra</th><th>Avversario</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-partite"></tbody></div>`;
+    }
+    async function initPartite() {
+        const { data: types } = await client.from('session_types').select('id,name');
+        const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+        const { data } = await client.from('sessions').select('*, teams(name), match_details(opponent_name)').in('type_id', validIds).order('session_date', { ascending: false });
+        const tbody = document.getElementById('list-partite');
+        if (tbody) tbody.innerHTML = (data || []).map(p => `<td><td>${new Date(p.session_date).toLocaleDateString()}</td><td><strong>${p.title}</strong></td><td>${p.teams?.name || '-'}</td><td>${p.match_details?.opponent_name || '-'}</td><td style="text-align:right"><button class="btn-sm" onclick="openTabellino('${p.id}')" style="background:#f59e0b">⚽ Tabellino</button> <button class="btn-sm btn-warning" onclick="editPartita('${p.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deletePartita('${p.id}')">🗑️</button></td></tr>`).join('') || '<td><td colspan="5">Nessuna partita</td></tr>';
+    }
+    window.openTabellino = (id) => { alert('Tabellino partita ' + id + ' in sviluppo'); };
+    window.editPartita = async (id) => { alert('Modifica partita in sviluppo'); };
+    window.deletePartita = async (id) => { if (confirm('Eliminare?')) await client.from('sessions').delete().eq('id', id); initPartite(); };
+
+    function templateImportAtleti() {
+        return `<div class="card"><div class="header"><h2>IMPORTA ATLETI DA EXCEL</h2></div><div style="background:#fffbeb;padding:15px;margin-bottom:15px;"><h4>⚠️ ISTRUZIONI</h4><p>Colonne richieste: nome, cognome, data_nascita (formato AAAA-MM-GG)</p></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:20px;"><select id="import-season"></select><select id="import-society"></select><select id="import-team"></select></div><div style="text-align:center"><input type="file" id="import-file" accept=".xlsx" style="display:none"><button class="btn" id="import-btn">Seleziona File Excel</button></div></div>`;
+    }
+    async function initImportAtleti() {
+        const { data: seasons } = await client.from('seasons').select('id,name');
+        const selSeason = document.getElementById('import-season');
+        if (selSeason) selSeason.innerHTML = '<option value="">Scegli Stagione...</option>' + (seasons || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        const { data: societies } = await client.from('societies').select('id,name');
+        const selSoc = document.getElementById('import-society');
+        if (selSoc) selSoc.innerHTML = '<option value="">Scegli Società...</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        selSoc.onchange = async () => {
+            const { data: teams } = await client.from('teams').select('id,name').eq('society_id', selSoc.value);
+            const selTeam = document.getElementById('import-team');
+            if (selTeam) selTeam.innerHTML = '<option value="">Scegli Squadra...</option>' + (teams || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        };
+        document.getElementById('import-btn').onclick = () => document.getElementById('import-file').click();
+        document.getElementById('import-file').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                let count = 0;
+                for (const row of rows) {
+                    const nome = row.nome || row.name;
+                    const cognome = row.cognome || row.surname;
+                    const dataNascita = row.data_nascita || row.born_date;
+                    if (!nome || !cognome) continue;
+                    const { data: ath } = await client.from('athletes').insert({ name: nome, surname: cognome, born_date: dataNascita }).select().single();
+                    if (ath) { count++; }
                 }
-                content.innerHTML = window.templateDashboard ? window.templateDashboard() : '<div class="card"><p>Caricamento...</p></div>';
-                if (window.initDashboard) window.initDashboard();
-                break;
-            case 'stagioni': 
-                content.innerHTML = templateStagioni(); 
-                initStagioni(); 
-                break;
-            case 'sport':
-                content.innerHTML = templateSport();
-                initSport();
-                break;
-            case 'societa':
-                content.innerHTML = templateSocieta();
-                initSocieta();
-                break;
-            case 'categoria':
-                content.innerHTML = templateCategoria();
-                initCategoria();
-                break;
-            case 'squadra':
-                content.innerHTML = templateSquadra();
-                initSquadra();
-                break;
-            case 'staff':
-                content.innerHTML = templateStaff();
-                initStaff();
-                break;
-            case 'genitori':
-                content.innerHTML = templateGenitori();
-                initGenitori();
-                break;
-            case 'anagrafica-pura':
-                content.innerHTML = templateAnagraficaPura();
-                initAnagraficaPura();
-                break;
-            case 'assegnazioni':
-                content.innerHTML = templateAssignments();
-                initAssignments();
-                break;
-            case 'atleti':
-                content.innerHTML = templateAtleti();
-                initAtleti();
-                break;
-            case 'sessioni':
-                content.innerHTML = templateSessioni();
-                window._sessState = { seasons: [], scopedTeams: [], initialized: false };
-                initSessioni();
-                break;
-            case 'partite':
-                content.innerHTML = templatePartite();
-                window._matchState = { seasons: [] };
-                initPartite();
-                break;
-            case 'import-atleti':
-                content.innerHTML = templateImportAtleti();
-                initImportAtleti();
-                break;
-            default: 
-                content.innerHTML = `<div class="card"><h2>Sezione ${section}</h2><p>Modulo in fase di configurazione.</p></div>`;
-        }
-    };
-
-    document.querySelectorAll('#sidebar a').forEach(a => {
-        a.onclick = (e) => {
-            e.preventDefault();
-            loadPage(a.dataset.section);
+                alert(`Importati ${count} atleti`);
+            };
+            reader.readAsBinaryString(file);
         };
-    });
+    }
 
-    document.getElementById('btn-logout').onclick = async () => {
-        await client.auth.signOut();
-        location.reload();
-    };
-
-    // ==================== DASHBOARD COMPLETA CON FILTRI PER RUOLO ====================
-    
+    // DASHBOARD COMPLETA
     window.templateDashboard = function() {
-        const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-        const userRole = (window._userRole || '').toLowerCase();
-        const roleLabels = {
-            admin: 'Amministratore', manager: 'Manager', presidente: 'Presidente',
-            segretario: 'Segretario', responsabile: 'Responsabile',
-            dirigente: 'Dirigente', allenatore: 'Allenatore', genitore: 'Genitore'
-        };
-        const roleName = roleLabels[userRole] || userRole;
-        const today = new Date().toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-
         return `
-        <div id="dashboard-wrap" style="width:100%;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
+        <div id="dashboard-wrap">
+            <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem;">
                 <div>
-                    <h2 style="font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:700; margin-bottom:4px;">Dashboard ${roleName}</h2>
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <span style="color:#64748b; font-size:0.82rem;">Panoramica globale ·</span>
-                        <span id="dash-season-label" style="color:#2563eb; font-size:0.82rem; font-weight:600;">⏳ Caricamento...</span>
-                        <span style="color:#64748b; font-size:0.82rem;">· ${today}</span>
-                    </div>
+                    <h2 style="font-family:'Space Grotesk',sans-serif;">Dashboard ${window.CURRENT_USER?.name || 'Utente'}</h2>
+                    <span id="dash-season-label" style="color:#2563eb;">Caricamento...</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #2563eb; border-radius:8px; font-weight:600; color:#2563eb; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                        <option value="all">Tutte le stagioni</option>
-                    </select>
-                    <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:500; color:#475569; background:white; font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                        <option value="all">Tutte le società</option>
-                    </select>
+                <div style="display:flex; gap:10px;">
+                    <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #2563eb; border-radius:8px;"></select>
+                    <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid #e2e8f0; border-radius:8px;"></select>
                 </div>
             </div>
-
-            <div id="dash-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:1.5rem;">
-                <div class="kpi-card-skeleton" style="height:90px; background:#f1f5f9; border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            <div id="dash-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:1.5rem;"></div>
+            <div style="display:flex; gap:4px; margin-bottom:1.25rem;">
+                <button id="dash-tab-0-btn" onclick="window.switchDashTab(0)" class="btn" style="background:#2563eb;">📊 Statistiche</button>
+                <button id="dash-tab-1-btn" onclick="window.switchDashTab(1)" class="btn" style="background:transparent;color:#64748b;">🏆 Partite</button>
+                <button id="dash-tab-2-btn" onclick="window.switchDashTab(2)" class="btn" style="background:transparent;color:#64748b;">📅 Presenze</button>
+                <button id="dash-tab-3-btn" onclick="window.switchDashTab(3)" class="btn" style="background:transparent;color:#64748b;">👤 Atleti</button>
             </div>
-
-            <div style="display:flex; gap:4px; margin-bottom:1.25rem; background:white; border:1px solid #e2e8f0; border-radius:12px; padding:5px; width:fit-content;">
-                <button id="dash-tab-btn-0" onclick="window.switchDashTab(0)"
-                    style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:#2563eb; color:white; transition:all 0.15s; white-space:nowrap;">
-                    ⚽ Statistiche Gare
-                </button>
-                <button id="dash-tab-btn-1" onclick="window.switchDashTab(1)"
-                    style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:#64748b; transition:all 0.15s; white-space:nowrap;">
-                    🏆 Partite ultimo mese
-                </button>
-                <button id="dash-tab-btn-2" onclick="window.switchDashTab(2)"
-                    style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:#64748b; transition:all 0.15s; white-space:nowrap;">
-                    📅 Presenze Sessioni
-                </button>
-                <button id="dash-tab-btn-3" onclick="window.switchDashTab(3)"
-                    style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:#64748b; transition:all 0.15s; white-space:nowrap;">
-                    👤 Statistiche per Atleta
-                </button>
-            </div>
-
-            <div id="dash-tab-0" class="card">
-                <div class="header" style="margin-bottom:1rem;">
-                    <div><h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700; margin:0;">⚽ Statistiche Gare per Squadra</h3><span style="font-size:0.68rem; color:#94a3b8;">Solo partite ufficiali &middot; Amichevoli escluse</span></div>
-                    <div style="display:flex; gap:10px;">
-                        <select id="dash-stats-cat" onchange="window.renderDashStats()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le categorie</option></select>
-                        <select id="dash-stats-team" onchange="window.renderDashStats()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le squadre</option></select>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.82rem;"><thead><tr style="background:#f8fafc;"><th>Squadra</th><th>P</th><th>🏠</th><th>🚌</th><th>GF</th><th>GS</th><th>🟨</th><th>🟥</th><th>V/P/S</th></tr></thead><tbody id="dash-stats-body"><tr><td colspan="9">Caricamento...</td></tr></tbody></table></div>
-            </div>
-
-            <div id="dash-tab-1" class="card" style="display:none;">
-                <div class="header" style="margin-bottom:1rem;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">🏆 Partite ultimo mese</h3>
-                    <div style="display:flex; gap:10px;">
-                        <select id="dash-match-cat" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le categorie</option></select>
-                        <select id="dash-match-team" onchange="window.renderDashMatches()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le squadre</option></select>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.82rem;"><thead><tr><th>Data</th><th>Partita</th><th>Squadra</th><th>Risultato</th><th>Esito</th></tr></thead><tbody id="dash-matches-body"><tr><td colspan="5">Caricamento...</td></tr></tbody></table></div>
-            </div>
-
-            <div id="dash-tab-2" class="card" style="display:none;">
-                <div class="header" style="margin-bottom:1rem;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">📅 Presenze Sessioni</h3>
-                    <div style="display:flex; gap:10px;">
-                        <select id="dash-pres-cat" onchange="window.renderDashPresenze()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le categorie</option></select>
-                        <select id="dash-pres-team" onchange="window.renderDashPresenze()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le squadre</option></select>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.82rem;"><thead><tr><th>Sessione</th><th>P</th><th>A</th><th>G</th><th>%</th></tr></thead><tbody id="dash-pres-body"><tr><td colspan="5">Caricamento...</td></tr></tbody></table></div>
-            </div>
-
-            <div id="dash-tab-3" class="card" style="display:none;">
-                <div class="header" style="margin-bottom:1rem; flex-wrap:wrap;">
-                    <h3 style="font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700;">👤 Statistiche per Atleta</h3>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                        <select id="dash-ath-cat" onchange="window.renderDashAthletes()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le categorie</option></select>
-                        <select id="dash-ath-team" onchange="window.renderDashAthletes()" style="padding:5px 8px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem;"><option value="">Tutte le squadre</option></select>
-                        <input type="text" id="dash-ath-search" placeholder="Cerca atleta..." oninput="window.renderDashAthletes()" style="padding:5px 10px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; width:160px;">
-                        <button onclick="window.toggleDashAthSort()" id="dash-ath-sort-btn" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.78rem; cursor:pointer; font-weight:600;">Ordina: Presenze ↓</button>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:0.82rem;"><thead id="dash-ath-thead"></thead><tbody id="dash-athletes-body"><tr><td colspan="20">Caricamento...</td></tr></tbody></table></div>
-            </div>
+            <div id="dash-tab-0" class="card"><div class="header"><h3>Statistiche Gare</h3><select id="dash-stats-team" onchange="window.renderDashStats()" style="width:200px;"><option value="">Tutte le squadre</option></select></div><div id="dash-stats-content">Caricamento...</div></div>
+            <div id="dash-tab-1" class="card" style="display:none;"><div class="header"><h3>Partite Recenti</h3><select id="dash-matches-team" onchange="window.renderDashMatches()" style="width:200px;"><option value="">Tutte le squadre</option></select></div><div id="dash-matches-content">Caricamento...</div></div>
+            <div id="dash-tab-2" class="card" style="display:none;"><div class="header"><h3>Presenze Sessioni</h3><select id="dash-pres-team" onchange="window.renderDashPresenze()" style="width:200px;"><option value="">Tutte le squadre</option></select></div><div id="dash-pres-content">Caricamento...</div></div>
+            <div id="dash-tab-3" class="card" style="display:none;"><div class="header"><h3>Statistiche Atleti</h3><select id="dash-ath-team" onchange="window.renderDashAthletes()" style="width:200px;"><option value="">Tutte le squadre</option></select><input type="text" id="dash-ath-search" placeholder="Cerca..." oninput="window.renderDashAthletes()" style="width:200px;"></div><div id="dash-ath-content">Caricamento...</div></div>
         </div>`;
     };
 
     window.switchDashTab = function(idx) {
         for (let i = 0; i < 4; i++) {
-            const panel = document.getElementById('dash-tab-' + i);
-            const btn   = document.getElementById('dash-tab-btn-' + i);
+            const panel = document.getElementById(`dash-tab-${i}`);
+            const btn = document.getElementById(`dash-tab-${i}-btn`);
             if (panel) panel.style.display = i === idx ? 'block' : 'none';
             if (btn) {
                 btn.style.background = i === idx ? '#2563eb' : 'transparent';
-                btn.style.color      = i === idx ? 'white'   : '#64748b';
+                btn.style.color = i === idx ? 'white' : '#64748b';
             }
         }
-        if (idx === 3) window.renderDashAthletes();
-        else if (idx === 0) window.renderDashStats();
+        if (idx === 0) window.renderDashStats();
         else if (idx === 1) window.renderDashMatches();
         else if (idx === 2) window.renderDashPresenze();
+        else if (idx === 3) window.renderDashAthletes();
     };
-
-    window._dashData = { teams: [], categories: [] };
 
     window.initDashboard = async function() {
         const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-        const isGlobalUser = ['admin','manager'].includes(effectiveRole);
-        const isSocScoped = ['presidente','segretario'].includes(effectiveRole);
+        const isGlobal = ['admin', 'manager'].includes(effectiveRole);
         const userSocietyId = window._currentSocietyId;
-        const userAssignedTeams = await window.loadUserAssignedTeams();
-
         const { data: seasons } = await client.from('seasons').select('id, name, is_active').order('name', { ascending: false });
         const selSeason = document.getElementById('dash-season-filter');
         if (selSeason) {
-            (seasons || []).forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = s.name + (s.is_active ? ' ✓' : '');
-                if (s.is_active) opt.selected = true;
-                selSeason.appendChild(opt);
-            });
+            (seasons || []).forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.name + (s.is_active ? ' ✓' : ''); if (s.is_active) opt.selected = true; selSeason.appendChild(opt); });
         }
-        window._dashData._seasons = seasons || [];
-
         const selSoc = document.getElementById('dash-soc-filter');
-        if (isGlobalUser) {
+        if (isGlobal) {
             const { data: societies } = await client.from('societies').select('id, name').order('name');
-            if (selSoc) {
-                selSoc.innerHTML = '<option value="all">Tutte le società</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            }
-        } else if (isSocScoped && userSocietyId) {
-            if (selSoc) selSoc.style.display = 'none';
-            const { data: mySoc } = await client.from('societies').select('id, name').eq('id', userSocietyId).maybeSingle();
-            if (mySoc) window._dashData._forcedSocietyId = userSocietyId;
-        } else {
-            if (selSoc) selSoc.style.display = 'none';
-            window._dashData._forcedSocietyId = userSocietyId;
-        }
-
-        const activeSeason = (seasons || []).find(s => s.is_active);
-        const labelEl = document.getElementById('dash-season-label');
-        if (labelEl) labelEl.textContent = '🌐 Stagione: ' + (activeSeason?.name || 'Tutte');
-
+            if (selSoc) selSoc.innerHTML = '<option value="all">Tutte le società</option>' + (societies || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        } else if (selSoc) selSoc.style.display = 'none';
         await window.refreshDashboard();
     };
 
     window.refreshDashboard = async function() {
         const seasonId = document.getElementById('dash-season-filter')?.value;
-        const socId = window._dashData._forcedSocietyId || document.getElementById('dash-soc-filter')?.value || 'all';
-        const labelEl = document.getElementById('dash-season-label');
-        if (labelEl) {
-            if (!seasonId || seasonId === 'all') labelEl.textContent = '🌐 Tutte le stagioni';
-            else { const s = (window._dashData._seasons || []).find(x => x.id === seasonId); labelEl.textContent = '🌐 Stagione: ' + (s?.name || ''); }
-        }
-
+        const socId = document.getElementById('dash-soc-filter')?.value || 'all';
+        const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+        const isScoped = ['dirigente', 'allenatore', 'responsabile'].includes(effectiveRole);
+        const scopedTeamIds = isScoped ? await window.loadUserAssignedTeams() : null;
+        
+        // Load teams for filters
+        let teamQuery = client.from('teams').select('id, name, category_id');
+        if (socId !== 'all') teamQuery = teamQuery.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) teamQuery = teamQuery.in('id', scopedTeamIds);
+        const { data: teams } = await teamQuery;
+        const teamOptions = '<option value="">Tutte le squadre</option>' + (teams || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        document.getElementById('dash-stats-team').innerHTML = teamOptions;
+        document.getElementById('dash-matches-team').innerHTML = teamOptions;
+        document.getElementById('dash-pres-team').innerHTML = teamOptions;
+        document.getElementById('dash-ath-team').innerHTML = teamOptions;
+        
         await Promise.all([
-            window.loadDashKPIs(seasonId, socId),
-            window.loadDashMatches(seasonId, socId),
-            window.loadDashPresenze(seasonId, socId),
-            window.loadDashStats(seasonId, socId),
-            window.loadDashAthletes(seasonId, socId)
+            window.loadDashKPIs(seasonId, socId, scopedTeamIds),
+            window.loadDashStats(seasonId, socId, scopedTeamIds),
+            window.loadDashMatches(seasonId, socId, scopedTeamIds),
+            window.loadDashPresenze(seasonId, socId, scopedTeamIds),
+            window.loadDashAthletes(seasonId, socId, scopedTeamIds)
         ]);
     };
 
-    window.loadDashKPIs = async function(seasonId, socId) {
+    window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
         const grid = document.getElementById('dash-kpi-grid');
-        if (!grid) return;
-        try {
-            const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-            const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effectiveRole);
-            const scopedTeamIds = isScopedStaff ? await window.loadUserAssignedTeams() : null;
-            const hasTeamScope = scopedTeamIds && scopedTeamIds.length > 0;
-
-            let athQ = client.from('athlete_team_seasons').select('id', { count: 'exact', head: true });
-            let sessQ = client.from('sessions').select('id', { count: 'exact', head: true });
-            let catQ = client.from('categories').select('id', { count: 'exact', head: true });
-            let staffQ = client.from('users').select('id', { count: 'exact', head: true }).neq('username', 'admin');
-            let attQ = client.from('attendances').select('status, sessions!inner(team_id)');
-
-            if (seasonId && seasonId !== 'all') {
-                athQ = athQ.eq('season_id', seasonId);
-                sessQ = sessQ.eq('season_id', seasonId);
-                attQ = attQ.eq('sessions.season_id', seasonId);
-            }
-            if (socId && socId !== 'all') {
-                athQ = athQ.eq('society_id', socId);
-                sessQ = sessQ.eq('society_id', socId);
-                catQ = catQ.eq('society_id', socId);
-                staffQ = staffQ.eq('society_id', socId);
-                attQ = attQ.eq('sessions.society_id', socId);
-            }
-            if (hasTeamScope) {
-                athQ = athQ.in('team_id', scopedTeamIds);
-                sessQ = sessQ.in('team_id', scopedTeamIds);
-                attQ = attQ.in('sessions.team_id', scopedTeamIds);
-            }
-
-            const [athRes, sessRes, catRes, staffRes, attRes] = await Promise.all([athQ, sessQ, catQ, staffQ, attQ]);
-            const totAtt = attRes.data || [];
-            const pres = totAtt.filter(a => (a.status||'').toLowerCase() === 'presente').length;
-            const percPres = totAtt.length > 0 ? Math.round((pres/totAtt.length)*100) : 0;
-
-            const kpis = [
-                { label:'Atleti Totali', value: athRes.count || 0, sub: `in ${catRes.count || 0} categorie`, color:'#2563eb' },
-                { label:'Sessioni', value: sessRes.count || 0, sub: 'registrate', color:'#10b981' },
-                { label:'% Presenze', value: percPres+'%', sub: `${pres}/${totAtt.length}`, color:'#f59e0b' },
-                { label:'Staff', value: staffRes.count || 0, sub: 'utenti', color:'#64748b' }
-            ];
-            grid.innerHTML = kpis.map(k => `<div class="kpi-card" style="--kpi-color:${k.color}"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
-        } catch(err) { console.error('KPI error:', err); }
+        let q = client.from('athlete_team_seasons').select('id', { count: 'exact', head: true });
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId !== 'all') q = q.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
+        const { count } = await q;
+        grid.innerHTML = `<div class="kpi-card" style="--kpi-color:#2563eb"><div class="kpi-label">Atleti Totali</div><div class="kpi-value">${count || 0}</div></div>`;
     };
 
-    window.loadDashMatches = async function(seasonId, socId) {
-        try {
-            const oneMonthAgo = new Date(); oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-            const fromDate = oneMonthAgo.toISOString().split('T')[0];
-            const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-            const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effectiveRole);
-            const scopedTeamIds = isScopedStaff ? await window.loadUserAssignedTeams() : null;
-
-            const { data: types } = await client.from('session_types').select('id, name');
-            const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
-            let q = client.from('sessions').select('id, title, session_date, team_id, society_id, teams(id,name,category_id), societies(name)').gte('session_date', fromDate);
-            if (validIds.length) q = q.in('type_id', validIds);
-            if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-            if (socId && socId !== 'all') q = q.eq('society_id', socId);
-            if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
-            const { data: sessions } = await q;
-            window._dashMatches = sessions || [];
-            
-            const cats = [...new Map((sessions||[]).filter(s=>s.teams?.category_id).map(s=>[s.teams.category_id,{id:s.teams.category_id,name:s.teams.categories?.name||'Categoria'}])).values()];
-            const teams = [...new Map((sessions||[]).filter(s=>s.team_id).map(s=>[s.team_id,{id:s.team_id,name:s.teams?.name||'Squadra',catId:s.teams?.category_id}])).values()];
-            window._dashMatchCats = cats; window._dashMatchTeams = teams;
-            
-            const selCat = document.getElementById('dash-match-cat'); if(selCat) selCat.innerHTML = '<option value="">Tutte le categorie</option>' + cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-            const selTeam = document.getElementById('dash-match-team'); if(selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-            window.renderDashMatches();
-        } catch(err) { console.error(err); }
-    };
-
-    window.renderDashMatches = function() {
-        const tbody = document.getElementById('dash-matches-body');
-        if (!tbody) return;
-        const catId = document.getElementById('dash-match-cat')?.value;
-        const teamId = document.getElementById('dash-match-team')?.value;
-        const filtered = (window._dashMatches || []).filter(m => (!catId || m.teams?.category_id == catId) && (!teamId || m.team_id == teamId));
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nessuna partita</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(m => `<tr><td>${new Date(m.session_date).toLocaleDateString()}</td><td><strong>${m.title || 'Gara'}</strong></td><td>${m.teams?.name || '-'}</td><td>—</td><td>—</td></tr>`).join('');
-    };
-
-    window.loadDashPresenze = async function(seasonId, socId) {
-        try {
-            const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-            const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effectiveRole);
-            const scopedTeamIds = isScopedStaff ? await window.loadUserAssignedTeams() : null;
-            const { data: types } = await client.from('session_types').select('id, name');
-            const garaIds = new Set((types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id));
-            let q = client.from('sessions').select('id, title, session_date, team_id, teams(id,name,category_id), attendances(status)').order('session_date',{ascending:false}).limit(30);
-            if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-            if (socId && socId !== 'all') q = q.eq('society_id', socId);
-            if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
-            const { data } = await q;
-            window._dashSessions = (data||[]).filter(s => !garaIds.has(s.type_id));
-            
-            const cats = [...new Map(window._dashSessions.filter(s=>s.teams?.category_id).map(s=>[s.teams.category_id,{id:s.teams.category_id,name:s.teams.categories?.name||'Categoria'}])).values()];
-            const teams = [...new Map(window._dashSessions.filter(s=>s.team_id).map(s=>[s.team_id,{id:s.team_id,name:s.teams?.name||'Squadra',catId:s.teams?.category_id}])).values()];
-            window._dashPresCats = cats; window._dashPresTeams = teams;
-            const selCat = document.getElementById('dash-pres-cat'); if(selCat) selCat.innerHTML = '<option value="">Tutte le categorie</option>' + cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-            const selTeam = document.getElementById('dash-pres-team'); if(selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-            window.renderDashPresenze();
-        } catch(err) { console.error(err); }
-    };
-
-    window.renderDashPresenze = function() {
-        const tbody = document.getElementById('dash-pres-body');
-        if (!tbody) return;
-        const catId = document.getElementById('dash-pres-cat')?.value;
-        const teamId = document.getElementById('dash-pres-team')?.value;
-        const filtered = (window._dashSessions || []).filter(s => (!catId || s.teams?.category_id == catId) && (!teamId || s.team_id == teamId)).slice(0,15);
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nessuna sessione</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(s => {
-            const att = s.attendances || [];
-            const p = att.filter(a=>(a.status||'').toLowerCase()==='presente').length;
-            const a = att.filter(x=>(x.status||'').toLowerCase()==='assente').length;
-            const g = att.filter(x=>(x.status||'').toLowerCase()==='giustificato').length;
-            const tot = att.length, perc = tot>0 ? Math.round(p/tot*100) : 0;
-            return `<tr><td><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()} · ${s.teams?.name||''}</small></td><td style="color:#10b981;">${p}</td><td style="color:#ef4444;">${a}</td><td style="color:#f59e0b;">${g}</td><td>${perc}%</td></tr>`;
-        }).join('');
-    };
-
-    window.loadDashStats = async function(seasonId, socId) {
-        try {
-            const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-            const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effectiveRole);
-            const scopedTeamIds = isScopedStaff ? await window.loadUserAssignedTeams() : null;
-            const { data: types } = await client.from('session_types').select('id, name');
-            const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id);
-            let q = client.from('sessions').select('id, team_id, society_id, teams(id,name,category_id,societies(name))');
-            if (validIds.length) q = q.in('type_id', validIds);
-            if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
-            if (socId && socId !== 'all') q = q.eq('society_id', socId);
-            if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
-            const { data: sessions } = await q;
-            const sessionIds = (sessions||[]).map(s=>s.id);
-            if (sessionIds.length === 0) { window._dashMatchStats = []; window.renderDashStats(); return; }
-            const { data: details } = await client.from('match_details').select('session_id,goals_for,goals_against,match_status,is_friendly,is_home').in('session_id', sessionIds);
-            const detailMap = {}; (details||[]).forEach(d => detailMap[d.session_id] = d);
-            const teamMap = {};
-            (sessions||[]).forEach(s => {
-                if (!s.team_id) return;
-                const det = detailMap[s.id];
-                if (det && det.is_friendly === true) return;
-                if (!teamMap[s.team_id]) teamMap[s.team_id] = { id:s.team_id, name:s.teams?.name||'-', soc:s.teams?.societies?.name||'-', society_id:s.society_id, category_id:s.teams?.category_id, partite:0, gf:0, gs:0, w:0, d:0, l:0 };
-                const t = teamMap[s.team_id]; t.partite++;
-                if (det) { t.gf += det.goals_for||0; t.gs += det.goals_against||0; if (det.match_status==='vittoria') t.w++; else if (det.match_status==='pareggio') t.d++; else if (det.match_status==='sconfitta') t.l++; }
-            });
-            window._dashMatchStats = Object.values(teamMap);
-            const cats = [...new Map(window._dashMatchStats.filter(t=>t.category_id).map(t=>[t.category_id,{id:t.category_id,name:'Categoria'}])).values()];
-            const teams = window._dashMatchStats.map(t=>({id:t.id,name:t.name,catId:t.category_id}));
-            window._dashStatsCats = cats; window._dashStatsTeams = teams;
-            const selCat = document.getElementById('dash-stats-cat'); if(selCat) selCat.innerHTML = '<option value="">Tutte le categorie</option>' + cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-            const selTeam = document.getElementById('dash-stats-team'); if(selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-            window.renderDashStats();
-        } catch(err) { console.error(err); }
-    };
-
-    window.renderDashStats = function() {
-        const tbody = document.getElementById('dash-stats-body');
-        if (!tbody) return;
-        const catId = document.getElementById('dash-stats-cat')?.value;
+    window.loadDashStats = async function(seasonId, socId, scopedTeamIds) {
+        const { data: types } = await client.from('session_types').select('id, name');
+        const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita')).map(t => t.id);
+        let q = client.from('sessions').select('id, team_id, teams(name), match_details(goals_for, goals_against, match_status)');
+        if (validIds.length) q = q.in('type_id', validIds);
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId !== 'all') q = q.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
+        const { data } = await q;
+        const teamStats = {};
+        (data || []).forEach(s => {
+            if (!s.team_id) return;
+            if (!teamStats[s.team_id]) teamStats[s.team_id] = { name: s.teams?.name || '-', partite: 0, gf: 0, gs: 0 };
+            teamStats[s.team_id].partite++;
+            if (s.match_details) { teamStats[s.team_id].gf += s.match_details.goals_for || 0; teamStats[s.team_id].gs += s.match_details.goals_against || 0; }
+        });
         const teamId = document.getElementById('dash-stats-team')?.value;
-        const filtered = (window._dashMatchStats || []).filter(t => (!catId || t.category_id == catId) && (!teamId || t.id == teamId));
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="9">Nessun dato</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(t => `<tr><td><strong>${t.name}</strong><br><small>${t.soc}</small></td><td>${t.partite}</td><td>—</td><td>—</td><td>${t.gf}</td><td>${t.gs}</td><td>0</td><td>0</td><td>${t.w}V · ${t.d}P · ${t.l}S</td></tr>`).join('');
+        const filtered = Object.values(teamStats).filter(t => !teamId || t.id == teamId);
+        const html = `<table><thead><tr><th>Squadra</th><th>P</th><th>GF</th><th>GS</th></tr></thead><tbody>${filtered.map(t => `<tr><td>${t.name}</td><td>${t.partite}</td><td>${t.gf}</td><td>${t.gs}</td></tr>`).join('')}</tbody></table>`;
+        document.getElementById('dash-stats-content').innerHTML = html || '<p>Nessun dato</p>';
     };
 
-    window.loadDashAthletes = async function(seasonId, socId) {
-        try {
-            const effectiveRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-            const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effectiveRole);
-            const scopedTeamIds = isScopedStaff ? await window.loadUserAssignedTeams() : null;
-            let athQ = client.from('athlete_team_seasons').select('athlete_id,team_id,society_id,athletes(name,surname),teams(id,name,category_id)');
-            if (seasonId && seasonId !== 'all') athQ = athQ.eq('season_id', seasonId);
-            if (socId && socId !== 'all') athQ = athQ.eq('society_id', socId);
-            if (scopedTeamIds && scopedTeamIds.length) athQ = athQ.in('team_id', scopedTeamIds);
-            const { data: assignments } = await athQ;
-            if (!assignments || assignments.length === 0) { window._dashAthletes = []; window.renderDashAthletes(); return; }
-            const athleteMap = {};
-            assignments.forEach(a => {
-                if (!athleteMap[a.athlete_id]) athleteMap[a.athlete_id] = {
-                    id: a.athlete_id, name: `${a.athletes?.surname||''} ${a.athletes?.name||''}`.trim(),
-                    team: a.teams?.name||'-', team_id: a.team_id, category_id: a.teams?.category_id,
-                    society: a.societies?.name||'-', society_id: a.society_id, sess_pres:0, sess_tot:0, gol:0
-                };
-            });
-            const athleteIds = Object.keys(athleteMap);
-            const { data: attendances } = await client.from('attendances').select('athlete_id,status').in('athlete_id', athleteIds);
-            (attendances||[]).forEach(att => {
-                const a = athleteMap[att.athlete_id];
-                if (a) { a.sess_tot++; if ((att.status||'').toLowerCase()==='presente') a.sess_pres++; }
-            });
-            const { data: matchStats } = await client.from('match_stats').select('athlete_id,goals').in('athlete_id', athleteIds);
-            (matchStats||[]).forEach(st => { if (athleteMap[st.athlete_id]) athleteMap[st.athlete_id].gol += st.goals||0; });
-            window._dashAthletes = Object.values(athleteMap);
-            const cats = [...new Map(window._dashAthletes.filter(a=>a.category_id).map(a=>[a.category_id,{id:a.category_id,name:'Categoria'}])).values()];
-            const teams = [...new Map(window._dashAthletes.filter(a=>a.team_id).map(a=>[a.team_id,{id:a.team_id,name:a.team,catId:a.category_id}])).values()];
-            window._dashAthCats = cats; window._dashAthTeams = teams;
-            const selCat = document.getElementById('dash-ath-cat'); if(selCat) selCat.innerHTML = '<option value="">Tutte le categorie</option>' + cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-            const selTeam = document.getElementById('dash-ath-team'); if(selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>' + teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-            window.renderDashAthletes();
-        } catch(err) { console.error(err); }
+    window.loadDashMatches = async function(seasonId, socId, scopedTeamIds) {
+        const oneMonthAgo = new Date(); oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        const fromDate = oneMonthAgo.toISOString().split('T')[0];
+        const { data: types } = await client.from('session_types').select('id, name');
+        const validIds = (types || []).filter(t => t.name.toLowerCase().includes('partita')).map(t => t.id);
+        let q = client.from('sessions').select('id, title, session_date, team_id, teams(name), match_details(opponent_name, goals_for, goals_against)').gte('session_date', fromDate);
+        if (validIds.length) q = q.in('type_id', validIds);
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId !== 'all') q = q.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
+        const { data } = await q;
+        const teamId = document.getElementById('dash-matches-team')?.value;
+        const filtered = (data || []).filter(m => !teamId || m.team_id == teamId);
+        const html = `<table><thead><tr><th>Data</th><th>Partita</th><th>Squadra</th><th>Risultato</th></tr></thead><tbody>${filtered.map(m => `<tr><td>${new Date(m.session_date).toLocaleDateString()}</td><td>${m.title || 'Gara'}</td><td>${m.teams?.name || '-'}</td><td>${m.match_details?.goals_for ?? '-'} - ${m.match_details?.goals_against ?? '-'}</td></tr>`).join('')}</tbody></table>`;
+        document.getElementById('dash-matches-content').innerHTML = html || '<p>Nessuna partita</p>';
     };
 
-    window._dashAthSortField = 'presenze'; window._dashAthSortDir = -1;
-    window.toggleDashAthSort = function() {
-        const fields = ['presenze','gol']; const labels = { presenze:'Presenze', gol:'Gol' };
-        const idx = fields.indexOf(window._dashAthSortField);
-        if (window._dashAthSortDir === -1) window._dashAthSortDir = 1;
-        else { window._dashAthSortField = fields[(idx + 1) % fields.length]; window._dashAthSortDir = -1; }
-        const btn = document.getElementById('dash-ath-sort-btn');
-        if (btn) btn.textContent = `Ordina: ${labels[window._dashAthSortField]} ${window._dashAthSortDir === -1 ? '↓' : '↑'}`;
-        window.renderDashAthletes();
+    window.loadDashPresenze = async function(seasonId, socId, scopedTeamIds) {
+        let q = client.from('sessions').select('id, title, session_date, team_id, teams(name), attendances(status)').order('session_date', { ascending: false }).limit(20);
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId !== 'all') q = q.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
+        const { data } = await q;
+        const teamId = document.getElementById('dash-pres-team')?.value;
+        const filtered = (data || []).filter(s => !teamId || s.team_id == teamId);
+        const html = `<table><thead><tr><th>Sessione</th><th>Data</th><th>Presenti</th><th>%</th></tr></thead><tbody>${filtered.map(s => { const p = (s.attendances || []).filter(a => (a.status || '').toLowerCase() === 'presente').length; const tot = (s.attendances || []).length; const perc = tot > 0 ? Math.round(p / tot * 100) : 0; return `<tr><td>${s.title}</td><td>${new Date(s.session_date).toLocaleDateString()}</td><td>${p}/${tot}</td><td>${perc}%</td></tr>`; }).join('')}</tbody></table>`;
+        document.getElementById('dash-pres-content').innerHTML = html || '<p>Nessuna sessione</p>';
     };
 
-    window.renderDashAthletes = function() {
-        const tbody = document.getElementById('dash-athletes-body');
-        if (!tbody) return;
-        const catId = document.getElementById('dash-ath-cat')?.value;
+    window.loadDashAthletes = async function(seasonId, socId, scopedTeamIds) {
+        let q = client.from('athlete_team_seasons').select('athlete_id, team_id, athletes(name, surname), teams(name)');
+        if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
+        if (socId !== 'all') q = q.eq('society_id', socId);
+        if (scopedTeamIds && scopedTeamIds.length) q = q.in('team_id', scopedTeamIds);
+        const { data } = await q;
+        const athleteMap = {};
+        (data || []).forEach(a => {
+            if (!athleteMap[a.athlete_id]) athleteMap[a.athlete_id] = { name: `${a.athletes?.surname || ''} ${a.athletes?.name || ''}`, team: a.teams?.name || '-', team_id: a.team_id };
+        });
+        const athletes = Object.values(athleteMap);
         const teamId = document.getElementById('dash-ath-team')?.value;
         const search = (document.getElementById('dash-ath-search')?.value || '').toLowerCase();
-        let filtered = (window._dashAthletes || []).filter(a => (!catId || a.category_id == catId) && (!teamId || a.team_id == teamId) && (!search || a.name.toLowerCase().includes(search)));
-        const sortKey = window._dashAthSortField === 'presenze' ? 'sess_pres' : 'gol';
-        filtered.sort((a,b) => window._dashAthSortDir * (b[sortKey] - a[sortKey]));
-        const thead = document.getElementById('dash-ath-thead');
-        if (thead) thead.innerHTML = `<tr><th>Atleta</th><th>Squadra</th><th>Presenze</th><th>Gol</th></tr>`;
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="4">Nessun atleta</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(a => `<tr><td><strong>${a.name}</strong></td><td>${a.team}</td><td style="color:#10b981;">${a.sess_pres}/${a.sess_tot}</td><td style="color:#2563eb;">${a.gol}</td></tr>`).join('');
+        const filtered = athletes.filter(a => (!teamId || a.team_id == teamId) && (!search || a.name.toLowerCase().includes(search)));
+        const html = `<table><thead><tr><th>Atleta</th><th>Squadra</th></tr></thead><tbody>${filtered.map(a => `<tr><td>${a.name}</td><td>${a.team}</td></tr>`).join('')}</tbody></table>`;
+        document.getElementById('dash-ath-content').innerHTML = html || '<p>Nessun atleta</p>';
     };
+
+    window.renderDashStats = () => window.loadDashStats(document.getElementById('dash-season-filter')?.value, document.getElementById('dash-soc-filter')?.value || 'all', null);
+    window.renderDashMatches = () => window.loadDashMatches(document.getElementById('dash-season-filter')?.value, document.getElementById('dash-soc-filter')?.value || 'all', null);
+    window.renderDashPresenze = () => window.loadDashPresenze(document.getElementById('dash-season-filter')?.value, document.getElementById('dash-soc-filter')?.value || 'all', null);
+    window.renderDashAthletes = () => window.loadDashAthletes(document.getElementById('dash-season-filter')?.value, document.getElementById('dash-soc-filter')?.value || 'all', null);
 
     window.loadUserAssignedTeams = async function() {
         const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-        const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effRole);
-        if (!isScopedStaff) return null;
-        if (window._userAssignedTeamIds !== undefined) return window._userAssignedTeamIds;
+        const isScoped = ['dirigente', 'allenatore', 'responsabile'].includes(effRole);
+        if (!isScoped) return null;
         const userId = window._currentUserId;
         if (!userId) return [];
         const { data } = await client.from('user_category_seasons').select('team_id').eq('user_id', userId);
-        window._userAssignedTeamIds = [...new Set((data||[]).map(r => r.team_id).filter(Boolean))];
-        return window._userAssignedTeamIds;
+        return [...new Set((data || []).map(r => r.team_id).filter(Boolean))];
     };
 
-    // Placeholder per le altre funzioni (stagioni, sport, ecc.) - mantieni quelle esistenti
-    function templateStagioni() { return `<div class="card"><div class="header"><h2>GESTIONE STAGIONI</h2><button class="btn" id="btn-add-stagione">+ Nuova Stagione</button></div><table><thead><tr><th>Nome</th><th>Periodo</th><th>Stato</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-stagioni"></tbody></table></div>`; }
-    async function initStagioni() { const { data: seasons } = await client.from('seasons').select('*').order('start_date', { ascending: false }); const tbody = document.getElementById('list-stagioni'); if (tbody) tbody.innerHTML = (seasons||[]).map(s => `<tr><td><strong>${s.name}</strong></td><td>${new Date(s.start_date).toLocaleDateString()} → ${new Date(s.end_date).toLocaleDateString()}</td><td><span class="badge ${s.is_active ? 'active' : 'inactive'}">${s.is_active ? 'ATTIVA' : 'INATTIVA'}</span></td><td style="text-align:right"><button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">${s.is_active ? 'Spegni' : 'Attiva'}</button> <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:orange">✏️</button> <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:red">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessuna stagione</td></tr>'; }
-    
-    function templateSport() { return `<div class="card"><div class="header"><h2>GESTIONE SPORT</h2><button class="btn" id="btn-add-sport">+ Nuovo Sport</button></div></table><thead><tr><th>Icona</th><th>Nome</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-sport"></tbody></table></div>`; }
-    async function initSport() { const { data } = await client.from('sports').select('*').order('name'); const tbody = document.getElementById('list-sport'); if (tbody) tbody.innerHTML = (data||[]).map(s => `<tr><td style="font-size:1.5rem">${s.icon || '🏐'}</td><td><strong>${s.name}</strong></td><td style="text-align:right"><button class="btn-sm btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" style="background:var(--warning)">✏️</button> <button class="btn-sm btn-sport-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuno sport</td></tr>'; }
-    
-    function templateSocieta() { return `<div class="card"><div class="header"><h2>GESTIONE SOCIETÀ</h2><button class="btn" id="btn-add-societa">+ Nuova Società</button></div><table><thead><tr><th>Nome Società</th><th>Sport Associato</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-societa"></tbody></div>`; }
-    async function initSocieta() { const { data } = await client.from('societies').select('*, sports(name, icon)').order('name'); const tbody = document.getElementById('list-societa'); if (tbody) tbody.innerHTML = (data||[]).map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.sports ? s.sports.icon + ' ' + s.sports.name : '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="handleSocietaEdit('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${s.sport_id}')">✏️</button> <button class="btn-sm btn-danger" onclick="handleSocietaDelete('${s.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuna società</td></tr>'; }
-    
-    function templateCategoria() { return `<div class="card"><div class="header"><h2>GESTIONE CATEGORIE</h2><button class="btn" id="btn-add-categoria">+ Nuova Categoria</button></div><table><thead><tr><th>Nome Categoria</th><th>Società di Riferimento</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-categoria"></tbody></div>`; }
-    async function initCategoria() { const { data } = await client.from('categories').select('*, societies(name)').order('name'); const tbody = document.getElementById('list-categoria'); if (tbody) tbody.innerHTML = (data||[]).map(c => `<tr><td><strong>${c.name}</strong></td><td>${c.societies?.name || 'N/A'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="handleCategoriaEdit('${c.id}', '${c.name.replace(/'/g, "\\'")}', '${c.society_id}')">✏️</button> <button class="btn-sm btn-danger" onclick="handleCategoriaDelete('${c.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="3">Nessuna categoria</td></tr>'; }
-    
-    function templateSquadra() { return `<div class="card"><div class="header"><h2>GESTIONE SQUADRE</h2><button class="btn" id="btn-add-squadra">+ Nuova Squadra</button></div><div id="team-season-info" style="margin-bottom:1rem;"></div><table><thead><tr><th>Nome Squadra</th><th>Società</th><th>Categoria</th><th>Sport</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-squadra"></tbody></div>`; }
-    async function initSquadra() { const { data: activeSeason } = await client.from('seasons').select('*').eq('is_active', true).maybeSingle(); const info = document.getElementById('team-season-info'); if (info) info.innerText = activeSeason ? `📅 Stagione Attiva: ${activeSeason.name}` : "⚠️ Nessuna stagione attiva"; const { data } = await client.from('teams').select(`id,name,societies(name),categories(name),sports(name, icon)`).eq('season_id', activeSeason?.id).order('name'); const tbody = document.getElementById('list-squadra'); if (tbody) tbody.innerHTML = (data||[]).map(t => `<tr><td><strong>${t.name}</strong></td><td>${t.societies?.name || '-'}</td><td>${t.categories?.name || '-'}</td><td>${t.sports ? t.sports.icon + ' ' + t.sports.name : '-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="handleEditSquadra('${t.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="handleDeleteSquadra('${t.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="5">Nessuna squadra</td></tr>'; }
-    
-    function templateStaff() { return `<div class="card"><div class="header"><h2>ANAGRAFICA STAFF</h2><button class="btn" id="btn-add-staff">+ Nuovo Utente Staff</button></div><table><thead><tr><th>Nome Completo</th><th>Username</th><th>Ruolo / Società</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-staff"></tbody></div>`; }
-    async function initStaff() { const myRole = window._effectiveRole || window._userRole; const mySociety = window._currentSocietyId; let query = client.from('users').select('*, societies(name)').neq('username', 'admin').order('name'); const isGlobal = (myRole === 'admin' || myRole === 'manager'); if (!isGlobal && mySociety) query = query.eq('society_id', mySociety); const { data } = await query; const tbody = document.getElementById('list-staff'); if (tbody) tbody.innerHTML = (data||[]).map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.username}</td><td>${u.management_role || 'Staff'}<br><small>${u.societies?.name || 'Accesso Globale'}</small></td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="handleEditStaff('${u.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="handleDeleteStaff('${u.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessun utente</td></tr>'; }
-    
-    function templateGenitori() { return `<div class="card"><div class="header"><h2>👨‍👩‍👧 Anagrafica Genitori</h2><button class="btn" onclick="window.openGenitoreModal()">+ Nuovo Genitore</button></div><input type="text" id="gen-search" placeholder="🔍 Cerca..." oninput="window.renderGenitori()" style="margin-bottom:1rem;"><table><thead><tr><th>Genitore</th><th>Username</th><th>Email</th><th>Atleti</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="genitori-tbody"></tbody></div>`; }
-    async function initGenitori() { const { data: genitori } = await client.from('users').select('id,name,email,username').eq('management_role','Genitore').order('name'); window._genitoriList = (genitori||[]).map(g => { const parts = (g.name||'').trim().split(' '); return {...g, surname: parts[0]||'', name: parts.slice(1).join(' ')||''}; }); window.renderGenitori = function() { const tbody = document.getElementById('genitori-tbody'); if(!tbody) return; const search = (document.getElementById('gen-search')?.value||'').toLowerCase(); const filtered = window._genitoriList.filter(g => `${g.name} ${g.surname} ${g.username}`.toLowerCase().includes(search)); tbody.innerHTML = filtered.map(g => `<tr><td><strong>${g.surname} ${g.name}</strong></td><td>${g.username||'—'}</td><td>${g.email||'—'}</td><td>—</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="window.openGenitoreModal('${g.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="window.deleteGenitore('${g.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="5">Nessun genitore</td></tr>'; }; window.renderGenitori(); }
-    
-    window.openGenitoreModal = function(id) { alert('Funzionalità genitori in sviluppo'); };
-    window.deleteGenitore = async function(id) { if(confirm('Eliminare?')) await client.from('users').delete().eq('id', id); initGenitori(); };
-    
-    function templateAnagraficaPura() { return `<div class="card"><div class="header"><h2>👤 Anagrafica Atleti</h2><button class="btn" onclick="window.openAtletaBaseModal()">+ Nuovo Atleta</button></div><table><thead><tr><th>Atleta</th><th>Nascita</th><th>Società</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-anagrafica-body"></tbody></div>`; }
-    window.initAnagraficaPura = async function() { const { data } = await client.from('athletes').select('*').order('surname'); const tbody = document.getElementById('list-anagrafica-body'); if(tbody) tbody.innerHTML = (data||[]).map(a => `<tr><td><strong>${a.surname}</strong> ${a.name}</td><td>${a.born_date || '-'}</td><td>-</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="window.openAtletaBaseModal('${a.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="window.deleteAtletaBase('${a.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="4">Nessun atleta</td></tr>'; };
-    window.openAtletaBaseModal = function(id) { alert('Funzionalità atleti in sviluppo'); };
-    window.deleteAtletaBase = async function(id) { if(confirm('Eliminare?')) await client.from('athletes').delete().eq('id', id); window.initAnagraficaPura(); };
-    
-    function templateAssignments() { return `<div class="card"><div class="header"><h2>ASSEGNAZIONI TECNICHE</h2><button class="btn" id="btn-add-assignment">+ Assegna Staff</button></div><table><thead><tr><th>Staff</th><th>Società</th><th>Stagione</th><th>Squadra</th><th>Ruolo</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-assignments"></tbody></div>`; }
-    window.initAssignments = async function() { const { data } = await client.from('user_category_seasons').select(`id,role,season_id,team_id,user_id,society_id,users(name),teams(name)`); const tbody = document.getElementById('list-assignments'); if(tbody) tbody.innerHTML = (data||[]).map(a => `<tr><td><strong>${a.users?.name||'N/D'}</strong></td><td>-</td><td>-</td><td>${a.teams?.name||'N/D'}</td><td><span class="badge">${a.role}</span></td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="6">Nessuna assegnazione</td></tr>'; };
-    
-    function templateAtleti() { return `<div class="card"><div class="header"><h2>📋 Anagrafica Squadra</h2><button class="btn" onclick="window.openAtletaModal()">+ Nuovo Atleta</button><button class="btn" style="background:#059669;" onclick="window.openAggiungiAtletiASquadra()">🔗 Associa Giocatori</button></div><table><thead><tr><th>Atleta</th><th>Società</th><th>Stagione</th><th>Categoria</th><th>Squadra</th><th>N°</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-atleti-body"></tbody></div>`; }
-    window.initAtleti = async function() { const { data } = await client.from('athlete_team_seasons').select(`id,jersey_number,role,season_id,team_id,athlete_id,society_id,category_id,athletes(name,surname),teams(name),categories(name)`); const tbody = document.getElementById('list-atleti-body'); if(tbody) tbody.innerHTML = (data||[]).map(a => `<tr><td><strong>${a.athletes?.surname||''} ${a.athletes?.name||''}</strong></td><td>-</td><td>-</td><td>${a.categories?.name||'-'}</td><td>${a.teams?.name||'-'}</td><td>${a.jersey_number||'-'}</td><td style="text-align:right"><button class="btn-sm btn-warning" onclick="window.handleEditAtleta('${a.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="window.deleteAtletaAssignment('${a.id}')">🗑️</button></td></tr>`).join('') || '<tr><td colspan="7">Nessun atleta</td></tr>'; };
-    window.openAtletaModal = function(id) { alert('Funzionalità atleti squadra in sviluppo'); };
-    window.openAggiungiAtletiASquadra = function() { alert('Associazione atleti in sviluppo'); };
-    window.handleEditAtleta = function(id) { alert('Modifica atleta ' + id); };
-    window.deleteAtletaAssignment = async function(id) { if(confirm('Rimuovere?')) await client.from('athlete_team_seasons').delete().eq('id', id); window.initAtleti(); };
-    
-    function templateSessioni() { return `<div class="card"><div class="header"><h2>GESTIONE SESSIONI</h2><button class="btn" onclick="openSessionModal()">+ Nuova Sessione</button></div><table><thead><tr><th>Data / Titolo</th><th>Squadra</th><th>Note</th><th>P</th><th>A</th><th>G</th><th>I</th><th>%</th><th style="text-align:right">Azioni</th></tr></thead><tbody id="list-sessioni-body"></tbody></div>`; }
-    window.initSessioni = async function() { const { data } = await client.from('sessions').select('*, session_types(name), teams(name), attendances(status)').order('session_date',{ascending:false}); const tbody = document.getElementById('list-sessioni-body'); if(tbody) tbody.innerHTML = (data||[]).map(s => { const att = s.attendances||[]; const p = att.filter(a=>(a.status||'').toLowerCase()==='presente').length; const tot = att.length; const perc = tot>0?Math.round(p/tot*100):0; return `<tr><td><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()}</small></td><td>${s.teams?.name||'-'}</td><td><button onclick="openSessionNotesModal('${s.id}')">📝</button></td><td>${p}</td><td>${att.filter(a=>(a.status||'').toLowerCase()==='assente').length}</td><td>${att.filter(a=>(a.status||'').toLowerCase()==='giustificato').length}</td><td>${att.filter(a=>(a.status||'').toLowerCase()==='infortunato').length}</td><td>${perc}%</td><td><button class="btn-sm" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button> <button class="btn-sm" onclick="openSessionModal('${s.id}')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteSession('${s.id}')">🗑️</button></td></tr>`; }).join('') || '<tr><td colspan="9">Nessuna sessione</td></tr>'; };
-    window.openSessionModal = function(id) { alert('Modale sessione in sviluppo'); };
-    window.openAttendanceModal = function(id) { alert('Registro presenze in sviluppo'); };
-    window.deleteSession = async function(id) { if(confirm('Eliminare?')) await client.from('sessions').delete().eq('id', id); window.initSessioni(); };
-    window.openSessionNotesModal = function(id) { alert('Note sessione in sviluppo'); };
-    
-    function templatePartite() { return `<div class="card"><div class="header"><h2>🏆 MATCH CENTER</h2></div><table><thead><tr><th>Data</th><th>Partita</th><th>Squadra</th><th style="text-align:center">Gestione</th></tr></thead><tbody id="list-partite-body"></tbody></div><div id="sub-section-container"></div>`; }
-    window.initPartite = async function() { const { data: types } = await client.from('session_types').select('id,name'); const validIds = (types||[]).filter(t=>t.name.toLowerCase().includes('partita')||t.name.toLowerCase().includes('gara')).map(t=>t.id); const { data } = await client.from('sessions').select('id,title,session_date,team_id,teams(name)').in('type_id',validIds).order('session_date',{ascending:false}); const tbody = document.getElementById('list-partite-body'); if(tbody) tbody.innerHTML = (data||[]).map(m => `<tr><td>${new Date(m.session_date).toLocaleDateString()}</td><td><strong>${m.title||'Gara'}</strong></td><td>${m.teams?.name||'-'}</td><td style="text-align:center"><button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="background:#2563eb;">📋 CONVOCA</button> <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="background:#f59e0b;">⚽ TABELLINO</button> <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1;">📊 STATS</button></td></tr>`).join('') || '<tr><td colspan="4">Nessuna partita</td></tr>'; };
-    window.openConvocazioni = function(id) { alert('Convocazioni partita ' + id); };
-    window.openTabellino = function(id) { alert('Tabellino partita ' + id); };
-    window.openStatistiche = function(id) { alert('Statistiche partita ' + id); };
-    
-    function templateImportAtleti() { return `<div class="card"><div class="header"><h2>📥 IMPORTAZIONE MASSIVA ATLETI</h2></div><div style="background:#fffbeb;padding:15px;margin-bottom:15px;"><h4>⚠️ ISTRUZIONI</h4><p>File .xlsx con colonne: nome, cognome, data_nascita (AAAA-MM-GG)</p></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;"><select id="import-sel-season"></select><select id="import-sel-society"></select><select id="import-sel-team"></select></div><div style="text-align:center;padding:30px;"><input type="file" id="import-excel-input" accept=".xlsx" style="display:none;"><button id="btn-trigger-file" class="btn">Seleziona File Excel</button></div></div>`; }
-    window.initImportAtleti = async function() { const { data: seasons } = await client.from('seasons').select('id,name'); const selSeason = document.getElementById('import-sel-season'); if(selSeason) selSeason.innerHTML = '<option value="">Scegli Stagione...</option>' + (seasons||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join(''); const { data: societies } = await client.from('societies').select('id,name'); const selSoc = document.getElementById('import-sel-society'); if(selSoc) selSoc.innerHTML = '<option value="">Scegli Società...</option>' + (societies||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join(''); selSoc.onchange = async () => { const { data: teams } = await client.from('teams').select('id,name').eq('society_id', selSoc.value); const selTeam = document.getElementById('import-sel-team'); if(selTeam) selTeam.innerHTML = '<option value="">Scegli Squadra...</option>' + (teams||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }; document.getElementById('btn-trigger-file').onclick = () => document.getElementById('import-excel-input').click(); document.getElementById('import-excel-input').onchange = function(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const workbook = XLSX.read(evt.target.result,{type:'binary'}); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]); alert(`Importazione completata: ${rows.length} righe lette`); }; reader.readAsBinaryString(file); }; };
-    
-    window.initGenitoreView = async function() {
-        const contentEl = document.getElementById('content');
-        if (!contentEl) return;
-        const userId = window._currentUserId;
-        try {
-            const { data: links } = await client.from('parent_athletes').select('athlete_id, athletes(id,name,surname)').eq('parent_id', userId);
-            if (!links || links.length === 0) {
-                contentEl.innerHTML = `<div class="card" style="text-align:center;"><h2>👶 Nessun atleta associato</h2><p>Contatta l'amministratore.</p></div>`;
-                return;
-            }
-            const athletes = links.map(l => l.athletes).filter(Boolean);
-            contentEl.innerHTML = `<div><h2>👨‍👩‍👧 Benvenuto, ${window.CURRENT_USER?.name || 'Genitore'}</h2><p>${athletes.length} figlio${athletes.length!==1?'i':''} associato${athletes.length!==1?'i':''}</p>${athletes.map(a => `<div class="card" style="margin-top:1rem;"><h3>${a.surname} ${a.name}</h3><p>Dettagli del profilo in fase di sviluppo.</p></div>`).join('')}</div>`;
-        } catch(err) { contentEl.innerHTML = `<div class="card"><p>Errore: ${err.message}</p></div>`; }
-    };
-    
-    // Esposizione funzioni globali
-    window.handleSocietaEdit = async function(id, name, sport_id) { alert('Modifica società'); };
-    window.handleSocietaDelete = async function(id) { if(confirm('Eliminare?')) await client.from('societies').delete().eq('id', id); initSocieta(); };
-    window.handleCategoriaEdit = async function(id, name, soc_id) { alert('Modifica categoria'); };
-    window.handleCategoriaDelete = async function(id) { if(confirm('Eliminare?')) await client.from('categories').delete().eq('id', id); initCategoria(); };
-    window.handleEditSquadra = async function(id) { alert('Modifica squadra'); };
-    window.handleDeleteSquadra = async function(id) { if(confirm('Eliminare?')) await client.from('teams').delete().eq('id', id); initSquadra(); };
-    window.handleEditStaff = async function(id) { alert('Modifica staff'); };
-    window.handleDeleteStaff = async function(id) { if(confirm('Eliminare?')) await client.from('users').delete().eq('id', id); initStaff(); };
-    window.handleEditAssignment = async function(id) { alert('Modifica assegnazione'); };
-    window.deleteAssignment = async function(id) { if(confirm('Rimuovere?')) await client.from('user_category_seasons').delete().eq('id', id); window.initAssignments(); };
+    document.querySelectorAll('#sidebar a').forEach(a => {
+        a.onclick = (e) => { e.preventDefault(); loadPage(a.dataset.section); };
+    });
 </script>
 </body>
 </html>
