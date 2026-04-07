@@ -2785,91 +2785,231 @@ window.openTabellino = async function(sessionId) {
     const container = window.prepareSubSection(sessionId);
     if (!container) return;
 
+    // Expand to full width
+    container.style.width = '100%';
+    container.style.maxWidth = '100%';
+
     let { data: d } = await client.from('match_details').select('*').eq('session_id', sessionId).maybeSingle();
-    
     if (!d) {
-        const { data: newD } = await client.from('match_details').insert([{ 
-            session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da disputare', is_home: true, is_friendly: false 
+        const { data: newD } = await client.from('match_details').insert([{
+            session_id: sessionId, goals_for:0, goals_against:0, match_status: 'da disputare', is_home: true, is_friendly: false
         }]).select().single();
         d = newD;
     }
 
+    const session = await window.safeGetSession(sessionId);
+
+    // Load called-up athletes
+    const { data: convAttendances } = await client.from('attendances')
+        .select('athlete_id, athletes(name, surname)')
+        .eq('session_id', sessionId)
+        .eq('is_called_up', true);
+
+    // Load jersey numbers
+    const { data: teamAthletes } = await client.from('athlete_team_seasons')
+        .select('athlete_id, jersey_number, role')
+        .eq('team_id', session.team_id);
+    const jerseyMap = {};
+    (teamAthletes || []).forEach(a => { jerseyMap[a.athlete_id] = { num: a.jersey_number, role: a.role }; });
+
+    // Load existing match_stats for this session
+    const { data: existingStats } = await client.from('match_stats')
+        .select('*').eq('session_id', sessionId);
+    const statsMap = {};
+    (existingStats || []).forEach(s => { statsMap[s.athlete_id] = s; });
+
+    const esitoBadge = d.match_status === 'vittoria' ? '#dcfce7|#166534|V' : d.match_status === 'sconfitta' ? '#fee2e2|#991b1b|S' : d.match_status === 'pareggio' ? '#fef3c7|#92400e|P' : '#f1f5f9|#64748b|-';
+    const [ebg, efg, elbl] = esitoBadge.split('|');
+    const scoreDisplay = d.goals_for !== undefined ? `${d.goals_for} - ${d.goals_against}` : '- -';
+
+    const sortedConv = (convAttendances || []).sort((a,b) => {
+        const na = (jerseyMap[a.athlete_id]?.num || 99);
+        const nb = (jerseyMap[b.athlete_id]?.num || 99);
+        return na - nb || (a.athletes?.surname||'').localeCompare(b.athletes?.surname||'');
+    });
+
     container.innerHTML = `
-    <div style="max-width:600px; margin:auto; background:white; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.2); color:#333; font-family:sans-serif; overflow:hidden;">
-        <div style="background:#f8fafc; padding:20px; border-bottom:1px solid #e2e8f0;">
-            <h2 style="margin:0; font-size:18px; color:#1e293b;">⚽ Tabellino & Report Match</h2>
+    <div style="background:white; border-radius:14px; box-shadow:0 4px 24px rgba(0,0,0,0.10); color:#1e293b; font-family:'DM Sans',sans-serif; overflow:hidden; border:1px solid #e2e8f0;">
+
+        <!-- HEADER -->
+        <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb); padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.08em;">⚽ Tabellino &amp; Report Match</div>
+                <div style="font-size:1.15rem; font-weight:700; color:white; margin-top:3px;">${d.opponent_name ? 'vs ' + d.opponent_name : 'Avversario da impostare'}</div>
+            </div>
+            <div style="background:${ebg}; color:${efg}; font-size:1.6rem; font-weight:900; padding:10px 20px; border-radius:10px; font-family:'Space Grotesk',sans-serif; min-width:90px; text-align:center;">${scoreDisplay}</div>
         </div>
 
-        <div style="padding:20px; display:grid; gap:15px;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <!-- BADGES ROW -->
+        <div style="display:flex; gap:8px; padding:10px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; flex-wrap:wrap;">
+            <span style="background:${d.is_home !== false ? '#dbeafe' : '#f3e8ff'}; color:${d.is_home !== false ? '#1d4ed8' : '#7c3aed'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${d.is_home !== false ? '🏠 Casa' : '🚌 Trasferta'}</span>
+            <span style="background:${!d.is_friendly ? '#dcfce7' : '#fef3c7'}; color:${!d.is_friendly ? '#166534' : '#92400e'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${!d.is_friendly ? '🏆 Ufficiale' : '🤝 Amichevole'}</span>
+            <span style="background:${ebg}; color:${efg}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${elbl === 'V' ? '✅ Vittoria' : elbl === 'S' ? '❌ Sconfitta' : elbl === 'P' ? '🤝 Pareggio' : '⏳ Da giocare'}</span>
+            <span style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">👥 ${sortedConv.length} convocati</span>
+        </div>
+
+        <div style="padding:20px 24px; display:grid; gap:16px;">
+
+            <!-- ROW 1: Location + Tipo + Avversario + Esito -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 2fr 1fr; gap:10px;">
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:bold; color:#64748b; margin-bottom:4px;">LOCATION</label>
-                    <select id="tab-is-home" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                        <option value="true" ${d.is_home ? 'selected' : ''}>🏠 Casa</option>
-                        <option value="false" ${!d.is_home ? 'selected' : ''}>🚌 Trasferta</option>
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">📍 Location</label>
+                    <select id="tab-is-home" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; color:#1e293b; font-family:inherit;">
+                        <option value="true" ${d.is_home !== false ? 'selected' : ''}>🏠 Casa</option>
+                        <option value="false" ${d.is_home === false ? 'selected' : ''}>🚌 Trasferta</option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:bold; color:#64748b; margin-bottom:4px;">TIPO GARA</label>
-                    <select id="tab-is-friendly" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">🏆 Tipo Gara</label>
+                    <select id="tab-is-friendly" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; color:#1e293b; font-family:inherit;">
                         <option value="false" ${!d.is_friendly ? 'selected' : ''}>🏆 Ufficiale</option>
                         <option value="true" ${d.is_friendly ? 'selected' : ''}>🤝 Amichevole</option>
                     </select>
                 </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:10px;">
-                <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="Squadra Avversaria" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                <select id="tab-status" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                    <option value="da disputare" ${d.match_status === 'da disputare' ? 'selected' : ''}>Da disputare</option>
-                    <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>Vittoria</option>
-                    <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>Sconfitta</option>
-                    <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>Pareggio</option>
-                </select>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <input type="time" id="tab-meet-time" value="${d.meet_time || ''}" title="Ora Ritrovo" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-                <input type="time" id="tab-match-start" value="${d.match_start_time || ''}" title="Ora Inizio" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-            </div>
-            <input type="text" id="tab-address" value="${d.address || ''}" placeholder="Indirizzo del campo" style="padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; background:#f1f5f9; padding:15px; border-radius:10px; text-align:center;">
                 <div>
-                    <label style="font-size:11px; font-weight:800; color:#10b981;">GOL FATTI</label>
-                    <input type="number" id="tab-gf" value="${d.goals_for || 0}" style="width:100%; text-align:center; font-size:24px; font-weight:bold; border:none; background:transparent; color:#065f46;">
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⚔️ Squadra Avversaria</label>
+                    <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="es. FC Torino" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; color:#1e293b; font-family:inherit; box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-size:11px; font-weight:800; color:#ef4444;">GOL SUBITI</label>
-                    <input type="number" id="tab-gs" value="${d.goals_against || 0}" style="width:100%; text-align:center; font-size:24px; font-weight:bold; border:none; background:transparent; color:#991b1b;">
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">🏁 Esito</label>
+                    <select id="tab-status" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; color:#1e293b; font-family:inherit;">
+                        <option value="da disputare" ${d.match_status === 'da disputare' ? 'selected' : ''}>⏳ Da giocare</option>
+                        <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>✅ Vittoria</option>
+                        <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>❌ Sconfitta</option>
+                        <option value="pareggio" ${d.match_status === 'pareggio' ? 'selected' : ''}>🤝 Pareggio</option>
+                    </select>
                 </div>
             </div>
 
-            <div style="border-top:1px solid #e2e8f0; padding-top:15px;">
-                <h3 style="font-size:14px; margin:0 0 10px 0; color:#475569;">📊 Marcatori & Sanzioni</h3>
-                <div id="events-list"></div>
-                <button onclick="window.addEventRow('${sessionId}')" style="width:100%; margin-top:10px; padding:10px; background:#fff; border:1px dashed #cbd5e1; border-radius:8px; cursor:pointer; font-size:13px; color:#3b82f6; font-weight:600;">+ Aggiungi Marcatore/Evento</button>
+            <!-- ROW 2: Orari + Indirizzo -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 3fr; gap:10px;">
+                <div>
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⏰ Ora Ritrovo</label>
+                    <input type="time" id="tab-meet-time" value="${d.meet_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⚡ Ora Inizio</label>
+                    <input type="time" id="tab-match-start" value="${d.match_start_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">📍 Indirizzo Campo</label>
+                    <input type="text" id="tab-address" value="${d.address || ''}" placeholder="Via, Città" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <!-- ROW 3: Score -->
+            <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0; background:linear-gradient(135deg,#f0fdf4,#fef2f2); border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; max-width:400px; margin:0 auto; width:100%;">
+                <div style="padding:16px; text-align:center;">
+                    <div style="font-size:0.65rem; font-weight:800; color:#10b981; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">GOL FATTI</div>
+                    <input type="number" id="tab-gf" value="${d.goals_for ?? 0}" min="0" style="width:80px; text-align:center; font-size:2.4rem; font-weight:900; border:none; background:transparent; color:#065f46; font-family:'Space Grotesk',sans-serif;">
+                </div>
+                <div style="display:flex; align-items:center; padding:0 16px; font-size:1.6rem; font-weight:900; color:#94a3b8; font-family:'Space Grotesk',sans-serif;">—</div>
+                <div style="padding:16px; text-align:center;">
+                    <div style="font-size:0.65rem; font-weight:800; color:#ef4444; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">GOL SUBITI</div>
+                    <input type="number" id="tab-gs" value="${d.goals_against ?? 0}" min="0" style="width:80px; text-align:center; font-size:2.4rem; font-weight:900; border:none; background:transparent; color:#991b1b; font-family:'Space Grotesk',sans-serif;">
+                </div>
+            </div>
+
+            <!-- ROW 4: Griglia convocati con statistiche individuali -->
+            <div style="background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden;">
+                <div style="padding:12px 16px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; background:white;">
+                    <div style="font-size:0.82rem; font-weight:700; color:#1e293b;">📋 Statistiche Giocatori Convocati</div>
+                    <div style="font-size:0.7rem; color:#94a3b8;">Compila gol, cartellini e minuti per ogni giocatore</div>
+                </div>
+                ${sortedConv.length === 0 ? `
+                <div style="padding:24px; text-align:center; color:#94a3b8; font-size:0.85rem;">
+                    ⚠️ Nessun giocatore convocato. Prima salva le convocazioni dalla sezione apposita.
+                </div>` : `
+                <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="padding:10px 12px; text-align:left; font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">#</th>
+                            <th style="padding:10px 12px; text-align:left; font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Giocatore</th>
+                            <th style="padding:10px 12px; text-align:center; font-size:0.68rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">⚽ Gol</th>
+                            <th style="padding:10px 12px; text-align:center; font-size:0.68rem; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">🟨 Amm.</th>
+                            <th style="padding:10px 12px; text-align:center; font-size:0.68rem; font-weight:700; color:#ef4444; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">🟥 Esp.</th>
+                            <th style="padding:10px 12px; text-align:center; font-size:0.68rem; font-weight:700; color:#2563eb; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">⏱ Minuti</th>
+                            <th style="padding:10px 12px; text-align:center; font-size:0.68rem; font-weight:700; color:#6366f1; text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Titolare</th>
+                        </tr>
+                    </thead>
+                    <tbody id="players-stats-body">
+                        ${sortedConv.map((att, i) => {
+                            const aid = att.athlete_id;
+                            const fullName = `${att.athletes?.surname || ''} ${att.athletes?.name || ''}`.trim();
+                            const jersey = jerseyMap[aid]?.num || '—';
+                            const st = statsMap[aid] || {};
+                            const goals = st.goals || 0;
+                            const yc = st.yellow_cards || 0;
+                            const rc = st.red_cards || 0;
+                            const mins = st.minutes_played || 0;
+                            const isStarter = st.is_starter !== false;
+                            return `
+                            <tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
+                                <td style="padding:9px 12px; font-weight:700; color:#2563eb; font-size:0.85rem;">${jersey}</td>
+                                <td style="padding:9px 12px; font-weight:600; white-space:nowrap;">
+                                    <span style="font-size:0.85rem; color:#1e293b;">${fullName}</span>
+                                    ${jerseyMap[aid]?.role ? `<span style="font-size:0.68rem; color:#94a3b8; margin-left:6px;">${jerseyMap[aid].role}</span>` : ''}
+                                </td>
+                                <td style="padding:6px 8px; text-align:center;">
+                                    <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                                        <button onclick="window._adjustStat(this, -1)" data-field="goals" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">−</button>
+                                        <span class="stat-val" data-field="goals" data-id="${aid}" style="font-weight:800; font-size:1rem; color:#10b981; min-width:20px; text-align:center;">${goals}</span>
+                                        <button onclick="window._adjustStat(this, 1)" data-field="goals" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">+</button>
+                                    </div>
+                                </td>
+                                <td style="padding:6px 8px; text-align:center;">
+                                    <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                                        <button onclick="window._adjustStat(this, -1)" data-field="yellow_cards" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">−</button>
+                                        <span class="stat-val" data-field="yellow_cards" data-id="${aid}" style="font-weight:800; font-size:1rem; color:#f59e0b; min-width:20px; text-align:center;">${yc}</span>
+                                        <button onclick="window._adjustStat(this, 1)" data-field="yellow_cards" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">+</button>
+                                    </div>
+                                </td>
+                                <td style="padding:6px 8px; text-align:center;">
+                                    <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                                        <button onclick="window._adjustStat(this, -1)" data-field="red_cards" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">−</button>
+                                        <span class="stat-val" data-field="red_cards" data-id="${aid}" style="font-weight:800; font-size:1rem; color:#ef4444; min-width:20px; text-align:center;">${rc}</span>
+                                        <button onclick="window._adjustStat(this, 1)" data-field="red_cards" data-id="${aid}" style="width:22px; height:22px; border-radius:50%; border:1px solid #e2e8f0; background:white; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; color:#64748b;">+</button>
+                                    </div>
+                                </td>
+                                <td style="padding:6px 10px; text-align:center;">
+                                    <input type="number" class="stat-mins" data-id="${aid}" value="${mins}" min="0" max="999"
+                                        style="width:65px; text-align:center; padding:5px 6px; border:1.5px solid #e2e8f0; border-radius:7px; font-size:0.88rem; font-weight:700; color:#2563eb; font-family:inherit; background:#f8fafc;">
+                                </td>
+                                <td style="padding:6px 8px; text-align:center;">
+                                    <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:0.72rem; font-weight:600; color:#6366f1;">
+                                        <input type="checkbox" class="stat-starter" data-id="${aid}" ${isStarter ? 'checked' : ''} style="width:15px; height:15px; accent-color:#6366f1; cursor:pointer;">
+                                        TIT
+                                    </label>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                </div>`}
             </div>
         </div>
 
-        <div style="padding:15px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
-            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:10px 20px; background:#cbd5e1; color:#1e293b; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Annulla</button>
-            <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 30px; background:#3b82f6; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">SALVA REPORT</button>
+        <!-- FOOTER -->
+        <div style="padding:14px 24px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:9px 18px; background:white; color:#64748b; border:1.5px solid #e2e8f0; border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; font-family:inherit;">✕ Annulla</button>
+            <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 28px; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:white; border:none; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px rgba(37,99,235,0.3);">💾 Salva Report</button>
         </div>
     </div>`;
+};
 
-    if (d.scorers) {
-        try { JSON.parse(d.scorers).forEach(ev => window.addEventRow(sessionId, ev)); } catch(e) {}
-    }
+// Helper: incrementa/decrementa stat con pulsanti +/-
+window._adjustStat = function(btn, delta) {
+    const field = btn.getAttribute('data-field');
+    const id = btn.getAttribute('data-id');
+    const span = document.querySelector(`.stat-val[data-field="${field}"][data-id="${id}"]`);
+    if (!span) return;
+    let val = parseInt(span.textContent) + delta;
+    if (val < 0) val = 0;
+    span.textContent = val;
 };
 
 window.saveFullTabellino = async function(sessionId, detailId) {
-    const eventRows = document.querySelectorAll('.event-row');
-    const events = Array.from(eventRows).map(row => ({
-        athlete_id: row.querySelector('.ev-athlete').value,
-        type: row.querySelector('.ev-type').value
-    })).filter(ev => ev.athlete_id !== "");
-
     const updateData = {
         opponent_name: document.getElementById('tab-opponent').value,
         match_status: document.getElementById('tab-status').value,
@@ -2880,19 +3020,44 @@ window.saveFullTabellino = async function(sessionId, detailId) {
         goals_against: parseInt(document.getElementById('tab-gs').value) || 0,
         is_home: document.getElementById('tab-is-home').value === 'true',
         is_friendly: document.getElementById('tab-is-friendly').value === 'true',
-        scorers: JSON.stringify(events)
     };
 
-    const statsMap = {};
-    events.forEach(ev => {
-        if (!statsMap[ev.athlete_id]) {
-            statsMap[ev.athlete_id] = { session_id: sessionId, athlete_id: ev.athlete_id, goals: 0, yellow_cards: 0, red_cards: 0 };
-        }
-        if (ev.type.includes('⚽')) statsMap[ev.athlete_id].goals++;
-        if (ev.type.includes('🟨')) statsMap[ev.athlete_id].yellow_cards++;
-        if (ev.type.includes('🟥')) statsMap[ev.athlete_id].red_cards++;
+    // Build stats from the player grid (new format)
+    const statsToInsert = [];
+
+    // Collect all unique athlete IDs from stat controls
+    const athleteIds = new Set();
+    document.querySelectorAll('.stat-val[data-id], .stat-mins[data-id], .stat-starter[data-id]').forEach(el => {
+        athleteIds.add(el.getAttribute('data-id'));
     });
-    const statsToInsert = Object.values(statsMap);
+
+    athleteIds.forEach(aid => {
+        const goals = parseInt(document.querySelector(`.stat-val[data-field="goals"][data-id="${aid}"]`)?.textContent || '0') || 0;
+        const yc    = parseInt(document.querySelector(`.stat-val[data-field="yellow_cards"][data-id="${aid}"]`)?.textContent || '0') || 0;
+        const rc    = parseInt(document.querySelector(`.stat-val[data-field="red_cards"][data-id="${aid}"]`)?.textContent || '0') || 0;
+        const mins  = parseInt(document.querySelector(`.stat-mins[data-id="${aid}"]`)?.value || '0') || 0;
+        const isStarter = document.querySelector(`.stat-starter[data-id="${aid}"]`)?.checked ?? true;
+
+        statsToInsert.push({
+            session_id: sessionId,
+            athlete_id: aid,
+            goals,
+            yellow_cards: yc,
+            red_cards: rc,
+            minutes_played: mins,
+            is_starter: isStarter
+        });
+    });
+
+    // Also keep scorers JSON for backward compatibility (events-list may be absent now)
+    const legacyEvents = statsToInsert.flatMap(s => {
+        const arr = [];
+        for (let i = 0; i < s.goals; i++) arr.push({ athlete_id: s.athlete_id, type: '⚽ Goal' });
+        for (let i = 0; i < s.yellow_cards; i++) arr.push({ athlete_id: s.athlete_id, type: '🟨 Amm.' });
+        for (let i = 0; i < s.red_cards; i++) arr.push({ athlete_id: s.athlete_id, type: '🟥 Esp.' });
+        return arr;
+    });
+    updateData.scorers = JSON.stringify(legacyEvents);
 
     try {
         await client.from('match_details').update(updateData).eq('id', detailId);
@@ -2903,9 +3068,9 @@ window.saveFullTabellino = async function(sessionId, detailId) {
         alert("✅ Tabellino e Statistiche sincronizzati!");
         document.getElementById('sub-section-container').innerHTML = '';
         if (typeof initPartite === 'function') initPartite();
-    } catch (err) { 
+    } catch (err) {
         console.error(err);
-        alert("Errore durante il salvataggio."); 
+        alert("Errore durante il salvataggio: " + (err.message || "Controlla la console."));
     }
 };
 
@@ -2985,6 +3150,14 @@ window.exportConvocazioniIMG = async function(sessionId) {
         });
 
         const ordineRuoli = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
+        // Plurale italiano corretto per ogni ruolo
+        const pluraleRuoli = {
+            "Portiere": "PORTIERI",
+            "Difensore": "DIFENSORI",
+            "Centrocampista": "CENTROCAMPISTI",
+            "Attaccante": "ATTACCANTI",
+            "Altro": "ALTRO"
+        };
         const atletiRaggruppati = (conv || []).reduce((acc, c) => {
             const info = detailMap[c.athlete_id] || { num: '', role: 'Altro' };
             const r = info.role;
@@ -2993,56 +3166,107 @@ window.exportConvocazioniIMG = async function(sessionId) {
             return acc;
         }, {});
 
+        // Colori per ruolo
+        const coloriRuolo = {
+            "Portiere":        { bg: "#f59e0b", text: "#1a1a2e" },
+            "Difensore":       { bg: "#3b82f6", text: "#ffffff" },
+            "Centrocampista":  { bg: "#8b5cf6", text: "#ffffff" },
+            "Attaccante":      { bg: "#ef4444", text: "#ffffff" },
+            "Altro":           { bg: "#6b7280", text: "#ffffff" }
+        };
+
+        const totalConvocati = (conv || []).length;
+
         // 5. GENERAZIONE HTML
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px';
         tempContainer.innerHTML = `
-            <div id="export-final-card" style="width: 550px; background: #1a472a; color: white; font-family: 'Arial Black', sans-serif; border: 6px solid #fff;">
-                <div style="padding: 30px; background: linear-gradient(135deg, #1a472a 0%, #2d5a27 100%);">
-                    <div style="text-align: center; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 15px; margin-bottom: 20px;">
-                        <h1 style="margin: 0; font-size: 28px; text-transform: uppercase;">${nomeSocieta}</h1>
-                        <div style="display: inline-block; background: #fbbf24; color: #1a472a; padding: 4px 20px; font-weight: 900; border-radius: 50px; margin-top: 10px; font-size: 15px;">
-                            ${nomeSquadra} ${nomeCategoria ? `- ${nomeCategoria}` : ''}
+            <div id="export-final-card" style="width:580px; background:#0f172a; color:white; font-family:'DM Sans',Arial,sans-serif; border-radius:0; overflow:hidden;">
+
+                <!-- HEADER BAND -->
+                <div style="background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%); padding:28px 28px 20px; position:relative; border-bottom:3px solid #2563eb;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <div style="font-size:11px; font-weight:700; letter-spacing:0.15em; color:#60a5fa; text-transform:uppercase; margin-bottom:4px;">Lista Convocati</div>
+                            <div style="font-size:26px; font-weight:900; text-transform:uppercase; letter-spacing:-0.5px; line-height:1.1;">${nomeSocieta}</div>
+                            <div style="margin-top:8px; display:inline-flex; align-items:center; gap:8px;">
+                                ${nomeCategoria ? `<span style="background:#2563eb; color:white; padding:3px 12px; border-radius:4px; font-size:12px; font-weight:700; text-transform:uppercase;">${nomeCategoria}</span>` : ''}
+                                <span style="background:#2563eb; color:white; padding:3px 12px; border-radius:4px; font-size:12px; font-weight:700; text-transform:uppercase;">${nomeSquadra}</span>
+                            </div>
+                        </div>
+                        <div style="background:rgba(37,99,235,0.2); border:1px solid rgba(37,99,235,0.4); border-radius:10px; padding:10px 16px; text-align:center; min-width:60px;">
+                            <div style="font-size:30px; font-weight:900; color:#60a5fa; line-height:1;">${totalConvocati}</div>
+                            <div style="font-size:9px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Convocati</div>
                         </div>
                     </div>
+                </div>
 
-                    <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 20px; font-size: 13px;">
-                        <div>⚽ <strong>GARA:</strong> VS ${detail?.opponent_name || '---'}</div>
-                        <div>📍 <strong>LUOGO:</strong> ${detail?.address || '---'}</div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px; color: #fbbf24; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
-                            <span>🕒 RITROVO: Ore ${detail?.meet_time?.substring(0,5) || '--:--'}</span>
-                            <span>⚽ INIZIO: Ore ${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                        <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px;">Allenatore</small>
-                            <strong>${nomeAllenatore}</strong>
-                        </div>
-                        <div style="border-left: 4px solid #fbbf24; padding-left: 10px;">
-                            <small style="display:block; opacity: 0.7; text-transform: uppercase; font-size: 9px;">Dirigente</small>
-                            <strong>${nomeDirigente}</strong>
-                        </div>
-                    </div>
-
+                <!-- INFO GARA -->
+                <div style="background:#111827; padding:14px 28px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
                     <div>
-                        ${ordineRuoli.map(ruolo => {
-                            const lista = atletiRaggruppati[ruolo] || [];
-                            if (lista.length === 0) return '';
-                            return `
-                                <div style="background: white; color: #1a472a; padding: 4px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; margin-top: 12px;">
-                                    ${ruolo}S (${lista.length})
-                                </div>
-                                ${lista.map(a => `
-                                    <div style="display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px;">
-                                        <span>${a.fullname}</span>
-                                        <span style="color: #fbbf24; font-weight: 900;">${a.num}</span>
-                                    </div>
-                                `).join('')}
-                            `;
-                        }).join('')}
+                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Avversario</div>
+                        <div style="font-size:13px; font-weight:700; color:#f1f5f9;">VS ${detail?.opponent_name || '---'}</div>
                     </div>
+                    <div>
+                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Luogo</div>
+                        <div style="font-size:12px; font-weight:600; color:#cbd5e1;">${detail?.address || '---'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Orari</div>
+                        <div style="font-size:12px; color:#fbbf24; font-weight:700;">⏱ ${detail?.meet_time?.substring(0,5) || '--:--'} &nbsp;|&nbsp; ⚽ ${detail?.match_start_time?.substring(0,5) || '--:--'}</div>
+                    </div>
+                </div>
+
+                <!-- STAFF -->
+                <div style="background:#0f172a; padding:10px 28px; display:flex; gap:20px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:28px; height:28px; background:#1e3a5f; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;">👨‍💼</div>
+                        <div>
+                            <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Allenatore</div>
+                            <div style="font-size:12px; font-weight:700; color:#e2e8f0;">${nomeAllenatore}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="width:28px; height:28px; background:#1e3a5f; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;">📋</div>
+                        <div>
+                            <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Dirigente</div>
+                            <div style="font-size:12px; font-weight:700; color:#e2e8f0;">${nomeDirigente}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROSA CONVOCATI -->
+                <div style="padding:16px 28px 24px;">
+                    ${ordineRuoli.map(ruolo => {
+                        const lista = atletiRaggruppati[ruolo] || [];
+                        if (lista.length === 0) return '';
+                        const col = coloriRuolo[ruolo] || coloriRuolo["Altro"];
+                        const plural = pluraleRuoli[ruolo] || ruolo.toUpperCase() + 'I';
+                        return `
+                            <div style="margin-bottom:14px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                                    <div style="height:2px; width:12px; background:${col.bg}; border-radius:2px;"></div>
+                                    <span style="font-size:9px; font-weight:800; letter-spacing:0.18em; color:${col.bg}; text-transform:uppercase;">${plural}</span>
+                                    <span style="background:${col.bg}22; color:${col.bg}; border:1px solid ${col.bg}44; border-radius:999px; font-size:9px; font-weight:700; padding:1px 7px;">${lista.length}</span>
+                                    <div style="flex:1; height:1px; background:rgba(255,255,255,0.06);"></div>
+                                </div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+                                    ${lista.map((a, i) => `
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:${i%2===0?'rgba(255,255,255,0.03)':'transparent'}; padding:5px 10px; border-radius:5px;">
+                                            <span style="font-size:12px; font-weight:600; color:#e2e8f0; letter-spacing:0.01em;">${a.fullname}</span>
+                                            <span style="font-size:11px; font-weight:800; color:${col.bg}; min-width:22px; text-align:right;">${a.num || ''}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- FOOTER -->
+                <div style="background:#111827; padding:8px 28px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06);">
+                    <span style="font-size:9px; color:#374151; text-transform:uppercase; letter-spacing:0.1em;">SportTrackPro</span>
+                    <span style="font-size:9px; color:#374151;">${new Date().toLocaleDateString('it-IT')}</span>
                 </div>
             </div>
         `;
@@ -3089,29 +3313,108 @@ window.openStatistiche = async function(sessionId) {
         if (a) { a.gol += (st.goals || 0); a.amm += (st.yellow_cards || 0); a.esp += (st.red_cards || 0); a.min += (st.minutes_played || 0); }
     });
 
+    // ── Calcola KPI della squadra (solo partite ufficiali) ──
+    const officialMatches = (allMatches || []).filter(m => !m.is_friendly);
+    const totalMatches   = officialMatches.length;
+    const wins   = officialMatches.filter(m => m.match_status === 'vittoria').length;
+    const draws  = officialMatches.filter(m => m.match_status === 'pareggio').length;
+    const losses = officialMatches.filter(m => m.match_status === 'sconfitta').length;
+    const homeMatches  = officialMatches.filter(m => m.is_home === true).length;
+    const awayMatches  = officialMatches.filter(m => m.is_home === false).length;
+    const totalGF = officialMatches.reduce((s,m) => s + (m.goals_for||0), 0);
+    const totalGS = officialMatches.reduce((s,m) => s + (m.goals_against||0), 0);
+    const totalAmm = (performanceStats||[]).reduce((s,st) => s + (st.yellow_cards||0), 0);
+    const totalEsp = (performanceStats||[]).reduce((s,st) => s + (st.red_cards||0), 0);
+
+    const athletes = Object.values(athleteMap).sort((a,b) => b.gol - a.gol || b.presenze - a.presenze);
+
+    const kpiCard = (label, value, sub, color) => `
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; border-top:3px solid ${color};">
+            <div style="font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">${label}</div>
+            <div style="font-family:'Space Grotesk',sans-serif; font-size:1.6rem; font-weight:700; color:${color}; line-height:1;">${value}</div>
+            <div style="font-size:0.68rem; color:#94a3b8; margin-top:3px;">${sub}</div>
+        </div>`;
+
     container.innerHTML = `
-    <div style="background:#f1f5f9; border-radius:12px; padding:20px; font-family:sans-serif;">
-        <h2 style="margin-bottom:20px; color:#1e293b;">📊 Performance Analysis</h2>
-        <div style="background:white; border-radius:10px; overflow:hidden;">
-            <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                <thead>
-                    <tr style="background:#f8fafc; text-align:left; border-bottom:1px solid #e2e8f0;">
-                        <th style="padding:12px;">ATLETA</th>
-                        <th style="padding:12px; text-align:center;">GOL</th>
-                        <th style="padding:12px; text-align:center;">SQUAL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${Object.values(athleteMap).sort((a,b) => b.gol - a.gol).map(a => `
-                        <tr style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:12px; font-weight:bold;">${a.name}</td>
-                            <td style="padding:12px; text-align:center; color:#10b981; font-weight:bold;">${a.gol}</td>
-                            <td style="padding:12px; text-align:center; color:#ef4444;">${a.squal} gg</td>
-                        </tr>`).join('')}
-                </tbody>
-            </table>
+    <div style="font-family:'DM Sans',sans-serif; color:#1e293b;">
+
+        <!-- HEADER -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+            <div>
+                <h3 style="font-family:'Space Grotesk',sans-serif; font-size:1rem; font-weight:700; margin:0;">📊 Performance Analysis</h3>
+                <div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">Solo partite ufficiali &middot; Amichevoli escluse</div>
+            </div>
+            <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="padding:6px 14px; background:white; color:#64748b; border:1.5px solid #e2e8f0; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; font-family:inherit;">✕ Chiudi</button>
         </div>
-        <button onclick="document.getElementById('sub-section-container').innerHTML=''" style="margin-top:20px; padding:10px 20px; background:#cbd5e1; border:none; border-radius:8px; cursor:pointer;">Chiudi</button>
+
+        <!-- KPI GRID -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin-bottom:1.25rem;">
+            ${kpiCard('Partite', totalMatches, 'ufficiali giocate', '#2563eb')}
+            ${kpiCard('🏠 Casa', homeMatches, 'partite in casa', '#2563eb')}
+            ${kpiCard('🚌 Trasferta', awayMatches, 'partite fuori', '#8b5cf6')}
+            ${kpiCard('Vittorie', wins, `${totalMatches > 0 ? Math.round(wins/totalMatches*100) : 0}% win rate`, '#10b981')}
+            ${kpiCard('Pareggi', draws, 'risultati pari', '#f59e0b')}
+            ${kpiCard('Sconfitte', losses, 'risultati negativi', '#ef4444')}
+            ${kpiCard('GF', totalGF, 'gol fatti', '#10b981')}
+            ${kpiCard('GS', totalGS, 'gol subiti', '#ef4444')}
+            ${kpiCard('🟨 Amm.', totalAmm, 'ammonizioni', '#f59e0b')}
+            ${kpiCard('🟥 Esp.', totalEsp, 'espulsioni', '#ef4444')}
+        </div>
+
+        <!-- RISULTATI BAR -->
+        ${totalMatches > 0 ? `
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:14px 16px; margin-bottom:1.25rem;">
+            <div style="font-size:0.7rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px;">Andamento V/P/S</div>
+            <div style="display:flex; border-radius:8px; overflow:hidden; height:28px;">
+                ${wins  > 0 ? `<div style="flex:${wins};  background:#10b981; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${wins}V</div>` : ''}
+                ${draws > 0 ? `<div style="flex:${draws}; background:#f59e0b; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${draws}P</div>` : ''}
+                ${losses> 0 ? `<div style="flex:${losses};background:#ef4444; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${losses}S</div>` : ''}
+            </div>
+        </div>` : ''}
+
+        <!-- ATLETI TABLE -->
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+            <div style="padding:12px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:0.82rem; font-weight:700;">👤 Statistiche Atleti</div>
+                    <div style="font-size:0.68rem; color:#94a3b8;">Gare &middot; Convocazioni &middot; Marcatori</div>
+                </div>
+                <span style="background:#f1f5f9; color:#64748b; padding:3px 10px; border-radius:99px; font-size:0.7rem; font-weight:700;">${athletes.length} atleti</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                    <thead>
+                        <tr style="background:#f8fafc; color:#64748b;">
+                            <th style="padding:9px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:left;">Atleta</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#10b981;" title="Presenze partite">P. Gara</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#2563eb;" title="Convocazioni">Conv.</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#10b981;">⚽ Gol</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#f59e0b;">🟨</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#ef4444;">🟥</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#2563eb;" title="Minuti Giocati">⏱ Min.</th>
+                            <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#ef4444;">Squal.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${athletes.length === 0 ? '<tr><td colspan="8" style="padding:20px; text-align:center; color:#94a3b8;">Nessun dato disponibile.</td></tr>' :
+                          athletes.map(a => {
+                            const convPerc = a.totali > 0 ? Math.round(a.presenze/a.totali*100) : 0;
+                            const percColor = convPerc >= 75 ? '#10b981' : convPerc >= 50 ? '#f59e0b' : '#ef4444';
+                            return `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
+                                <td style="padding:9px 12px; font-weight:600;">${a.name}</td>
+                                <td style="padding:9px 10px; text-align:center; font-weight:700; color:${percColor};">${a.presenze}<span style="font-size:0.65rem; color:#94a3b8; font-weight:400;">/${a.totali}</span></td>
+                                <td style="padding:9px 10px; text-align:center; color:#2563eb; font-weight:700;">${a.presenze}</td>
+                                <td style="padding:9px 10px; text-align:center; color:#10b981; font-weight:700;">${a.gol}</td>
+                                <td style="padding:9px 10px; text-align:center; color:#f59e0b; font-weight:700;">${a.amm}</td>
+                                <td style="padding:9px 10px; text-align:center; color:#ef4444; font-weight:700;">${a.esp}</td>
+                                <td style="padding:9px 10px; text-align:center; color:#2563eb; font-weight:700;">${a.min > 0 ? a.min + '<span style="font-size:0.65rem; color:#94a3b8; font-weight:400;">\'</span>' : '<span style="color:#e2e8f0;">—</span>'}</td>
+                                <td style="padding:9px 10px; text-align:center; color:#ef4444; font-size:0.78rem;">${a.squal > 0 ? a.squal + ' gg' : '-'}</td>
+                            </tr>`;
+                          }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>`;
 };
 
