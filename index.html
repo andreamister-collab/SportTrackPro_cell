@@ -587,7 +587,7 @@
             font-size: var(--text-sm);
             color: var(--text-main);
         }
-        tr:hover td { background: rgba(255,79,59,0.035); }
+        tr:hover td { background: rgba(255,79,59,0.06) !important; }
         tr:last-child td { border-bottom: none; }
 
         /* ── BADGES ── */
@@ -2266,8 +2266,8 @@ window.handleDeleteStaff = async function(id) {
     style.innerHTML = `
         .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-left: 4px; }
         .btn-icon-atleta.edit { background-color: rgba(255,79,59,0.1); color: var(--primary); }
-        .btn-icon-atleta.delete { background-color: #fef2f2; color: #ef4444; }
-        .btn-icon-atleta.link { background-color: #f0fdf4; color: #16a34a; }
+        .btn-icon-atleta.delete { background-color: rgba(239,68,68,0.1); color: #ef4444; }
+        .btn-icon-atleta.link { background-color: rgba(0,229,160,0.1); color: var(--success); }
         .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     `;
     document.head.appendChild(style);
@@ -4566,7 +4566,7 @@ window.openTabellino = async function(sessionId) {
             </div>
 
             <!-- ROW 3: Score -->
-            <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0; background:linear-gradient(135deg,#f0fdf4,#fef2f2); border-radius:12px; overflow:hidden; border:1px solid var(--border); max-width:400px; margin:0 auto; width:100%;">
+            <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:0; background:var(--card-raised); border-radius:12px; overflow:hidden; border:1px solid var(--border); max-width:400px; margin:0 auto; width:100%;">
                 <div style="padding:16px; text-align:center;">
                     <div style="font-size:0.65rem; font-weight:800; color:#10b981; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">GOL FATTI</div>
                     <input type="number" id="tab-gf" value="${d.goals_for ?? 0}" min="0" style="width:80px; text-align:center; font-size:2.4rem; font-weight:900; border:none; background:transparent; color:#065f46; font-family:'DM Mono','Outfit',sans-serif;">
@@ -6375,7 +6375,7 @@ window.renderDashAthletes = function() {
     tbody.innerHTML = filtered.map(a => {
         // % presenze allenamenti
         const percSess = a.sess_tot > 0 ? Math.round((a.sess_pres / a.sess_tot) * 100) : null;
-        const cSess = percSess === null ? '#94a3b8' : percSess >= 75 ? '#10b981' : percSess >= 50 ? '#f59e0b' : '#ef4444';
+        const cSess = percSess === null ? 'var(--text-muted)' : percSess >= 75 ? '#10b981' : percSess >= 50 ? '#f59e0b' : '#ef4444';
         const tSess = percSess !== null ? percSess + '%' : '-';
         // % presenze partite
         const percGara = a.gara_tot > 0 ? Math.round((a.gara_pres / a.gara_tot) * 100) : null;
@@ -6383,7 +6383,7 @@ window.renderDashAthletes = function() {
         const totPres = (a.sess_pres || 0) + (a.gara_pres || 0);
         const totTot  = (a.sess_tot  || 0) + (a.gara_tot  || 0);
         const percTot = totTot > 0 ? Math.round((totPres / totTot) * 100) : null;
-        const cTot = percTot === null ? '#94a3b8' : percTot >= 75 ? '#10b981' : percTot >= 50 ? '#f59e0b' : '#ef4444';
+        const cTot = percTot === null ? 'var(--text-muted)' : percTot >= 75 ? '#10b981' : percTot >= 50 ? '#f59e0b' : '#ef4444';
         const tTot = percTot !== null ? percTot + '%' : '-';
 
         return `
@@ -6397,7 +6397,7 @@ window.renderDashAthletes = function() {
                 ${a.category_name && a.category_name !== '-' ? `<br><span style="font-size:0.68rem; color:var(--text-sub); font-weight:400;">${a.category_name}</span>` : ''}
             </td>
             <!-- Allenamenti -->
-            <td style="padding:9px 12px; text-align:center; color:#10b981; font-weight:700; border-left:2px solid #f0fdf4;">${a.sess_pres || 0}</td>
+            <td style="padding:9px 12px; text-align:center; color:#10b981; font-weight:700; border-left:1px solid var(--border);">${a.sess_pres || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:#ef4444; font-weight:700;">${a.sess_ass || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:#f59e0b; font-weight:700;">${a.sess_giust || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:#8b5cf6; font-weight:700;">${a.sess_inf || 0}</td>
@@ -6410,13 +6410,13 @@ window.renderDashAthletes = function() {
             <td style="padding:9px 12px; text-align:center; color:#ef4444; font-weight:700;">${a.esp || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:var(--primary); font-weight:600; font-size:0.8rem;">${a.min > 0 ? a.min + '\'' : '<span style="color:var(--text-muted);">—</span>'}</td>
             <!-- Totale -->
-            <td style="padding:9px 12px; text-align:center; font-weight:700; color:var(--text-sub); border-left:2px solid rgba(255,209,102,0.2);">${totPres}/${totTot}</td>
+            <td style="padding:9px 12px; text-align:center; font-weight:700; color:var(--text-sub); border-left:1px solid rgba(255,179,71,0.15);">${totPres}/${totTot}</td>
             <td style="padding:9px 12px; text-align:center; font-weight:700; color:${cTot};">${tTot}</td>
             <!-- Performance medie -->
             ${(()=>{ const n = a.perf_count||0;
                 const stars = (v) => { const avg = n>0?Math.round(v/n):0;
                     return avg>0 ? '<span style="color:#6366f1;font-weight:700;">'+avg+'★</span>' : '<span style="color:var(--text-muted);">-</span>'; };
-                return `<td style="padding:9px 12px; text-align:center; border-left:2px solid #eef2ff;">${stars(a.perf_vel)}</td>
+                return `<td style="padding:9px 12px; text-align:center; border-left:1px solid var(--border);">${stars(a.perf_vel)}</td>
                         <td style="padding:9px 12px; text-align:center;">${stars(a.perf_tec)}</td>
                         <td style="padding:9px 12px; text-align:center;">${stars(a.perf_fis)}</td>
                         <td style="padding:9px 12px; text-align:center;">${stars(a.perf_res)}</td>
@@ -7169,14 +7169,14 @@ window.initGenitoreView = async function() {
             <div class="card" style="margin-bottom:1rem;">
                 <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">📊 Statistiche del tuo atleta — ${seasonName}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    ${pill(stAct.goals||0,'⚽ Gol','#10b981','#f0fdf4','#bbf7d0')}
+                    ${pill(stAct.goals||0,'⚽ Gol','#00e5a0','rgba(0,229,160,0.1)','rgba(0,229,160,0.25)')}
                     ${pill(stAct.min||0,'⏱ Min','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(stAct.yc||0,'🟨 Amm','#ffd166')}
-                    ${pill(stAct.rc||0,'🟥 Esp','#ef4444','#fef2f2','#fecaca')}
+                    ${pill(stAct.rc||0,'🟥 Esp','#ef4444','rgba(239,68,68,0.1)','rgba(239,68,68,0.25)')}
                     <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
                     ${pill(totPts,'🏆 Punti','#ffd166')}
                     <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
-                    ${pill(prAct.pres||0,'Presenze','#10b981','#f0fdf4','#bbf7d0')}
+                    ${pill(prAct.pres||0,'Presenze','#00e5a0','rgba(0,229,160,0.1)','rgba(0,229,160,0.25)')}
                     ${pill(prAct.conv||0,'Convoc.','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(prAct.tot||0,'Partite','#64748b')}
                     ${convPerc !== null ? pill(convPerc+'%','Conv%',percColor) : ''}
