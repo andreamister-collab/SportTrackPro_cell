@@ -2265,7 +2265,7 @@ window.handleDeleteStaff = async function(id) {
     const style = document.createElement('style');
     style.innerHTML = `
         .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-left: 4px; }
-        .btn-icon-atleta.edit { background-color: #eff6ff; color: #2563eb; }
+        .btn-icon-atleta.edit { background-color: rgba(255,79,59,0.1); color: var(--primary); }
         .btn-icon-atleta.delete { background-color: #fef2f2; color: #ef4444; }
         .btn-icon-atleta.link { background-color: #f0fdf4; color: #16a34a; }
         .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
@@ -2733,7 +2733,7 @@ window.handleDeleteStaff = async function(id) {
         tbody.innerHTML = filtered.map(a => `
             <tr>
                 <td><strong>${a.users?.name || 'N/D'}</strong></td>
-                <td><span style="color: #2563eb; font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
+                <td><span style="color: var(--primary-mid); font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
                 <td><span style="background:rgba(0,229,160,0.06); color:#06d6a0; padding:3px 8px; border-radius:6px; font-size:0.82em; font-weight:600;">${a.categories?.name || _lookupCats[a.category_id] || '-'}</span></td>
                 <td>${a.teams?.name || 'N/D'}</td>
@@ -2758,7 +2758,7 @@ window.handleDeleteStaff = async function(id) {
         const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
 
         modal.open(isEdit ? 'Modifica Staff' : 'Nuova Assegnazione Staff', `
-            <div style="margin-bottom: 15px; padding: 10px; background: #f0f7ff; border-radius: 5px; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.85em;">
+            <div style="margin-bottom: 15px; padding: 10px; background: var(--primary-subtle); border-radius: 5px; color: var(--primary-mid); border: 1px solid var(--border-accent); font-size: 0.85em;">
                 <strong>Stagione Attiva:</strong> ${sRes.data?.name || 'Corrente'}
             </div>
             <label>Membro Staff</label>
@@ -3155,7 +3155,7 @@ window.handleDeleteStaff = async function(id) {
 
         modal.open(isEdit ? 'Modifica Atleta' : 'Nuova Anagrafica Atleta', `
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                <div style="grid-column: span 2; background:#f0f7ff; padding:10px; border-radius:6px; border:1px solid rgba(59,130,246,0.15); color:#38bdf8; font-size:0.9em;">
+                <div style="grid-column: span 2; background:var(--primary-subtle); padding:10px; border-radius:6px; border:1px solid rgba(59,130,246,0.15); color:#38bdf8; font-size:0.9em;">
                     <strong>📍 Stagione:</strong> ${_lookupSeas[activeSea] || 'Selezionata'}
                 </div>
                 <div style="grid-column: span 2; background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid var(--border); margin-top:5px;">
@@ -3814,7 +3814,7 @@ async function openAttendanceModal(sessionId) {
     <div style="background:var(--card); border-radius:16px; overflow:hidden; font-family:'Outfit',sans-serif;">
 
         <!-- HEADER -->
-        <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb); padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-size:11px; font-weight:700; letter-spacing:0.12em; color:rgba(255,255,255,0.6); text-transform:uppercase; margin-bottom:4px;">${isGara ? '📋 Convocazioni' : '📋 Registro Presenze'}</div>
                 <div style="font-size:16px; font-weight:800; color:white;">${session.title}</div>
@@ -4339,7 +4339,7 @@ window.openConvocazioni = async function(sessionId) {
                     ANNULLA
                 </button>
                 <button onclick="window.saveConvocazioni('${sessionId}')" 
-                    style="background:#3b82f6; color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                    style="background:var(--primary); color:white; border:none; padding:8px 20px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
                     SALVA
                 </button>
             </div>
@@ -4355,7 +4355,7 @@ window.openConvocazioni = async function(sessionId) {
                 return `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--card-raised); border:1px solid var(--border); border-radius:8px;">
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <span style="color:#3b82f6; font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
+                        <span style="color:var(--primary-mid); font-weight:bold; width:25px; font-size:14px;">${a.jersey_number || '--'}</span>
                         <span style="font-weight:600; text-transform:uppercase; font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
                     </div>
                     <div style="display:flex; gap:12px; align-items:center; background:var(--card); padding:6px 12px; border-radius:20px; border:1px solid var(--border);">
@@ -4500,7 +4500,7 @@ window.openTabellino = async function(sessionId) {
     <div style="background:var(--card); border-radius:14px; box-shadow:0 4px 24px rgba(0,0,0,0.10); color:var(--text-main); font-family:'Outfit',sans-serif; overflow:hidden; border:1px solid var(--border);">
 
         <!-- HEADER -->
-        <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb); padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.08em;">⚽ Tabellino &amp; Report Match</div>
                 <div style="font-size:1.15rem; font-weight:700; color:white; margin-top:3px;">${d.opponent_name ? 'vs ' + d.opponent_name : 'Avversario da impostare'}</div>
@@ -4510,7 +4510,7 @@ window.openTabellino = async function(sessionId) {
 
         <!-- BADGES ROW -->
         <div style="display:flex; gap:8px; padding:10px 24px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.07); flex-wrap:wrap;">
-            <span style="background:${d.is_home !== false ? '#dbeafe' : '#f3e8ff'}; color:${d.is_home !== false ? '#1d4ed8' : '#7c3aed'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${d.is_home !== false ? '🏠 Casa' : '🚌 Trasferta'}</span>
+            <span style="background:${d.is_home !== false ? 'rgba(255,79,59,0.12)' : 'rgba(139,92,246,0.12)'}; color:${d.is_home !== false ? 'var(--primary-mid)' : '#a78bfa'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${d.is_home !== false ? '🏠 Casa' : '🚌 Trasferta'}</span>
             <span style="background:${!d.is_friendly ? 'rgba(6,214,160,0.12)' : 'rgba(255,209,102,0.1)'}; color:${!d.is_friendly ? '#06d6a0' : '#ffd166'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${!d.is_friendly ? '🏆 Ufficiale' : '🤝 Amichevole'}</span>
             <span style="background:${ebg}; color:${efg}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${elbl === 'V' ? '✅ Vittoria' : elbl === 'S' ? '❌ Sconfitta' : elbl === 'P' ? '🤝 Pareggio' : '⏳ Da giocare'}</span>
             <span style="background:var(--card-raised); color:var(--text-sub); padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">👥 ${sortedConv.length} convocati</span>
@@ -4661,7 +4661,7 @@ window.openTabellino = async function(sessionId) {
         <!-- FOOTER -->
         <div style="padding:14px 24px; background:rgba(255,255,255,0.03); border-top:1px solid rgba(255,255,255,0.07); display:flex; justify-content:space-between; align-items:center;">
             <button onclick="window.closeMatchPopup()" style="padding:9px 18px; background:var(--card); color:var(--text-muted); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; font-family:inherit;">✕ Annulla</button>
-            <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 28px; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:white; border:none; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px rgba(37,99,235,0.3);">💾 Salva Report</button>
+            <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 28px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px var(--primary-glow);">💾 Salva Report</button>
         </div>
     </div>`;
 };
@@ -4845,7 +4845,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
         // Palette di colori da assegnare ciclicamente ai ruoli dinamici
         const paletteColori = [
             { bg: "#f59e0b", text: "#1a1a2e" },
-            { bg: "#3b82f6", text: "#ffffff" },
+            { bg: "var(--primary)", text: "#ffffff" },
             { bg: "#8b5cf6", text: "#ffffff" },
             { bg: "#ef4444", text: "#ffffff" },
             { bg: "#10b981", text: "#ffffff" },
@@ -4886,10 +4886,10 @@ window.exportConvocazioniIMG = async function(sessionId) {
             <div id="export-final-card" style="width:580px; background:#0f172a; color:white; font-family:'Outfit',Arial,sans-serif; border-radius:0; overflow:hidden;">
 
                 <!-- HEADER BAND -->
-                <div style="background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%); padding:28px 28px 20px; position:relative; border-bottom:3px solid #2563eb;">
+                <div style="background:linear-gradient(135deg,#0a0d1a 0%,#0e1220 100%); padding:28px 28px 20px; position:relative; border-bottom:2px solid var(--primary);">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <div>
-                            <div style="font-size:11px; font-weight:700; letter-spacing:0.15em; color:#60a5fa; text-transform:uppercase; margin-bottom:4px;">Lista Convocati</div>
+                            <div style="font-size:11px; font-weight:700; letter-spacing:0.15em; color:var(--primary-mid); text-transform:uppercase; margin-bottom:4px;">Lista Convocati</div>
                             <div style="font-size:26px; font-weight:900; text-transform:uppercase; letter-spacing:-0.5px; line-height:1.1;">${nomeSocieta}</div>
                             <div style="margin-top:8px; display:inline-flex; align-items:center; gap:8px;">
                                 ${nomeCategoria ? `<span style="background:var(--primary); color:white; padding:3px 12px; border-radius:4px; font-size:12px; font-weight:700; text-transform:uppercase;">${nomeCategoria}</span>` : ''}
@@ -4897,7 +4897,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
                             </div>
                         </div>
                         <div style="background:rgba(37,99,235,0.2); border:1px solid rgba(37,99,235,0.4); border-radius:10px; padding:10px 16px; text-align:center; min-width:60px;">
-                            <div style="font-size:30px; font-weight:900; color:#60a5fa; line-height:1;">${totalConvocati}</div>
+                            <div style="font-size:30px; font-weight:900; color:var(--primary-mid); line-height:1;">${totalConvocati}</div>
                             <div style="font-size:9px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Convocati</div>
                         </div>
                     </div>
@@ -4922,14 +4922,14 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 <!-- STAFF -->
                 <div style="background:#0f172a; padding:10px 28px; display:flex; gap:20px; border-bottom:1px solid rgba(255,255,255,0.06);">
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:28px; height:28px; background:#1e3a5f; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;">👨‍💼</div>
+                        <div style="width:28px; height:28px; background:var(--card-raised); border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;">👨‍💼</div>
                         <div>
                             <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Allenatore</div>
                             <div style="font-size:12px; font-weight:700; color:var(--text-main);">${nomeAllenatore}</div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:28px; height:28px; background:#1e3a5f; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;">📋</div>
+                        <div style="width:28px; height:28px; background:var(--card-raised); border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;">📋</div>
                         <div>
                             <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Dirigente</div>
                             <div style="font-size:12px; font-weight:700; color:var(--text-main);">${nomeDirigente}</div>
@@ -5071,8 +5071,8 @@ window.openStatistiche = async function(sessionId) {
         <!-- KPI GRID -->
         <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin-bottom:1.25rem;">
             ${kpiCard('🏆 Punti', totalPts, wins+'V · '+draws+'P · '+losses+'S', '#f59e0b')}
-            ${kpiCard('Partite', totalMatches, 'ufficiali giocate', '#2563eb')}
-            ${kpiCard('🏠 Casa', homeMatches, 'partite in casa', '#2563eb')}
+            ${kpiCard('Partite', totalMatches, 'ufficiali giocate', 'var(--primary)')}
+            ${kpiCard('🏠 Casa', homeMatches, 'partite in casa', 'var(--primary)')}
             ${kpiCard('🚌 Trasferta', awayMatches, 'partite fuori', '#8b5cf6')}
             ${kpiCard('Vittorie', wins, `${totalMatches > 0 ? Math.round(wins/totalMatches*100) : 0}% win rate`, '#10b981')}
             ${kpiCard('Pareggi', draws, 'risultati pari', '#f59e0b')}
@@ -5851,7 +5851,7 @@ window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
 
         const kpis = [
             { label:'🏆 Punti Totali',     value: totalPts,       sub: `${totalWins}V · ${totalDraws}P`,   color:'#f59e0b', section:'partite' },
-            { label:'Atleti Totali',      value: totalAtleti,   sub: `in ${totalCategorie} categor${totalCategorie === 1 ? 'ia' : 'ie'}`, color:'#2563eb', section:'atleti' },
+            { label:'Atleti Totali',      value: totalAtleti,   sub: `in ${totalCategorie} categor${totalCategorie === 1 ? 'ia' : 'ie'}`, color:'var(--primary)', section:'atleti' },
             { label:'Sessioni Registrate', value: totalSessioni,  sub: 'tutte le categorie',              color:'#10b981', section:'sessioni' },
             { label:'% Presenze Globali',  value: percPres+'%',   sub: `${pres}/${tot} totali`,            color:'#f59e0b', section:'sessioni' },
             { label:'Società',             value: totalSocieta,   sub: '1 sport',                          color:'#06b6d4', section:'societa' },
@@ -5859,7 +5859,7 @@ window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
             { label:'Staff Totale',        value: totalStaff,     sub: 'utenti registrati',                color:'#64748b', section:'staff' },
             { label:'Allenatori',          value: staffByRole.allenatori, sub:'registrati',               color:'#f59e0b', section:'staff' },
             { label:'Dirigenti',           value: staffByRole.dirigenti,  sub:'registrati',               color:'#ef4444', section:'staff' },
-            ...(!hasTeamScope ? [{ label:'Presidenti', value: staffByRole.presidenti, sub:'registrati', color:'#2563eb', section:'staff' }] : []),
+            ...(!hasTeamScope ? [{ label:'Presidenti', value: staffByRole.presidenti, sub:'registrati', color:'var(--primary)', section:'staff' }] : []),
         ];
 
         grid.innerHTML = kpis.map(k => `
@@ -6403,7 +6403,7 @@ window.renderDashAthletes = function() {
             <td style="padding:9px 12px; text-align:center; color:#8b5cf6; font-weight:700;">${a.sess_inf || 0}</td>
             <td style="padding:9px 12px; text-align:center; font-weight:700; color:${cSess};">${tSess}</td>
             <!-- Partite -->
-            <td style="padding:9px 12px; text-align:center; color:#10b981; font-weight:700; border-left:2px solid #eff6ff;">${a.gara_pres || 0}</td>
+            <td style="padding:9px 12px; text-align:center; color:#10b981; font-weight:700; border-left:1px solid var(--border);">${a.gara_pres || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:var(--primary); font-weight:700;">${a.conv || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:#10b981; font-weight:700;">${a.gol || 0}</td>
             <td style="padding:9px 12px; text-align:center; color:#f59e0b; font-weight:700;">${a.amm || 0}</td>
@@ -6692,7 +6692,7 @@ window.renderGenitori = function() {
     tbody.innerHTML = list.map(g => {
         const athletes = window._genitoreAthletes[g.id] || [];
         const athBadges = athletes.length > 0
-            ? athletes.map(a => `<span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:99px; font-size:0.72rem; font-weight:700; white-space:nowrap;">${a.surname} ${a.name}</span>`).join(' ')
+            ? athletes.map(a => `<span style="background:rgba(255,79,59,0.15); color:var(--primary-mid); padding:2px 8px; border-radius:99px; font-size:0.72rem; font-weight:700; white-space:nowrap;">${a.surname} ${a.name}</span>`).join(' ')
             : '<span style="color:var(--text-sub); font-size:0.78rem;">— nessun atleta —</span>';
 
         return `<tr>
@@ -7135,7 +7135,7 @@ window.initGenitoreView = async function() {
 
             return `
             <!-- 1. CARD SQUADRA -->
-            <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);border-radius:16px;padding:22px 26px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div style="background:linear-gradient(135deg,#0e1520 0%,#1a0d10 100%);border-radius:16px;border:1px solid var(--border-accent);padding:22px 26px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div>
                     <div style="font-size:0.62rem;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">🏟️ Squadra</div>
                     <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:white;letter-spacing:-0.3px;">${teamName}</div>
@@ -7170,14 +7170,14 @@ window.initGenitoreView = async function() {
                 <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">📊 Statistiche del tuo atleta — ${seasonName}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                     ${pill(stAct.goals||0,'⚽ Gol','#10b981','#f0fdf4','#bbf7d0')}
-                    ${pill(stAct.min||0,'⏱ Min','#2563eb','#eff6ff','#bfdbfe')}
+                    ${pill(stAct.min||0,'⏱ Min','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(stAct.yc||0,'🟨 Amm','#ffd166')}
                     ${pill(stAct.rc||0,'🟥 Esp','#ef4444','#fef2f2','#fecaca')}
                     <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
                     ${pill(totPts,'🏆 Punti','#ffd166')}
                     <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
                     ${pill(prAct.pres||0,'Presenze','#10b981','#f0fdf4','#bbf7d0')}
-                    ${pill(prAct.conv||0,'Convoc.','#2563eb','#eff6ff','#bfdbfe')}
+                    ${pill(prAct.conv||0,'Convoc.','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(prAct.tot||0,'Partite','#64748b')}
                     ${convPerc !== null ? pill(convPerc+'%','Conv%',percColor) : ''}
                 </div>
@@ -7281,7 +7281,7 @@ window.initGenitoreView = async function() {
                 const btn  = document.getElementById('child-tab-btn-'+i);
                 if (page) page.style.display = i===idx ? '' : 'none';
                 if (btn) {
-                    btn.style.background = i===idx ? '#2563eb' : 'transparent';
+                    btn.style.background = i===idx ? 'var(--primary)' : 'transparent';
                     btn.style.color      = i===idx ? 'white'   : '#64748b';
                 }
             });
