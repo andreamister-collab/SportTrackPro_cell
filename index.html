@@ -21,49 +21,49 @@
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 
         :root {
-            /* ── BRAND — Neon Coral */
-            --primary:        #ff4f3b;
-            --primary-dark:   #e03528;
-            --primary-mid:    #ff6b55;
-            --primary-glow:   rgba(255,79,59,0.25);
-            --primary-subtle: rgba(255,79,59,0.08);
-            --accent:         #ffb347;
-            --accent-glow:    rgba(255,179,71,0.18);
-            --success:        #00e5a0;
-            --success-dim:    rgba(0,229,160,0.12);
-            --warning:        #ffb347;
-            --danger:         #ff3860;
+            /* ── BRAND — Coral Red (unchanged) */
+            --primary:        #e8402e;
+            --primary-dark:   #c73020;
+            --primary-mid:    #f05540;
+            --primary-glow:   rgba(232,64,46,0.18);
+            --primary-subtle: rgba(232,64,46,0.07);
+            --accent:         #f59e0b;
+            --accent-glow:    rgba(245,158,11,0.15);
+            --success:        #059669;
+            --success-dim:    rgba(5,150,105,0.1);
+            --warning:        #d97706;
+            --danger:         #dc2626;
 
-            /* ── SURFACES — Ultra-deep obsidian */
-            --bg:             #060810;
-            --bg-alt:         #080b14;
-            --card:           #0e1220;
-            --card-raised:    #121828;
-            --card-hover:     #161e2e;
-            --border:         rgba(255,255,255,0.055);
-            --border-strong:  rgba(255,255,255,0.1);
-            --border-accent:  rgba(255,79,59,0.2);
+            /* ── SURFACES — Clean Light */
+            --bg:             #f0f2f7;
+            --bg-alt:         #e8eaf2;
+            --card:           #ffffff;
+            --card-raised:    #ffffff;
+            --card-hover:     #f8f9fc;
+            --border:         rgba(0,0,0,0.08);
+            --border-strong:  rgba(0,0,0,0.14);
+            --border-accent:  rgba(232,64,46,0.2);
 
             /* ── SIDEBAR */
-            --sidebar-bg:         #07090f;
-            --sidebar-border:     rgba(255,255,255,0.04);
-            --sidebar-active-bg:  rgba(255,79,59,0.12);
-            --sidebar-active-bar: #ff4f3b;
-            --sidebar-hover-bg:   rgba(255,255,255,0.04);
-            --sidebar-text:       #4e5d7a;
-            --sidebar-text-active:#dde6f8;
+            --sidebar-bg:         #ffffff;
+            --sidebar-border:     rgba(0,0,0,0.07);
+            --sidebar-active-bg:  rgba(232,64,46,0.09);
+            --sidebar-active-bar: #e8402e;
+            --sidebar-hover-bg:   rgba(0,0,0,0.04);
+            --sidebar-text:       #8a96b0;
+            --sidebar-text-active:#1a2240;
 
             /* ── TEXT */
-            --text-main:   #dde6f8;
-            --text-sub:    #7080a0;
-            --text-muted:  #3a4560;
+            --text-main:   #1a2240;
+            --text-sub:    #5a6480;
+            --text-muted:  #9aa0b8;
 
             /* ── ELEVATION */
-            --shadow-sm:  0 1px 4px rgba(0,0,0,0.5);
-            --shadow-md:  0 4px 20px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35);
-            --shadow-lg:  0 12px 48px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.45);
-            --shadow-xl:  0 24px 72px rgba(0,0,0,0.75), 0 8px 24px rgba(0,0,0,0.5);
-            --glow-primary: 0 0 40px rgba(255,79,59,0.18), 0 0 80px rgba(255,79,59,0.08);
+            --shadow-sm:  0 1px 4px rgba(0,0,0,0.07);
+            --shadow-md:  0 4px 20px rgba(0,0,0,0.09), 0 2px 8px rgba(0,0,0,0.05);
+            --shadow-lg:  0 12px 48px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.06);
+            --shadow-xl:  0 24px 72px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.07);
+            --glow-primary: 0 0 40px rgba(232,64,46,0.1), 0 0 80px rgba(232,64,46,0.05);
 
             /* ── RADII */
             --r-sm:  6px;
@@ -88,8 +88,8 @@
             font-family: 'Outfit', system-ui, sans-serif;
             background: var(--bg);
             background-image:
-                radial-gradient(ellipse 120% 80% at 50% -10%, rgba(255,79,59,0.04) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 40% at 100% 80%, rgba(255,179,71,0.025) 0%, transparent 50%);
+                radial-gradient(ellipse 120% 80% at 50% -10%, rgba(232,64,46,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 100% 80%, rgba(245,158,11,0.025) 0%, transparent 50%);
             min-height: 100vh;
             color: var(--text-main);
             -webkit-font-smoothing: antialiased;
@@ -98,8 +98,8 @@
         /* ── SCROLLBAR */
         ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,79,59,0.25); border-radius: 99px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,79,59,0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(232,64,46,0.25); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(232,64,46,0.5); }
 
         /* ══════════════════════════════════════
            MATCH POPUP
@@ -109,7 +109,7 @@
             position: fixed;
             inset: 0;
             z-index: 1100;
-            background: rgba(4,6,12,0.85);
+            background: rgba(200,205,220,0.75);
             backdrop-filter: blur(16px) saturate(0.6);
             align-items: center;
             justify-content: center;
@@ -134,7 +134,7 @@
         }
         #match-popup-close-btn {
             position: absolute; top: 16px; right: 16px; z-index: 10;
-            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            background: rgba(0,0,0,0.05); border: 1px solid var(--border);
             width: 32px; height: 32px; border-radius: 50%;
             font-size: 12px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
@@ -154,7 +154,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #05070e;
+            background: #eef0f7;
             padding: 2rem;
             position: relative;
             overflow: hidden;
@@ -166,9 +166,9 @@
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 70% 50% at 15% 50%, rgba(255,79,59,0.13) 0%, transparent 55%),
-                radial-gradient(ellipse 50% 60% at 85% 30%, rgba(255,179,71,0.06) 0%, transparent 50%),
-                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(255,79,59,0.05) 0%, transparent 50%);
+                radial-gradient(ellipse 70% 50% at 15% 50%, rgba(232,64,46,0.1) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 60% at 85% 30%, rgba(245,158,11,0.07) 0%, transparent 50%),
+                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(232,64,46,0.06) 0%, transparent 50%);
             animation: meshPulse 10s ease-in-out infinite alternate;
         }
         @keyframes meshPulse {
@@ -182,8 +182,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+                linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
             background-size: 48px 48px;
             mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
         }
@@ -191,14 +191,14 @@
         .login-card {
             position: relative;
             z-index: 1;
-            background: rgba(14,18,32,0.85);
-            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(0,0,0,0.08);
             backdrop-filter: blur(32px) saturate(1.2);
             border-radius: var(--r-2xl);
             padding: 3rem 2.5rem;
             width: 100%;
             max-width: 400px;
-            box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255,79,59,0.05), var(--glow-primary);
+            box-shadow: var(--shadow-xl), 0 0 0 1px rgba(232,64,46,0.05), var(--glow-primary);
             animation: loginCardIn 0.55s cubic-bezier(.34,1.3,.64,1) both;
         }
         @keyframes loginCardIn {
@@ -226,13 +226,13 @@
         .login-logo h1 {
             font-family: 'Syne', sans-serif;
             font-size: 1.45rem;
-            color: #fff;
+            color: #1a2240;
             font-weight: 800;
             letter-spacing: -0.5px;
         }
 
         .login-subtitle {
-            color: rgba(255,255,255,0.3);
+            color: rgba(26,34,64,0.4);
             font-size: 0.8rem;
             margin-bottom: 2.5rem;
             padding-left: 62px;
@@ -247,17 +247,17 @@
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: rgba(255,255,255,0.35);
+            color: rgba(26,34,64,0.5);
             margin-bottom: 0.5rem;
         }
 
         .login-card input {
             width: 100%;
             padding: 0.78rem 1rem;
-            background: rgba(255,255,255,0.04);
+            background: rgba(0,0,0,0.04);
             border: 1px solid var(--border);
             border-radius: var(--r-md);
-            color: #fff;
+            color: #1a2240;
             font-size: 0.9rem;
             font-family: inherit;
             margin-bottom: 1.2rem;
@@ -265,11 +265,11 @@
         }
         .login-card input:focus {
             outline: none;
-            border-color: rgba(255,79,59,0.5);
-            background: rgba(255,79,59,0.05);
-            box-shadow: 0 0 0 4px rgba(255,79,59,0.1);
+            border-color: rgba(232,64,46,0.5);
+            background: rgba(232,64,46,0.04);
+            box-shadow: 0 0 0 4px rgba(232,64,46,0.1);
         }
-        .login-card input::placeholder { color: rgba(255,255,255,0.18); }
+        .login-card input::placeholder { color: rgba(26,34,64,0.3); }
 
         .btn-login {
             width: 100%;
@@ -294,7 +294,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            background: linear-gradient(135deg, rgba(0,0,0,0.1), transparent);
             opacity: 0;
             transition: opacity 0.2s;
         }
@@ -302,7 +302,7 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 32px rgba(255,79,59,0.65);
         }
-        .btn-login:hover::after { opacity: 1; }
+        .btn-login { color: white !important; } .btn-login:hover::after { opacity: 1; }
         .btn-login:active { transform: translateY(0); }
 
         /* ══════════════════════════════════════
@@ -358,21 +358,21 @@
             font-family: 'Syne', sans-serif;
             font-size: 0.95rem;
             font-weight: 800;
-            color: #f0f6ff;
+            color: #1a2240;
             letter-spacing: 0.01em;
         }
 
         .sidebar-user-pill {
             margin-top: 0.85rem;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.06);
             border-radius: var(--r-sm);
             padding: 0.5rem 0.75rem;
             font-size: 0.72rem;
-            color: rgba(255,255,255,0.35);
+            color: rgba(26,34,64,0.45);
             display: flex; align-items: center; gap: 6px;
         }
-        .sidebar-user-pill span { color: rgba(255,255,255,0.7); font-weight: 600; }
+        .sidebar-user-pill span { color: rgba(26,34,64,0.8); font-weight: 600; }
 
         .sidebar-nav { padding: 0.9rem 0.7rem; flex: 1; }
 
@@ -381,7 +381,7 @@
             font-weight: 700;
             letter-spacing: 0.14em;
             text-transform: uppercase;
-            color: rgba(255,255,255,0.14);
+            color: rgba(26,34,64,0.3);
             padding: 0.7rem 0.6rem 0.3rem;
             margin-top: 0.5rem;
         }
@@ -406,7 +406,7 @@
         }
         #sidebar a:hover {
             background: var(--sidebar-hover-bg);
-            color: rgba(220,232,255,0.8);
+            color: rgba(26,34,64,0.8);
         }
         #sidebar a.active {
             background: var(--sidebar-active-bg);
@@ -475,7 +475,7 @@
             flex: 1;
             background: var(--bg);
             background-image:
-                radial-gradient(ellipse 60% 30% at 80% 10%, rgba(255,79,59,0.03) 0%, transparent 50%);
+                radial-gradient(ellipse 60% 30% at 80% 10%, rgba(232,64,46,0.03) 0%, transparent 50%);
         }
         #content .card, #content > div { width: 100%; box-sizing: border-box; }
         #app[style*="flex"] { width: 100%; }
@@ -510,7 +510,7 @@
             position: absolute;
             inset: 0;
             border-radius: inherit;
-            background: linear-gradient(135deg, rgba(255,255,255,0.018) 0%, transparent 60%);
+            background: linear-gradient(135deg, rgba(26,34,64,0.6) 0%, transparent 60%);
             pointer-events: none;
         }
         .card:hover {
@@ -574,7 +574,7 @@
         /* ── TABLES ── */
         table { width: 100%; border-collapse: collapse; }
         th {
-            background: rgba(255,255,255,0.025);
+            background: rgba(0,0,0,0.025);
             font-size: var(--text-xs); color: var(--text-sub);
             font-weight: 700; letter-spacing: 0.09em;
             text-transform: uppercase;
@@ -583,11 +583,11 @@
         }
         td {
             padding: 0.72rem 0.9rem;
-            border-bottom: 1px solid rgba(255,255,255,0.035);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
             font-size: var(--text-sm);
             color: var(--text-main);
         }
-        tr:hover td { background: rgba(255,79,59,0.06) !important; }
+        tr:hover td { background: rgba(232,64,46,0.04) !important; }
         tr:last-child td { border-bottom: none; }
 
         /* ── BADGES ── */
@@ -597,9 +597,9 @@
             border-radius: 999px;
             font-size: var(--text-xs); font-weight: 700;
         }
-        .badge-active   { background: rgba(0,229,160,0.12); color: var(--success); }
-        .badge-inactive { background: rgba(255,255,255,0.06); color: var(--text-sub); }
-        .badge-default  { background: rgba(255,255,255,0.06); color: var(--text-sub); }
+        .badge-active   { background: rgba(5,150,105,0.12); color: var(--success); }
+        .badge-inactive { background: rgba(0,0,0,0.06); color: var(--text-sub); }
+        .badge-default  { background: rgba(0,0,0,0.06); color: var(--text-sub); }
 
         /* ── MODAL ── */
         .modal-overlay {
@@ -637,7 +637,7 @@
             border-radius: var(--r-sm);
             margin-bottom: 0.8rem; margin-top: 0.2rem;
             font-size: var(--text-sm); font-family: inherit;
-            color: var(--text-main); background: rgba(255,255,255,0.04);
+            color: var(--text-main); background: rgba(0,0,0,0.04);
             transition: border-color 0.18s, box-shadow 0.18s;
         }
         input:not(.login-card input):focus, select:focus {
@@ -645,11 +645,11 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px var(--primary-glow);
         }
-        select option { background: #131a2a; color: var(--text-main); }
+        select option { background: #ffffff; color: var(--text-main); }
 
         /* STAR RATINGS */
         .star-rating { display: flex; gap: 3px; user-select: none; }
-        .star { font-size: 1.4rem; color: rgba(255,255,255,0.12); transition: all 0.2s ease; cursor: pointer; }
+        .star { font-size: 1.4rem; color: rgba(0,0,0,0.15); transition: all 0.2s ease; cursor: pointer; }
         .star.active { color: var(--accent) !important; }
         .star:hover { transform: scale(1.2); }
         .att-row-data:hover { background: rgba(255,79,59,0.04); }
@@ -685,7 +685,7 @@
         .kpi-card::before {
             content: '';
             position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.015), transparent);
+            background: linear-gradient(135deg, rgba(255,255,255,0.5), transparent);
             pointer-events: none;
         }
         .kpi-card::after {
@@ -731,8 +731,8 @@
 
         /* ── FILTER BARS */
         .filter-bar {
-            background: rgba(255,255,255,0.02) !important;
-            border: 1px solid rgba(255,255,255,0.06) !important;
+            background: rgba(0,0,0,0.02) !important;
+            border: 1px solid rgba(0,0,0,0.06) !important;
             border-radius: var(--r-md);
             padding: 14px;
             margin-bottom: 18px;
@@ -748,7 +748,7 @@
         }
         .filter-bar input,
         .filter-bar select {
-            background: rgba(255,255,255,0.04) !important;
+            background: rgba(0,0,0,0.04) !important;
             border: 1px solid var(--border) !important;
             color: var(--text-main) !important;
             border-radius: var(--r-sm) !important;
@@ -765,13 +765,13 @@
         #content input[type="number"],
         #content input[type="email"],
         #content select {
-            background: rgba(255,255,255,0.04) !important;
+            background: rgba(0,0,0,0.04) !important;
             color: var(--text-main) !important;
-            border-color: rgba(255,255,255,0.08) !important;
+            border-color: rgba(0,0,0,0.08) !important;
         }
 
         /* UNIVERSAL DARK OVERRIDES — catch any remaining inline light styles */
-        select, textarea { background: rgba(255,255,255,0.04) !important; color: var(--text-main) !important; border-color: var(--border) !important; }
+        select, textarea { background: rgba(0,0,0,0.04) !important; color: var(--text-main) !important; border-color: var(--border) !important; }
         select option { background: var(--card-raised) !important; }
 
         /* ── SYNE headings in dynamic content */
@@ -861,7 +861,7 @@
     style="display:none; position:fixed; bottom:28px; right:28px; z-index:500;
            width:48px; height:48px; border-radius:50%; border:none; cursor:pointer;
            background:linear-gradient(135deg, var(--primary, #ff4f3b), #c93020);
-           color:white; font-size:18px; line-height:1;
+           color:var(--text-main); font-size:18px; line-height:1;
            box-shadow:0 4px 20px rgba(255,79,59,0.55);
            transition:transform 0.18s, box-shadow 0.18s;
            align-items:center; justify-content:center;">
@@ -1436,7 +1436,7 @@ function templateSocieta() {
                 <button class="btn" id="btn-add-societa">+ Nuova Società</button>
             </div>
         </div>
-        <div class="filter-bar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <div class="filter-bar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
             <div>
                 <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">🔍 Cerca Società</label>
                 <input type="text" id="f-soc-search" placeholder="Nome..." oninput="window.applySocietaFilters()" style="width:100%">
@@ -1588,7 +1588,7 @@ function templateCategoria() {
             <h2>GESTIONE CATEGORIE</h2>
             <button class="btn" id="btn-add-categoria">+ Nuova Categoria</button>
         </div>
-        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
             <div>
                 <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Cerca Categoria</label>
                 <input type="text" id="f-cat-search" placeholder="Nome..." oninput="applyCategoriaFilters()" style="width:100%">
@@ -1764,7 +1764,7 @@ function templateSquadra() {
             <h2>GESTIONE SQUADRE</h2>
             <button class="btn" id="btn-add-squadra">+ Nuova Squadra</button>
         </div>
-        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
             <div>
                 <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Stagione</label>
                 <select id="f-sq-season" onchange="applySquadraFilters()" style="width:100%"><option value="">Tutte</option></select>
@@ -1917,7 +1917,7 @@ async function openSquadraModal(activeSeasonId, editData = null) {
     ]);
 
     modal.open(isEdit ? 'Modifica Squadra' : 'Nuova Squadra', `
-        <div style="margin-bottom:15px; padding:10px; background:rgba(0,229,160,0.06); border-radius:6px; color:#06d6a0; font-size:0.85em; border:1px solid rgba(6,214,160,0.2);">
+        <div style="margin-bottom:15px; padding:10px; background:rgba(5,150,105,0.08); border-radius:6px; color:#06d6a0; font-size:0.85em; border:1px solid rgba(6,214,160,0.2);">
             Stai salvando nella stagione: <strong>${seaRes.data?.name || 'Attiva'}</strong>
         </div>
         
@@ -2003,7 +2003,7 @@ function templateStaff() {
             Gestione centralizzata del personale. I <strong style="color:var(--primary-mid);">Manager</strong> hanno accesso globale, 
             mentre gli altri ruoli sono vincolati alla singola società.
         </p>
-        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
             <div>
                 <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Cerca Staff</label>
                 <input type="text" id="f-staff-search" placeholder="Nome o username..." oninput="applyStaffTableFilters()" style="width:100%">
@@ -2267,7 +2267,7 @@ window.handleDeleteStaff = async function(id) {
         .btn-icon-atleta { border: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; margin-left: 4px; }
         .btn-icon-atleta.edit { background-color: rgba(255,79,59,0.1); color: var(--primary); }
         .btn-icon-atleta.delete { background-color: rgba(239,68,68,0.1); color: #ef4444; }
-        .btn-icon-atleta.link { background-color: rgba(0,229,160,0.1); color: var(--success); }
+        .btn-icon-atleta.link { background-color: rgba(5,150,105,0.1); color: var(--success); }
         .btn-icon-atleta:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     `;
     document.head.appendChild(style);
@@ -2281,7 +2281,7 @@ window.handleDeleteStaff = async function(id) {
                 <button class="btn" onclick="window.openAtletaBaseModal()">+ Nuovo Atleta</button>
             </div>
             
-            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
                 <div>
                     <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Cerca Nome/Cognome</label>
                     <input type="text" id="f-bp-search" placeholder="Cognome o Nome..." oninput="window.applyAnagraficaFilters()" style="width:100%">
@@ -2381,28 +2381,28 @@ window.handleDeleteStaff = async function(id) {
                 </div>
                 <div>
                     <label style="font-weight:700; font-size:11px;">STAGIONE *</label>
-                    <select id="m-ass-season" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                    <select id="m-ass-season" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                         ${seasonsRes.data.map(s => `<option value="${s.id}" ${s.is_active ? 'selected' : ''}>${s.name}</option>`).join('')}
                     </select>
                 </div>
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label style="font-weight:700; font-size:11px;">CATEGORIA *</label>
-                        <select id="m-ass-cat" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                        <select id="m-ass-cat" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                             <option value="">-- Seleziona --</option>
                             ${categoriesRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
                         </select>
                     </div>
                     <div style="flex:1;">
                         <label style="font-weight:700; font-size:11px;">SQUADRA</label>
-                        <select id="m-ass-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                        <select id="m-ass-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                             <option value="">-- Seleziona Categoria --</option>
                         </select>
                     </div>
                 </div>
                 <div>
                     <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA</label>
-                    <input type="number" id="m-ass-jersey" placeholder="Esempio: 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                    <input type="number" id="m-ass-jersey" placeholder="Esempio: 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                 </div>
             </div>
         `);
@@ -2482,11 +2482,11 @@ window.handleDeleteStaff = async function(id) {
         let atleta = id ? _atletiBase.find(a => a.id === id) : { name: '', surname: '', born_date: '', society_id: mySocId || '' };
         modal.open(id ? 'Modifica Atleta' : 'Nuovo Atleta', `
             <div style="display:grid; gap:15px;">
-                <input type="text" id="m-bp-surname" value="${atleta.surname || ''}" placeholder="COGNOME" style="padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-transform:uppercase;">
-                <input type="text" id="m-bp-name" value="${atleta.name || ''}" placeholder="NOME" style="padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
-                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                <input type="text" id="m-bp-surname" value="${atleta.surname || ''}" placeholder="COGNOME" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); text-transform:uppercase;">
+                <input type="text" id="m-bp-name" value="${atleta.name || ''}" placeholder="NOME" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
+                <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                 ${isGlobal
-                    ? `<select id="m-bp-soc" style="padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                    ? `<select id="m-bp-soc" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                         <option value="">-- Seleziona Società --</option>
                         ${Object.entries(_socLook).map(([sid, name]) => `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`).join('')}
                        </select>`
@@ -2597,7 +2597,7 @@ window.handleDeleteStaff = async function(id) {
                 </div>
             </div>
 
-            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
                 <div>
                     <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Cerca Staff</label>
                     <input type="text" id="f-staff-name" placeholder="Nome..." oninput="applyStaffFilters()" style="width:100%">
@@ -2735,7 +2735,7 @@ window.handleDeleteStaff = async function(id) {
                 <td><strong>${a.users?.name || 'N/D'}</strong></td>
                 <td><span style="color: var(--primary-mid); font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
-                <td><span style="background:rgba(0,229,160,0.06); color:#06d6a0; padding:3px 8px; border-radius:6px; font-size:0.82em; font-weight:600;">${a.categories?.name || _lookupCats[a.category_id] || '-'}</span></td>
+                <td><span style="background:rgba(5,150,105,0.08); color:#06d6a0; padding:3px 8px; border-radius:6px; font-size:0.82em; font-weight:600;">${a.categories?.name || _lookupCats[a.category_id] || '-'}</span></td>
                 <td>${a.teams?.name || 'N/D'}</td>
                 <td><span class="badge badge-active" style="background:#e0f2fe; color:#38bdf8; padding:4px 8px; border-radius:6px; font-size:0.85em;">${a.role}</span></td>
                 <td style="text-align:right">
@@ -2829,7 +2829,7 @@ window.handleDeleteStaff = async function(id) {
                 </div>
             </div>
 
-            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
+            <div class="filter-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid var(--border);">
                 <div>
                     <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Cerca Atleta</label>
                     <input type="text" id="f-atleta-name" placeholder="Cognome..." oninput="window.applyAtletiFilters()" style="width:100%">
@@ -2978,21 +2978,21 @@ window.handleDeleteStaff = async function(id) {
                 <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
                 <div>
                     <label style="font-weight:bold; font-size:11px; color:var(--text-muted);">2. ATLETA DISPONIBILE *</label>
-                    <select id="m-link-atleta" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);"><option value="">-- Seleziona Società --</option></select>
+                    <select id="m-link-atleta" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);"><option value="">-- Seleziona Società --</option></select>
                 </div>
                 <div style="display:flex; gap:10px;">
                     <div style="flex:1;">
                         <label style="font-weight:bold; font-size:11px; color:var(--text-muted);">CATEGORIA *</label>
-                        <select id="m-link-cat" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);"><option value="">--</option></select>
+                        <select id="m-link-cat" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);"><option value="">--</option></select>
                     </div>
                     <div style="flex:1;">
                         <label style="font-weight:bold; font-size:11px; color:var(--text-muted);">SQUADRA</label>
-                        <select id="m-link-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);"><option value="">Intera Categoria</option></select>
+                        <select id="m-link-team" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);"><option value="">Intera Categoria</option></select>
                     </div>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label style="font-weight:bold; font-size:11px; color:var(--text-muted);">N° MAGLIA</label><input type="number" id="m-link-jersey" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);"></div>
-                    <div style="flex:1;"><label style="font-weight:bold; font-size:11px; color:var(--text-muted);">RUOLO</label><input type="text" id="m-link-role" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);"></div>
+                    <div style="flex:1;"><label style="font-weight:bold; font-size:11px; color:var(--text-muted);">N° MAGLIA</label><input type="number" id="m-link-jersey" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);"></div>
+                    <div style="flex:1;"><label style="font-weight:bold; font-size:11px; color:var(--text-muted);">RUOLO</label><input type="text" id="m-link-role" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);"></div>
                 </div>
             </div>
         `);
@@ -3158,7 +3158,7 @@ window.handleDeleteStaff = async function(id) {
                 <div style="grid-column: span 2; background:var(--primary-subtle); padding:10px; border-radius:6px; border:1px solid rgba(59,130,246,0.15); color:#38bdf8; font-size:0.9em;">
                     <strong>📍 Stagione:</strong> ${_lookupSeas[activeSea] || 'Selezionata'}
                 </div>
-                <div style="grid-column: span 2; background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid var(--border); margin-top:5px;">
+                <div style="grid-column: span 2; background:rgba(0,0,0,0.03); padding:12px; border-radius:8px; border:1px solid var(--border); margin-top:5px;">
                     <label>Società *</label>
                     <select id="m-atleta-soc" required onchange="window.updateModalCategories(this.value)"><option value="">-- Seleziona --</option></select>
                     <div style="display:flex; gap:10px; margin-top:10px;">
@@ -3195,7 +3195,7 @@ window.handleDeleteStaff = async function(id) {
             mSoc.innerHTML = socsData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             mSoc.value = mySocId2;
             mSoc.disabled = true;
-            mSoc.style.cssText = 'background:var(--card-raised); color:var(--text-muted); cursor:not-allowed; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); width:100%;';
+            mSoc.style.cssText = 'background:var(--card-raised); color:var(--text-muted); cursor:not-allowed; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); width:100%;';
         }
 
         // Calcola team ID assegnati per utenti scoped (dirigente/allenatore)
@@ -3292,7 +3292,7 @@ function templateSessioni() {
             <h2 style="margin:0;">GESTIONE SESSIONI</h2>
             <button class="btn" onclick="openSessionModal()" style="background:var(--primary); color:white;">+ Nuova Sessione</button>
         </div>
-        <div id="sess-filters-container" style="display:none; background:rgba(255,255,255,0.03); padding:14px 16px; border-radius:10px; border:1px solid var(--border); margin-bottom:15px;">
+        <div id="sess-filters-container" style="display:none; background:rgba(0,0,0,0.03); padding:14px 16px; border-radius:10px; border:1px solid var(--border); margin-bottom:15px;">
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; align-items:end;">
                 <div id="wrapper-soc-filter" style="display:none;">
                     <label style="display:block; font-size:0.68rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">Società</label>
@@ -3649,7 +3649,7 @@ async function initSessioni() {
         const hasNotes = s.notes && s.notes.trim().length > 0;
 
         return `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:10px;"><strong>${s.title}</strong><br><small>${new Date(s.session_date).toLocaleDateString()}</small></td>
             <td style="padding:10px;"><small>${s.session_types?.name}</small><br><strong>${s.teams?.name}</strong></td>
             <td style="padding:10px; text-align:center;">
@@ -3757,14 +3757,14 @@ async function openSessionModal(id = null) {
 
     m.open(isEdit ? 'Modifica Sessione' : 'Nuova Sessione', `
         <div style="display:grid; gap:12px;">
-            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo (es. Allenamento)" style="padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+            <input type="text" id="sess-title" value="${editData?.title || ''}" placeholder="Titolo (es. Allenamento)" style="padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.1);">
             <div style="display:flex; gap:10px;">
-                <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
-                <select id="sess-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+                <input type="date" id="sess-date" value="${editData?.session_date || new Date().toISOString().split('T')[0]}" style="flex:1; padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.1);">
+                <select id="sess-type" style="flex:1; padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.1);">
                     ${typesRes.data.map(t => `<option value="${t.id}" ${editData?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
                 </select>
             </div>
-            <select id="sess-team" style="padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+            <select id="sess-team" style="padding:10px; border-radius:6px; border:1px solid rgba(0,0,0,0.1);">
                 <option value="">Scegli Squadra...</option>
                 ${window._teamsList.map(t => `<option value="${t.id}" ${editData?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
@@ -3807,7 +3807,7 @@ async function openAttendanceModal(sessionId) {
     popupBox.style.maxWidth = '900px';
 
     const stars = (k, p) => [1,2,3,4,5].map(s =>
-        `<span onclick="setRating(this,${s})" style="cursor:pointer;color:${s<=(p[k]||0)?'#f59e0b':'rgba(255,255,255,0.1)'};font-size:16px;line-height:1;">★</span>`
+        `<span onclick="setRating(this,${s})" style="cursor:pointer;color:${s<=(p[k]||0)?'#f59e0b':'rgba(0,0,0,0.1)'};font-size:16px;line-height:1;">★</span>`
     ).join('');
 
     content.innerHTML = `
@@ -3816,9 +3816,9 @@ async function openAttendanceModal(sessionId) {
         <!-- HEADER -->
         <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <div style="font-size:11px; font-weight:700; letter-spacing:0.12em; color:rgba(255,255,255,0.6); text-transform:uppercase; margin-bottom:4px;">${isGara ? '📋 Convocazioni' : '📋 Registro Presenze'}</div>
-                <div style="font-size:16px; font-weight:800; color:white;">${session.title}</div>
-                <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px;">${new Date(session.session_date).toLocaleDateString('it-IT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:0.12em; color:rgba(26,34,64,0.7); text-transform:uppercase; margin-bottom:4px;">${isGara ? '📋 Convocazioni' : '📋 Registro Presenze'}</div>
+                <div style="font-size:16px; font-weight:800; color:var(--text-main);">${session.title}</div>
+                <div style="font-size:12px; color:rgba(26,34,64,0.6); margin-top:2px;">${new Date(session.session_date).toLocaleDateString('it-IT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
                 <button onclick="saveAttendances('${sessionId}', ${isGara})"
@@ -3826,14 +3826,14 @@ async function openAttendanceModal(sessionId) {
                     💾 SALVA
                 </button>
                 <button onclick="window.closeMatchPopup()"
-                    style="background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.25); padding:10px 16px; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit;">
+                    style="background:rgba(0,0,0,0.1); color:var(--text-main); border:1px solid rgba(0,0,0,0.15); padding:10px 16px; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit;">
                     ✕
                 </button>
             </div>
         </div>
 
         <!-- INTESTAZIONE COLONNE -->
-        <div style="display:grid; grid-template-columns:44px 1fr 150px${!isGara ? ' repeat(5,90px)' : ''}; gap:0; padding:8px 20px; background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border);">
+        <div style="display:grid; grid-template-columns:44px 1fr 150px${!isGara ? ' repeat(5,90px)' : ''}; gap:0; padding:8px 20px; background:rgba(0,0,0,0.03); border-bottom:1px solid var(--border);">
             <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-sub);">#</div>
             <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-sub);">Atleta</div>
             <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-sub);">Presenza</div>
@@ -3853,7 +3853,7 @@ async function openAttendanceModal(sessionId) {
                 const p = reg.performance_data || {VEL:0, TEC:0, FIS:0, RES:0, COM:0};
                 const rowBg = idx % 2 === 0 ? '#111827' : '#162032';
                 return `
-                <div style="display:grid; grid-template-columns:44px 1fr 150px${!isGara ? ' repeat(5,90px)' : ''}; gap:0; align-items:center; padding:10px 20px; background:${rowBg}; border-bottom:1px solid rgba(255,255,255,0.05);">
+                <div style="display:grid; grid-template-columns:44px 1fr 150px${!isGara ? ' repeat(5,90px)' : ''}; gap:0; align-items:center; padding:10px 20px; background:${rowBg}; border-bottom:1px solid var(--border);">
                     <div style="font-size:13px; font-weight:800; color:var(--primary);">${r.jersey_number || '—'}</div>
                     <div style="font-size:14px; font-weight:600; color:var(--text-main);">${ath.surname} ${ath.name}</div>
                     <div>
@@ -3876,7 +3876,7 @@ async function openAttendanceModal(sessionId) {
         </div>
 
         <!-- FOOTER -->
-        <div style="padding:14px 20px; background:rgba(255,255,255,0.03); border-top:1px solid rgba(255,255,255,0.07); display:flex; justify-content:space-between; align-items:center;">
+        <div style="padding:14px 20px; background:rgba(0,0,0,0.03); border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; color:var(--text-sub);">${(relations||[]).length} atleti</span>
             <button onclick="saveAttendances('${sessionId}', ${isGara})"
                 style="background:#10b981; color:white; border:none; padding:10px 32px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit;">
@@ -3934,7 +3934,7 @@ async function deleteSession(id, title) {
 async function openSessionNotesModal(id, title) {
     const { data } = await client.from('sessions').select('notes').eq('id', id).single();
     getModal().open(`Note: ${title}`, `
-        <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; box-sizing:border-box; background:rgba(255,255,255,0.04); color:var(--text-main);">${data?.notes || ''}</textarea>
+        <textarea id="temp-notes" style="width:100%; height:180px; padding:12px; border-radius:8px; border:1px solid var(--border); font-family:inherit; box-sizing:border-box; background:rgba(0,0,0,0.04); color:var(--text-main);">${data?.notes || ''}</textarea>
         <button onclick="saveSessionNotes('${id}')" style="width:100%; margin-top:12px; background:var(--primary); color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">SALVA NOTE</button>
     `);
 }
@@ -3949,7 +3949,7 @@ async function saveSessionNotes(id) {
 window.setRating = function(el, value) {
     const container = el.parentElement;
     const stars = container.querySelectorAll('span');
-    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#ffd166' : 'rgba(255,255,255,0.12)');
+    stars.forEach((s, idx) => s.style.color = (idx < value) ? '#ffd166' : 'rgba(0,0,0,0.15)');
     container.setAttribute('data-value', value);
 };
 
@@ -3985,7 +3985,7 @@ function templatePartite() {
             <h2 style="margin:0; color:var(--text-main);">🏆 MATCH CENTER</h2>
         </div>
         
-        <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+        <div style="background:rgba(0,0,0,0.03); padding:15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
             <div id="soc-filter-container">
                 <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">SOCIETÀ</label>
                 <select id="f-match-soc" style="width:100%; padding:8px; margin-top:4px;" onchange="reloadMatchSubFilters()">
@@ -4114,7 +4114,7 @@ async function initPartite() {
     const { data: matches } = await query.order('session_date', { ascending: false });
 
     tbody.innerHTML = (matches || []).map(m => `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:12px;">${new Date(m.session_date).toLocaleDateString()}</td>
             <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
             <td style="padding:12px;"><span style="color:var(--text-muted);">${m.teams?.name || '---'}</span></td>
@@ -4281,14 +4281,14 @@ window.addEventRow = async function(sessionId, existingData = null) {
     const div = document.createElement('div');
     div.id = rowId;
     div.className = 'event-row';
-    div.style = "display:flex; gap:5px; align-items:center; background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:8px; border-radius:8px; margin-bottom:5px;";
+    div.style = "display:flex; gap:5px; align-items:center; background:rgba(0,0,0,0.03); border:1px solid var(--border); padding:8px; border-radius:8px; margin-bottom:5px;";
 
     div.innerHTML = `
-        <select class="ev-athlete" style="flex:2; padding:5px; border:1px solid rgba(255,255,255,0.1); border-radius:4px; font-size:13px; background:rgba(255,255,255,0.05); color:var(--text-main);">
+        <select class="ev-athlete" style="flex:2; padding:5px; border:1px solid rgba(0,0,0,0.1); border-radius:4px; font-size:13px; background:rgba(0,0,0,0.04); color:var(--text-main);">
             <option value="">Scegli Atleta...</option>
             ${athletes?.map(a => `<option value="${a.athlete_id}" ${existingData?.athlete_id === a.athlete_id ? 'selected' : ''}>${a.athletes.surname} ${a.athletes.name}</option>`).join('')}
         </select>
-        <select class="ev-type" style="flex:1; padding:5px; border:1px solid rgba(255,255,255,0.1); border-radius:4px; font-size:13px; font-weight:bold; background:rgba(255,255,255,0.05); color:var(--text-main);">
+        <select class="ev-type" style="flex:1; padding:5px; border:1px solid rgba(0,0,0,0.1); border-radius:4px; font-size:13px; font-weight:bold; background:rgba(0,0,0,0.04); color:var(--text-main);">
             <option value="⚽ Goal" ${existingData?.type === '⚽ Goal' ? 'selected' : ''}>⚽ GOL</option>
             <option value="🟨 Amm." ${existingData?.type === '🟨 Amm.' ? 'selected' : ''}>🟨 AMM</option>
             <option value="🟥 Esp." ${existingData?.type === '🟥 Esp.' ? 'selected' : ''}>🟥 ESP</option>
@@ -4318,7 +4318,7 @@ window.openConvocazioni = async function(sessionId) {
     attendances?.forEach(att => { attendanceMap[att.athlete_id] = att; });
 
     container.innerHTML = `
-    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); font-family:sans-serif; color:white;">
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); font-family:sans-serif; color:var(--text-main);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--card-raised); padding:15px; border-radius:10px; border:1px solid var(--border);">
             <div>
                 <h3 style="margin:0; font-size:16px;">📋 Convocazioni: ${session.title}</h3>
@@ -4335,7 +4335,7 @@ window.openConvocazioni = async function(sessionId) {
                     ✅ CONVOCA TUTTI
                 </button>
                 <button onclick="window.closeMatchPopup()" 
-                    style="background:#4b5563; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
+                    style="background:#4b5563; color:var(--text-main); border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px;">
                     ANNULLA
                 </button>
                 <button onclick="window.saveConvocazioni('${sessionId}')" 
@@ -4486,7 +4486,7 @@ window.openTabellino = async function(sessionId) {
     const statsMap = {};
     (existingStats || []).forEach(s => { statsMap[s.athlete_id] = s; });
 
-    const esitoBadge = d.match_status === 'vittoria' ? 'rgba(6,214,160,0.12)|#06d6a0|V' : d.match_status === 'sconfitta' ? 'rgba(239,68,68,0.12)|#f87171|S' : d.match_status === 'pareggio' ? 'rgba(255,209,102,0.12)|#ffd166|P' : 'rgba(255,255,255,0.06)|#6b7a95|-';
+    const esitoBadge = d.match_status === 'vittoria' ? 'rgba(6,214,160,0.12)|#06d6a0|V' : d.match_status === 'sconfitta' ? 'rgba(239,68,68,0.12)|#f87171|S' : d.match_status === 'pareggio' ? 'rgba(255,209,102,0.12)|#ffd166|P' : 'rgba(0,0,0,0.06)|#6b7a95|-';
     const [ebg, efg, elbl] = esitoBadge.split('|');
     const scoreDisplay = d.goals_for !== undefined ? `${d.goals_for} - ${d.goals_against}` : '- -';
 
@@ -4502,14 +4502,14 @@ window.openTabellino = async function(sessionId) {
         <!-- HEADER -->
         <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <div style="font-size:0.68rem; font-weight:700; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.08em;">⚽ Tabellino &amp; Report Match</div>
-                <div style="font-size:1.15rem; font-weight:700; color:white; margin-top:3px;">${d.opponent_name ? 'vs ' + d.opponent_name : 'Avversario da impostare'}</div>
+                <div style="font-size:0.68rem; font-weight:700; color:rgba(26,34,64,0.6); text-transform:uppercase; letter-spacing:0.08em;">⚽ Tabellino &amp; Report Match</div>
+                <div style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin-top:3px;">${d.opponent_name ? 'vs ' + d.opponent_name : 'Avversario da impostare'}</div>
             </div>
             <div style="background:${ebg}; color:${efg}; font-size:1.6rem; font-weight:900; padding:10px 20px; border-radius:10px; font-family:'DM Mono','Outfit',sans-serif; min-width:90px; text-align:center;">${scoreDisplay}</div>
         </div>
 
         <!-- BADGES ROW -->
-        <div style="display:flex; gap:8px; padding:10px 24px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.07); flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; padding:10px 24px; background:rgba(0,0,0,0.03); border-bottom:1px solid var(--border); flex-wrap:wrap;">
             <span style="background:${d.is_home !== false ? 'rgba(255,79,59,0.12)' : 'rgba(139,92,246,0.12)'}; color:${d.is_home !== false ? 'var(--primary-mid)' : '#a78bfa'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${d.is_home !== false ? '🏠 Casa' : '🚌 Trasferta'}</span>
             <span style="background:${!d.is_friendly ? 'rgba(6,214,160,0.12)' : 'rgba(255,209,102,0.1)'}; color:${!d.is_friendly ? '#06d6a0' : '#ffd166'}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${!d.is_friendly ? '🏆 Ufficiale' : '🤝 Amichevole'}</span>
             <span style="background:${ebg}; color:${efg}; padding:4px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;">${elbl === 'V' ? '✅ Vittoria' : elbl === 'S' ? '❌ Sconfitta' : elbl === 'P' ? '🤝 Pareggio' : '⏳ Da giocare'}</span>
@@ -4522,25 +4522,25 @@ window.openTabellino = async function(sessionId) {
             <div style="display:grid; grid-template-columns:1fr 1fr 2fr 1fr; gap:10px;">
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">📍 Location</label>
-                    <select id="tab-is-home" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
+                    <select id="tab-is-home" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
                         <option value="true" ${d.is_home !== false ? 'selected' : ''}>🏠 Casa</option>
                         <option value="false" ${d.is_home === false ? 'selected' : ''}>🚌 Trasferta</option>
                     </select>
                 </div>
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">🏆 Tipo Gara</label>
-                    <select id="tab-is-friendly" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
+                    <select id="tab-is-friendly" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
                         <option value="false" ${!d.is_friendly ? 'selected' : ''}>🏆 Ufficiale</option>
                         <option value="true" ${d.is_friendly ? 'selected' : ''}>🤝 Amichevole</option>
                     </select>
                 </div>
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⚔️ Squadra Avversaria</label>
-                    <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="es. FC Torino" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit; box-sizing:border-box;">
+                    <input type="text" id="tab-opponent" value="${d.opponent_name || ''}" placeholder="es. FC Torino" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit; box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">🏁 Esito</label>
-                    <select id="tab-status" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
+                    <select id="tab-status" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; color:var(--text-main); font-family:inherit;">
                         <option value="da disputare" ${d.match_status === 'da disputare' ? 'selected' : ''}>⏳ Da giocare</option>
                         <option value="vittoria" ${d.match_status === 'vittoria' ? 'selected' : ''}>✅ Vittoria</option>
                         <option value="sconfitta" ${d.match_status === 'sconfitta' ? 'selected' : ''}>❌ Sconfitta</option>
@@ -4553,15 +4553,15 @@ window.openTabellino = async function(sessionId) {
             <div style="display:grid; grid-template-columns:1fr 1fr 3fr; gap:10px;">
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⏰ Ora Ritrovo</label>
-                    <input type="time" id="tab-meet-time" value="${d.meet_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                    <input type="time" id="tab-meet-time" value="${d.meet_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">⚡ Ora Inizio</label>
-                    <input type="time" id="tab-match-start" value="${d.match_start_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                    <input type="time" id="tab-match-start" value="${d.match_start_time || ''}" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="display:block; font-size:0.65rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;">📍 Indirizzo Campo</label>
-                    <input type="text" id="tab-address" value="${d.address || ''}" placeholder="Via, Città" style="width:100%; padding:8px 10px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
+                    <input type="text" id="tab-address" value="${d.address || ''}" placeholder="Via, Città" style="width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.82rem; font-family:inherit; box-sizing:border-box;">
                 </div>
             </div>
 
@@ -4579,8 +4579,8 @@ window.openTabellino = async function(sessionId) {
             </div>
 
             <!-- ROW 4: Griglia convocati con statistiche individuali -->
-            <div style="background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--border); overflow:hidden;">
-                <div style="padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:space-between; background:var(--card);">
+            <div style="background:rgba(0,0,0,0.03); border-radius:12px; border:1px solid var(--border); overflow:hidden;">
+                <div style="padding:12px 16px; border-bottom:1px solid rgba(0,0,0,0.07); display:flex; align-items:center; justify-content:space-between; background:var(--card);">
                     <div style="font-size:0.82rem; font-weight:700; color:var(--text-main);">📋 Statistiche Giocatori Convocati</div>
                     <div style="font-size:0.7rem; color:var(--text-sub);">Compila gol, cartellini e minuti per ogni giocatore</div>
                 </div>
@@ -4613,7 +4613,7 @@ window.openTabellino = async function(sessionId) {
                             const mins = st.minutes_played || 0;
                             const isStarter = st.is_starter !== false;
                             return `
-                            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
+                            <tr style="border-bottom:1px solid rgba(0,0,0,0.05);" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
                                 <td style="padding:9px 12px; font-weight:700; color:var(--primary); font-size:0.85rem;">${jersey}</td>
                                 <td style="padding:9px 12px; font-weight:600; white-space:nowrap;">
                                     <span style="font-size:0.85rem; color:var(--text-main);">${fullName}</span>
@@ -4642,7 +4642,7 @@ window.openTabellino = async function(sessionId) {
                                 </td>
                                 <td style="padding:6px 10px; text-align:center;">
                                     <input type="number" class="stat-mins" data-id="${aid}" value="${mins}" min="0" max="999"
-                                        style="width:65px; text-align:center; padding:5px 6px; border:1.5px solid rgba(255,255,255,0.1); border-radius:7px; font-size:0.88rem; font-weight:700; color:var(--primary); font-family:inherit; background:rgba(255,255,255,0.03);">
+                                        style="width:65px; text-align:center; padding:5px 6px; border:1.5px solid rgba(0,0,0,0.1); border-radius:7px; font-size:0.88rem; font-weight:700; color:var(--primary); font-family:inherit; background:rgba(0,0,0,0.03);">
                                 </td>
                                 <td style="padding:6px 8px; text-align:center;">
                                     <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:0.72rem; font-weight:600; color:#6366f1;">
@@ -4659,8 +4659,8 @@ window.openTabellino = async function(sessionId) {
         </div>
 
         <!-- FOOTER -->
-        <div style="padding:14px 24px; background:rgba(255,255,255,0.03); border-top:1px solid rgba(255,255,255,0.07); display:flex; justify-content:space-between; align-items:center;">
-            <button onclick="window.closeMatchPopup()" style="padding:9px 18px; background:var(--card); color:var(--text-muted); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; font-family:inherit;">✕ Annulla</button>
+        <div style="padding:14px 24px; background:rgba(0,0,0,0.03); border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <button onclick="window.closeMatchPopup()" style="padding:9px 18px; background:var(--card); color:var(--text-muted); border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-weight:600; font-size:0.82rem; cursor:pointer; font-family:inherit;">✕ Annulla</button>
             <button onclick="window.saveFullTabellino('${sessionId}', '${d.id}')" style="padding:10px 28px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px var(--primary-glow);">💾 Salva Report</button>
         </div>
     </div>`;
@@ -4883,7 +4883,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
         tempContainer = document.createElement('div');
         tempContainer.style.cssText = 'position:fixed; top:-9999px; left:-9999px; z-index:-1; pointer-events:none;';
         tempContainer.innerHTML = `
-            <div id="export-final-card" style="width:580px; background:#0f172a; color:white; font-family:'Outfit',Arial,sans-serif; border-radius:0; overflow:hidden;">
+            <div id="export-final-card" style="width:580px; background:#0f172a; color:var(--text-main); font-family:'Outfit',Arial,sans-serif; border-radius:0; overflow:hidden;">
 
                 <!-- HEADER BAND -->
                 <div style="background:linear-gradient(135deg,#0a0d1a 0%,#0e1220 100%); padding:28px 28px 20px; position:relative; border-bottom:2px solid var(--primary);">
@@ -4904,7 +4904,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 </div>
 
                 <!-- INFO GARA -->
-                <div style="background:var(--card); padding:14px 28px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="background:var(--card); padding:14px 28px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; border-bottom:1px solid rgba(0,0,0,0.06);">
                     <div>
                         <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Avversario</div>
                         <div style="font-size:13px; font-weight:700; color:var(--text-main);">VS ${detail?.opponent_name || '---'}</div>
@@ -4920,7 +4920,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 </div>
 
                 <!-- STAFF -->
-                <div style="background:#0f172a; padding:10px 28px; display:flex; gap:20px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="background:#0f172a; padding:10px 28px; display:flex; gap:20px; border-bottom:1px solid rgba(0,0,0,0.06);">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div style="width:28px; height:28px; background:var(--card-raised); border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;">👨‍💼</div>
                         <div>
@@ -4950,11 +4950,11 @@ window.exportConvocazioniIMG = async function(sessionId) {
                                     <div style="height:2px; width:12px; background:${col.bg}; border-radius:2px;"></div>
                                     <span style="font-size:9px; font-weight:800; letter-spacing:0.18em; color:${col.bg}; text-transform:uppercase;">${plural}</span>
                                     <span style="background:${col.bg}22; color:${col.bg}; border:1px solid ${col.bg}44; border-radius:999px; font-size:9px; font-weight:700; padding:1px 7px;">${lista.length}</span>
-                                    <div style="flex:1; height:1px; background:rgba(255,255,255,0.06);"></div>
+                                    <div style="flex:1; height:1px; background:rgba(0,0,0,0.06);"></div>
                                 </div>
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
                                     ${lista.map((a, i) => `
-                                        <div style="display:flex; align-items:center; justify-content:space-between; background:${i%2===0?'rgba(255,255,255,0.03)':'transparent'}; padding:5px 10px; border-radius:5px;">
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:${i%2===0?'rgba(0,0,0,0.03)':'transparent'}; padding:5px 10px; border-radius:5px;">
                                             <span style="font-size:12px; font-weight:600; color:var(--text-main); letter-spacing:0.01em;">${a.fullname}</span>
                                             <span style="font-size:11px; font-weight:800; color:${col.bg}; min-width:22px; text-align:right;">${a.num || ''}</span>
                                         </div>
@@ -4966,7 +4966,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 </div>
 
                 <!-- FOOTER -->
-                <div style="background:var(--card); padding:8px 28px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06);">
+                <div style="background:var(--card); padding:8px 28px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.06);">
                     <span style="font-size:9px; color:#374151; text-transform:uppercase; letter-spacing:0.1em;">SportTrackPro</span>
                     <span style="font-size:9px; color:#374151;">${new Date().toLocaleDateString('it-IT')}</span>
                 </div>
@@ -5065,7 +5065,7 @@ window.openStatistiche = async function(sessionId) {
                 <h3 style="font-family:'Syne','Outfit',sans-serif; font-size:1rem; font-weight:800; margin:0; letter-spacing:-0.01em;">📊 Performance Analysis</h3>
                 <div style="font-size:0.7rem; color:var(--text-sub); margin-top:2px;">Solo partite ufficiali &middot; Amichevoli escluse</div>
             </div>
-            <button onclick="window.closeMatchPopup()" style="padding:6px 14px; background:var(--card); color:var(--text-muted); border:1.5px solid rgba(255,255,255,0.1); border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; font-family:inherit;">✕ Chiudi</button>
+            <button onclick="window.closeMatchPopup()" style="padding:6px 14px; background:var(--card); color:var(--text-muted); border:1.5px solid rgba(0,0,0,0.1); border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; font-family:inherit;">✕ Chiudi</button>
         </div>
 
         <!-- KPI GRID -->
@@ -5088,15 +5088,15 @@ window.openStatistiche = async function(sessionId) {
         <div style="background:var(--card-raised); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:1.25rem;">
             <div style="font-size:0.7rem; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px;">Andamento V/P/S</div>
             <div style="display:flex; border-radius:8px; overflow:hidden; height:28px;">
-                ${wins  > 0 ? `<div style="flex:${wins};  background:#10b981; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${wins}V</div>` : ''}
-                ${draws > 0 ? `<div style="flex:${draws}; background:#f59e0b; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${draws}P</div>` : ''}
-                ${losses> 0 ? `<div style="flex:${losses};background:#ef4444; display:flex; align-items:center; justify-content:center; color:white; font-size:0.72rem; font-weight:700;">${losses}S</div>` : ''}
+                ${wins  > 0 ? `<div style="flex:${wins};  background:#10b981; display:flex; align-items:center; justify-content:center; color:var(--text-main); font-size:0.72rem; font-weight:700;">${wins}V</div>` : ''}
+                ${draws > 0 ? `<div style="flex:${draws}; background:#f59e0b; display:flex; align-items:center; justify-content:center; color:var(--text-main); font-size:0.72rem; font-weight:700;">${draws}P</div>` : ''}
+                ${losses> 0 ? `<div style="flex:${losses};background:#ef4444; display:flex; align-items:center; justify-content:center; color:var(--text-main); font-size:0.72rem; font-weight:700;">${losses}S</div>` : ''}
             </div>
         </div>` : ''}
 
         <!-- ATLETI TABLE -->
         <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden;">
-            <div style="padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+            <div style="padding:12px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <div style="font-size:0.82rem; font-weight:700;">👤 Statistiche Atleti</div>
                     <div style="font-size:0.68rem; color:var(--text-sub);">Gare &middot; Convocazioni &middot; Marcatori</div>
@@ -5106,7 +5106,7 @@ window.openStatistiche = async function(sessionId) {
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
                     <thead>
-                        <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                        <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                             <th style="padding:9px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:left;">Atleta</th>
                             <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#10b981;" title="Presenze partite">P. Gara</th>
                             <th style="padding:9px 10px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:var(--primary);" title="Convocazioni">Conv.</th>
@@ -5122,7 +5122,7 @@ window.openStatistiche = async function(sessionId) {
                           athletes.map(a => {
                             const convPerc = a.totali > 0 ? Math.round(a.presenze/a.totali*100) : 0;
                             const percColor = convPerc >= 75 ? '#10b981' : convPerc >= 50 ? '#f59e0b' : '#ef4444';
-                            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
+                            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
                                 <td style="padding:9px 12px; font-weight:600;">${a.name}</td>
                                 <td style="padding:9px 10px; text-align:center; font-weight:700; color:${percColor};">${a.presenze}<span style="font-size:0.65rem; color:var(--text-sub); font-weight:400;">/${a.totali}</span></td>
                                 <td style="padding:9px 10px; text-align:center; color:var(--primary); font-weight:700;">${a.presenze}</td>
@@ -5165,19 +5165,19 @@ function templateImportAtleti() {
         <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
             <div class="card" style="background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border);">
                 <label style="display:block; font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">1. Stagione</label>
-                <select id="import-sel-season" style="width:100%; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-weight: 600; background: rgba(255,255,255,0.05); color: var(--text-main);"></select>
+                <select id="import-sel-season" style="width:100%; padding: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-weight: 600; background: rgba(0,0,0,0.05); color: var(--text-main);"></select>
             </div>
             <div class="card" style="background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border);">
                 <label style="display:block; font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">2. Società</label>
-                <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-weight: 600; background: rgba(255,255,255,0.05); color: var(--text-main);" disabled></select>
+                <select id="import-sel-society" style="width:100%; padding: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-weight: 600; background: rgba(0,0,0,0.05); color: var(--text-main);" disabled></select>
             </div>
             <div class="card" style="background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border);">
                 <label style="display:block; font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">3. Squadra</label>
-                <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-weight: 600; background: rgba(255,255,255,0.05); color: var(--text-main);" disabled></select>
+                <select id="import-sel-team" style="width:100%; padding: 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-weight: 600; background: rgba(0,0,0,0.05); color: var(--text-main);" disabled></select>
             </div>
         </div>
 
-        <div id="import-upload-zone" style="background: rgba(255,255,255,0.03); border: 3px dashed rgba(255,255,255,0.12); padding: 50px; border-radius: 15px; text-align: center;">
+        <div id="import-upload-zone" style="background: rgba(0,0,0,0.03); border: 3px dashed rgba(0,0,0,0.15); padding: 50px; border-radius: 15px; text-align: center;">
             <div id="import-msg-init">
                 <p style="color: var(--text-muted); font-weight: 600;">Seleziona i filtri sopra per caricare il file.</p>
             </div>
@@ -5379,7 +5379,7 @@ window.templateDashboard = function() {
                 <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid var(--primary); border-radius:8px; font-weight:600; color:var(--primary); background:var(--primary-subtle); font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
                     <option value="all">Tutte le stagioni</option>
                 </select>
-                <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-weight:500; color:var(--text-sub); background:var(--card); font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
+                <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-weight:500; color:var(--text-sub); background:var(--card); font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
                     <option value="all">Tutte le società</option>
                 </select>
             </div>
@@ -5434,7 +5434,7 @@ window.templateDashboard = function() {
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
                         <thead>
-                            <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#f59e0b;" title="Punti">Pts</th>
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center;" title="Partite ufficiali">P</th>
@@ -5461,7 +5461,7 @@ window.templateDashboard = function() {
                 <div class="header" style="margin-bottom:12px;">
                     <h3 style="font-family:'DM Mono','Outfit',sans-serif; font-size:0.95rem; font-weight:700; margin:0;">🏆 Partite</h3>
                 </div>
-                <div style="background:rgba(255,255,255,0.03); padding:12px 15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+                <div style="background:rgba(0,0,0,0.03); padding:12px 15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
                     <div id="dash-match-soc-wrap">
                         <label style="font-size:11px; color:var(--text-muted); font-weight:700; letter-spacing:0.04em;">SOCIETÀ</label>
                         <select id="dash-match-soc" onchange="window.onDashMatchSocChange()" style="width:100%; padding:7px 8px; margin-top:4px; border:1px solid var(--border); border-radius:6px; font-size:0.8rem; color:#c0ccdc; background:var(--card);">
@@ -5492,7 +5492,7 @@ window.templateDashboard = function() {
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
                         <thead>
-                            <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                                 <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Data</th>
                                 <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Partita</th>
                                 <th style="padding:8px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Squadra</th>
@@ -5528,7 +5528,7 @@ window.templateDashboard = function() {
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
                         <thead>
-                            <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left;">Sessione</th>
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#10b981;">P</th>
                                 <th style="padding:8px 10px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:center; color:#ef4444;">A</th>
@@ -5562,7 +5562,7 @@ window.templateDashboard = function() {
                         <input type="text" id="dash-ath-search" placeholder="Cerca atleta..." oninput="window.renderDashAthletes()"
                             style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:160px; margin:0; color:var(--text-sub);">
                         <button onclick="window.toggleDashAthSort()" id="dash-ath-sort-btn"
-                            style="padding:5px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:6px; font-size:0.78rem; cursor:pointer; font-weight:600; color:var(--text-sub); white-space:nowrap;">
+                            style="padding:5px 10px; background:rgba(0,0,0,0.03); border:1px solid var(--border); border-radius:6px; font-size:0.78rem; cursor:pointer; font-weight:600; color:var(--text-sub); white-space:nowrap;">
                             Ordina: Presenze ↓
                         </button>
                     </div>
@@ -5570,15 +5570,15 @@ window.templateDashboard = function() {
                 <div style="overflow-x:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
                         <thead>
-                            <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                                 <th style="padding:9px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left; white-space:nowrap;" rowspan="2">Atleta</th>
                                 <th style="padding:9px 12px; font-weight:700; font-size:0.72rem; text-transform:uppercase; text-align:left; white-space:nowrap;" rowspan="2">Squadra</th>
-                                <th colspan="5" style="padding:5px 10px; font-weight:700; font-size:0.65rem; text-transform:uppercase; text-align:center; color:#10b981; border-left:1px solid var(--border); background:rgba(0,229,160,0.06); border-radius:4px 4px 0 0;">ALLENAMENTI</th>
+                                <th colspan="5" style="padding:5px 10px; font-weight:700; font-size:0.65rem; text-transform:uppercase; text-align:center; color:#10b981; border-left:1px solid var(--border); background:rgba(5,150,105,0.08); border-radius:4px 4px 0 0;">ALLENAMENTI</th>
                                 <th colspan="6" style="padding:5px 10px; font-weight:700; font-size:0.65rem; text-transform:uppercase; text-align:center; color:var(--primary); border-left:1px solid var(--border); background:var(--primary-subtle); border-radius:4px 4px 0 0;">PARTITE</th>
                                 <th colspan="2" style="padding:5px 10px; font-weight:700; font-size:0.65rem; text-transform:uppercase; text-align:center; color:#f59e0b; border-left:1px solid var(--border); background:rgba(255,179,71,0.06); border-radius:4px 4px 0 0;">TOTALE</th>
                                 <th colspan="5" style="padding:5px 10px; font-weight:700; font-size:0.65rem; text-transform:uppercase; text-align:center; color:#6366f1; border-left:1px solid var(--border); background:rgba(99,102,241,0.06); border-radius:4px 4px 0 0;">PERFORMANCE ★</th>
                             </tr>
-                            <tr style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
                                 <th style="padding:7px 10px; font-weight:700; font-size:0.68rem; text-align:center; color:#10b981; border-left:1px solid var(--border);" title="Presenze">P</th>
                                 <th style="padding:7px 10px; font-weight:700; font-size:0.68rem; text-align:center; color:#ef4444;" title="Assenze">A</th>
                                 <th style="padding:7px 10px; font-weight:700; font-size:0.68rem; text-align:center; color:#f59e0b;" title="Giustificati">G</th>
@@ -5623,7 +5623,7 @@ window.templateDashboard = function() {
             width: auto;
             margin: 0;
             color: var(--text-sub);
-            background: rgba(255,255,255,0.04);
+            background: rgba(0,0,0,0.04);
             cursor: pointer;
             font-family: inherit;
             transition: border-color 0.15s, box-shadow 0.15s;
@@ -5973,7 +5973,7 @@ window.renderDashMatches = function() {
         const risultato = d ? `${d.goals_for ?? '-'} - ${d.goals_against ?? '-'}` : '- -';
         const vs = d?.opponent_name ? `vs ${d.opponent_name}` : (m.title || 'Gara');
         return `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:9px 12px; color:var(--text-muted); white-space:nowrap;">${new Date(m.session_date).toLocaleDateString('it-IT')}</td>
             <td style="padding:9px 12px; font-weight:600;">${vs}</td>
             <td style="padding:9px 12px; color:var(--primary);">${m.teams?.name || '-'}</td>
@@ -6051,7 +6051,7 @@ window.renderDashPresenze = function() {
         const perc = tot > 0 ? Math.round((p/tot)*100) : 0;
         const percColor = perc >= 75 ? '#10b981' : perc >= 50 ? '#f59e0b' : '#ef4444';
         return `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:8px 10px;">
                 <div style="font-weight:600; font-size:0.8rem;">${s.title || 'Sessione'}</div>
                 <div style="font-size:0.7rem; color:var(--text-sub);">${new Date(s.session_date).toLocaleDateString('it-IT')} · ${s.teams?.name||''} ${s.category_name && s.category_name !== '-' ? '· ' + s.category_name : ''}</div>
@@ -6171,7 +6171,7 @@ window.renderDashStats = function() {
     }
 
     tbody.innerHTML = filtered.map(t => `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:8px 10px; font-weight:600; font-size:0.82rem;">${t.name}<br><span style="font-size:0.7rem; color:var(--text-sub);">${t.category_name !== '-' ? t.category_name + ' · ' : ''}${t.soc}</span></td>
             <td style="padding:8px 10px; text-align:center; font-weight:800; font-family:'DM Mono','Outfit',sans-serif; font-size:1rem; color:#f59e0b;">${t.pts}</td>
             <td style="padding:8px 10px; text-align:center; color:var(--text-muted); font-weight:700;">${t.partite}</td>
@@ -6387,7 +6387,7 @@ window.renderDashAthletes = function() {
         const tTot = percTot !== null ? percTot + '%' : '-';
 
         return `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.1s;" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
+        <tr style="border-bottom:1px solid rgba(0,0,0,0.05); transition:background 0.1s;" onmouseover="this.style.background='rgba(255,79,59,0.05)'" onmouseout="this.style.background=''">
             <td style="padding:9px 12px;">
                 <div style="font-weight:700; font-size:0.82rem; color:var(--text-main);">${a.name}</div>
                 <div style="font-size:0.7rem; color:var(--text-sub);">${a.society}</div>
@@ -6600,11 +6600,11 @@ window.templateGenitori = function() {
         <!-- Filtro ricerca -->
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:1rem;">
             <input type="text" id="gen-search" placeholder="🔍 Cerca per nome o cognome..." oninput="window.renderGenitori()"
-                style="padding:8px 12px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
+                style="padding:8px 12px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
             <input type="text" id="gen-search-username" placeholder="🔍 Filtra per username..." oninput="window.renderGenitori()"
-                style="padding:8px 12px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
+                style="padding:8px 12px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
             <input type="text" id="gen-search-email" placeholder="🔍 Filtra per email..." oninput="window.renderGenitori()"
-                style="padding:8px 12px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
+                style="padding:8px 12px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
         </div>
 
         <div style="overflow-x:auto;">
@@ -6731,11 +6731,11 @@ window.openGenitoreModal = async function(genitoreId = null) {
             </div>
             <div>
                 <label class="modal-label">Email (usata per il login)</label>
-                <input class="modal-input" id="gen-email" type="email" value="${g?.email || ''}" placeholder="email@esempio.it" ${g ? 'readonly style="background:rgba(255,255,255,0.03);color:var(--text-sub);"' : ''}>
+                <input class="modal-input" id="gen-email" type="email" value="${g?.email || ''}" placeholder="email@esempio.it" ${g ? 'readonly style="background:rgba(0,0,0,0.03);color:var(--text-sub);"' : ''}>
             </div>
             <div>
                 <label class="modal-label">Username</label>
-                <input class="modal-input" id="gen-username" value="${g?.username || ''}" placeholder="username" ${g ? 'readonly style="background:rgba(255,255,255,0.03);color:var(--text-sub);"' : ''}>
+                <input class="modal-input" id="gen-username" value="${g?.username || ''}" placeholder="username" ${g ? 'readonly style="background:rgba(0,0,0,0.03);color:var(--text-sub);"' : ''}>
             </div>
             ${!g ? `<div>
                 <label class="modal-label">Password iniziale</label>
@@ -6743,7 +6743,7 @@ window.openGenitoreModal = async function(genitoreId = null) {
             </div>` : ''}
             <div>
                 <label class="modal-label">🔗 Atleti associati (tieni CTRL/CMD per selezionare più atleti)</label>
-                <select id="gen-athletes" multiple style="width:100%; height:140px; padding:8px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
+                <select id="gen-athletes" multiple style="width:100%; height:140px; padding:8px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:0.85rem; font-family:inherit;">
                     ${athleteOptions}
                 </select>
             </div>
@@ -6908,7 +6908,7 @@ window.initGenitoreView = async function() {
         });
 
         // Helper
-        const pill = (val, label, color, bg='rgba(255,255,255,0.06)', border='rgba(255,255,255,0.1)') =>
+        const pill = (val, label, color, bg='rgba(0,0,0,0.06)', border='rgba(0,0,0,0.1)') =>
             `<div style="text-align:center;background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 16px;min-width:72px;">
                 <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:${color};line-height:1;">${val}</div>
                 <div style="font-size:0.62rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px;">${label}</div>
@@ -6916,7 +6916,7 @@ window.initGenitoreView = async function() {
 
         const esitoBadge = s => {
             const m = {vittoria:['rgba(6,214,160,0.12)','#06d6a0','VITTORIA'],sconfitta:['rgba(239,68,68,0.12)','#f87171','SCONFITTA'],pareggio:['rgba(255,209,102,0.12)','#ffd166','PAREGGIO']};
-            const [bg,col,lbl] = m[(s||'').toLowerCase()] || ['rgba(255,255,255,0.06)','var(--text-sub)',(s||'DA DISPUTARE').toUpperCase()];
+            const [bg,col,lbl] = m[(s||'').toLowerCase()] || ['rgba(0,0,0,0.06)','var(--text-sub)',(s||'DA DISPUTARE').toUpperCase()];
             return `<span style="background:${bg};color:${col};padding:2px 10px;border-radius:99px;font-size:0.7rem;font-weight:700;">${lbl}</span>`;
         };
 
@@ -7035,7 +7035,7 @@ window.initGenitoreView = async function() {
                         <th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Risultato</th>
                         <th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Esito</th>
                     </tr></thead>
-                    <tbody>${rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <tbody>${rows.map(r => `<tr style="border-bottom:1px solid var(--border);">
                         <td style="padding:9px 10px;color:var(--text-muted);font-size:0.82rem;white-space:nowrap;">${r.dateLabel}</td>
                         <td style="padding:9px 10px;font-weight:600;">${r.opponent}</td>
                         <td style="padding:9px 10px;text-align:center;font-weight:800;font-family:'DM Mono','Outfit',sans-serif;">${r.score}</td>
@@ -7047,7 +7047,7 @@ window.initGenitoreView = async function() {
             const initialRows = allMatchRows.filter(r => r.date >= defaultFromStr && r.date <= defaultToStr);
 
             const matchesHTML = `
-                <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;flex-wrap:nowrap;overflow-x:auto;">
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.03);border:1px solid var(--border);border-radius:10px;flex-wrap:nowrap;overflow-x:auto;">
                     <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0;">
                         <span style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">DA DATA</span>
                         <input type="date" id="${matchFromId}" value="${defaultFromStr}"
@@ -7089,7 +7089,7 @@ window.initGenitoreView = async function() {
                         const tot = att.length;
                         const perc = tot>0 ? Math.round(p/tot*100) : 0;
                         const pc = perc>=75?'#10b981':perc>=50?'#f59e0b':'#ef4444';
-                        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        return `<tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:8px 10px;">
                                 <div style="font-weight:600;font-size:0.8rem;">${s.title||'Sessione'}</div>
                                 <div style="font-size:0.7rem;color:var(--text-sub);">${new Date(s.session_date).toLocaleDateString('it-IT')} · ${s.teams?.name||''}</div>
@@ -7118,7 +7118,7 @@ window.initGenitoreView = async function() {
                         <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-muted);">V/P/S</th>
                         <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--primary);">%V</th>
                     </tr></thead>
-                    <tbody>${statsGaraList.map(t => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <tbody>${statsGaraList.map(t => `<tr style="border-bottom:1px solid var(--border);">
                         <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">${t.name}</td>
                         <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono','Outfit',sans-serif;font-size:1rem;color:#f59e0b;">${t.pts}</td>
                         <td style="padding:8px 10px;text-align:center;font-weight:700;color:#c0ccdc;">${t.p}</td>
@@ -7137,30 +7137,30 @@ window.initGenitoreView = async function() {
             <!-- 1. CARD SQUADRA -->
             <div style="background:linear-gradient(135deg,#0e1520 0%,#1a0d10 100%);border-radius:16px;border:1px solid var(--border-accent);padding:22px 26px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div>
-                    <div style="font-size:0.62rem;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">🏟️ Squadra</div>
-                    <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:white;letter-spacing:-0.3px;">${teamName}</div>
-                    ${catName ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:3px;">${catName} · ${seasonName}</div>` : `<div style="font-size:0.75rem;color:rgba(255,255,255,0.55);margin-top:3px;">${seasonName}</div>`}
+                    <div style="font-size:0.62rem;font-weight:700;color:rgba(26,34,64,0.55);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">🏟️ Squadra</div>
+                    <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-main);letter-spacing:-0.3px;">${teamName}</div>
+                    ${catName ? `<div style="font-size:0.75rem;color:rgba(26,34,64,0.55);margin-top:3px;">${catName} · ${seasonName}</div>` : `<div style="font-size:0.75rem;color:rgba(26,34,64,0.55);margin-top:3px;">${seasonName}</div>`}
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <div style="background:rgba(255,255,255,0.13);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="background:rgba(0,0,0,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(0,0,0,0.1);">
                         <div style="font-size:1.4rem;font-weight:800;color:#6ee7b7;line-height:1;">${totGoals}</div>
-                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-top:3px;">⚽ Gol</div>
+                        <div style="font-size:0.6rem;color:rgba(26,34,64,0.55);text-transform:uppercase;margin-top:3px;">⚽ Gol</div>
                     </div>
-                    <div style="background:rgba(255,255,255,0.13);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="background:rgba(0,0,0,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(0,0,0,0.1);">
                         <div style="font-size:1.4rem;font-weight:800;color:#93c5fd;line-height:1;">${totMin}'</div>
-                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-top:3px;">⏱ Min</div>
+                        <div style="font-size:0.6rem;color:rgba(26,34,64,0.55);text-transform:uppercase;margin-top:3px;">⏱ Min</div>
                     </div>
-                    <div style="background:rgba(255,255,255,0.13);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="background:rgba(0,0,0,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(0,0,0,0.1);">
                         <div style="font-size:1.4rem;font-weight:800;color:#fde68a;line-height:1;">${totConv}</div>
-                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-top:3px;">Convoc.</div>
+                        <div style="font-size:0.6rem;color:rgba(26,34,64,0.55);text-transform:uppercase;margin-top:3px;">Convoc.</div>
                     </div>
-                    <div style="background:rgba(255,255,255,0.13);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+                    <div style="background:rgba(0,0,0,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(0,0,0,0.1);">
                         <div style="font-size:1.4rem;font-weight:800;color:#fbbf24;line-height:1;">${totPts}</div>
-                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-top:3px;">🏆 Punti</div>
+                        <div style="font-size:0.6rem;color:rgba(26,34,64,0.55);text-transform:uppercase;margin-top:3px;">🏆 Punti</div>
                     </div>
-                    ${totYC>0 ? `<div style="background:rgba(255,255,255,0.13);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+                    ${totYC>0 ? `<div style="background:rgba(0,0,0,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(0,0,0,0.1);">
                         <div style="font-size:1.4rem;font-weight:800;color:#fcd34d;line-height:1;">${totYC}</div>
-                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-top:3px;">🟨 Amm</div>
+                        <div style="font-size:0.6rem;color:rgba(26,34,64,0.55);text-transform:uppercase;margin-top:3px;">🟨 Amm</div>
                     </div>` : ''}
                 </div>
             </div>
@@ -7169,14 +7169,14 @@ window.initGenitoreView = async function() {
             <div class="card" style="margin-bottom:1rem;">
                 <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">📊 Statistiche del tuo atleta — ${seasonName}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    ${pill(stAct.goals||0,'⚽ Gol','#00e5a0','rgba(0,229,160,0.1)','rgba(0,229,160,0.25)')}
+                    ${pill(stAct.goals||0,'⚽ Gol','#059669','rgba(5,150,105,0.1)','rgba(5,150,105,0.2)')}
                     ${pill(stAct.min||0,'⏱ Min','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(stAct.yc||0,'🟨 Amm','#ffd166')}
                     ${pill(stAct.rc||0,'🟥 Esp','#ef4444','rgba(239,68,68,0.1)','rgba(239,68,68,0.25)')}
-                    <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
+                    <div style="width:1px;background:rgba(0,0,0,0.08);margin:0 4px;"></div>
                     ${pill(totPts,'🏆 Punti','#ffd166')}
-                    <div style="width:1px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
-                    ${pill(prAct.pres||0,'Presenze','#00e5a0','rgba(0,229,160,0.1)','rgba(0,229,160,0.25)')}
+                    <div style="width:1px;background:rgba(0,0,0,0.08);margin:0 4px;"></div>
+                    ${pill(prAct.pres||0,'Presenze','#059669','rgba(5,150,105,0.1)','rgba(5,150,105,0.2)')}
                     ${pill(prAct.conv||0,'Convoc.','var(--primary)','rgba(255,79,59,0.08)','rgba(255,79,59,0.2)')}
                     ${pill(prAct.tot||0,'Partite','#64748b')}
                     ${convPerc !== null ? pill(convPerc+'%','Conv%',percColor) : ''}
@@ -7213,7 +7213,7 @@ window.initGenitoreView = async function() {
                 ${athletes.map((ath,i) => `
                     <button id="child-tab-btn-${i}" onclick="window._switchChild(${i})"
                         style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600;
-                        ${i===0 ? 'background:var(--primary);color:white;' : 'background:transparent;color:var(--text-muted);'}">
+                        ${i===0 ? 'background:var(--primary);color:var(--text-main);' : 'background:transparent;color:var(--text-muted);'}">
                         👤 ${ath.surname} ${ath.name}
                     </button>`).join('')}
             </div>` : '';
@@ -7255,7 +7255,7 @@ window.initGenitoreView = async function() {
                 }
                 var thead = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Data</th><th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Partita</th><th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Risultato</th><th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Esito</th></tr></thead><tbody>';
                 var rows = filtered.map(function(r){
-                    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                    return '<tr style="border-bottom:1px solid var(--border);">' +
                         '<td style="padding:9px 10px;color:var(--text-muted);font-size:0.82rem;white-space:nowrap;">' + r.dateLabel + '</td>' +
                         '<td style="padding:9px 10px;font-weight:600;">' + r.opponent + '</td>' +
                         '<td style="padding:9px 10px;text-align:center;font-weight:800;font-family:\'DM Mono\',sans-serif;">' + r.score + '</td>' +
