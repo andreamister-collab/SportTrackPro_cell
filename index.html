@@ -5717,14 +5717,20 @@ window.templateDashboard = function() {
         <!-- TAB 6: VISTA PRESIDENZA -->
         <div id="dash-tab-6" style="display:none;">
 
-            <!-- FILTRO STAGIONE / SOCIETÀ TAB PRESIDENZA -->
+            <!-- FILTRO STAGIONE / SOCIETÀ / CATEGORIA / SQUADRA TAB PRESIDENZA -->
             <div style="background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <span style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted);">Filtri Vista:</span>
-                <select id="pres-view-season" onchange="window.loadDashPresidenza()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                <select id="pres-view-season" onchange="window.onPresSeasonChange()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
                     <option value="all">Tutte le stagioni</option>
                 </select>
-                <select id="pres-view-soc" onchange="window.loadDashPresidenza()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                <select id="pres-view-soc" onchange="window.onPresSocChange()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
                     <option value="all">Tutte le società</option>
+                </select>
+                <select id="pres-view-cat" onchange="window.onPresCatChange()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                    <option value="all">Tutte le categorie</option>
+                </select>
+                <select id="pres-view-team" onchange="window.loadDashPresidenza()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                    <option value="all">Tutte le squadre</option>
                 </select>
             </div>
 
@@ -5868,7 +5874,7 @@ window.switchDashTab = function(idx) {
     }
     if (idx === 4) window.renderDashMonthlyCharts();
     if (idx === 5) window.renderDashAthMonthlyCharts();
-    if (idx === 6) window.loadDashPresidenza();
+    if (idx === 6) { _presPopulateCatTeam().then(() => window.loadDashPresidenza()); }
 };
 
 /* ── DATI GLOBALI DASHBOARD ── */
@@ -6788,12 +6794,13 @@ window.openMonthlyChartPopup = function(teamId, paletteIdx) {
 
 window.loadDashPresidenza = async function() {
     try {
-        const seasonId = document.getElementById('pres-view-season')?.value ||
-                         document.getElementById('dash-season-filter')?.value || 'all';
+        const seasonId = document.getElementById('pres-view-season')?.value || 'all';
         const socId    = window._dashData._forcedSocietyId ||
                          (document.getElementById('pres-view-soc')?.style.display !== 'none'
                             ? document.getElementById('pres-view-soc')?.value
                             : 'all') || 'all';
+        const catId    = document.getElementById('pres-view-cat')?.value || 'all';
+        const teamId   = document.getElementById('pres-view-team')?.value || 'all';
 
         // Sync season selector con main dashboard
         const presSeaSel = document.getElementById('pres-view-season');
@@ -6818,27 +6825,35 @@ window.loadDashPresidenza = async function() {
 
         // Query match_details
         let mdQ = client.from('match_details')
-            .select('session_id, goals_for, goals_against, match_status, is_friendly, sessions!inner(session_date, team_id, society_id, season_id)');
+            .select('session_id, goals_for, goals_against, match_status, is_friendly, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') mdQ = mdQ.eq('sessions.season_id', seasonId);
         if (socId && socId !== 'all') mdQ = mdQ.eq('sessions.society_id', socId);
+        if (teamId && teamId !== 'all') mdQ = mdQ.eq('sessions.team_id', teamId);
+        else if (catId && catId !== 'all') mdQ = mdQ.eq('sessions.teams.category_id', catId);
 
         // Query match_stats
         let msQ = client.from('match_stats')
-            .select('session_id, yellow_cards, red_cards, sessions!inner(session_date, team_id, society_id, season_id)');
+            .select('session_id, yellow_cards, red_cards, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') msQ = msQ.eq('sessions.season_id', seasonId);
         if (socId && socId !== 'all') msQ = msQ.eq('sessions.society_id', socId);
+        if (teamId && teamId !== 'all') msQ = msQ.eq('sessions.team_id', teamId);
+        else if (catId && catId !== 'all') msQ = msQ.eq('sessions.teams.category_id', catId);
 
         // Query presenze
         let attQ = client.from('attendances')
-            .select('status, athlete_id, sessions!inner(session_date, team_id, society_id, season_id)');
+            .select('status, athlete_id, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') attQ = attQ.eq('sessions.season_id', seasonId);
         if (socId && socId !== 'all') attQ = attQ.eq('sessions.society_id', socId);
+        if (teamId && teamId !== 'all') attQ = attQ.eq('sessions.team_id', teamId);
+        else if (catId && catId !== 'all') attQ = attQ.eq('sessions.teams.category_id', catId);
 
         // Query atleti
         let athQ = client.from('athlete_team_seasons')
             .select('athlete_id, athletes!inner(id, name, surname)');
         if (socId && socId !== 'all') athQ = athQ.eq('society_id', socId);
         if (seasonId && seasonId !== 'all') athQ = athQ.eq('season_id', seasonId);
+        if (teamId && teamId !== 'all') athQ = athQ.eq('team_id', teamId);
+        else if (catId && catId !== 'all') athQ = athQ.eq('category_id', catId);
 
         const [mdRes, msRes, attRes, athRes] = await Promise.all([mdQ, msQ, attQ, athQ]);
 
@@ -7842,6 +7857,11 @@ function _applyTabFilterVisibility() {
     // Filtri Vista Presidenza: nascondi società per ruoli non globali
     const presViewSoc = document.getElementById('pres-view-soc');
     if (presViewSoc) presViewSoc.style.display = isGlobal ? '' : 'none';
+    // Filtri cat/team sempre visibili per chi accede alla Vista Presidenza
+    const presViewCat  = document.getElementById('pres-view-cat');
+    const presViewTeam = document.getElementById('pres-view-team');
+    if (presViewCat)  presViewCat.style.display  = '';
+    if (presViewTeam) presViewTeam.style.display = '';
 }
 
 /* ── Handlers cascata Tab 0: Stats Gare ── */
@@ -7899,6 +7919,74 @@ window.onDashAthCatChange = function() {
     _populateTabTeamFilter('dash-ath-team', window._dashAthletes, socId, catId);
     window.renderDashAthletes();
 };
+
+/* ── Handlers cascata Vista Presidenza ── */
+window.onPresSeasonChange = async function() {
+    // Reset cat e team quando cambia stagione
+    const catSel  = document.getElementById('pres-view-cat');
+    const teamSel = document.getElementById('pres-view-team');
+    if (catSel)  { catSel.innerHTML  = '<option value="all">Tutte le categorie</option>'; }
+    if (teamSel) { teamSel.innerHTML = '<option value="all">Tutte le squadre</option>'; }
+    await _presPopulateCatTeam();
+    window.loadDashPresidenza();
+};
+
+window.onPresSocChange = async function() {
+    const catSel  = document.getElementById('pres-view-cat');
+    const teamSel = document.getElementById('pres-view-team');
+    if (catSel)  { catSel.innerHTML  = '<option value="all">Tutte le categorie</option>'; }
+    if (teamSel) { teamSel.innerHTML = '<option value="all">Tutte le squadre</option>'; }
+    await _presPopulateCatTeam();
+    window.loadDashPresidenza();
+};
+
+window.onPresCatChange = async function() {
+    const teamSel = document.getElementById('pres-view-team');
+    if (teamSel) { teamSel.innerHTML = '<option value="all">Tutte le squadre</option>'; }
+    await _presPopulateTeam();
+    window.loadDashPresidenza();
+};
+
+async function _presPopulateCatTeam() {
+    await _presPopulateCat();
+    await _presPopulateTeam();
+}
+
+async function _presPopulateCat() {
+    const socId    = window._dashData._forcedSocietyId || document.getElementById('pres-view-soc')?.value || 'all';
+    const seasonId = document.getElementById('pres-view-season')?.value || 'all';
+    const catSel   = document.getElementById('pres-view-cat');
+    if (!catSel) return;
+
+    let q = client.from('categories').select('id, name').order('name');
+    if (socId && socId !== 'all') q = q.eq('society_id', socId);
+
+    // Se filtro stagione: prendi solo categorie che hanno team in quella stagione
+    if (seasonId && seasonId !== 'all') {
+        const { data: teams } = await client.from('teams').select('category_id').eq('season_id', seasonId);
+        const catIds = [...new Set((teams||[]).map(t=>t.category_id).filter(Boolean))];
+        if (catIds.length) q = q.in('id', catIds);
+    }
+    const { data: cats } = await q;
+    catSel.innerHTML = '<option value="all">Tutte le categorie</option>' +
+        (cats||[]).map(c => '<option value="'+c.id+'">'+c.name+'</option>').join('');
+}
+
+async function _presPopulateTeam() {
+    const socId    = window._dashData._forcedSocietyId || document.getElementById('pres-view-soc')?.value || 'all';
+    const seasonId = document.getElementById('pres-view-season')?.value || 'all';
+    const catId    = document.getElementById('pres-view-cat')?.value || 'all';
+    const teamSel  = document.getElementById('pres-view-team');
+    if (!teamSel) return;
+
+    let q = client.from('teams').select('id, name').order('name');
+    if (socId    && socId    !== 'all') q = q.eq('society_id',  socId);
+    if (seasonId && seasonId !== 'all') q = q.eq('season_id',   seasonId);
+    if (catId    && catId    !== 'all') q = q.eq('category_id', catId);
+    const { data: teams } = await q;
+    teamSel.innerHTML = '<option value="all">Tutte le squadre</option>' +
+        (teams||[]).map(t => '<option value="'+t.id+'">'+t.name+'</option>').join('');
+}
 
 /* ============================================================
    MODULO ANAGRAFICA GENITORI (solo admin/manager)
