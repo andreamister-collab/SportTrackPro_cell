@@ -5455,6 +5455,10 @@ window.templateDashboard = function() {
                 style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:var(--text-muted); transition:all 0.15s; white-space:nowrap;">
                 👤 Presenze Mensili Atleta
             </button>
+            <button id="dash-tab-btn-6" onclick="window.switchDashTab(6)"
+                style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:var(--text-muted); transition:all 0.15s; white-space:nowrap; display:none;">
+                🏛️ Vista Presidenza
+            </button>
         </div>
 
         <!-- TAB 0: STATISTICHE GARE PER SQUADRA -->
@@ -5710,7 +5714,105 @@ window.templateDashboard = function() {
 
     </div>
 
-    <!-- POPUP GRAFICO MENSILE INGRANDITO -->
+        <!-- TAB 6: VISTA PRESIDENZA -->
+        <div id="dash-tab-6" style="display:none;">
+
+            <!-- FILTRO STAGIONE / SOCIETÀ TAB PRESIDENZA -->
+            <div style="background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <span style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted);">Filtri Vista:</span>
+                <select id="pres-view-season" onchange="window.loadDashPresidenza()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                    <option value="all">Tutte le stagioni</option>
+                </select>
+                <select id="pres-view-soc" onchange="window.loadDashPresidenza()" style="padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub); background:rgba(0,0,0,0.03);">
+                    <option value="all">Tutte le società</option>
+                </select>
+            </div>
+
+            <!-- KPI STRATEGICI ROW 1 -->
+            <div id="pres-kpi-row" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; margin-bottom:20px;">
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+                <div class="kpi-card-skeleton" style="height:100px; background:var(--card-raised); border-radius:12px; animation:pulse 1.5s infinite;"></div>
+            </div>
+
+            <!-- RIGA 2: TREND PERFORMANCE + DISCIPLINA -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+
+                <!-- TREND GOAL MENSILI -->
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:12px;">📈 Trend Goal Mensili</div>
+                    <div id="pres-goal-chart" style="min-height:120px; display:flex; align-items:center; justify-content:center;">
+                        <span style="color:var(--text-muted); font-size:0.82rem;">⏳ Caricamento...</span>
+                    </div>
+                    <div style="display:flex; gap:14px; margin-top:10px; justify-content:center; flex-wrap:wrap;">
+                        <span style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <span style="display:inline-block; width:14px; height:2px; background:#10b981; border-radius:2px;"></span> Gol Fatti
+                        </span>
+                        <span style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <span style="display:inline-block; width:14px; height:2px; background:#ef4444; border-radius:2px; border-top:2px dashed #ef4444;"></span> Gol Subiti
+                        </span>
+                    </div>
+                </div>
+
+                <!-- DISCIPLINA -->
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:14px;">🟨 Disciplina &amp; Disponibilità Rosa</div>
+                    <div id="pres-disciplina" style="display:flex; flex-direction:column; gap:10px;">
+                        <div style="color:var(--text-muted); font-size:0.82rem; text-align:center;">⏳ Caricamento...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGA 3: TOP/WORST + TREND ATLETICO -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+
+                <!-- TOP PERFORMERS -->
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:12px;">🏆 Top Performer (Presenze)</div>
+                    <div id="pres-top-players" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:var(--text-muted); font-size:0.82rem; text-align:center;">⏳ Caricamento...</div>
+                    </div>
+                </div>
+
+                <!-- WORST / CRITICITÀ -->
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:12px;">⚠️ Criticità (Presenze Basse)</div>
+                    <div id="pres-worst-players" style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="color:var(--text-muted); font-size:0.82rem; text-align:center;">⏳ Caricamento...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGA 4: CONFRONTO MENSILE PER KPI -->
+            <div class="card" style="padding:20px; margin-bottom:16px;">
+                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:14px;">📊 Riepilogo Mensile — KPI Aggregati</div>
+                <div style="overflow-x:auto;">
+                    <table id="pres-monthly-table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:rgba(0,0,0,0.03); color:var(--text-muted);">
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:left;">Mese</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#10b981;">GF</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#ef4444;">GS</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#f59e0b;">Pts</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#f59e0b;">🟨</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#ef4444;">🟥</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#3b82f6;">% Pres.</th>
+                                <th style="padding:8px 12px; font-weight:700; font-size:0.68rem; text-transform:uppercase; text-align:center; color:#6366f1;">V/P/S</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pres-monthly-body">
+                            <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-sub);">⏳ Caricamento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
     <div id="monthly-chart-popup-overlay" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(200,205,220,0.75); backdrop-filter:blur(16px) saturate(0.6); align-items:center; justify-content:center; padding:20px;">
         <div id="monthly-chart-popup-box" style="background:var(--card-raised); border-radius:var(--r-2xl); box-shadow:var(--shadow-xl), 0 0 0 1px rgba(255,79,59,0.1); width:100%; max-width:860px; max-height:92vh; overflow-y:auto; position:relative; animation:popupIn 0.28s cubic-bezier(.34,1.36,.64,1); border:1px solid var(--border-accent); padding:28px 32px 24px;">
             <button onclick="window.closeMonthlyChartPopup()" style="position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.05); border:1px solid var(--border); width:32px; height:32px; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-sub); transition:all 0.15s;" onmouseover="this.style.background='rgba(255,56,96,0.12)';this.style.color='#dc2626'" onmouseout="this.style.background='rgba(0,0,0,0.05)';this.style.color='var(--text-sub)'">✕</button>
@@ -5755,7 +5857,7 @@ window.templateDashboard = function() {
 
 /* ── TAB SWITCHER DASHBOARD ── */
 window.switchDashTab = function(idx) {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
         const panel = document.getElementById('dash-tab-' + i);
         const btn   = document.getElementById('dash-tab-btn-' + i);
         if (panel) panel.style.display = i === idx ? '' : 'none';
@@ -5766,6 +5868,7 @@ window.switchDashTab = function(idx) {
     }
     if (idx === 4) window.renderDashMonthlyCharts();
     if (idx === 5) window.renderDashAthMonthlyCharts();
+    if (idx === 6) window.loadDashPresidenza();
 };
 
 /* ── DATI GLOBALI DASHBOARD ── */
@@ -6678,6 +6781,267 @@ window.openMonthlyChartPopup = function(teamId, paletteIdx) {
     if (overlay) overlay.style.display = 'flex';
 };
 
+/* ══════════════════════════════════════════════════════════════
+   MODULO: VISTA PRESIDENZA / DIRIGENZA
+   Dashboard strategica ad alto livello
+══════════════════════════════════════════════════════════════ */
+
+window.loadDashPresidenza = async function() {
+    try {
+        const seasonId = document.getElementById('pres-view-season')?.value ||
+                         document.getElementById('dash-season-filter')?.value || 'all';
+        const socId    = window._dashData._forcedSocietyId ||
+                         (document.getElementById('pres-view-soc')?.style.display !== 'none'
+                            ? document.getElementById('pres-view-soc')?.value
+                            : 'all') || 'all';
+
+        // Sync season selector con main dashboard
+        const presSeaSel = document.getElementById('pres-view-season');
+        if (presSeaSel && presSeaSel.options.length <= 1 && window._dashData._seasons?.length) {
+            window._dashData._seasons.forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.id;
+                o.textContent = s.name + (s.is_active ? ' \u2713' : '');
+                if (s.is_active) o.selected = true;
+                presSeaSel.appendChild(o);
+            });
+        }
+        const presSocSel = document.getElementById('pres-view-soc');
+        if (presSocSel && presSocSel.options.length <= 1 && window._dashData._societies?.length) {
+            window._dashData._societies.forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.id;
+                o.textContent = s.name;
+                presSocSel.appendChild(o);
+            });
+        }
+
+        // Query match_details
+        let mdQ = client.from('match_details')
+            .select('session_id, goals_for, goals_against, match_status, is_friendly, sessions!inner(session_date, team_id, society_id, season_id)');
+        if (seasonId && seasonId !== 'all') mdQ = mdQ.eq('sessions.season_id', seasonId);
+        if (socId && socId !== 'all') mdQ = mdQ.eq('sessions.society_id', socId);
+
+        // Query match_stats
+        let msQ = client.from('match_stats')
+            .select('session_id, yellow_cards, red_cards, sessions!inner(session_date, team_id, society_id, season_id)');
+        if (seasonId && seasonId !== 'all') msQ = msQ.eq('sessions.season_id', seasonId);
+        if (socId && socId !== 'all') msQ = msQ.eq('sessions.society_id', socId);
+
+        // Query presenze
+        let attQ = client.from('attendances')
+            .select('status, athlete_id, sessions!inner(session_date, team_id, society_id, season_id)');
+        if (seasonId && seasonId !== 'all') attQ = attQ.eq('sessions.season_id', seasonId);
+        if (socId && socId !== 'all') attQ = attQ.eq('sessions.society_id', socId);
+
+        // Query atleti
+        let athQ = client.from('athlete_team_seasons')
+            .select('athlete_id, athletes!inner(id, name, surname)');
+        if (socId && socId !== 'all') athQ = athQ.eq('society_id', socId);
+        if (seasonId && seasonId !== 'all') athQ = athQ.eq('season_id', seasonId);
+
+        const [mdRes, msRes, attRes, athRes] = await Promise.all([mdQ, msQ, attQ, athQ]);
+
+        const matchDetails = mdRes.data || [];
+        const matchStats   = msRes.data || [];
+        const attendances  = attRes.data || [];
+        const athletes     = athRes.data || [];
+
+        // Calcoli aggregati
+        const official   = matchDetails.filter(d => !d.is_friendly);
+        const totalMatches = official.length;
+        const totalGF    = official.reduce((s,d) => s + (d.goals_for  || 0), 0);
+        const totalGS    = official.reduce((s,d) => s + (d.goals_against || 0), 0);
+        const totalWins  = official.filter(d => d.match_status === 'vittoria').length;
+        const totalDraws = official.filter(d => d.match_status === 'pareggio').length;
+        const totalLoss  = official.filter(d => d.match_status === 'sconfitta').length;
+        const totalPts   = totalWins * 3 + totalDraws;
+        const avgGFMatch = totalMatches > 0 ? (totalGF / totalMatches).toFixed(1) : '\u2013';
+        const avgGSMatch = totalMatches > 0 ? (totalGS / totalMatches).toFixed(1) : '\u2013';
+        const totalAmm   = matchStats.reduce((s,d) => s + (d.yellow_cards || 0), 0);
+        const totalEsp   = matchStats.reduce((s,d) => s + (d.red_cards   || 0), 0);
+        const avgAmm     = totalMatches > 0 ? (totalAmm / totalMatches).toFixed(2) : '\u2013';
+        const totalAtleti = athletes.length;
+
+        const totPres = attendances.filter(a => (a.status||'').toLowerCase() === 'presente').length;
+        const totInf  = attendances.filter(a => (a.status||'').toLowerCase() === 'infortunato').length;
+        const totAll  = attendances.length;
+        const percPres = totAll > 0 ? Math.round((totPres / totAll) * 100) : 0;
+        const percInf  = totAll > 0 ? Math.round((totInf  / totAll) * 100) : 0;
+        const winRate  = totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0;
+
+        // KPI cards
+        const kpiData = [
+            { icon:'\uD83C\uDFC6', label:'Punti Totali',      value: totalPts,      sub: totalWins+'V \u00b7 '+totalDraws+'P \u00b7 '+totalLoss+'S', color:'#f59e0b' },
+            { icon:'\u26bd',       label:'Gol Segnati',        value: totalGF,       sub: 'media '+avgGFMatch+'/partita', color:'#10b981' },
+            { icon:'\uD83E\uDD45', label:'Gol Subiti',         value: totalGS,       sub: 'media '+avgGSMatch+'/partita', color:'#ef4444' },
+            { icon:'\uD83D\uDFE8', label:'Ammonizioni',        value: totalAmm,      sub: avgAmm+'/partita', color:'#f59e0b' },
+            { icon:'\uD83D\uDFE5', label:'Espulsioni',         value: totalEsp,      sub: 'totale stagione', color:'#ef4444' },
+            { icon:'\uD83D\uDC65', label:'Atleti Registrati',  value: totalAtleti,   sub: percPres+'% presenze medie', color:'var(--primary)' },
+            { icon:'\uD83E\uDE79', label:'% Infortuni',        value: percInf+'%',   sub: totInf+' presenze infortun.', color:'#8b5cf6' },
+            { icon:'\uD83D\uDCC8', label:'Tasso Vittorie',     value: winRate+'%',   sub: 'su '+totalMatches+' gare uff.', color:'#06b6d4' },
+        ];
+        const kpiRow = document.getElementById('pres-kpi-row');
+        if (kpiRow) {
+            kpiRow.innerHTML = kpiData.map(k =>
+                '<div class="kpi-card" style="--kpi-color:'+k.color+'; padding:14px 16px;">' +
+                '<div style="font-size:1.1rem; margin-bottom:4px; line-height:1;">'+k.icon+'</div>' +
+                '<div class="kpi-label">'+k.label+'</div>' +
+                '<div class="kpi-value" style="font-size:1.55rem;">'+k.value+'</div>' +
+                '<div class="kpi-sub">'+k.sub+'</div></div>'
+            ).join('');
+        }
+
+        // Trend goal mensili
+        const monthGoalMap = {};
+        official.forEach(d => {
+            const key = (d.sessions && d.sessions.session_date ? d.sessions.session_date : '').slice(0,7);
+            if (!key) return;
+            if (!monthGoalMap[key]) monthGoalMap[key] = { gf:0, gs:0 };
+            monthGoalMap[key].gf += d.goals_for || 0;
+            monthGoalMap[key].gs += d.goals_against || 0;
+        });
+        const sortedMonths = Object.keys(monthGoalMap).sort();
+        const goalChartEl = document.getElementById('pres-goal-chart');
+        if (goalChartEl) {
+            if (!sortedMonths.length) {
+                goalChartEl.innerHTML = '<span style="color:var(--text-muted); font-size:0.82rem;">Nessun dato gare ufficiali.</span>';
+            } else {
+                const maxY = Math.max(...sortedMonths.map(k => Math.max(monthGoalMap[k].gf, monthGoalMap[k].gs)), 1);
+                const W=480, H=130, padL=30, padR=10, padT=14, padB=28;
+                const cW=W-padL-padR, cH=H-padT-padB, n=sortedMonths.length;
+                const xP = i => padL + (n===1 ? cW/2 : (i/(n-1))*cW);
+                const yP = v => padT + cH - (v/maxY)*cH;
+                const ptsGF = sortedMonths.map((k,i) => xP(i).toFixed(1)+','+yP(monthGoalMap[k].gf).toFixed(1)).join(' ');
+                const ptsGS = sortedMonths.map((k,i) => xP(i).toFixed(1)+','+yP(monthGoalMap[k].gs).toFixed(1)).join(' ');
+                const dotsGF = sortedMonths.map((k,i) => '<circle cx="'+xP(i).toFixed(1)+'" cy="'+yP(monthGoalMap[k].gf).toFixed(1)+'" r="3" fill="#10b981" stroke="white" stroke-width="1.5"/>').join('');
+                const dotsGS = sortedMonths.map((k,i) => '<circle cx="'+xP(i).toFixed(1)+'" cy="'+yP(monthGoalMap[k].gs).toFixed(1)+'" r="3" fill="#ef4444" stroke="white" stroke-width="1.5"/>').join('');
+                const lbls = sortedMonths.map((k,i) => (n<=8||i%Math.ceil(n/6)===0) ? '<text x="'+xP(i).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="7.5" fill="rgba(90,100,128,0.7)" font-family="Outfit,sans-serif">'+_presMonthLabel(k)+'</text>' : '').join('');
+                goalChartEl.innerHTML = '<svg width="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" style="display:block;"><line x1="'+padL+'" y1="'+(padT+cH)+'" x2="'+(padL+cW)+'" y2="'+(padT+cH)+'" stroke="rgba(0,0,0,0.07)" stroke-width="1"/><polyline points="'+ptsGF+'" fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><polyline points="'+ptsGS+'" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3" stroke-linejoin="round" stroke-linecap="round"/>'+dotsGF+dotsGS+lbls+'</svg>';
+            }
+        }
+
+        // Disciplina & Disponibilità
+        const discEl = document.getElementById('pres-disciplina');
+        if (discEl) {
+            const percDisp = totAll > 0 ? Math.round(((totAll-totInf)/totAll)*100) : 100;
+            const ammCol = totalAmm>30?'#ef4444':totalAmm>15?'#f59e0b':'#10b981';
+            const espCol = totalEsp>5?'#ef4444':totalEsp>2?'#f59e0b':'#10b981';
+            const dispCol = percDisp>=85?'#10b981':percDisp>=70?'#f59e0b':'#ef4444';
+            discEl.innerHTML =
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+                '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px 14px;text-align:center;">' +
+                '<div style="font-size:1.4rem;font-weight:800;color:'+ammCol+';font-family:\'DM Mono\',monospace;">'+totalAmm+'</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-top:2px;">\uD83D\uDFE8 Ammonizioni</div>' +
+                '<div style="font-size:0.68rem;color:var(--text-sub);margin-top:3px;">'+avgAmm+'/partita</div></div>' +
+                '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:12px 14px;text-align:center;">' +
+                '<div style="font-size:1.4rem;font-weight:800;color:'+espCol+';font-family:\'DM Mono\',monospace;">'+totalEsp+'</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-top:2px;">\uD83D\uDFE5 Espulsioni</div>' +
+                '<div style="font-size:0.68rem;color:var(--text-sub);margin-top:3px;">stagione</div></div></div>' +
+                '<div style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.18);border-radius:8px;padding:10px 14px;">' +
+                '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">\uD83E\uDE7A Disponibilit\u00e0 Rosa</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+                '<div style="flex:1;background:rgba(0,0,0,0.06);border-radius:99px;height:8px;overflow:hidden;">' +
+                '<div style="height:100%;width:'+percDisp+'%;background:'+dispCol+';border-radius:99px;transition:width 0.4s;"></div></div>' +
+                '<span style="font-size:0.82rem;font-weight:800;color:'+dispCol+';font-family:\'DM Mono\',monospace;white-space:nowrap;">'+percDisp+'% disponibili</span></div>' +
+                '<div style="font-size:0.72rem;color:var(--text-sub);">'+totInf+' presenze infortun. registrate \u00b7 '+percInf+'% del totale</div></div>';
+        }
+
+        // Top & Worst players
+        const athPresMap = {};
+        attendances.forEach(a => {
+            const aid = a.athlete_id;
+            if (!aid) return;
+            if (!athPresMap[aid]) athPresMap[aid] = { pres:0, tot:0 };
+            athPresMap[aid].tot++;
+            if ((a.status||'').toLowerCase() === 'presente') athPresMap[aid].pres++;
+        });
+        const athNameMap = {};
+        athletes.forEach(a => { athNameMap[a.athlete_id] = ((a.athletes&&a.athletes.surname)||'') + ' ' + ((a.athletes&&a.athletes.name)||''); });
+
+        const ranked = Object.entries(athPresMap)
+            .filter(([,v]) => v.tot >= 3)
+            .map(([id,v]) => ({ id, name:(athNameMap[id]||'Atleta').trim(), perc:Math.round((v.pres/v.tot)*100), pres:v.pres, tot:v.tot }))
+            .sort((a,b) => b.perc-a.perc);
+
+        const renderPlayerList = (players, colorFn) => {
+            if (!players.length) return '<span style="color:var(--text-muted);font-size:0.82rem;">Dati insufficienti.</span>';
+            return players.slice(0,5).map((p,i) => {
+                const col = colorFn(p.perc);
+                return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);">' +
+                    '<span style="font-size:0.72rem;font-weight:700;color:var(--text-muted);width:16px;text-align:right;">'+(i+1)+'</span>' +
+                    '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+p.name+'</div>' +
+                    '<div style="background:rgba(0,0,0,0.05);border-radius:99px;height:5px;margin-top:3px;overflow:hidden;">' +
+                    '<div style="height:100%;width:'+p.perc+'%;background:'+col+';border-radius:99px;"></div></div></div>' +
+                    '<span style="font-size:0.8rem;font-weight:800;font-family:\'DM Mono\',monospace;color:'+col+';white-space:nowrap;">'+p.perc+'%</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">'+p.pres+'/'+p.tot+'</span></div>';
+            }).join('');
+        };
+
+        const topEl = document.getElementById('pres-top-players');
+        if (topEl) topEl.innerHTML = renderPlayerList(ranked, p => p>=85?'#059669':p>=70?'#10b981':'#f59e0b');
+        const worstEl = document.getElementById('pres-worst-players');
+        if (worstEl) worstEl.innerHTML = renderPlayerList([...ranked].reverse(), p => p<40?'#ef4444':p<60?'#f59e0b':'#d97706');
+
+        // Tabella mensile aggregata
+        const monthTableMap = {};
+        const ensureMonth = key => { if(!monthTableMap[key]) monthTableMap[key]={gf:0,gs:0,pts:0,amm:0,esp:0,pres:0,tot:0,w:0,d:0,l:0}; };
+        official.forEach(d => {
+            const key=(d.sessions&&d.sessions.session_date?d.sessions.session_date:'').slice(0,7);
+            if(!key) return; ensureMonth(key);
+            monthTableMap[key].gf += d.goals_for||0;
+            monthTableMap[key].gs += d.goals_against||0;
+            if(d.match_status==='vittoria'){monthTableMap[key].pts+=3;monthTableMap[key].w++;}
+            else if(d.match_status==='pareggio'){monthTableMap[key].pts+=1;monthTableMap[key].d++;}
+            else if(d.match_status==='sconfitta') monthTableMap[key].l++;
+        });
+        matchStats.forEach(st => {
+            const key=(st.sessions&&st.sessions.session_date?st.sessions.session_date:'').slice(0,7);
+            if(!key) return; ensureMonth(key);
+            monthTableMap[key].amm += st.yellow_cards||0;
+            monthTableMap[key].esp += st.red_cards||0;
+        });
+        attendances.forEach(a => {
+            const sessDate=a.sessions&&a.sessions.session_date?a.sessions.session_date:'';
+            const key=sessDate.slice(0,7);
+            if(!key) return; ensureMonth(key);
+            monthTableMap[key].tot++;
+            if((a.status||'').toLowerCase()==='presente') monthTableMap[key].pres++;
+        });
+
+        const sortedMKeys = Object.keys(monthTableMap).sort().reverse();
+        const tbody = document.getElementById('pres-monthly-body');
+        if (tbody) {
+            tbody.innerHTML = sortedMKeys.length===0
+                ? '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-sub);">Nessun dato nel periodo selezionato.</td></tr>'
+                : sortedMKeys.map(k => {
+                    const m=monthTableMap[k];
+                    const perc=m.tot>0?Math.round((m.pres/m.tot)*100):0;
+                    const pCol=perc>=75?'#10b981':perc>=50?'#f59e0b':'#ef4444';
+                    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">' +
+                        '<td style="padding:8px 12px;font-weight:600;white-space:nowrap;">'+_presMonthLabel(k)+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;color:#10b981;font-weight:700;">'+m.gf+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;color:#ef4444;font-weight:700;">'+m.gs+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;color:#f59e0b;font-weight:800;font-family:\'DM Mono\',monospace;">'+m.pts+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;color:#d97706;font-weight:700;">'+m.amm+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;color:#ef4444;font-weight:700;">'+m.esp+'</td>' +
+                        '<td style="padding:8px 12px;text-align:center;"><span style="font-weight:800;color:'+pCol+';font-family:\'DM Mono\',monospace;">'+perc+'%</span></td>' +
+                        '<td style="padding:8px 12px;text-align:center;font-size:0.78rem;white-space:nowrap;"><span style="color:#10b981;">'+m.w+'V</span>\u00b7<span style="color:var(--text-muted);">'+m.d+'P</span>\u00b7<span style="color:#ef4444;">'+m.l+'S</span></td>' +
+                        '</tr>';
+                }).join('');
+        }
+
+    } catch(err) { console.error('loadDashPresidenza error:', err); }
+};
+
+function _presMonthLabel(yyyymm) {
+    if (!yyyymm) return '';
+    const parts = yyyymm.split('-');
+    const y = parts[0], m = parseInt(parts[1],10)-1;
+    const names = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    return (names[m]||yyyymm)+' '+y;
+}
+
 window.closeMonthlyChartPopup = function() {
     const overlay = document.getElementById('monthly-chart-popup-overlay');
     if (overlay) overlay.style.display = 'none';
@@ -7441,6 +7805,13 @@ function _applyTabFilterVisibility() {
     const isSocScoped = ['presidente','segretario'].includes(role);
     const isTeamScoped = ['responsabile','dirigente','allenatore'].includes(role);
 
+    // Mostra il tab Vista Presidenza solo per ruoli strategici
+    const presTabBtn = document.getElementById('dash-tab-btn-6');
+    if (presTabBtn) {
+        const canSeePresView = isGlobal || isSocScoped;
+        presTabBtn.style.display = canSeePresView ? '' : 'none';
+    }
+
     // ID dei selects per ogni tipo di filtro in ogni tab
     const socSelects  = ['dash-stats-soc','dash-match-soc','dash-pres-soc','dash-ath-soc','dash-monthly-soc'];
     const catSelects  = ['dash-stats-cat','dash-match-cat','dash-pres-cat','dash-ath-cat','dash-monthly-cat'];
@@ -7467,6 +7838,10 @@ function _applyTabFilterVisibility() {
         // Visibile sempre (ma per team-scoped contiene solo le proprie squadre)
         el.style.display = '';
     });
+
+    // Filtri Vista Presidenza: nascondi società per ruoli non globali
+    const presViewSoc = document.getElementById('pres-view-soc');
+    if (presViewSoc) presViewSoc.style.display = isGlobal ? '' : 'none';
 }
 
 /* ── Handlers cascata Tab 0: Stats Gare ── */
