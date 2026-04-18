@@ -510,7 +510,7 @@
             position: absolute;
             inset: 0;
             border-radius: inherit;
-            background: linear-gradient(135deg, rgba(26,34,64,0.6) 0%, transparent 60%);
+            background: linear-gradient(135deg, rgba(232,64,46,0.02) 0%, transparent 60%);
             pointer-events: none;
         }
         .card:hover {
@@ -842,6 +842,7 @@
             <div class="sidebar-group-label">Attività</div>
             <a data-section="sessioni" id="nav-sessioni">📅 Gestione Sessioni</a>
             <a data-section="partite" id="nav-partite">🏆 Gestione Partite</a>
+            <a data-section="test" id="nav-test">🧪 Test Atletici</a>
 
             <a data-section="import-atleti" id="nav-import">📥 Importa Atleti</a>
         </div>
@@ -939,7 +940,7 @@
 
         const allNavIds = ['nav-stagioni','nav-sport','nav-societa','nav-categoria','nav-squadra',
                            'nav-staff','nav-genitori','nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'];
+                           'nav-sessioni','nav-partite','nav-test','nav-import','nav-group-admin'];
 
         // GERARCHIA VISIBILITÀ MENU:
         // admin/manager      → tutto
@@ -952,13 +953,13 @@
             manager:      allNavIds,
             presidente:   ['nav-categoria','nav-squadra','nav-staff',
                            'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
+                           'nav-sessioni','nav-partite','nav-test','nav-import','nav-group-admin'],
             segretario:   ['nav-categoria','nav-squadra','nav-staff',
                            'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
-                           'nav-sessioni','nav-partite','nav-import','nav-group-admin'],
+                           'nav-sessioni','nav-partite','nav-test','nav-import','nav-group-admin'],
             responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
-            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-import'],
-            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-import'],
+            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-import'],
+            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-import'],
             genitore:     [],
         };
 
@@ -1186,6 +1187,12 @@
                 window._matchState = { seasons: [] }; // reset cache stagioni ad ogni navigazione
                 initPartite();
                 break;
+             case 'test':
+                content.innerHTML = templateTest();
+                window._testState = {};
+                initTest();
+                break;
+
              case 'import-atleti':
                 content.innerHTML = templateImportAtleti();
                 initImportAtleti();
@@ -1917,7 +1924,7 @@ async function openSquadraModal(activeSeasonId, editData = null) {
     ]);
 
     modal.open(isEdit ? 'Modifica Squadra' : 'Nuova Squadra', `
-        <div style="margin-bottom:15px; padding:10px; background:rgba(5,150,105,0.08); border-radius:6px; color:#06d6a0; font-size:0.85em; border:1px solid rgba(6,214,160,0.2);">
+        <div style="margin-bottom:15px; padding:10px; background:rgba(5,150,105,0.10); border-radius:6px; color:#047857; font-size:0.85em; border:1px solid rgba(6,214,160,0.2);">
             Stai salvando nella stagione: <strong>${seaRes.data?.name || 'Attiva'}</strong>
         </div>
         
@@ -2376,7 +2383,7 @@ window.handleDeleteStaff = async function(id) {
 
         modal.open(`Associa ${atleta.surname}`, `
             <div style="display:grid; gap:15px; padding:10px 0;">
-                <div style="background:rgba(6,182,212,0.08); padding:10px; border-radius:8px; border:1px solid rgba(6,182,212,0.2); font-size:12px; color:#38bdf8;">
+                <div style="background:rgba(6,182,212,0.10); padding:10px; border-radius:8px; border:1px solid rgba(6,182,212,0.3); font-size:12px; color:#0369a1;">
                     <strong>Società:</strong> ${_socLook[atleta.society_id] || 'N.D.'}
                 </div>
                 <div>
@@ -2491,7 +2498,7 @@ window.handleDeleteStaff = async function(id) {
                         ${Object.entries(_socLook).map(([sid, name]) => `<option value="${sid}" ${atleta.society_id === sid ? 'selected' : ''}>${name}</option>`).join('')}
                        </select>`
                     : `<input type="hidden" id="m-bp-soc" value="${atleta.society_id || mySocId}">
-                       <div style="padding:10px; background:rgba(6,182,212,0.08); border-radius:8px; border:1px solid rgba(6,182,212,0.2); font-size:13px; color:#38bdf8;">
+                       <div style="padding:10px; background:rgba(6,182,212,0.10); border-radius:8px; border:1px solid rgba(6,182,212,0.3); font-size:13px; color:#0369a1;">
                            🏛️ Società: <strong>${_socLook[atleta.society_id || mySocId] || 'N.D.'}</strong>
                        </div>`
                 }
@@ -2735,9 +2742,9 @@ window.handleDeleteStaff = async function(id) {
                 <td><strong>${a.users?.name || 'N/D'}</strong></td>
                 <td><span style="color: var(--primary-mid); font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
                 <td>${_lookupSeas[a.season_id] || '-'}</td>
-                <td><span style="background:rgba(5,150,105,0.08); color:#06d6a0; padding:3px 8px; border-radius:6px; font-size:0.82em; font-weight:600;">${a.categories?.name || _lookupCats[a.category_id] || '-'}</span></td>
+                <td><span style="background:rgba(5,150,105,0.10); color:#047857; padding:3px 8px; border-radius:6px; font-size:0.82em; font-weight:600;">${a.categories?.name || _lookupCats[a.category_id] || '-'}</span></td>
                 <td>${a.teams?.name || 'N/D'}</td>
-                <td><span class="badge badge-active" style="background:#e0f2fe; color:#38bdf8; padding:4px 8px; border-radius:6px; font-size:0.85em;">${a.role}</span></td>
+                <td><span class="badge badge-active" style="background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-size:0.85em;">${a.role}</span></td>
                 <td style="text-align:right">
                     <button class="btn-sm btn-warning" onclick="handleEditAssignment('${a.id}')">✏️</button>
                     <button class="btn-sm btn-danger" onclick="deleteAssignment('${a.id}')">🗑️</button>
@@ -2960,7 +2967,7 @@ window.handleDeleteStaff = async function(id) {
         }
 
         const socSelectorHtml = isScopedUser && userSocId
-            ? `<div style="background:rgba(6,182,212,0.08); padding:10px; border-radius:8px; border:1px solid rgba(6,182,212,0.2); font-size:12px; color:#38bdf8; margin-bottom:5px;">
+            ? `<div style="background:rgba(6,182,212,0.10); padding:10px; border-radius:8px; border:1px solid rgba(6,182,212,0.3); font-size:12px; color:#0369a1; margin-bottom:5px;">
                 <strong>Società:</strong> ${allSocs[0]?.name || ''}
                 <input type="hidden" id="m-link-soc" value="${userSocId}">
                </div>`
@@ -3155,7 +3162,7 @@ window.handleDeleteStaff = async function(id) {
 
         modal.open(isEdit ? 'Modifica Atleta' : 'Nuova Anagrafica Atleta', `
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                <div style="grid-column: span 2; background:var(--primary-subtle); padding:10px; border-radius:6px; border:1px solid rgba(59,130,246,0.15); color:#38bdf8; font-size:0.9em;">
+                <div style="grid-column: span 2; background:var(--primary-subtle); padding:10px; border-radius:6px; border:1px solid rgba(59,130,246,0.3); color:#1d4ed8; font-size:0.9em;">
                     <strong>📍 Stagione:</strong> ${_lookupSeas[activeSea] || 'Selezionata'}
                 </div>
                 <div style="grid-column: span 2; background:rgba(0,0,0,0.03); padding:12px; border-radius:8px; border:1px solid var(--border); margin-top:5px;">
@@ -3807,14 +3814,14 @@ async function openAttendanceModal(sessionId) {
     popupBox.style.maxWidth = '900px';
 
     const stars = (k, p) => [1,2,3,4,5].map(s =>
-        `<span onclick="setRating(this,${s})" style="cursor:pointer;color:${s<=(p[k]||0)?'#f59e0b':'rgba(0,0,0,0.1)'};font-size:16px;line-height:1;">★</span>`
+        `<span onclick="setRating(this,${s})" style="cursor:pointer;color:${s<=(p[k]||0)?'#f59e0b':'rgba(0,0,0,0.18)'};font-size:16px;line-height:1;">★</span>`
     ).join('');
 
     content.innerHTML = `
     <div style="background:var(--card); border-radius:16px; overflow:hidden; font-family:'Outfit',sans-serif;">
 
         <!-- HEADER -->
-        <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:linear-gradient(135deg,#f0f2f7,var(--card)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-size:11px; font-weight:700; letter-spacing:0.12em; color:rgba(26,34,64,0.7); text-transform:uppercase; margin-bottom:4px;">${isGara ? '📋 Convocazioni' : '📋 Registro Presenze'}</div>
                 <div style="font-size:16px; font-weight:800; color:var(--text-main);">${session.title}</div>
@@ -3851,7 +3858,7 @@ async function openAttendanceModal(sessionId) {
                 const ath = r.athletes;
                 const reg = attMap[ath.id] || {};
                 const p = reg.performance_data || {VEL:0, TEC:0, FIS:0, RES:0, COM:0};
-                const rowBg = idx % 2 === 0 ? '#111827' : '#162032';
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8f9fc';
                 return `
                 <div style="display:grid; grid-template-columns:44px 1fr 150px${!isGara ? ' repeat(5,90px)' : ''}; gap:0; align-items:center; padding:10px 20px; background:${rowBg}; border-bottom:1px solid var(--border);">
                     <div style="font-size:13px; font-weight:800; color:var(--primary);">${r.jersey_number || '—'}</div>
@@ -4348,9 +4355,10 @@ window.openConvocazioni = async function(sessionId) {
         <div style="display:grid; gap:8px;">
             ${athletes?.sort((a,b) => a.athletes?.surname.localeCompare(b.athletes?.surname)).map(a => {
                 const current = attendanceMap[a.athlete_id] || {};
-                const isConv = current.is_called_up === true && current.status !== 'squalificato';
-                const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato';
-                const isSq = current.status === 'squalificato';
+                const isConv = current.is_called_up === true && current.status !== 'squalificato' && current.status !== 'infortunato';
+                const isExcl = (current.is_called_up === false || !current.status) && current.status !== 'squalificato' && current.status !== 'infortunato';
+                const isSq   = current.status === 'squalificato';
+                const isInj  = current.status === 'infortunato';
 
                 return `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--card-raised); border:1px solid var(--border); border-radius:8px;">
@@ -4363,10 +4371,13 @@ window.openConvocazioni = async function(sessionId) {
                             CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="presente" ${isConv ? 'checked' : ''}>
                         </label>
                         <label style="color:var(--text-sub); font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                            ESCLUSO <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
+                            NON CONV. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="assente" ${isExcl ? 'checked' : ''}>
                         </label>
                         <label style="color:#f59e0b; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px; border-left:1px solid #374151; padding-left:8px;">
                             SQUALIF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="squalificato" ${isSq ? 'checked' : ''}>
+                        </label>
+                        <label style="color:#ef4444; font-size:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            🩹 INF. <input type="radio" name="status-${a.athlete_id}" class="conv-radio" data-id="${a.athlete_id}" value="infortunato" ${isInj ? 'checked' : ''}>
                         </label>
                     </div>
                 </div>`;
@@ -4380,7 +4391,8 @@ window.selezionaTuttiConvocati = function() {
     radios.forEach(r => {
         const row = r.closest('div');
         const isSqualificato = row.querySelector('input[value="squalificato"]').checked;
-        if (!isSqualificato) r.checked = true;
+        const isInfortunato  = row.querySelector('input[value="infortunato"]').checked;
+        if (!isSqualificato && !isInfortunato) r.checked = true;
     });
 };
 // --- 3.1 LOGICA SALVATAGGIO CONVOCAZIONI (Versione Ottimizzata) ---
@@ -4500,7 +4512,7 @@ window.openTabellino = async function(sessionId) {
     <div style="background:var(--card); border-radius:14px; box-shadow:0 4px 24px rgba(0,0,0,0.10); color:var(--text-main); font-family:'Outfit',sans-serif; overflow:hidden; border:1px solid var(--border);">
 
         <!-- HEADER -->
-        <div style="background:linear-gradient(135deg,#0e1220,var(--card-raised)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:linear-gradient(135deg,#f0f2f7,var(--card)); padding:18px 24px; border-bottom:1px solid var(--border-accent); display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-size:0.68rem; font-weight:700; color:rgba(26,34,64,0.6); text-transform:uppercase; letter-spacing:0.08em;">⚽ Tabellino &amp; Report Match</div>
                 <div style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin-top:3px;">${d.opponent_name ? 'vs ' + d.opponent_name : 'Avversario da impostare'}</div>
@@ -4757,6 +4769,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
             .from('sessions')
             .select(`
                 team_id,
+                session_date,
                 societies:society_id ( name ),
                 categories:category_id ( name ),
                 teams:team_id ( name )
@@ -4870,6 +4883,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
             // Euristiche comuni per il plurale italiano
             if (up.endsWith('TORE')) pluraleRuoli[r] = up.replace(/TORE$/, 'TORI');
             else if (up.endsWith('TRICE')) pluraleRuoli[r] = up.replace(/TRICE$/, 'TRICI');
+            else if (up.endsWith('ISTA')) pluraleRuoli[r] = up.replace(/ISTA$/, 'ISTI');
             else if (up.endsWith('E')) pluraleRuoli[r] = up.replace(/E$/, 'I');
             else if (up.endsWith('O')) pluraleRuoli[r] = up.replace(/O$/, 'I');
             else if (up.endsWith('A')) pluraleRuoli[r] = up.replace(/A$/, 'E');
@@ -4883,80 +4897,101 @@ window.exportConvocazioniIMG = async function(sessionId) {
         tempContainer = document.createElement('div');
         tempContainer.style.cssText = 'position:fixed; top:-9999px; left:-9999px; z-index:-1; pointer-events:none;';
         tempContainer.innerHTML = `
-            <div id="export-final-card" style="width:580px; background:#0f172a; color:var(--text-main); font-family:'Outfit',Arial,sans-serif; border-radius:0; overflow:hidden;">
+            <div id="export-final-card" style="width:580px; background:#ffe44d; color:#1a2240; font-family:'Outfit',Arial,sans-serif; border-radius:0; overflow:hidden; border:2px solid #1a2240;">
 
                 <!-- HEADER BAND -->
-                <div style="background:linear-gradient(135deg,#0a0d1a 0%,#0e1220 100%); padding:28px 28px 20px; position:relative; border-bottom:2px solid var(--primary);">
+                <div style="background:#1a2240; padding:28px 28px 20px; position:relative;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <div>
-                            <div style="font-size:11px; font-weight:700; letter-spacing:0.15em; color:var(--primary-mid); text-transform:uppercase; margin-bottom:4px;">Lista Convocati</div>
-                            <div style="font-size:26px; font-weight:900; text-transform:uppercase; letter-spacing:-0.5px; line-height:1.1;">${nomeSocieta}</div>
-                            <div style="margin-top:8px; display:inline-flex; align-items:center; gap:8px;">
-                                ${nomeCategoria ? `<span style="background:var(--primary); color:white; padding:3px 12px; border-radius:4px; font-size:12px; font-weight:700; text-transform:uppercase;">${nomeCategoria}</span>` : ''}
-                                <span style="background:var(--primary); color:white; padding:3px 12px; border-radius:4px; font-size:12px; font-weight:700; text-transform:uppercase;">${nomeSquadra}</span>
+                            <div style="font-size:11px; font-weight:700; letter-spacing:0.15em; color:#ffe44d; text-transform:uppercase; margin-bottom:4px;">Lista Convocati</div>
+                            <div style="font-size:28px; font-weight:900; text-transform:uppercase; letter-spacing:-0.5px; line-height:1.1; color:#ffe44d;">${nomeSocieta}</div>
+                            <div style="margin-top:10px; display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                ${nomeCategoria ? `<span style="background:#ffe44d; color:#1a2240; padding:4px 14px; border-radius:5px; font-size:12px; font-weight:800; text-transform:uppercase;">${nomeCategoria}</span>` : ''}
+                                <span style="background:#ffe44d; color:#1a2240; padding:4px 14px; border-radius:5px; font-size:12px; font-weight:800; text-transform:uppercase;">${nomeSquadra}</span>
+                                <span style="background:${detail?.is_friendly ? 'rgba(255,209,102,0.25)' : 'rgba(6,214,160,0.18)'}; color:${detail?.is_friendly ? '#ffe44d' : '#06d6a0'}; border:1.5px solid ${detail?.is_friendly ? '#ffe44d' : '#06d6a0'}; padding:4px 14px; border-radius:5px; font-size:12px; font-weight:800; text-transform:uppercase; white-space:nowrap;">${detail?.is_friendly ? '🤝 Amichevole' : '🏆 Ufficiale'}</span>
                             </div>
                         </div>
-                        <div style="background:rgba(37,99,235,0.2); border:1px solid rgba(37,99,235,0.4); border-radius:10px; padding:10px 16px; text-align:center; min-width:60px;">
-                            <div style="font-size:30px; font-weight:900; color:var(--primary-mid); line-height:1;">${totalConvocati}</div>
-                            <div style="font-size:9px; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Convocati</div>
+                        <div style="background:rgba(255,228,77,0.15); border:2px solid #ffe44d; border-radius:12px; padding:12px 18px; text-align:center; min-width:68px;">
+                            <div style="font-size:34px; font-weight:900; color:#ffe44d; line-height:1;">${totalConvocati}</div>
+                            <div style="font-size:9px; color:rgba(255,228,77,0.7); text-transform:uppercase; letter-spacing:0.1em; margin-top:3px;">Convocati</div>
+                            <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,228,77,0.3);">
+                                <div style="font-size:9px; color:rgba(255,228,77,0.7); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Data</div>
+                                <div style="font-size:11px; font-weight:800; color:#ffe44d; white-space:nowrap;">${session.session_date ? new Date(session.session_date).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}) : '---'}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- INFO GARA -->
-                <div style="background:var(--card); padding:14px 28px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; border-bottom:1px solid rgba(0,0,0,0.06);">
-                    <div>
-                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Avversario</div>
-                        <div style="font-size:13px; font-weight:700; color:var(--text-main);">VS ${detail?.opponent_name || '---'}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Luogo</div>
-                        <div style="font-size:12px; font-weight:600; color:#6b7a95;">${detail?.address || '---'}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px;">Orari</div>
-                        <div style="font-size:12px; color:#fbbf24; font-weight:700;">⏱ ${detail?.meet_time?.substring(0,5) || '--:--'} &nbsp;|&nbsp; ⚽ ${detail?.match_start_time?.substring(0,5) || '--:--'}</div>
+                <!-- INFO GARA: unica riga -->
+                <div style="background:#ffe44d; padding:14px 28px 14px; border-bottom:2px solid #1a2240;">
+                    <div style="display:flex; align-items:center; gap:0; flex-wrap:nowrap;">
+                        <!-- Avversario -->
+                        <div style="flex:1; min-width:0; padding-right:14px;">
+                            <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px; font-weight:700;">Avversario</div>
+                            <div style="font-size:13px; font-weight:800; color:#1a2240; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">VS ${detail?.opponent_name || '---'}</div>
+                        </div>
+                        <div style="width:1px; background:rgba(26,34,64,0.15); align-self:stretch; margin:0 14px;"></div>
+                        <!-- Luogo -->
+                        <div style="flex:1.4; min-width:0; padding-right:14px;">
+                            <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px; font-weight:700;">Luogo</div>
+                            <div style="font-size:11px; font-weight:600; color:#1a2240; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${detail?.address || '---'}</div>
+                        </div>
+                        <div style="width:1px; background:rgba(26,34,64,0.15); align-self:stretch; margin:0 14px;"></div>
+                        <!-- Orari -->
+                        <div style="flex-shrink:0;">
+                            <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px; font-weight:700;">Orari</div>
+                            <div style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                                <span style="font-size:12px;">⏱</span>
+                                <span style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Ritrovo</span>
+                                <span style="font-size:12px; font-weight:800; color:#1a2240;">${detail?.meet_time?.substring(0,5) || '--:--'}</span>
+                                <span style="color:rgba(26,34,64,0.3); font-size:13px; margin:0 2px;">|</span>
+                                <span style="font-size:12px;">🌐</span>
+                                <span style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Inizio</span>
+                                <span style="font-size:12px; font-weight:800; color:#1a2240;">${detail?.match_start_time?.substring(0,5) || '--:--'}</span>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
                 <!-- STAFF -->
-                <div style="background:#0f172a; padding:10px 28px; display:flex; gap:20px; border-bottom:1px solid rgba(0,0,0,0.06);">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:28px; height:28px; background:var(--card-raised); border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;">👨‍💼</div>
+                <div style="background:#ffe44d; padding:10px 28px; display:flex; gap:24px; border-bottom:2px solid #1a2240;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:30px; height:30px; background:rgba(0,0,0,0.1); border-radius:50%; border:1px solid rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; font-size:14px;">👨‍💼</div>
                         <div>
-                            <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Allenatore</div>
-                            <div style="font-size:12px; font-weight:700; color:var(--text-main);">${nomeAllenatore}</div>
+                            <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Allenatore</div>
+                            <div style="font-size:12px; font-weight:700; color:#1a2240;">${nomeAllenatore}</div>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:28px; height:28px; background:var(--card-raised); border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;">📋</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:30px; height:30px; background:rgba(0,0,0,0.1); border-radius:50%; border:1px solid rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; font-size:14px;">📋</div>
                         <div>
-                            <div style="font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:0.08em;">Dirigente</div>
-                            <div style="font-size:12px; font-weight:700; color:var(--text-main);">${nomeDirigente}</div>
+                            <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Dirigente</div>
+                            <div style="font-size:12px; font-weight:700; color:#1a2240;">${nomeDirigente}</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- ROSA CONVOCATI -->
-                <div style="padding:16px 28px 24px;">
+                <div style="padding:18px 28px 24px; background:#ffe44d;">
                     ${ordineRuoli.map(ruolo => {
                         const lista = atletiRaggruppati[ruolo] || [];
                         if (lista.length === 0) return '';
                         const col = coloriRuolo[ruolo] || coloriRuolo["Altro"];
                         const plural = pluraleRuoli[ruolo] || ruolo.toUpperCase() + 'I';
                         return `
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                                    <div style="height:2px; width:12px; background:${col.bg}; border-radius:2px;"></div>
-                                    <span style="font-size:9px; font-weight:800; letter-spacing:0.18em; color:${col.bg}; text-transform:uppercase;">${plural}</span>
-                                    <span style="background:${col.bg}22; color:${col.bg}; border:1px solid ${col.bg}44; border-radius:999px; font-size:9px; font-weight:700; padding:1px 7px;">${lista.length}</span>
-                                    <div style="flex:1; height:1px; background:rgba(0,0,0,0.06);"></div>
+                            <div style="margin-bottom:16px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                                    <div style="height:3px; width:14px; background:#1a2240; border-radius:2px;"></div>
+                                    <span style="font-size:10px; font-weight:800; letter-spacing:0.16em; color:#1a2240; text-transform:uppercase;">${plural}</span>
+                                    <span style="background:#1a2240; color:#ffe44d; border-radius:999px; font-size:9px; font-weight:800; padding:1px 8px;">${lista.length}</span>
+                                    <div style="flex:1; height:1px; background:rgba(26,34,64,0.25);"></div>
                                 </div>
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;">
-                                    ${lista.map((a, i) => `
-                                        <div style="display:flex; align-items:center; justify-content:space-between; background:${i%2===0?'rgba(0,0,0,0.03)':'transparent'}; padding:5px 10px; border-radius:5px;">
-                                            <span style="font-size:12px; font-weight:600; color:var(--text-main); letter-spacing:0.01em;">${a.fullname}</span>
-                                            <span style="font-size:11px; font-weight:800; color:${col.bg}; min-width:22px; text-align:right;">${a.num || ''}</span>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+                                    ${lista.map((a) => `
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.45); padding:7px 12px; border-radius:6px; border:1px solid rgba(26,34,64,0.12);">
+                                            <span style="font-size:12px; font-weight:700; color:#1a2240; letter-spacing:0.01em;">${a.fullname}</span>
+                                            <span style="font-size:13px; font-weight:900; color:#1a2240; min-width:24px; text-align:right;">${a.num || ''}</span>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -4966,9 +5001,9 @@ window.exportConvocazioniIMG = async function(sessionId) {
                 </div>
 
                 <!-- FOOTER -->
-                <div style="background:var(--card); padding:8px 28px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.06);">
-                    <span style="font-size:9px; color:#374151; text-transform:uppercase; letter-spacing:0.1em;">SportTrackPro</span>
-                    <span style="font-size:9px; color:#374151;">${new Date().toLocaleDateString('it-IT')}</span>
+                <div style="background:#1a2240; padding:10px 28px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:10px; color:#ffe44d; text-transform:uppercase; letter-spacing:0.15em; font-weight:700;">SportTrackPro</span>
+                    <span style="font-size:10px; color:rgba(255,228,77,0.7); font-weight:600;">${new Date().toLocaleDateString('it-IT')}</span>
                 </div>
             </div>
         `;
@@ -4985,7 +5020,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
             scale: 2, 
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#0f172a',
+            backgroundColor: '#ffffff',
             logging: false,
             width: 580,
             windowWidth: 580
@@ -5154,10 +5189,10 @@ function templateImportAtleti() {
         <div style="background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 4px solid #ffd166;">
             <h4 style="margin:0 0 10px 0; color: #ffd166; font-size: 14px; font-weight: 800;">⚠️ ISTRUZIONI FILE EXCEL</h4>
             <p style="margin:0; font-size: 13px; color: #c9a84c; line-height: 1.5;">
-                Il file deve essere in formato <b style="color:#ffd166;">.xlsx</b> e contenere nella prima riga queste colonne: <br>
-                <b style="color:#ffd166;">nome</b> | <b style="color:#ffd166;">cognome</b> | <b style="color:#ffd166;">data_nascita</b> <br>
+                Il file deve essere in formato <b style="color:#92400e;">.xlsx</b> e contenere nella prima riga queste colonne: <br>
+                <b style="color:#92400e;">nome</b> | <b style="color:#92400e;">cognome</b> | <b style="color:#92400e;">data_nascita</b> <br>
                 <span style="display:inline-block; margin-top:5px; background:rgba(255,209,102,0.1); padding:2px 8px; border-radius:4px; border: 1px solid rgba(255,209,102,0.2);">
-                    💡 La data deve essere nel formato: <b style="color:#ffd166;">AAAA-MM-GG</b> (es: 2012-05-24)
+                    💡 La data deve essere nel formato: <b style="color:#92400e;">AAAA-MM-GG</b> (es: 2012-05-24)
                 </span>
             </p>
         </div>
@@ -5412,6 +5447,14 @@ window.templateDashboard = function() {
                 style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:var(--text-muted); transition:all 0.15s; white-space:nowrap;">
                 👤 Statistiche per Atleta
             </button>
+            <button id="dash-tab-btn-4" onclick="window.switchDashTab(4)"
+                style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:var(--text-muted); transition:all 0.15s; white-space:nowrap;">
+                📊 Presenze Mensili
+            </button>
+            <button id="dash-tab-btn-5" onclick="window.switchDashTab(5)"
+                style="padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-family:inherit; font-size:0.83rem; font-weight:600; background:transparent; color:var(--text-muted); transition:all 0.15s; white-space:nowrap;">
+                👤 Presenze Mensili Atleta
+            </button>
         </div>
 
         <!-- TAB 0: STATISTICHE GARE PER SQUADRA -->
@@ -5607,6 +5650,72 @@ window.templateDashboard = function() {
             </div>
         </div>
 
+        <!-- TAB 4: PRESENZE MENSILI PER SQUADRA -->
+        <div id="dash-tab-4" style="display:none;">
+            <div class="card">
+                <div class="header" style="margin-bottom:1rem; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="font-family:'DM Mono','Outfit',sans-serif; font-size:0.95rem; font-weight:700; margin:0;">📈 Andamento Mensile per Squadra</h3>
+                        <span style="font-size:0.68rem; color:var(--text-sub);">Presenze · Gol · Punti — Clicca su un grafico per ingrandirlo</span>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <select id="dash-monthly-season" onchange="window.onDashMonthlyFilterChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le stagioni</option>
+                        </select>
+                        <select id="dash-monthly-soc" onchange="window.onDashMonthlySocChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le società</option>
+                        </select>
+                        <select id="dash-monthly-cat" onchange="window.onDashMonthlyCatChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le categorie</option>
+                        </select>
+                        <select id="dash-monthly-team" onchange="window.onDashMonthlyFilterChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le squadre</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="dash-monthly-grid" style="display:flex; flex-direction:column; gap:14px;">
+                    <div style="text-align:center; padding:30px; color:var(--text-sub);">⏳ Caricamento grafici...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: PRESENZE MENSILI PER ATLETA -->
+        <div id="dash-tab-5" style="display:none;">
+            <div class="card">
+                <div class="header" style="margin-bottom:1rem; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <h3 style="font-family:'DM Mono','Outfit',sans-serif; font-size:0.95rem; font-weight:700; margin:0;">👤 Presenze Mensili per Atleta</h3>
+                        <span style="font-size:0.68rem; color:var(--text-sub);">Andamento mensile delle presenze — Clicca su un atleta per ingrandire</span>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <select id="dash-ath-monthly-season" onchange="window.onDashAthMonthlySeasonChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le stagioni</option>
+                        </select>
+                        <select id="dash-ath-monthly-soc" onchange="window.onDashAthMonthlySocChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le società</option>
+                        </select>
+                        <select id="dash-ath-monthly-cat" onchange="window.onDashAthMonthlyCatChange()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le categorie</option>
+                        </select>
+                        <select id="dash-ath-monthly-team" onchange="window.renderDashAthMonthlyCharts()" style="padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.78rem; width:auto; margin:0; color:var(--text-sub);">
+                            <option value="">Tutte le squadre</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="dash-ath-monthly-grid" style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="text-align:center; padding:30px; color:var(--text-sub);">⏳ Caricamento...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- POPUP GRAFICO MENSILE INGRANDITO -->
+    <div id="monthly-chart-popup-overlay" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(200,205,220,0.75); backdrop-filter:blur(16px) saturate(0.6); align-items:center; justify-content:center; padding:20px;">
+        <div id="monthly-chart-popup-box" style="background:var(--card-raised); border-radius:var(--r-2xl); box-shadow:var(--shadow-xl), 0 0 0 1px rgba(255,79,59,0.1); width:100%; max-width:860px; max-height:92vh; overflow-y:auto; position:relative; animation:popupIn 0.28s cubic-bezier(.34,1.36,.64,1); border:1px solid var(--border-accent); padding:28px 32px 24px;">
+            <button onclick="window.closeMonthlyChartPopup()" style="position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.05); border:1px solid var(--border); width:32px; height:32px; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-sub); transition:all 0.15s;" onmouseover="this.style.background='rgba(255,56,96,0.12)';this.style.color='#dc2626'" onmouseout="this.style.background='rgba(0,0,0,0.05)';this.style.color='var(--text-sub)'">✕</button>
+            <div id="monthly-chart-popup-content"></div>
+        </div>
     </div>
 
     <style>
@@ -5615,7 +5724,9 @@ window.templateDashboard = function() {
         #dash-stats-soc, #dash-stats-cat, #dash-stats-team,
         #dash-match-soc, #dash-match-cat, #dash-match-team,
         #dash-pres-soc,  #dash-pres-cat,  #dash-pres-team,
-        #dash-ath-soc,   #dash-ath-cat,   #dash-ath-team {
+        #dash-ath-soc,   #dash-ath-cat,   #dash-ath-team,
+        #dash-monthly-soc, #dash-monthly-cat, #dash-monthly-season, #dash-monthly-team,
+        #dash-ath-monthly-soc, #dash-ath-monthly-cat, #dash-ath-monthly-season, #dash-ath-monthly-team {
             padding: 5px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -5631,7 +5742,9 @@ window.templateDashboard = function() {
         #dash-stats-soc:focus, #dash-stats-cat:focus, #dash-stats-team:focus,
         #dash-match-soc:focus, #dash-match-cat:focus, #dash-match-team:focus,
         #dash-pres-soc:focus,  #dash-pres-cat:focus,  #dash-pres-team:focus,
-        #dash-ath-soc:focus,   #dash-ath-cat:focus,   #dash-ath-team:focus {
+        #dash-ath-soc:focus,   #dash-ath-cat:focus,   #dash-ath-team:focus,
+        #dash-monthly-soc:focus, #dash-monthly-cat:focus, #dash-monthly-season:focus, #dash-monthly-team:focus,
+        #dash-ath-monthly-soc:focus, #dash-ath-monthly-cat:focus, #dash-ath-monthly-season:focus, #dash-ath-monthly-team:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px var(--primary-glow);
@@ -5642,7 +5755,7 @@ window.templateDashboard = function() {
 
 /* ── TAB SWITCHER DASHBOARD ── */
 window.switchDashTab = function(idx) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
         const panel = document.getElementById('dash-tab-' + i);
         const btn   = document.getElementById('dash-tab-btn-' + i);
         if (panel) panel.style.display = i === idx ? '' : 'none';
@@ -5651,6 +5764,8 @@ window.switchDashTab = function(idx) {
             btn.style.color      = i === idx ? 'white'   : 'var(--text-muted)';
         }
     }
+    if (idx === 4) window.renderDashMonthlyCharts();
+    if (idx === 5) window.renderDashAthMonthlyCharts();
 };
 
 /* ── DATI GLOBALI DASHBOARD ── */
@@ -5742,8 +5857,835 @@ window.refreshDashboard = async function() {
         window.loadDashPresenze(seasonId, socId, scopedTeamIds),
         window.loadDashStats(seasonId, socId, scopedTeamIds),
         window.loadDashAthletes(seasonId, socId, scopedTeamIds),
+        window.loadDashMonthlyData(seasonId, socId, scopedTeamIds),
     ]);
 };
+
+/* ══════════════════════════════════════════════════════════════
+   MODULO: PRESENZE MENSILI PER SQUADRA (Tab 4 Dashboard)
+══════════════════════════════════════════════════════════════ */
+
+window._dashMonthlyData = {};
+
+/* ══════════════════════════════════════════════════════════════
+   MODULO PRESENZE MENSILI — Grafico a Linee Multi-Serie
+   Serie: % Presenze · Gol · Punti
+══════════════════════════════════════════════════════════════ */
+
+// Palette colori distinti per squadra (grafico mini preview)
+const TEAM_PALETTE = [
+    '#e8402e','#3b82f6','#10b981','#f59e0b','#8b5cf6',
+    '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
+    '#14b8a6','#ef4444','#a855f7','#0ea5e9','#22c55e'
+];
+
+window._dashMonthlyData = {};
+window._dashMonthlyRaw  = {};   // dati grezzi per ricalcoli lato filtri
+
+window.loadDashMonthlyData = async function(seasonId, socId, scopedTeamIds) {
+    try {
+        const hasTeamScope = scopedTeamIds && scopedTeamIds.length > 0;
+
+        // ── 1. PRESENZE (sessioni allenamento + gara) ──────────────────
+        let attQ = client
+            .from('attendances')
+            .select('status, sessions!inner(id, session_date, team_id, society_id, season_id, category_id, teams!inner(id, name))');
+        if (seasonId && seasonId !== 'all') attQ = attQ.eq('sessions.season_id', seasonId);
+        if (socId     && socId     !== 'all') attQ = attQ.eq('sessions.society_id', socId);
+        if (hasTeamScope) attQ = attQ.in('sessions.team_id', scopedTeamIds);
+
+        // ── 2. PUNTI + GOL (match_details) — goals_for è la fonte autorevole per i gol squadra ──
+        let matchQ = client
+            .from('match_details')
+            .select('match_status, is_friendly, goals_for, sessions!inner(session_date, team_id, society_id, season_id, category_id, teams!inner(id, name))')
+            .eq('is_friendly', false);
+        if (seasonId && seasonId !== 'all') matchQ = matchQ.eq('sessions.season_id', seasonId);
+        if (socId     && socId     !== 'all') matchQ = matchQ.eq('sessions.society_id', socId);
+        if (hasTeamScope) matchQ = matchQ.in('sessions.team_id', scopedTeamIds);
+
+        const [attRes, matchRes] = await Promise.all([attQ, matchQ]);
+
+        // Helper: chiave mese e label
+        const mkKey   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const mkLabel = d => d.toLocaleDateString('it-IT', { month:'short', year:'2-digit' });
+
+        const teamsMap = {};
+        const ensureTeam = (teamId, teamName, catId, socId) => {
+            if (!teamsMap[teamId]) teamsMap[teamId] = {
+                id: teamId, name: teamName, category_id: catId, society_id: socId, months: {}
+            };
+        };
+        const ensureMonth = (team, key, label) => {
+            if (!team.months[key]) team.months[key] = { label, pres: 0, ass: 0, giust: 0, total: 0, goals: 0, pts: 0 };
+        };
+
+        // Aggrega presenze
+        (attRes.data || []).forEach(att => {
+            const sess = att.sessions;
+            if (!sess?.teams) return;
+            const d = new Date(sess.session_date);
+            const key = mkKey(d);
+            ensureTeam(sess.team_id, sess.teams.name, sess.category_id, sess.society_id);
+            const team = teamsMap[sess.team_id];
+            ensureMonth(team, key, mkLabel(d));
+            const m = team.months[key];
+            m.total++;
+            const s = (att.status || '').toLowerCase();
+            if (s === 'presente') m.pres++;
+            else if (s === 'assente') m.ass++;
+            else if (s === 'giustificato') m.giust++;
+        });
+
+        // Aggrega punti e gol (da match_details — fonte autorevole per i gol squadra)
+        (matchRes.data || []).forEach(md => {
+            const sess = md.sessions;
+            if (!sess?.teams) return;
+            const d = new Date(sess.session_date);
+            const key = mkKey(d);
+            ensureTeam(sess.team_id, sess.teams.name, sess.category_id, sess.society_id);
+            const team = teamsMap[sess.team_id];
+            ensureMonth(team, key, mkLabel(d));
+            team.months[key].goals += (md.goals_for || 0);
+            if (md.match_status === 'vittoria')  team.months[key].pts += 3;
+            else if (md.match_status === 'pareggio') team.months[key].pts += 1;
+        });
+
+        window._dashMonthlyData = teamsMap;
+
+        // Popola i filtri del tab (stagioni, società, categorie, squadre)
+        await _populateMonthlyFilters(seasonId, socId);
+
+        // Renderizza se il tab è attivo
+        const tab4 = document.getElementById('dash-tab-4');
+        if (tab4 && tab4.style.display !== 'none') window.renderDashMonthlyCharts();
+
+    } catch(err) { console.error('loadDashMonthlyData error:', err); }
+};
+
+async function _populateMonthlyFilters(currentSeasonId, currentSocId) {
+    // Stagioni
+    const selSeason = document.getElementById('dash-monthly-season');
+    if (selSeason && selSeason.options.length <= 1) {
+        const seasons = window._dashData?._seasons || [];
+        seasons.forEach(s => {
+            selSeason.innerHTML += `<option value="${s.id}" ${s.id === currentSeasonId ? 'selected' : ''}>${s.name}${s.is_active?' ✓':''}</option>`;
+        });
+    }
+    // Società
+    const selSoc = document.getElementById('dash-monthly-soc');
+    if (selSoc && selSoc.options.length <= 1) {
+        const societies = window._dashData?._societies || [];
+        societies.forEach(s => {
+            selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+    }
+}
+
+window.onDashMonthlySocChange = async function() {
+    const socId = document.getElementById('dash-monthly-soc')?.value;
+    const selCat  = document.getElementById('dash-monthly-cat');
+    const selTeam = document.getElementById('dash-monthly-team');
+    if (selCat)  selCat.innerHTML  = '<option value="">Tutte le categorie</option>';
+    if (selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>';
+
+    if (socId) {
+        const { data: cats } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+        (cats || []).forEach(c => { selCat.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+        // Popola squadre per questa società
+        const { data: tms } = await client.from('teams').select('id, name').eq('society_id', socId).order('name');
+        (tms || []).forEach(t => { selTeam.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+    }
+    window.renderDashMonthlyCharts();
+};
+
+window.onDashMonthlyCatChange = async function() {
+    const catId  = document.getElementById('dash-monthly-cat')?.value;
+    const socId  = document.getElementById('dash-monthly-soc')?.value;
+    const selTeam = document.getElementById('dash-monthly-team');
+    if (selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>';
+    let q = client.from('teams').select('id, name');
+    if (catId) q = q.eq('category_id', catId);
+    if (socId) q = q.eq('society_id', socId);
+    q = q.order('name');
+    const { data: tms } = await q;
+    (tms || []).forEach(t => { selTeam.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+    window.renderDashMonthlyCharts();
+};
+
+window.onDashMonthlyFilterChange = function() {
+    window.renderDashMonthlyCharts();
+};
+
+/* ══════════════════════════════════════════════════════════════
+   TAB 5 — PRESENZE MENSILI PER ATLETA
+   ══════════════════════════════════════════════════════════════ */
+
+window._dashAthMonthlyData = null; // cache: { athleteId: { id, name, jersey, teamName, months: { 'YYYY-MM': {label, pres, ass, giust, total} } } }
+
+window.onDashAthMonthlySocChange = async function() {
+    const socId   = document.getElementById('dash-ath-monthly-soc')?.value;
+    const selCat  = document.getElementById('dash-ath-monthly-cat');
+    const selTeam = document.getElementById('dash-ath-monthly-team');
+    if (selCat)  selCat.innerHTML  = '<option value="">Tutte le categorie</option>';
+    if (selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>';
+    if (socId) {
+        const { data: cats } = await client.from('categories').select('id,name').eq('society_id', socId).order('name');
+        (cats||[]).forEach(c => { selCat.innerHTML  += `<option value="${c.id}">${c.name}</option>`; });
+        const { data: tms }  = await client.from('teams').select('id,name').eq('society_id', socId).order('name');
+        (tms||[]).forEach(t  => { selTeam.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+    }
+    window._dashAthMonthlyData = null;
+    window.renderDashAthMonthlyCharts();
+};
+
+window.onDashAthMonthlyCatChange = async function() {
+    const catId   = document.getElementById('dash-ath-monthly-cat')?.value;
+    const socId   = document.getElementById('dash-ath-monthly-soc')?.value;
+    const selTeam = document.getElementById('dash-ath-monthly-team');
+    if (selTeam) selTeam.innerHTML = '<option value="">Tutte le squadre</option>';
+    let q = client.from('teams').select('id,name');
+    if (catId) q = q.eq('category_id', catId);
+    else if (socId) q = q.eq('society_id', socId);
+    q = q.order('name');
+    const { data: tms } = await q;
+    (tms||[]).forEach(t => { selTeam.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+    window._dashAthMonthlyData = null;
+    window.renderDashAthMonthlyCharts();
+};
+
+window.onDashAthMonthlySeasonChange = function() {
+    window._dashAthMonthlyData = null;
+    window.renderDashAthMonthlyCharts();
+};
+
+window.renderDashAthMonthlyCharts = async function() {
+    const grid = document.getElementById('dash-ath-monthly-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-sub);">⏳ Caricamento...</div>';
+
+    try {
+        const seasonId = document.getElementById('dash-ath-monthly-season')?.value;
+        const socId    = document.getElementById('dash-ath-monthly-soc')?.value;
+        const catId    = document.getElementById('dash-ath-monthly-cat')?.value;
+        const teamId   = document.getElementById('dash-ath-monthly-team')?.value;
+
+        // Scope check (stessa logica degli altri tab)
+        const scopedTeamIds = window._userAssignedTeamIds;
+        const hasScope = scopedTeamIds && scopedTeamIds.length > 0;
+
+        // Build query
+        let q = client.from('attendances')
+            .select('athlete_id, status, athletes!inner(id, name, surname), sessions!inner(id, session_date, team_id, society_id, season_id, category_id, teams!inner(id,name))');
+
+        if (seasonId) q = q.eq('sessions.season_id', seasonId);
+        if (socId)    q = q.eq('sessions.society_id', socId);
+        if (catId)    q = q.eq('sessions.category_id', catId);
+        if (teamId)   q = q.eq('sessions.team_id', teamId);
+        if (hasScope) q = q.in('sessions.team_id', scopedTeamIds);
+
+        const { data: rows, error } = await q;
+        if (error) throw error;
+
+        if (!rows?.length) {
+            grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-sub);">Nessun dato per i filtri selezionati.</div>';
+            return;
+        }
+
+        const mkKey   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const mkLabel = d => d.toLocaleDateString('it-IT', { month:'short', year:'2-digit' });
+
+        const athMap = {};
+        rows.forEach(row => {
+            const aid = row.athlete_id;
+            const ath = row.athletes;
+            const sess = row.sessions;
+            if (!ath || !sess) return;
+
+            if (!athMap[aid]) {
+                athMap[aid] = {
+                    id: aid,
+                    name: `${ath.surname} ${ath.name}`,
+                    teamName: sess.teams?.name || '',
+                    months: {}
+                };
+            }
+            const d = new Date(sess.session_date);
+            const key = mkKey(d);
+            if (!athMap[aid].months[key]) {
+                athMap[aid].months[key] = { label: mkLabel(d), pres: 0, ass: 0, giust: 0, total: 0 };
+            }
+            const m = athMap[aid].months[key];
+            m.total++;
+            const s = (row.status || '').toLowerCase();
+            if (s === 'presente') m.pres++;
+            else if (s === 'assente') m.ass++;
+            else if (s === 'giustificato') m.giust++;
+        });
+
+        window._dashAthMonthlyData = athMap;
+
+        const athletes = Object.values(athMap).sort((a,b) => a.name.localeCompare(b.name));
+
+        if (!athletes.length) {
+            grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-sub);">Nessun dato disponibile.</div>';
+            return;
+        }
+
+        const COLORS = ['#10b981','#3b82f6','#e8402e','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#14b8a6'];
+
+        grid.innerHTML = athletes.map((ath, idx) => {
+            const months = Object.entries(ath.months).sort((a,b) => a[0].localeCompare(b[0]));
+            if (!months.length) return '';
+            const color = COLORS[idx % COLORS.length];
+
+            const totPres  = months.reduce((s,[,m]) => s+m.pres, 0);
+            const totTot   = months.reduce((s,[,m]) => s+m.total, 0);
+            const totAss   = months.reduce((s,[,m]) => s+m.ass, 0);
+            const totGiust = months.reduce((s,[,m]) => s+m.giust, 0);
+            const avgPerc  = totTot > 0 ? Math.round((totPres/totTot)*100) : 0;
+            const percColor = avgPerc >= 75 ? '#059669' : avgPerc >= 50 ? '#d97706' : '#dc2626';
+
+            // Mini line chart (% presenze)
+            const miniSVG = _buildAthMiniLineChart(months, color, 420, 60);
+
+            return `
+            <div onclick="window.openAthMonthlyPopup('${ath.id}')"
+                 style="display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-left:3px solid ${color};border-radius:var(--r-lg);padding:11px 16px;cursor:pointer;transition:all 0.18s;box-shadow:var(--shadow-sm);"
+                 onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.background='var(--card-hover)'"
+                 onmouseout="this.style.boxShadow='var(--shadow-sm)';this.style.background='var(--card)'">
+                <!-- Avatar + nome -->
+                <div style="min-width:170px;max-width:200px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <div style="width:30px;height:30px;background:${color}22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:${color};flex-shrink:0;">${ath.name.charAt(0)}</div>
+                        <div>
+                            <div style="font-size:0.84rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;" title="${ath.name}">${ath.name}</div>
+                            <div style="font-size:0.68rem;color:var(--text-muted);">${ath.teamName}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                        <span style="font-size:0.62rem;font-weight:700;background:${percColor}18;color:${percColor};border-radius:4px;padding:1px 6px;">${avgPerc}% pres.</span>
+                        <span style="font-size:0.62rem;font-weight:700;background:rgba(16,185,129,0.1);color:#059669;border-radius:4px;padding:1px 6px;">✅ ${totPres}</span>
+                        <span style="font-size:0.62rem;font-weight:700;background:rgba(239,68,68,0.1);color:#dc2626;border-radius:4px;padding:1px 6px;">❌ ${totAss}</span>
+                        ${totGiust > 0 ? `<span style="font-size:0.62rem;font-weight:700;background:rgba(245,158,11,0.1);color:#d97706;border-radius:4px;padding:1px 6px;">🟡 ${totGiust}</span>` : ''}
+                    </div>
+                </div>
+                <!-- Grafico mini -->
+                <div style="flex:1;overflow:hidden;min-width:0;">
+                    ${miniSVG}
+                </div>
+                <div style="font-size:0.72rem;color:var(--text-muted);opacity:0.5;flex-shrink:0;">🔍</div>
+            </div>`;
+        }).join('');
+
+        // Populate filters if empty
+        _populateAthMonthlyFilters();
+
+    } catch(err) {
+        grid.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444;">Errore: ${err.message}</div>`;
+        console.error(err);
+    }
+};
+
+function _buildAthMiniLineChart(months, color, W, H) {
+    if (!months || months.length < 1) return '';
+    const padL = 4, padR = 4, padT = 8, padB = 16;
+    const cW = W - padL - padR;
+    const cH = H - padT - padB;
+    const n  = months.length;
+
+    const percVals = months.map(([,m]) => m.total > 0 ? Math.round((m.pres / m.total) * 100) : 0);
+    const assVals  = months.map(([,m]) => m.total > 0 ? Math.round((m.ass  / m.total) * 100) : 0);
+
+    const xPos  = (i) => padL + (n === 1 ? cW/2 : i * (cW/(n-1)));
+    const yPerc = (v) => padT + cH - (v/100)*cH;
+
+    const buildLine = (vals, col, dash='') => {
+        if (vals.every(v => v===0)) return '';
+        const pts  = vals.map((v,i) => `${xPos(i).toFixed(1)},${yPerc(v).toFixed(1)}`).join(' ');
+        const dots = vals.map((v,i) =>
+            `<circle cx="${xPos(i).toFixed(1)}" cy="${yPerc(v).toFixed(1)}" r="2.5" fill="${col}" stroke="white" stroke-width="1"/>`
+        ).join('');
+        return `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${dash?`stroke-dasharray="${dash}"`:''}/>${dots}`;
+    };
+
+    const labels = months.map(([,m],i) => {
+        if (n <= 6 || i % Math.ceil(n/6) === 0)
+            return `<text x="${xPos(i).toFixed(1)}" y="${H-2}" text-anchor="middle" font-size="7.5" fill="rgba(90,100,128,0.7)" font-family="Outfit,sans-serif">${m.label}</text>`;
+        return '';
+    }).join('');
+
+    const baseline = `<line x1="${padL}" y1="${padT+cH}" x2="${padL+cW}" y2="${padT+cH}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`;
+
+    return `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+        ${baseline}
+        ${buildLine(percVals, color)}
+        ${buildLine(assVals,  '#ef4444', '4,3')}
+        ${labels}
+    </svg>`;
+}
+
+window.openAthMonthlyPopup = function(athId) {
+    const athData = window._dashAthMonthlyData?.[athId];
+    if (!athData) return;
+
+    const months = Object.entries(athData.months).sort((a,b) => a[0].localeCompare(b[0]));
+    if (!months.length) return;
+
+    const totPres  = months.reduce((s,[,m]) => s+m.pres, 0);
+    const totTot   = months.reduce((s,[,m]) => s+m.total, 0);
+    const totAss   = months.reduce((s,[,m]) => s+m.ass, 0);
+    const totGiust = months.reduce((s,[,m]) => s+m.giust, 0);
+    const avgPerc  = totTot > 0 ? Math.round((totPres/totTot)*100) : 0;
+    const percColor = avgPerc >= 75 ? '#059669' : avgPerc >= 50 ? '#d97706' : '#dc2626';
+
+    const fullChart = _buildAthFullLineChart(months, 720, 200);
+
+    // Tabella mesi
+    const tableRows = months.map(([key,m]) => {
+        const perc = m.total > 0 ? Math.round((m.pres/m.total)*100) : 0;
+        const pColor = perc >= 75 ? '#059669' : perc >= 50 ? '#d97706' : '#dc2626';
+        const bar = `<div style="height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;margin-top:3px;"><div style="height:100%;width:${perc}%;background:${pColor};border-radius:3px;transition:width 0.3s;"></div></div>`;
+        return `<tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+            <td style="padding:8px 10px;font-weight:600;font-size:12px;">${m.label}</td>
+            <td style="padding:8px 10px;text-align:center;color:#059669;font-weight:700;">${m.pres}</td>
+            <td style="padding:8px 10px;text-align:center;color:#dc2626;font-weight:700;">${m.ass}</td>
+            <td style="padding:8px 10px;text-align:center;color:#d97706;font-weight:700;">${m.giust || 0}</td>
+            <td style="padding:8px 10px;text-align:center;color:var(--text-sub);">${m.total}</td>
+            <td style="padding:8px 10px;min-width:100px;"><span style="font-weight:700;color:${pColor};font-size:12px;">${perc}%</span>${bar}</td>
+        </tr>`;
+    }).join('');
+
+    const overlay = document.getElementById('monthly-chart-popup-overlay');
+    const box     = document.getElementById('monthly-chart-popup-content');
+    if (!overlay || !box) return;
+
+    box.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">👤 Presenze Mensili</div>
+            <div style="font-size:1.2rem;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:2px;">${athData.name}</div>
+            <div style="font-size:0.78rem;color:var(--text-sub);">${athData.teamName}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                <span style="font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:${percColor}18;color:${percColor};">${avgPerc}% presenze medie</span>
+                <span style="font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(16,185,129,0.1);color:#059669;">✅ ${totPres} presenti</span>
+                <span style="font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(239,68,68,0.1);color:#dc2626;">❌ ${totAss} assenti</span>
+                ${totGiust>0?`<span style="font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(245,158,11,0.1);color:#d97706;">🟡 ${totGiust} giustificati</span>`:''}
+                <span style="font-size:0.75rem;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(0,0,0,0.05);color:var(--text-sub);">📋 ${totTot} sessioni</span>
+            </div>
+        </div>
+        <div style="background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;">
+            ${fullChart}
+            <div style="display:flex;gap:16px;margin-top:8px;justify-content:center;">
+                <span style="font-size:0.68rem;color:var(--text-muted);display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:14px;height:2px;background:#10b981;border-radius:2px;"></span> % Presenze</span>
+                <span style="font-size:0.68rem;color:var(--text-muted);display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:14px;height:2px;background:#ef4444;border-radius:2px;border-top:2px dashed #ef4444;"></span> % Assenze</span>
+            </div>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead>
+                    <tr style="background:rgba(0,0,0,0.03);">
+                        <th style="padding:8px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Mese</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#059669;">✅ Pres.</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#dc2626;">❌ Ass.</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#d97706;">🟡 Giust.</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:var(--text-muted);">Tot.</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);min-width:120px;">%</th>
+                    </tr>
+                </thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </div>`;
+
+    overlay.style.display = 'flex';
+};
+
+function _buildAthFullLineChart(months, W, H) {
+    if (!months || months.length === 0) return '';
+    const padL = 40, padR = 20, padT = 20, padB = 38;
+    const cW = W - padL - padR;
+    const cH = H - padT - padB;
+    const n  = months.length;
+
+    const percVals = months.map(([,m]) => m.total > 0 ? Math.round((m.pres/m.total)*100) : 0);
+    const assVals  = months.map(([,m]) => m.total > 0 ? Math.round((m.ass /m.total)*100) : 0);
+
+    const xPos  = (i) => padL + (n===1 ? cW/2 : i*(cW/(n-1)));
+    const yPct  = (v) => padT + cH - (v/100)*cH;
+
+    const gridLines = [0,25,50,75,100].map(v => {
+        const y = yPct(v);
+        return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+cW}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                 <text x="${padL-6}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="9" fill="rgba(90,100,128,0.75)" font-family="Outfit,sans-serif">${v}%</text>`;
+    }).join('');
+
+    const axisX = `<line x1="${padL}" y1="${padT+cH}" x2="${padL+cW}" y2="${padT+cH}" stroke="rgba(0,0,0,0.18)" stroke-width="1.5"/>`;
+    const axisY = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
+
+    const buildLine = (vals, col, dashArr='') => {
+        if (vals.every(v=>v===0)) return '';
+        const pts  = vals.map((v,i) => `${xPos(i).toFixed(1)},${yPct(v).toFixed(1)}`).join(' ');
+        const area = vals.map((v,i) => `${xPos(i).toFixed(1)},${yPct(v).toFixed(1)}`).join(' ') +
+            ` ${xPos(n-1).toFixed(1)},${padT+cH} ${xPos(0).toFixed(1)},${padT+cH}`;
+        const areaEl = dashArr ? '' : `<polygon points="${area}" fill="${col}" opacity="0.07"/>`;
+        const dots = vals.map((v,i) =>
+            `<circle cx="${xPos(i).toFixed(1)}" cy="${yPct(v).toFixed(1)}" r="4" fill="${col}" stroke="white" stroke-width="1.5">
+                <title>${months[i][1].label}: ${v}%</title></circle>`
+        ).join('');
+        return areaEl +
+            `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" ${dashArr?`stroke-dasharray="${dashArr}"`:''}/>${dots}`;
+    };
+
+    const xLabels = months.map(([,m],i) => {
+        const show = n <= 8 || i % Math.ceil(n/8) === 0 || i === n-1;
+        if (!show) return '';
+        const x = xPos(i);
+        return `<text x="${x.toFixed(1)}" y="${padT+cH+14}" text-anchor="middle" font-size="9.5" fill="rgba(90,100,128,0.8)" font-family="Outfit,sans-serif">${m.label}</text>`;
+    }).join('');
+
+    return `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+        ${gridLines}${axisX}${axisY}
+        ${buildLine(percVals, '#10b981')}
+        ${buildLine(assVals,  '#ef4444', '5,4')}
+        ${xLabels}
+    </svg>`;
+}
+
+async function _populateAthMonthlyFilters() {
+    const selSeason = document.getElementById('dash-ath-monthly-season');
+    if (selSeason && selSeason.options.length <= 1) {
+        (window._dashData?._seasons || []).forEach(s => {
+            selSeason.innerHTML += `<option value="${s.id}">${s.name}${s.is_active?' ✓':''}</option>`;
+        });
+    }
+    const selSoc = document.getElementById('dash-ath-monthly-soc');
+    if (selSoc && selSoc.options.length <= 1) {
+        (window._dashData?._societies || []).forEach(s => {
+            selSoc.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+    }
+}
+
+window.renderDashMonthlyCharts = async function() {
+    const grid = document.getElementById('dash-monthly-grid');
+    if (!grid) return;
+
+    const teamsMap  = window._dashMonthlyData || {};
+    const catId     = document.getElementById('dash-monthly-cat')?.value;
+    const socId     = document.getElementById('dash-monthly-soc')?.value;
+    const teamId    = document.getElementById('dash-monthly-team')?.value;
+    const seasonId  = document.getElementById('dash-monthly-season')?.value;
+
+    let teams = Object.values(teamsMap);
+
+    // Filtra per squadra specifica
+    if (teamId) {
+        teams = teams.filter(t => t.id === teamId);
+    } else {
+        // Filtra per categoria / società
+        if (catId || socId) {
+            let q = client.from('teams').select('id');
+            if (catId) q = q.eq('category_id', catId);
+            if (socId) q = q.eq('society_id', socId);
+            const { data: rows } = await q;
+            const allowed = new Set((rows || []).map(r => r.id));
+            teams = teams.filter(t => allowed.has(t.id));
+        }
+    }
+
+    // Se stagione diversa dal caricamento principale, ricarica
+    const mainSeason = document.getElementById('dash-season-filter')?.value;
+    if (seasonId && seasonId !== '' && seasonId !== mainSeason) {
+        // Ricalcola solo per questa stagione con filtri aggiuntivi
+        grid.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">⏳ Caricamento per stagione selezionata...</div>';
+        await window.loadDashMonthlyData(seasonId, socId || (window._dashData._forcedSocietyId || 'all'), null);
+        return;
+    }
+
+    if (teams.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-sub);">Nessun dato disponibile per i filtri selezionati.</div>';
+        return;
+    }
+
+    teams.sort((a, b) => a.name.localeCompare(b.name));
+
+    grid.innerHTML = teams.map((team, idx) => {
+        const months = Object.entries(team.months).sort((a, b) => a[0].localeCompare(b[0]));
+        if (months.length === 0) return '';
+        const color = TEAM_PALETTE[idx % TEAM_PALETTE.length];
+        const miniSVG = _buildMiniLineChart(months, color, 520, 72);
+        const totPres  = months.reduce((s,[,m]) => s + m.pres, 0);
+        const totTot   = months.reduce((s,[,m]) => s + m.total, 0);
+        const totGoals = months.reduce((s,[,m]) => s + m.goals, 0);
+        const totPts   = months.reduce((s,[,m]) => s + m.pts, 0);
+        const avgPerc  = totTot > 0 ? Math.round((totPres / totTot) * 100) : 0;
+
+        return `
+        <div onclick="window.openMonthlyChartPopup('${team.id}', ${idx})"
+             style="display:flex; align-items:center; gap:16px; background:var(--card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:var(--r-lg); padding:12px 18px; cursor:pointer; transition:all 0.18s; box-shadow:var(--shadow-sm);"
+             onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.background='var(--card-hover)'"
+             onmouseout="this.style.boxShadow='var(--shadow-sm)';this.style.background='var(--card)'">
+            <!-- Nome squadra + pillole -->
+            <div style="min-width:160px; max-width:190px;">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${team.name}">${team.name}</div>
+                <div style="display:flex; gap:5px; margin-top:6px; flex-wrap:wrap;">
+                    <span style="font-size:0.62rem; font-weight:700; background:rgba(16,185,129,0.1); color:#059669; border-radius:4px; padding:1px 6px;">${avgPerc}% pres.</span>
+                    <span style="font-size:0.62rem; font-weight:700; background:rgba(59,130,246,0.1); color:#2563eb; border-radius:4px; padding:1px 6px;">⚽ ${totGoals} gol</span>
+                    <span style="font-size:0.62rem; font-weight:700; background:rgba(245,158,11,0.1); color:#d97706; border-radius:4px; padding:1px 6px;">🏆 ${totPts} pts</span>
+                </div>
+            </div>
+            <!-- Grafico mini -->
+            <div style="flex:1; overflow:hidden; min-width:0;">
+                ${miniSVG}
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted); opacity:0.5; flex-shrink:0;">🔍</div>
+        </div>`;
+    }).join('');
+};
+
+/* ── GRAFICO A LINEE MINI (preview inline) ── */
+function _buildMiniLineChart(months, teamColor, W, H) {
+    if (!months || months.length < 1) return '';
+    const padL = 4, padR = 4, padT = 8, padB = 16;
+    const cW = W - padL - padR;
+    const cH = H - padT - padB;
+    const n  = months.length;
+
+    // Serie: % presenze (0-100), gol (scala autonoma), punti (scala autonoma)
+    const percVals  = months.map(([,m]) => m.total > 0 ? Math.round((m.pres / m.total) * 100) : 0);
+    const goalVals  = months.map(([,m]) => m.goals);
+    const ptsVals   = months.map(([,m]) => m.pts);
+
+    const maxGoals = Math.max(...goalVals, 1);
+    const maxPts   = Math.max(...ptsVals, 1);
+
+    const xPos = (i) => padL + (n === 1 ? cW / 2 : i * (cW / (n - 1)));
+    const yPerc = (v) => padT + cH - (v / 100) * cH;
+    const yGoal = (v) => padT + cH - (v / maxGoals) * cH;
+    const yPts  = (v) => padT + cH - (v / maxPts) * cH;
+
+    const buildPolyline = (vals, yFn, color, dash = '') => {
+        if (vals.every(v => v === 0)) return '';
+        const pts = vals.map((v, i) => `${xPos(i).toFixed(1)},${yFn(v).toFixed(1)}`).join(' ');
+        // Dots
+        const dots = vals.map((v, i) =>
+            `<circle cx="${xPos(i).toFixed(1)}" cy="${yFn(v).toFixed(1)}" r="2.5" fill="${color}" stroke="white" stroke-width="1"/>`
+        ).join('');
+        return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${dash ? `stroke-dasharray="${dash}"` : ''}/>` + dots;
+    };
+
+    // Etichette mesi
+    const labels = months.map(([,m], i) => {
+        if (n <= 6 || i % Math.ceil(n / 6) === 0) {
+            return `<text x="${xPos(i).toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="7.5" fill="rgba(90,100,128,0.7)" font-family="Outfit,sans-serif">${m.label}</text>`;
+        }
+        return '';
+    }).join('');
+
+    // Linea base
+    const baseline = `<line x1="${padL}" y1="${padT + cH}" x2="${padL + cW}" y2="${padT + cH}" stroke="rgba(0,0,0,0.07)" stroke-width="1"/>`;
+
+    return `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;">
+        ${baseline}
+        ${buildPolyline(percVals, yPerc, '#10b981')}
+        ${buildPolyline(goalVals, yGoal, '#3b82f6', '4,3')}
+        ${buildPolyline(ptsVals,  yPts,  '#f59e0b', '2,2')}
+        ${labels}
+    </svg>`;
+}
+
+/* ── GRAFICO A LINEE FULL (popup ingrandito) ── */
+function _buildFullLineChart(months, W, H) {
+    if (!months || months.length === 0) return '';
+    const padL = 44, padR = 20, padT = 20, padB = 38;
+    const cW = W - padL - padR;
+    const cH = H - padT - padB;
+    const n  = months.length;
+
+    const percVals = months.map(([,m]) => m.total > 0 ? Math.round((m.pres / m.total) * 100) : 0);
+    const goalVals = months.map(([,m]) => m.goals);
+    const ptsVals  = months.map(([,m]) => m.pts);
+
+    const maxRight = Math.max(...goalVals, ...ptsVals, 1);
+
+    const xPos  = (i) => padL + (n === 1 ? cW / 2 : i * (cW / (n - 1)));
+    const yLeft = (v) => padT + cH - (v / 100) * cH;         // asse sinistra: %
+    const yRight= (v) => padT + cH - (v / maxRight) * cH;    // asse destra: gol/pts
+
+    // Grid H lines (asse sinistra %)
+    const gridLines = [0, 25, 50, 75, 100].map(v => {
+        const y = yLeft(v);
+        return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + cW}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                 <text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="9" fill="rgba(90,100,128,0.75)" font-family="Outfit,sans-serif">${v}%</text>`;
+    }).join('');
+
+    // Asse destra (valori grezzi)
+    const rightTicks = [0, 0.25, 0.5, 0.75, 1].map(f => {
+        const v = Math.round(f * maxRight);
+        const y = yRight(v);
+        return `<text x="${padL + cW + 6}" y="${(y + 4).toFixed(1)}" text-anchor="start" font-size="9" fill="rgba(90,100,128,0.6)" font-family="Outfit,sans-serif">${v}</text>`;
+    }).join('');
+
+    // Assi
+    const axisX = `<line x1="${padL}" y1="${padT + cH}" x2="${padL + cW}" y2="${padT + cH}" stroke="rgba(0,0,0,0.18)" stroke-width="1.5"/>`;
+    const axisY = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + cH}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
+
+    const buildLine = (vals, yFn, color, dashArr = '') => {
+        if (vals.every(v => v === 0)) return '';
+        const pts = vals.map((v, i) => `${xPos(i).toFixed(1)},${yFn(v).toFixed(1)}`).join(' ');
+        const area = vals.map((v, i) => `${xPos(i).toFixed(1)},${yFn(v).toFixed(1)}`).join(' ') +
+            ` ${xPos(n-1).toFixed(1)},${padT + cH} ${xPos(0).toFixed(1)},${padT + cH}`;
+        const areaEl = dashArr ? '' : `<polygon points="${area}" fill="${color}" opacity="0.07"/>`;
+        const dots = vals.map((v, i) =>
+            `<circle cx="${xPos(i).toFixed(1)}" cy="${yFn(v).toFixed(1)}" r="4" fill="${color}" stroke="white" stroke-width="1.5">
+                <title>${months[i][1].label}: ${v}</title>
+             </circle>`
+        ).join('');
+        return areaEl +
+            `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" ${dashArr ? `stroke-dasharray="${dashArr}"` : ''}/>` +
+            dots;
+    };
+
+    // Etichette asse X
+    const xLabels = months.map(([,m], i) =>
+        `<text x="${xPos(i).toFixed(1)}" y="${padT + cH + 22}" text-anchor="middle" font-size="10" fill="rgba(90,100,128,0.9)" font-family="Outfit,sans-serif" font-weight="500">${m.label}</text>`
+    ).join('');
+
+    return `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block; overflow:visible;">
+        ${gridLines}${axisX}${axisY}${rightTicks}
+        ${buildLine(percVals, yLeft,  '#10b981')}
+        ${buildLine(goalVals, yRight, '#3b82f6', '6,3')}
+        ${buildLine(ptsVals,  yRight, '#f59e0b', '3,2')}
+        ${xLabels}
+    </svg>`;
+}
+
+window.openMonthlyChartPopup = function(teamId, paletteIdx) {
+    const team = window._dashMonthlyData[teamId];
+    if (!team) return;
+
+    const months    = Object.entries(team.months).sort((a, b) => a[0].localeCompare(b[0]));
+    const teamColor = TEAM_PALETTE[(paletteIdx || 0) % TEAM_PALETTE.length];
+    const totPres   = months.reduce((s,[,m]) => s + m.pres, 0);
+    const totAss    = months.reduce((s,[,m]) => s + m.ass, 0);
+    const totGiust  = months.reduce((s,[,m]) => s + m.giust, 0);
+    const totTot    = months.reduce((s,[,m]) => s + m.total, 0);
+    const totGoals  = months.reduce((s,[,m]) => s + m.goals, 0);
+    const totPts    = months.reduce((s,[,m]) => s + m.pts, 0);
+    const avgPerc   = totTot > 0 ? Math.round((totPres / totTot) * 100) : 0;
+    const percColor = avgPerc >= 70 ? '#059669' : avgPerc >= 40 ? '#d97706' : '#dc2626';
+
+    const chartSVG = _buildFullLineChart(months, 760, 280);
+
+    const popupContent = document.getElementById('monthly-chart-popup-content');
+    if (!popupContent) return;
+
+    popupContent.innerHTML = `
+        <!-- Header -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+            <div style="width:4px; height:36px; background:${teamColor}; border-radius:3px; flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">📈 Andamento Mensile</div>
+                <div style="font-size:1.25rem; font-weight:800; color:var(--text-main); font-family:'Syne',sans-serif;">${team.name}</div>
+            </div>
+        </div>
+
+        <!-- KPI Pills -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+            <div style="background:rgba(16,185,129,0.09); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#059669; font-family:'DM Mono',monospace; line-height:1;">${avgPerc}%</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">% Presenze</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.14); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#10b981; font-family:'DM Mono',monospace; line-height:1;">${totPres}</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">Presenti</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.15); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#ef4444; font-family:'DM Mono',monospace; line-height:1;">${totAss}</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">Assenti</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.16); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#d97706; font-family:'DM Mono',monospace; line-height:1;">${totGiust}</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">Giustificati</div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.18); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#2563eb; font-family:'DM Mono',monospace; line-height:1;">⚽ ${totGoals}</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">Gol Totali</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.18); border-radius:10px; padding:10px 16px; text-align:center; flex:1; min-width:80px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#d97706; font-family:'DM Mono',monospace; line-height:1;">🏆 ${totPts}</div>
+                <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; margin-top:3px;">Punti Totali</div>
+            </div>
+        </div>
+
+        <!-- Grafico a Linee Full -->
+        <div style="background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 12px 8px;">
+            ${chartSVG}
+        </div>
+
+        <!-- Legenda -->
+        <div style="display:flex; gap:18px; justify-content:center; margin-top:14px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:7px; font-size:0.75rem; color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#10b981"/></svg>
+                % Presenze (asse sx)
+            </div>
+            <div style="display:flex; align-items:center; gap:7px; font-size:0.75rem; color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="6,3" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#3b82f6"/></svg>
+                Gol (asse dx)
+            </div>
+            <div style="display:flex; align-items:center; gap:7px; font-size:0.75rem; color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="3,2" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#f59e0b"/></svg>
+                Punti (asse dx)
+            </div>
+        </div>
+
+        <!-- Tabella dettaglio -->
+        <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:10px;">Dettaglio per Mese</div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.79rem;">
+                    <thead>
+                        <tr style="background:rgba(0,0,0,0.03);">
+                            <th style="padding:7px 10px; text-align:left; font-size:0.66rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Mese</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#10b981;">Pres.</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#ef4444;">Ass.</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#d97706;">Giust.</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:var(--text-muted);">Tot.</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#059669;">% Pres.</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#2563eb;">⚽ Gol</th>
+                            <th style="padding:7px 10px; text-align:center; font-size:0.66rem; font-weight:700; color:#d97706;">🏆 Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${months.map(([, m]) => {
+                            const p  = m.total > 0 ? Math.round((m.pres / m.total) * 100) : 0;
+                            const pc = p >= 70 ? '#059669' : p >= 40 ? '#d97706' : '#dc2626';
+                            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                                <td style="padding:8px 10px; font-weight:600;">${m.label}</td>
+                                <td style="padding:8px 10px; text-align:center; color:#059669; font-weight:700;">${m.pres}</td>
+                                <td style="padding:8px 10px; text-align:center; color:#ef4444; font-weight:700;">${m.ass}</td>
+                                <td style="padding:8px 10px; text-align:center; color:#d97706;">${m.giust}</td>
+                                <td style="padding:8px 10px; text-align:center; color:var(--text-sub);">${m.total}</td>
+                                <td style="padding:8px 10px; text-align:center;"><span style="font-weight:800; color:${pc}; font-family:'DM Mono',monospace;">${p}%</span></td>
+                                <td style="padding:8px 10px; text-align:center; color:#2563eb; font-weight:700;">${m.goals}</td>
+                                <td style="padding:8px 10px; text-align:center; color:#d97706; font-weight:700;">${m.pts}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+    const overlay = document.getElementById('monthly-chart-popup-overlay');
+    if (overlay) overlay.style.display = 'flex';
+};
+
+window.closeMonthlyChartPopup = function() {
+    const overlay = document.getElementById('monthly-chart-popup-overlay');
+    if (overlay) overlay.style.display = 'none';
+};
+
+document.getElementById('monthly-chart-popup-overlay')?.addEventListener('click', function(e) {
+    if (e.target === this) window.closeMonthlyChartPopup();
+});
 
 /* ── KPI ── */
 window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
@@ -5962,9 +6904,9 @@ window.renderDashMatches = function() {
 
     const esitoBadge = (status) => {
         if (!status || status === 'da disputare') return '<span style="background:var(--card-raised); color:var(--text-muted); padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">DA GIOCARE</span>';
-        if (status === 'vittoria') return '<span style="background:rgba(6,214,160,0.12); color:#06d6a0; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">VITTORIA</span>';
+        if (status === 'vittoria') return '<span style="background:rgba(5,150,105,0.12); color:#047857; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">VITTORIA</span>';
         if (status === 'sconfitta') return '<span style="background:rgba(239,68,68,0.12); color:#f87171; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">SCONFITTA</span>';
-        if (status === 'pareggio') return '<span style="background:rgba(255,209,102,0.12); color:#ffd166; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">PAREGGIO</span>';
+        if (status === 'pareggio') return '<span style="background:rgba(255,209,102,0.12); color:#92400e; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">PAREGGIO</span>';
         return '<span style="background:var(--card-raised); color:var(--text-muted); padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">' + status.toUpperCase() + '</span>';
     };
 
@@ -6500,9 +7442,9 @@ function _applyTabFilterVisibility() {
     const isTeamScoped = ['responsabile','dirigente','allenatore'].includes(role);
 
     // ID dei selects per ogni tipo di filtro in ogni tab
-    const socSelects  = ['dash-stats-soc','dash-match-soc','dash-pres-soc','dash-ath-soc'];
-    const catSelects  = ['dash-stats-cat','dash-match-cat','dash-pres-cat','dash-ath-cat'];
-    const teamSelects = ['dash-stats-team','dash-match-team','dash-pres-team','dash-ath-team'];
+    const socSelects  = ['dash-stats-soc','dash-match-soc','dash-pres-soc','dash-ath-soc','dash-monthly-soc'];
+    const catSelects  = ['dash-stats-cat','dash-match-cat','dash-pres-cat','dash-ath-cat','dash-monthly-cat'];
+    const teamSelects = ['dash-stats-team','dash-match-team','dash-pres-team','dash-ath-team','dash-monthly-team'];
 
     socSelects.forEach(id => {
         // Per dash-match-soc nascondiamo il wrapper che include anche la label
@@ -7292,6 +8234,916 @@ window.initGenitoreView = async function() {
         contentEl.innerHTML = `<div class="card"><p style="color:#ef4444;">Errore caricamento dati: ${err.message}</p></div>`;
     }
 };
+
+
+/* ============================================================
+   MODULO TEST ATLETICI
+   Tabelle Supabase richieste:
+     test_definitions, test_performances,
+     test_sessions, test_attendances, test_results
+   ============================================================ */
+
+// ── POPUP OVERLAY (aggiunto dinamicamente una sola volta) ────────
+(function() {
+    if (document.getElementById('test-popup-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'test-popup-overlay';
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:1300;background:rgba(200,205,220,0.75);backdrop-filter:blur(16px) saturate(0.6);align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+        <div id="test-popup-box" style="background:var(--card-raised);border-radius:var(--r-2xl);box-shadow:var(--shadow-xl),0 0 0 1px rgba(255,79,59,0.1);width:100%;max-width:960px;max-height:92vh;overflow-y:auto;position:relative;animation:popupIn 0.28s cubic-bezier(.34,1.36,.64,1);border:1px solid var(--border-accent);">
+            <button onclick="window.closeTestPopup()" style="position:absolute;top:16px;right:16px;z-index:10;background:rgba(0,0,0,0.05);border:1px solid var(--border);width:32px;height:32px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-sub);">✕</button>
+            <div id="test-popup-content" style="padding:28px 32px 24px;"></div>
+        </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) window.closeTestPopup(); });
+    document.body.appendChild(overlay);
+})();
+
+window.closeTestPopup = function() {
+    const o = document.getElementById('test-popup-overlay');
+    if (o) o.style.display = 'none';
+};
+window.openTestPopup = function(html) {
+    document.getElementById('test-popup-content').innerHTML = html;
+    const o = document.getElementById('test-popup-overlay');
+    o.style.display = 'flex';
+};
+
+// ── TEMPLATE ────────────────────────────────────────────────────
+window.templateTest = function() {
+    return `
+    <div class="card" id="main-test-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <h2 style="margin:0;color:var(--text-main);">🧪 Test Atletici</h2>
+        </div>
+
+        <!-- TAB NAV -->
+        <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">
+            <button id="test-tab-btn-sessioni" onclick="window.switchTestTab('sessioni')"
+                style="padding:9px 22px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:700;font-size:13px;transition:all 0.15s;background:var(--primary);color:white;margin-bottom:-2px;border-bottom:2px solid var(--primary);">
+                📋 Sessioni
+            </button>
+            <button id="test-tab-btn-tipi" onclick="window.switchTestTab('tipi')"
+                style="padding:9px 22px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:700;font-size:13px;transition:all 0.15s;background:transparent;color:var(--text-sub);margin-bottom:-2px;border-bottom:2px solid transparent;">
+                ⚙️ Tipi Test
+            </button>
+        </div>
+
+        <!-- PANNELLO SESSIONI -->
+        <div id="test-panel-sessioni">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                <button onclick="window.openNewTestSession()" style="background:#059669;color:white;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">📋 Nuova Sessione</button>
+            </div>
+            <!-- FILTRI -->
+            <div style="background:rgba(0,0,0,0.03);padding:14px;border-radius:8px;border:1px solid var(--border);margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                <div id="test-soc-filter-container">
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">SOCIETÀ</label>
+                    <select id="f-test-soc" style="width:100%;padding:8px;margin-top:4px;" onchange="window.reloadTestSubFilters()">
+                        <option value="">Caricamento...</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">STAGIONE</label>
+                    <select id="f-test-season" style="width:100%;padding:8px;margin-top:4px;" onchange="window.testOnSeasonChange()">
+                        <option value="">Tutte le stagioni</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">CATEGORIA</label>
+                    <select id="f-test-cat" style="width:100%;padding:8px;margin-top:4px;" onchange="window.reloadTestTeamsOnly()">
+                        <option value="">Tutte</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">SQUADRA</label>
+                    <select id="f-test-team" style="width:100%;padding:8px;margin-top:4px;" onchange="window.initTest()">
+                        <option value="">Tutte</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">TIPO TEST</label>
+                    <select id="f-test-def" style="width:100%;padding:8px;margin-top:4px;" onchange="window.initTest()">
+                        <option value="">Tutti i tipi</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">DA DATA</label>
+                    <input type="date" id="f-test-from" style="width:100%;padding:8px;margin-top:4px;" onchange="window.initTest()">
+                </div>
+                <div>
+                    <label style="font-size:11px;color:var(--text-muted);font-weight:700;">A DATA</label>
+                    <input type="date" id="f-test-to" style="width:100%;padding:8px;margin-top:4px;" onchange="window.initTest()">
+                </div>
+            </div>
+            <!-- LISTA SESSIONI TEST -->
+            <div class="table-container" style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px;">
+                    <thead>
+                        <tr style="text-align:left;background:var(--card-raised);color:var(--text-sub);border-bottom:1px solid var(--border);">
+                            <th style="padding:12px;width:100px;">DATA</th>
+                            <th style="padding:12px;">TIPO TEST</th>
+                            <th style="padding:12px;">SQUADRA</th>
+                            <th style="padding:12px;">NOTE</th>
+                            <th style="padding:12px;text-align:center;">GESTIONE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="list-test-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PANNELLO TIPI TEST -->
+        <div id="test-panel-tipi" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+                <button onclick="window.openTestDefEditor(null)" style="background:var(--primary);color:white;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">+ Nuovo Tipo Test</button>
+            </div>
+            <div id="list-testdef-body" style="display:flex;flex-direction:column;gap:10px;">
+                <p style="color:var(--text-muted);text-align:center;padding:24px;">Caricamento...</p>
+            </div>
+        </div>
+    </div>`;
+};
+
+// ── INIT ─────────────────────────────────────────────────────────
+window._testState = window._testState || {};
+
+window.initTest = async function() {
+    const tbody = document.getElementById('list-test-body');
+    if (!tbody) return;
+
+    const selSoc = document.getElementById('f-test-soc');
+    if (selSoc && (selSoc.value === '' || selSoc.options[0]?.text.includes('Caricamento'))) {
+        const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+        const isGlobal = ['admin','manager'].includes(effRole);
+        const userSocId = window._currentSocietyId;
+
+        if (isGlobal) {
+            const { data: socs } = await client.from('societies').select('id,name').order('name');
+            if (socs?.length) {
+                selSoc.innerHTML = socs.map(s => `<option value="${s.id}" ${s.id===userSocId?'selected':''}>${s.name}</option>`).join('');
+                selSoc.value = userSocId || socs[0].id;
+            }
+        } else {
+            const container = document.getElementById('test-soc-filter-container');
+            if (container) container.style.display = 'none';
+            if (userSocId) {
+                selSoc.innerHTML = `<option value="${userSocId}" selected>Società corrente</option>`;
+                selSoc.value = userSocId;
+                if (['dirigente','allenatore','responsabile'].includes(effRole)) {
+                    await window.loadUserAssignedTeams?.();
+                }
+            }
+        }
+        await _testFillSeasons();
+        await _testFillDefs();
+        return window.reloadTestSubFilters();
+    }
+
+    const socId   = selSoc?.value || window._currentSocietyId;
+    if (!socId) return;
+
+    const seasonRange = _testGetSeasonRange();
+    const dateFrom = seasonRange ? seasonRange.from : document.getElementById('f-test-from')?.value;
+    const dateTo   = seasonRange ? seasonRange.to   : document.getElementById('f-test-to')?.value;
+    const teamId   = document.getElementById('f-test-team')?.value;
+    const defId    = document.getElementById('f-test-def')?.value;
+
+    const assignedIds = window._userAssignedTeamIds;
+    const hasAssigned = assignedIds && assignedIds.length > 0;
+
+    let q = client.from('test_sessions')
+        .select('id, session_date, notes, team_id, teams(name), test_definitions!inner(id, name)')
+        .eq('test_definitions.society_id', socId);
+
+    if (teamId) q = q.eq('team_id', teamId);
+    else if (hasAssigned) q = q.in('team_id', assignedIds);
+    if (defId) q = q.eq('test_def_id', defId);
+    if (dateFrom) q = q.gte('session_date', dateFrom);
+    if (dateTo)   q = q.lte('session_date', dateTo);
+
+    const { data: sessions, error } = await q.order('session_date', { ascending: false });
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:#ef4444;">Errore: ${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = (sessions || []).map(s => `
+        <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:12px;">${new Date(s.session_date).toLocaleDateString('it-IT')}</td>
+            <td style="padding:12px;"><strong>${s.test_definitions?.name || '—'}</strong></td>
+            <td style="padding:12px;color:var(--text-muted);">${s.teams?.name || '—'}</td>
+            <td style="padding:12px;color:var(--text-sub);font-size:11px;">${s.notes || ''}</td>
+            <td style="padding:12px;text-align:center;">
+                <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
+                    <button onclick="window.openTestConvoca('${s.id}')" style="background:var(--primary);color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📋 CONVOCA</button>
+                    <button onclick="window.openTestTabellino('${s.id}')" style="background:#f59e0b;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📝 TABELLINO</button>
+                    <button onclick="window.openTestStats('${s.id}')" style="background:#6366f1;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📊 STATS</button>
+                    <button onclick="window.openTestGrafico('${s.id}')" style="background:#0ea5e9;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📈 GRAFICO</button>
+                    <button onclick="window.deleteTestSession('${s.id}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:5px 9px;border-radius:4px;cursor:pointer;font-size:11px;">🗑</button>
+                </div>
+            </td>
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-sub);">Nessuna sessione trovata.</td></tr>';
+};
+
+// ── FILTRI HELPER ────────────────────────────────────────────────
+async function _testFillSeasons() {
+    const sel = document.getElementById('f-test-season');
+    if (!sel || window._testState.seasons?.length > 0) return;
+    const { data } = await client.from('seasons').select('id,name,start_date,end_date,is_active').order('name',{ascending:false});
+    window._testState.seasons = data || [];
+    (data||[]).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = s.name + (s.is_active?' ✓':'');
+        if (s.is_active) o.selected = true;
+        sel.appendChild(o);
+    });
+}
+
+async function _testFillDefs() {
+    const sel = document.getElementById('f-test-def');
+    if (!sel) return;
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+    const { data } = await client.from('test_definitions').select('id,name').eq('society_id', socId).order('name');
+    sel.innerHTML = '<option value="">Tutti i tipi</option>' + (data||[]).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+}
+
+function _testGetSeasonRange() {
+    const sel = document.getElementById('f-test-season');
+    if (!sel || !sel.value) return null;
+    const s = (window._testState.seasons||[]).find(x => x.id === sel.value);
+    return (s?.start_date && s?.end_date) ? { from: s.start_date, to: s.end_date } : null;
+}
+
+window.testOnSeasonChange = function() {
+    const has = !!document.getElementById('f-test-season')?.value;
+    ['f-test-from','f-test-to'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = has; el.style.opacity = has ? '0.4' : '1'; }
+    });
+    window.initTest();
+};
+
+window.reloadTestSubFilters = async function() {
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+    if (!socId) return;
+    const assignedIds = window._userAssignedTeamIds;
+    const hasAssigned = assignedIds && assignedIds.length > 0;
+
+    let tq = client.from('teams').select('id,name,category_id').eq('society_id', socId).order('name');
+    if (hasAssigned) tq = tq.in('id', assignedIds);
+    const { data: teams } = await tq;
+    window._testTeams = teams || [];
+
+    const catIds = hasAssigned ? [...new Set((teams||[]).map(t=>t.category_id).filter(Boolean))] : null;
+    let cq = client.from('categories').select('id,name').eq('society_id', socId).order('name');
+    if (catIds?.length) cq = cq.in('id', catIds);
+    const { data: cats } = await cq;
+
+    const catSel = document.getElementById('f-test-cat');
+    if (catSel) catSel.innerHTML = '<option value="">Tutte Categorie</option>' + (cats||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+
+    await _testFillDefs();
+    window.reloadTestTeamsOnly();
+};
+
+window.reloadTestTeamsOnly = function() {
+    const catId = document.getElementById('f-test-cat')?.value;
+    let filtered = window._testTeams || [];
+    if (catId) filtered = filtered.filter(t => String(t.category_id) === String(catId));
+    const sel = document.getElementById('f-test-team');
+    if (sel) sel.innerHTML = '<option value="">Tutte Squadre</option>' + filtered.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+    window.initTest();
+};
+
+// ── EDITOR TIPO TEST ─────────────────────────────────────────────
+window.openTestDefEditor = async function(defId) {
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+
+    let def = null, perfs = [];
+    if (defId) {
+        const { data: d } = await client.from('test_definitions').select('*').eq('id', defId).single();
+        def = d;
+        const { data: p } = await client.from('test_performances').select('*').eq('test_def_id', defId).order('sort_order');
+        perfs = p || [];
+    }
+
+    // Genera righe performance (min 1, max 5)
+    const perfRows = (perfs.length ? perfs : [{}]).map((p,i) => _testPerfRow(i, p)).join('');
+
+    window.openTestPopup(`
+        <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">⚙️ ${defId ? 'Modifica' : 'Nuovo'} Tipo Test</div>
+        <h2 style="margin:0 0 20px;font-family:'Syne',sans-serif;font-size:1.3rem;">${def?.name || 'Configura Test'}</h2>
+
+        <div style="margin-bottom:16px;">
+            <label style="font-size:11px;color:var(--text-muted);font-weight:700;">NOME TEST *</label>
+            <input id="tdef-name" type="text" value="${def?.name||''}" placeholder="es. Velocità 30m, Test Cooper..." style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;margin-top:4px;font-family:inherit;">
+        </div>
+        <div style="margin-bottom:20px;">
+            <label style="font-size:11px;color:var(--text-muted);font-weight:700;">DESCRIZIONE</label>
+            <textarea id="tdef-desc" rows="2" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;margin-top:4px;font-family:inherit;resize:vertical;">${def?.description||''}</textarea>
+        </div>
+
+        <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">📏 Performance da misurare (max 5)</div>
+        <div id="tdef-perfs-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+            ${perfRows}
+        </div>
+        <button onclick="window._addTestPerfRow()" id="tdef-add-perf-btn"
+            style="background:rgba(5,150,105,0.1);color:#059669;border:1px solid rgba(5,150,105,0.2);padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">
+            + Aggiungi Performance
+        </button>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
+            ${defId ? `<button onclick="window.deleteTestDef('${defId}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;margin-right:auto;">🗑 Elimina</button>` : ''}
+            <button onclick="window.closeTestPopup()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
+            <button onclick="window.saveTestDef('${defId||''}')" style="background:var(--primary);color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">💾 Salva</button>
+        </div>
+    `);
+    window._testPerfIdx = perfs.length || 1;
+};
+
+function _testPerfRow(idx, p) {
+    const units = ['sec','min','cm','m','kg','rep','watt','bpm','punti','altro'];
+    return `
+    <div class="tdef-perf-row" data-perf-id="${p.id||''}" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+        <div>
+            <label style="font-size:10px;color:var(--text-muted);font-weight:600;">NOME PERFORMANCE</label>
+            <input type="text" class="tperf-name" value="${p.name||''}" placeholder="es. Tempo, Distanza, Ripetizioni" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:5px;margin-top:3px;font-family:inherit;font-size:13px;">
+        </div>
+        <div>
+            <label style="font-size:10px;color:var(--text-muted);font-weight:600;">UNITÀ</label>
+            <select class="tperf-unit" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:5px;margin-top:3px;">
+                ${units.map(u=>`<option value="${u}" ${p.unit===u?'selected':''}>${u}</option>`).join('')}
+            </select>
+        </div>
+        <div style="text-align:center;">
+            <label style="font-size:10px;color:var(--text-muted);font-weight:600;">MENO = MEGLIO</label>
+            <div style="margin-top:6px;">
+                <input type="checkbox" class="tperf-lib" ${p.lower_is_better?'checked':''} style="width:18px;height:18px;cursor:pointer;">
+            </div>
+        </div>
+        <button onclick="this.closest('.tdef-perf-row').remove();window._updateAddPerfBtn()" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>`;
+}
+
+window._addTestPerfRow = function() {
+    const list = document.getElementById('tdef-perfs-list');
+    const rows = list?.querySelectorAll('.tdef-perf-row').length || 0;
+    if (rows >= 5) { alert('Massimo 5 performance per test.'); return; }
+    list.insertAdjacentHTML('beforeend', _testPerfRow(rows, {}));
+    window._updateAddPerfBtn();
+};
+window._updateAddPerfBtn = function() {
+    const list = document.getElementById('tdef-perfs-list');
+    const btn  = document.getElementById('tdef-add-perf-btn');
+    if (!list || !btn) return;
+    const rows = list.querySelectorAll('.tdef-perf-row').length;
+    btn.style.display = rows >= 5 ? 'none' : '';
+};
+
+window.saveTestDef = async function(existingId) {
+    const name   = document.getElementById('tdef-name')?.value?.trim();
+    const desc   = document.getElementById('tdef-desc')?.value?.trim();
+    if (!name)   { alert('Inserisci il nome del test.'); return; }
+
+    const rows = document.querySelectorAll('.tdef-perf-row');
+    if (!rows.length) { alert('Aggiungi almeno una performance da misurare.'); return; }
+
+    const perfs = [];
+    let valid = true;
+    rows.forEach((row, i) => {
+        const n = row.querySelector('.tperf-name')?.value?.trim();
+        const u = row.querySelector('.tperf-unit')?.value;
+        const l = row.querySelector('.tperf-lib')?.checked || false;
+        if (!n) { valid = false; return; }
+        perfs.push({ name: n, unit: u, lower_is_better: l, sort_order: i });
+    });
+    if (!valid) { alert('Compila il nome di ogni performance.'); return; }
+
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+    const seasonSel = document.getElementById('f-test-season');
+    const seasonId = seasonSel?.value || null;
+
+    try {
+        let defId = existingId;
+        if (existingId) {
+            const { error } = await client.from('test_definitions').update({ name, description: desc, season_id: seasonId }).eq('id', existingId);
+            if (error) throw error;
+            await client.from('test_performances').delete().eq('test_def_id', existingId);
+        } else {
+            const { data, error } = await client.from('test_definitions').insert({ name, description: desc, society_id: socId, season_id: seasonId, created_by: window._currentUserId }).select('id').single();
+            if (error) throw error;
+            defId = data.id;
+        }
+        const perfInserts = perfs.map(p => ({ ...p, test_def_id: defId }));
+        const { error: pe } = await client.from('test_performances').insert(perfInserts);
+        if (pe) throw pe;
+
+        window.closeTestPopup();
+        await _testFillDefs();
+        window.initTest();
+        window.renderTestDefList();
+        alert('✅ Tipo test salvato!');
+    } catch(err) {
+        alert('Errore: ' + err.message);
+    }
+};
+
+window.deleteTestDef = async function(defId) {
+    if (!confirm('Eliminare questo tipo di test? Verranno eliminati anche tutti i risultati collegati.')) return;
+    await client.from('test_definitions').delete().eq('id', defId);
+    window.closeTestPopup();
+    await _testFillDefs();
+    window.initTest();
+    window.renderTestDefList();
+};
+
+// ── TAB SWITCH ───────────────────────────────────────────────────
+window.switchTestTab = function(tab) {
+    const panels = { sessioni: 'test-panel-sessioni', tipi: 'test-panel-tipi' };
+    const buttons = { sessioni: 'test-tab-btn-sessioni', tipi: 'test-tab-btn-tipi' };
+    Object.keys(panels).forEach(t => {
+        const panel = document.getElementById(panels[t]);
+        const btn   = document.getElementById(buttons[t]);
+        if (!panel || !btn) return;
+        const active = t === tab;
+        panel.style.display = active ? '' : 'none';
+        if (active) {
+            btn.style.background = 'var(--primary)';
+            btn.style.color = 'white';
+            btn.style.borderBottom = '2px solid var(--primary)';
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-sub)';
+            btn.style.borderBottom = '2px solid transparent';
+        }
+    });
+    if (tab === 'tipi') window.renderTestDefList();
+};
+
+// ── LISTA TIPI TEST ──────────────────────────────────────────────
+window.renderTestDefList = async function() {
+    const container = document.getElementById('list-testdef-body');
+    if (!container) return;
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+    if (!socId) { container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px;">Seleziona una società.</p>'; return; }
+
+    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px;">Caricamento...</p>';
+
+    const { data: defs, error } = await client.from('test_definitions')
+        .select('id, name, description, created_at, test_performances(id, name, unit, lower_is_better, sort_order)')
+        .eq('society_id', socId)
+        .order('name');
+
+    if (error) { container.innerHTML = `<p style="color:#ef4444;padding:16px;">Errore: ${error.message}</p>`; return; }
+    if (!defs?.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px;">Nessun tipo test creato. Clicca "+ Nuovo Tipo Test" per iniziare.</p>';
+        return;
+    }
+
+    container.innerHTML = defs.map(d => {
+        const perfs = (d.test_performances || []).sort((a,b) => a.sort_order - b.sort_order);
+        const perfBadges = perfs.map(p =>
+            `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.2);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;">
+                ${p.name} <span style="color:var(--text-muted);font-weight:400;">${p.unit}</span>${p.lower_is_better ? ' <span title="meno è meglio" style="font-size:10px;">↓</span>' : ''}
+            </span>`
+        ).join('');
+
+        return `
+        <div style="background:var(--card-raised);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;gap:16px;transition:box-shadow 0.15s;"
+             onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.boxShadow='none'">
+            <div style="width:40px;height:40px;background:rgba(232,64,46,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧪</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:15px;font-weight:800;font-family:'Syne',sans-serif;color:var(--text-main);margin-bottom:2px;">${d.name}</div>
+                ${d.description ? `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">${d.description}</div>` : ''}
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                    ${perfBadges || '<span style="font-size:11px;color:var(--text-muted);font-style:italic;">Nessuna performance definita</span>'}
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+                <button onclick="window.openTestDefEditor('${d.id}')"
+                    style="background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(99,102,241,0.18)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
+                    ✏️ Modifica
+                </button>
+                <button onclick="window.deleteTestDefFromList('${d.id}', '${d.name.replace(/'/g, "\'")}')"
+                    style="background:rgba(239,68,68,0.07);color:#ef4444;border:1px solid rgba(239,68,68,0.18);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">
+                    🗑 Elimina
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.deleteTestDefFromList = async function(defId, defName) {
+    if (!confirm(`Eliminare il tipo test "${defName}"? Verranno eliminati anche tutti i risultati collegati.`)) return;
+    const { error } = await client.from('test_definitions').delete().eq('id', defId);
+    if (error) { alert('Errore: ' + error.message); return; }
+    await _testFillDefs();
+    window.renderTestDefList();
+};
+
+// ── NUOVA SESSIONE TEST ──────────────────────────────────────────
+window.openNewTestSession = async function() {
+    const socId = document.getElementById('f-test-soc')?.value || window._currentSocietyId;
+
+    // Load teams and test definitions in parallel
+    const [{ data: defs }, { data: teams }] = await Promise.all([
+        client.from('test_definitions').select('id,name').eq('society_id', socId).order('name'),
+        client.from('teams').select('id,name').eq('society_id', socId).order('name')
+    ]);
+
+    if (!defs?.length) {
+        alert('Nessun tipo di test configurato. Crea prima un tipo di test.');
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    window.openTestPopup(`
+        <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">📋 Nuova Sessione Test</div>
+        <h2 style="margin:0 0 20px;font-family:'Syne',sans-serif;font-size:1.3rem;">Pianifica sessione</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+            <div>
+                <label style="font-size:11px;color:var(--text-muted);font-weight:700;">SQUADRA *</label>
+                <select id="tsess-team" style="width:100%;padding:9px;border:1px solid var(--border-accent);border-radius:6px;margin-top:4px;background:rgba(232,64,46,0.03);">
+                    <option value="">— Seleziona squadra —</option>
+                    ${(teams||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:11px;color:var(--text-muted);font-weight:700;">TIPO TEST *</label>
+                <select id="tsess-def" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+                    ${defs.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="font-size:11px;color:var(--text-muted);font-weight:700;">DATA *</label>
+            <input id="tsess-date" type="date" value="${today}" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+        </div>
+        <div>
+            <label style="font-size:11px;color:var(--text-muted);font-weight:700;">NOTE</label>
+            <textarea id="tsess-notes" rows="2" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;margin-top:4px;font-family:inherit;resize:vertical;" placeholder="Condizioni meteo, campo, note..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+            <button onclick="window.closeTestPopup()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
+            <button onclick="window.saveTestSession()" style="background:#059669;color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">📋 Crea e Convoca</button>
+        </div>
+    `);
+};
+
+window.saveTestSession = async function() {
+    const teamId = document.getElementById('tsess-team')?.value;
+    const defId  = document.getElementById('tsess-def')?.value;
+    const date   = document.getElementById('tsess-date')?.value;
+    const notes  = document.getElementById('tsess-notes')?.value?.trim();
+    if (!teamId) { alert('Seleziona una squadra.'); return; }
+    if (!defId || !date) { alert('Seleziona tipo test e data.'); return; }
+
+    const { data, error } = await client.from('test_sessions').insert({ test_def_id: defId, team_id: teamId, session_date: date, notes }).select('id').single();
+    if (error) { alert('Errore: ' + error.message); return; }
+
+    window.closeTestPopup();
+    window.initTest();
+    // Apri subito la convocazione
+    window.openTestConvoca(data.id);
+};
+
+window.deleteTestSession = async function(sessId) {
+    if (!confirm('Eliminare questa sessione e tutti i risultati?')) return;
+    await client.from('test_sessions').delete().eq('id', sessId);
+    window.initTest();
+};
+
+// ── TAB: CONVOCA ─────────────────────────────────────────────────
+window.openTestConvoca = async function(sessId) {
+    const { data: sess } = await client.from('test_sessions')
+        .select('id, session_date, notes, team_id, teams!inner(id,name), test_definitions!inner(id,name)')
+        .eq('id', sessId).single();
+    if (!sess) return;
+
+    const teamId = sess.team_id;
+
+    const [{ data: athletes }, { data: existing }] = await Promise.all([
+        client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes!inner(id,name,surname)').eq('team_id', teamId).order('jersey_number'),
+        client.from('test_attendances').select('*').eq('test_session_id', sessId)
+    ]);
+
+    const attMap = {};
+    (existing||[]).forEach(a => attMap[a.athlete_id] = a);
+
+    const rows = (athletes||[]).sort((a,b) => (a.athletes?.surname||'').localeCompare(b.athletes?.surname||'')).map(a => {
+        const cur  = attMap[a.athlete_id] || {};
+        const isConv = !cur.status || cur.status === 'convocato';
+        const isAss  = cur.status === 'assente';
+        const isInj  = cur.status === 'infortunato';
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--card-raised);border:1px solid var(--border);border-radius:8px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="color:var(--primary-mid);font-weight:bold;width:25px;font-size:14px;">${a.jersey_number||'--'}</span>
+                <span style="font-weight:600;text-transform:uppercase;font-size:13px;">${a.athletes?.surname} ${a.athletes?.name}</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;background:var(--card);padding:6px 12px;border-radius:20px;border:1px solid var(--border);">
+                <label style="color:#10b981;font-size:10px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                    CONV. <input type="radio" name="tconv-${a.athlete_id}" class="tconv-radio" data-id="${a.athlete_id}" value="convocato" ${isConv?'checked':''}>
+                </label>
+                <label style="color:var(--text-sub);font-size:10px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                    NON CONV. <input type="radio" name="tconv-${a.athlete_id}" class="tconv-radio" data-id="${a.athlete_id}" value="assente" ${isAss?'checked':''}>
+                </label>
+                <label style="color:#ef4444;font-size:10px;font-weight:bold;cursor:pointer;display:flex;align-items:center;gap:4px;border-left:1px solid var(--border);padding-left:8px;">
+                    🩹 INF. <input type="radio" name="tconv-${a.athlete_id}" class="tconv-radio" data-id="${a.athlete_id}" value="infortunato" ${isInj?'checked':''}>
+                </label>
+            </div>
+        </div>`;
+    }).join('');
+
+    window.openTestPopup(`
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:4px;height:36px;background:var(--primary);border-radius:3px;flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">📋 Convocazioni Test</div>
+                <div style="font-size:1.1rem;font-weight:800;font-family:'Syne',sans-serif;">${sess.test_definitions.name} — ${new Date(sess.session_date).toLocaleDateString('it-IT')}</div>
+            </div>
+            <button onclick="window._testConvocaTutti()" style="margin-left:auto;background:#059669;color:white;border:none;padding:7px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">✅ Convoca Tutti</button>
+        </div>
+        <div style="display:grid;gap:8px;margin-bottom:20px;" id="tconv-list">${rows}</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:16px;">
+            <button onclick="window.closeTestPopup()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
+            <button onclick="window.saveTestConvoca('${sessId}')" style="background:var(--primary);color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">💾 Salva</button>
+        </div>
+    `);
+};
+
+window._testConvocaTutti = function() {
+    document.querySelectorAll('.tconv-radio[value="convocato"]').forEach(r => {
+        const isInj = document.querySelector(`input[name="${r.name}"][value="infortunato"]`)?.checked;
+        if (!isInj) r.checked = true;
+    });
+};
+
+window.saveTestConvoca = async function(sessId) {
+    const { data: sess } = await client.from('test_sessions')
+        .select('team_id')
+        .eq('id', sessId).single();
+    const teamId = sess?.team_id || null;
+
+    const radios = document.querySelectorAll('.tconv-radio:checked');
+    const records = Array.from(radios).map(r => ({
+        test_session_id: sessId,
+        athlete_id: r.getAttribute('data-id'),
+        status: r.value,
+        team_id: teamId
+    }));
+    if (!records.length) { alert('Nessun dato.'); return; }
+    const { error } = await client.from('test_attendances').upsert(records, { onConflict: 'test_session_id, athlete_id' });
+    if (error) { alert('Errore: ' + error.message); return; }
+    window.closeTestPopup();
+    alert('✅ Convocazioni salvate!');
+};
+
+// ── TAB: TABELLINO ───────────────────────────────────────────────
+window.openTestTabellino = async function(sessId) {
+    const { data: sess } = await client.from('test_sessions')
+        .select('id, session_date, notes, team_id, test_definitions!inner(id, name)')
+        .eq('id', sessId).single();
+    if (!sess) return;
+
+    const teamId = sess.team_id;
+
+    const [{ data: perfs }, { data: attendances }, { data: existingRes }, { data: teamAthletes }] = await Promise.all([
+        client.from('test_performances').select('*').eq('test_def_id', sess.test_definitions.id).order('sort_order'),
+        client.from('test_attendances').select('athlete_id, status').eq('test_session_id', sessId).eq('status','convocato'),
+        client.from('test_results').select('*').eq('test_session_id', sessId),
+        client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes!inner(id,name,surname)').eq('team_id', teamId)
+    ]);
+
+    // Build result map: athlete_id → perf_id → value
+    const resMap = {};
+    (existingRes||[]).forEach(r => {
+        if (!resMap[r.athlete_id]) resMap[r.athlete_id] = {};
+        resMap[r.athlete_id][r.performance_id] = r.value;
+    });
+
+    // Build athlete detail map: athlete_id → { jersey_number, athletes }
+    const athDetailMap = {};
+    (teamAthletes||[]).forEach(a => { athDetailMap[a.athlete_id] = a; });
+
+    const athletes = (attendances||[]).sort((a,b) => {
+        const sa = athDetailMap[a.athlete_id]?.athletes?.surname||'';
+        const sb = athDetailMap[b.athlete_id]?.athletes?.surname||'';
+        return sa.localeCompare(sb);
+    });
+
+    const perfHeaders = (perfs||[]).map(p => `<th style="padding:9px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#3b82f6;">${p.name}<br><span style="font-weight:400;color:var(--text-muted);">(${p.unit})</span></th>`).join('');
+
+    const athRows = athletes.map(a => {
+        const detail = athDetailMap[a.athlete_id];
+        const ath = detail?.athletes;
+        const cells = (perfs||[]).map(p => {
+            const val = resMap[a.athlete_id]?.[p.id] ?? '';
+            return `<td style="padding:7px 8px;text-align:center;"><input type="number" step="0.01" class="tres-input" data-aid="${a.athlete_id}" data-pid="${p.id}" value="${val}" style="width:80px;padding:5px;border:1px solid var(--border);border-radius:5px;text-align:center;font-family:'DM Mono',monospace;font-size:13px;"></td>`;
+        }).join('');
+        return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:9px 10px;font-weight:600;white-space:nowrap;">${detail?.jersey_number||'--'} ${ath?.surname||''} ${ath?.name||''}</td>
+            ${cells}
+        </tr>`;
+    }).join('');
+
+    window.openTestPopup(`
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:4px;height:36px;background:#f59e0b;border-radius:3px;flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">📝 Tabellino Test</div>
+                <div style="font-size:1.1rem;font-weight:800;font-family:'Syne',sans-serif;">${sess.test_definitions.name} — ${new Date(sess.session_date).toLocaleDateString('it-IT')}</div>
+                <div style="font-size:0.78rem;color:var(--text-sub);">${sess.teams?.name||''} ${sess.notes?'· '+sess.notes:''}</div>
+            </div>
+        </div>
+        ${!athletes.length ? '<p style="color:var(--text-sub);text-align:center;padding:24px;">Nessun atleta convocato. Vai prima in "Convoca".</p>' : `
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead><tr style="background:rgba(0,0,0,0.03);">
+                    <th style="padding:9px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">ATLETA</th>
+                    ${perfHeaders}
+                </tr></thead>
+                <tbody>${athRows}</tbody>
+            </table>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+            <button onclick="window.closeTestPopup()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
+            <button onclick="window.saveTestTabellino('${sessId}')" style="background:#f59e0b;color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">💾 Salva Risultati</button>
+        </div>`}
+    `);
+};
+
+window.saveTestTabellino = async function(sessId) {
+    const inputs = document.querySelectorAll('.tres-input');
+    const records = [];
+    inputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (val === '') return;
+        records.push({
+            test_session_id: sessId,
+            athlete_id: inp.getAttribute('data-aid'),
+            performance_id: inp.getAttribute('data-pid'),
+            value: parseFloat(val)
+        });
+    });
+    if (!records.length) { alert('Inserisci almeno un risultato.'); return; }
+    const { error } = await client.from('test_results').upsert(records, { onConflict: 'test_session_id, athlete_id, performance_id' });
+    if (error) { alert('Errore: ' + error.message); return; }
+    window.closeTestPopup();
+    alert('✅ Risultati salvati!');
+};
+
+// ── TAB: STATS ───────────────────────────────────────────────────
+window.openTestStats = async function(sessId) {
+    const { data: sess } = await client.from('test_sessions')
+        .select('id, session_date, team_id, test_definitions!inner(id, name)')
+        .eq('id', sessId).single();
+    if (!sess) return;
+
+    const [{ data: perfs }, { data: results }, { data: attendances }, { data: teamAthletes }] = await Promise.all([
+        client.from('test_performances').select('*').eq('test_def_id', sess.test_definitions.id).order('sort_order'),
+        client.from('test_results').select('*').eq('test_session_id', sessId),
+        client.from('test_attendances').select('athlete_id, status').eq('test_session_id', sessId).eq('status','convocato'),
+        client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes!inner(id,name,surname)').eq('team_id', sess.team_id)
+    ]);
+
+    // Build athlete detail map
+    const athDetailMap = {};
+    (teamAthletes||[]).forEach(a => { athDetailMap[a.athlete_id] = a; });
+
+    // Group results: athlete_id → perf_id → value
+    const resMap = {};
+    (results||[]).forEach(r => {
+        const detail = athDetailMap[r.athlete_id];
+        const ath = detail?.athletes;
+        if (!resMap[r.athlete_id]) resMap[r.athlete_id] = { name: `${ath?.surname||''} ${ath?.name||''}`, jersey: detail?.jersey_number, vals: {} };
+        resMap[r.athlete_id].vals[r.performance_id] = r.value;
+    });
+
+    const athletes = Object.values(resMap);
+
+    const perfHeaders = (perfs||[]).map(p => `<th style="padding:9px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#6366f1;">${p.name}<br><span style="color:var(--text-muted);font-weight:400;">(${p.unit})</span></th>`).join('');
+
+    // Per ogni performance, calcola rank
+    const rankMap = {};
+    (perfs||[]).forEach(p => {
+        const vals = athletes.map(a => ({ id: a.name, v: a.vals[p.id] })).filter(x => x.v !== undefined);
+        vals.sort((a,b) => p.lower_is_better ? a.v-b.v : b.v-a.v);
+        vals.forEach((v,i) => { if (!rankMap[v.id]) rankMap[v.id]={}; rankMap[v.id][p.id] = i+1; });
+    });
+
+    const athRows = athletes.sort((a,b)=>a.name.localeCompare(b.name)).map(a => {
+        const cells = (perfs||[]).map(p => {
+            const val = a.vals[p.id];
+            const rank = rankMap[a.name]?.[p.id];
+            const medal = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
+            return `<td style="padding:9px 10px;text-align:center;">
+                ${val !== undefined ? `<span style="font-weight:700;font-family:'DM Mono',monospace;">${val}</span> ${medal}` : '<span style="color:var(--text-muted);">—</span>'}
+            </td>`;
+        }).join('');
+        return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+            <td style="padding:9px 10px;font-weight:600;white-space:nowrap;">${a.jersey||'--'} ${a.name}</td>
+            ${cells}
+        </tr>`;
+    }).join('');
+
+    window.openTestPopup(`
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:4px;height:36px;background:#6366f1;border-radius:3px;flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">📊 Statistiche Test</div>
+                <div style="font-size:1.1rem;font-weight:800;font-family:'Syne',sans-serif;">${sess.test_definitions.name} — ${new Date(sess.session_date).toLocaleDateString('it-IT')}</div>
+            </div>
+        </div>
+        ${!athletes.length ? '<p style="color:var(--text-sub);text-align:center;padding:24px;">Nessun risultato registrato.</p>' : `
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead><tr style="background:rgba(0,0,0,0.03);">
+                    <th style="padding:9px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">ATLETA</th>
+                    ${perfHeaders}
+                </tr></thead>
+                <tbody>${athRows}</tbody>
+            </table>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:10px;">🥇 1° posto  🥈 2° posto  🥉 3° posto per ogni performance</div>`}
+    `);
+};
+
+// ── TAB: GRAFICO ─────────────────────────────────────────────────
+window.openTestGrafico = async function(sessId) {
+    const { data: sess } = await client.from('test_sessions')
+        .select('id, session_date, team_id, test_definitions!inner(id, name)')
+        .eq('id', sessId).single();
+    if (!sess) return;
+
+    const [{ data: perfs }, { data: results }, { data: teamAthletes }] = await Promise.all([
+        client.from('test_performances').select('*').eq('test_def_id', sess.test_definitions.id).order('sort_order'),
+        client.from('test_results').select('*').eq('test_session_id', sessId),
+        client.from('athlete_team_seasons').select('athlete_id, jersey_number, athletes!inner(id,name,surname)').eq('team_id', sess.team_id)
+    ]);
+
+    // Build athlete detail map
+    const athDetailMap = {};
+    (teamAthletes||[]).forEach(a => { athDetailMap[a.athlete_id] = a; });
+
+    if (!results?.length) {
+        window.openTestPopup('<div style="padding:40px;text-align:center;color:var(--text-sub);">Nessun risultato da visualizzare.</div>');
+        return;
+    }
+
+    // Group by performance
+    const resMap = {};
+    (results||[]).forEach(r => {
+        if (!resMap[r.performance_id]) resMap[r.performance_id] = [];
+        const detail = athDetailMap[r.athlete_id];
+        resMap[r.performance_id].push({ name: `${detail?.athletes?.surname||''} ${detail?.athletes?.name||''}`, value: r.value, jersey: detail?.jersey_number });
+    });
+
+    const COLORS = ['#e8402e','#3b82f6','#10b981','#f59e0b','#8b5cf6'];
+
+    const charts = (perfs||[]).map((p, ci) => {
+        const data = (resMap[p.id]||[]).sort((a,b) => p.lower_is_better ? a.value-b.value : b.value-a.value);
+        if (!data.length) return '';
+        const max = Math.max(...data.map(d=>d.value));
+        const W = 720, BAR_H = 32, GAP = 8, padL = 160, padR = 60, padT = 16, padB = 8;
+        const H = padT + data.length*(BAR_H+GAP) + padB;
+        const color = COLORS[ci % COLORS.length];
+
+        const bars = data.map((d,i) => {
+            const y = padT + i*(BAR_H+GAP);
+            const bw = max > 0 ? ((d.value/max) * (W-padL-padR)) : 0;
+            const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+            return `
+            <text x="${padL-8}" y="${y+BAR_H/2+5}" text-anchor="end" font-size="11" fill="var(--text-main)" font-family="Outfit,sans-serif">${d.jersey||'--'} ${d.name}</text>
+            <rect x="${padL}" y="${y}" width="${Math.max(bw,2)}" height="${BAR_H}" rx="4" fill="${color}" opacity="0.85"/>
+            <text x="${padL+bw+6}" y="${y+BAR_H/2+5}" font-size="12" font-weight="700" fill="${color}" font-family="DM Mono,monospace">${d.value} ${medal}</text>`;
+        }).join('');
+
+        return `
+        <div style="margin-bottom:24px;">
+            <div style="font-size:0.75rem;font-weight:700;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">${p.name} (${p.unit}) ${p.lower_is_better?'· meno = meglio':''}</div>
+            <svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">${bars}</svg>
+        </div>`;
+    }).join('');
+
+    window.openTestPopup(`
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:4px;height:36px;background:#0ea5e9;border-radius:3px;flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">📈 Grafico Test</div>
+                <div style="font-size:1.1rem;font-weight:800;font-family:'Syne',sans-serif;">${sess.test_definitions.name} — ${new Date(sess.session_date).toLocaleDateString('it-IT')}</div>
+            </div>
+        </div>
+        <div style="background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:10px;padding:20px;">
+            ${charts}
+        </div>
+    `);
+};
+
+window.templateTest   = window.templateTest;
+window.initTest       = window.initTest;
 </script>
 </body>
 </html>
