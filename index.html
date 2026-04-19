@@ -922,7 +922,7 @@
         // Il DB usa role='admin'|'manager'|'user' + management_role='Dirigente'|'Allenatore'|'Presidente'|'Segretario'|'Responsabile'|'Genitore'
         // La logica effettiva di accesso si basa sulla management_role per gli 'user' normali
         const dbRole = (window._userRole || '').toLowerCase();
-        let mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
+        let mgmtRole = ((window.CURRENT_USER?.management_role) || '').trim().toLowerCase();
 
         // ── FALLBACK: se management_role è vuoto per un utente 'user',
         //    controlla user_category_seasons per rilevare il ruolo Responsabile
@@ -1035,6 +1035,8 @@
 
                 if (userRow) {
                     // Ripopoliamo lo Stato Globale
+                    // Sanitizza management_role: rimuove spazi iniziali/finali che causano mancato match
+                    if (userRow.management_role) userRow.management_role = userRow.management_role.trim();
                     window._userRole = userRow.role;
                     window._currentSocietyId = userRow.society_id;
                     window._currentUserId = userRow.id;
@@ -1101,6 +1103,8 @@
             if (authError) throw new Error("Password errata o account non attivo.");
 
             // 3. Setup variabili globali di sessione (window)
+            // Sanitizza management_role: rimuove spazi iniziali/finali che causano mancato match
+            if (userRow.management_role) userRow.management_role = userRow.management_role.trim();
             window._userRole = userRow.role;
             window._currentSocietyId = userRow.society_id;
             window._currentUserId = userRow.id;
@@ -8698,7 +8702,7 @@ window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
         const totalStaff = staffFiltered.length;
 
         const staffByRole = staffFiltered.reduce((acc, u) => {
-            const r = (u.management_role || 'Altro').toLowerCase();
+            const r = (u.management_role || 'Altro').trim().toLowerCase();
             if (r.includes('president')) acc.presidenti++;
             else if (r.includes('allenator') || r.includes('coach')) acc.allenatori++;
             else if (r.includes('dirigent')) acc.dirigenti++;
@@ -10144,7 +10148,7 @@ function _applyTabFilterVisibility() {
     let role = (window._effectiveRole || window._userRole || '').toLowerCase();
     // Ulteriore safety: se ancora 'user' ma CURRENT_USER ha management_role, usalo
     if (role === 'user' && window.CURRENT_USER?.management_role) {
-        role = window.CURRENT_USER.management_role.toLowerCase();
+        role = window.CURRENT_USER.management_role.trim().toLowerCase();
         window._effectiveRole = role;
     }
     const isGlobal    = ['admin','manager'].includes(role);
