@@ -2868,11 +2868,13 @@ window.handleDeleteStaff = async function(id) {
         ]);
 
         const ruoliValidi = ['Allenatore', 'Vice Allenatore', 'Collaboratore Tecnico', 'Preparatore Portieri', 'Preparatore Atletico', 'Dirigente', 'Fisioterapista'];
-        const allTeams = tRes.data || [];
-        // Filtra categorie: mostra solo quelle della propria società (tranne admin/manager)
+        // Filtra squadre e categorie: solo della propria società (tranne admin/manager)
         const _myRoleForCat = (window._effectiveRole||window._userRole||'').toLowerCase();
         const _isGlobalForCat = ['admin','manager'].includes(_myRoleForCat);
         const _mySocIdForCat = window._currentSocietyId || window._dashData?._forcedSocietyId;
+        const allTeams = _isGlobalForCat
+            ? (tRes.data || [])
+            : (tRes.data || []).filter(t => !_mySocIdForCat || String(t.society_id) === String(_mySocIdForCat));
         const allCats = _isGlobalForCat
             ? (cRes.data || [])
             : (cRes.data || []).filter(c => !_mySocIdForCat || String(c.society_id) === String(_mySocIdForCat));
