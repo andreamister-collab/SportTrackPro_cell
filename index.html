@@ -9378,7 +9378,16 @@ async function _renderVistaResponsabile() {
         myTeams.forEach(t => { teamNameMap[t.id] = t.name; teamCatMap[t.id] = t.categories?.name || ''; });
 
         // ── Query principali ─────────────────────────────────────────────────
-        const [sessRes, attRes, matchStatsRes, matchDetRes, rosterRes, testResRes, testSessRes, nextMatchRes] = await Promise.all([
+        // Fix roster query: applica season_id solo se non null (null causa 400)
+        const rosterQ = (() => {
+            let q = client.from('athlete_team_seasons')
+                .select('athlete_id, jersey_number, role, team_id, athletes!inner(id, name, surname, birth_date)')
+                .in('team_id', teamIds);
+            if (sid) q = q.eq('season_id', sid);
+            return q;
+        })();
+
+        const [sessRes, attRes, matchStatsRes, matchDetRes, rosterRes, testSessRes, nextMatchRes] = await Promise.all([
             client.from('sessions')
                 .select('id, session_date, title, type_id, session_types(name), team_id')
                 .in('team_id', teamIds).order('session_date', { ascending: false }),
@@ -9391,12 +9400,7 @@ async function _renderVistaResponsabile() {
             client.from('match_details')
                 .select('session_id, goals_for, goals_against, match_status, is_friendly, sessions!inner(session_date, team_id)')
                 .in('sessions.team_id', teamIds).eq('is_friendly', false),
-            client.from('athlete_team_seasons')
-                .select('athlete_id, jersey_number, role, team_id, athletes!inner(id, name, surname, birth_date)')
-                .in('team_id', teamIds).eq('season_id', sid),
-            client.from('test_results')
-                .select('athlete_id, value, performance_id, test_session_id, test_performances!inner(name, unit, lower_is_better, test_def_id, test_definitions!inner(name))')
-                .in('test_sessions.team_id', teamIds),
+            rosterQ,
             client.from('test_sessions')
                 .select('id, session_date, team_id, test_definitions!inner(name)')
                 .in('team_id', teamIds).order('session_date', { ascending: false }),
@@ -9406,13 +9410,24 @@ async function _renderVistaResponsabile() {
                 .order('session_date', { ascending: true }).limit(1)
         ]);
 
+        // Fix test_results: filtra per test_session_id ottenuti dalle test_sessions già caricate
+        // (Supabase non supporta filtri su tabelle non in select, es. test_sessions.team_id)
+        const testSessions = testSessRes.data || [];
+        const testSessIds = testSessions.map(s => s.id);
+        let testResults = [];
+        if (testSessIds.length > 0) {
+            const { data: trData } = await client.from('test_results')
+                .select('athlete_id, value, performance_id, test_session_id, test_performances!inner(name, unit, lower_is_better, test_def_id, test_definitions!inner(name))')
+                .in('test_session_id', testSessIds);
+            testResults = trData || [];
+        }
+
         const sessions     = sessRes.data       || [];
         const attendances  = attRes.data        || [];
         const matchStats   = matchStatsRes.data || [];
         const matchDetails = matchDetRes.data   || [];
         const roster       = rosterRes.data     || [];
-        const testResults  = testResRes.data    || [];
-        const testSessions = testSessRes.data   || [];
+        // testResults e testSessions già definiti sopra con le query corrette
         const nextMatch    = nextMatchRes.data?.[0] || null;
 
         // ── Mappa atleti ─────────────────────────────────────────────────────
