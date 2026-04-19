@@ -918,11 +918,44 @@
     /* ============================================================
        GESTIONE VISIBILITÀ SIDEBAR PER RUOLO
        ============================================================ */
-    window.applyRoleVisibility = function() {
+    window.applyRoleVisibility = async function() {
         // Il DB usa role='admin'|'manager'|'user' + management_role='Dirigente'|'Allenatore'|'Presidente'|'Segretario'|'Responsabile'|'Genitore'
         // La logica effettiva di accesso si basa sulla management_role per gli 'user' normali
         const dbRole = (window._userRole || '').toLowerCase();
-        const mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
+        let mgmtRole = ((window.CURRENT_USER?.management_role) || '').toLowerCase();
+
+        // ── FALLBACK: se management_role è vuoto per un utente 'user',
+        //    controlla user_category_seasons per rilevare il ruolo Responsabile
+        //    (utenti assegnati solo tramite categorie, senza management_role nel profilo)
+        if (dbRole === 'user' && !mgmtRole && window._currentUserId) {
+            try {
+                const { data: ucs } = await client
+                    .from('user_category_seasons')
+                    .select('role, team_id, category_id')
+                    .eq('user_id', window._currentUserId)
+                    .limit(5);
+                if (ucs && ucs.length > 0) {
+                    // Se ha assegnazioni con role='Responsabile' (o solo category_id senza team_id → pattern responsabile)
+                    const respRow = ucs.find(r => (r.role||'').toLowerCase() === 'responsabile');
+                    const catOnlyRow = ucs.find(r => r.category_id && !r.team_id);
+                    if (respRow || catOnlyRow) {
+                        mgmtRole = 'responsabile';
+                        // Aggiorna anche CURRENT_USER per coerenza
+                        if (window.CURRENT_USER) window.CURRENT_USER.management_role = 'Responsabile';
+                    } else {
+                        // Ha assegnazioni dirette per squadra → Allenatore/Dirigente
+                        const teamRow = ucs.find(r => r.team_id);
+                        if (teamRow) {
+                            const detectedRole = (teamRow.role||'allenatore').toLowerCase();
+                            mgmtRole = detectedRole;
+                            if (window.CURRENT_USER) window.CURRENT_USER.management_role = teamRow.role || 'Allenatore';
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('applyRoleVisibility fallback error:', e);
+            }
+        }
 
         // Determina il ruolo funzionale effettivo
         let effectiveRole;
@@ -1011,8 +1044,8 @@
                     document.getElementById('login-wrap').style.display = 'none';
                     document.getElementById('app').style.display = 'flex';
 
-                    // Applica visibilità sidebar in base al ruolo
-                    window.applyRoleVisibility();
+                    // Applica visibilità sidebar in base al ruolo (async: rileva Responsabile anche da user_category_seasons)
+                    await window.applyRoleVisibility();
                     // Carichiamo la dashboard (o l'ultima pagina salvata)
                     loadPage('dashboard');
                     console.log("✅ Sessione ripristinata correttamente.");
@@ -1078,7 +1111,7 @@
             document.getElementById('app').style.display = 'flex';
 
             // 5. Navigazione iniziale
-            window.applyRoleVisibility();
+            await window.applyRoleVisibility();
             loadPage('dashboard');
 
         } catch (err) {
@@ -5914,7 +5947,8 @@ async function initImportAtleti() {
 
 window.templateDashboard = function() {
     const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
-    const userRole = (window._userRole || '').toLowerCase();
+    // Usa _effectiveRole (già risolto da applyRoleVisibility) per mostrare il ruolo corretto
+    const userRole = (window._effectiveRole || window._userRole || '').toLowerCase();
     const roleLabels = {
         admin: 'Amministratore', manager: 'Manager', presidente: 'Presidente',
         segretario: 'Segretario', responsabile: 'Responsabile',
@@ -10106,7 +10140,13 @@ function _populateTabTeamFilter(selId, items, socId, catId) {
 
 /* Applica la visibilità dei filtri nei tab in base al ruolo effettivo */
 function _applyTabFilterVisibility() {
-    const role = (window._effectiveRole || window._userRole || '').toLowerCase();
+    // Rilegge sempre il ruolo più aggiornato (dopo il fallback async in applyRoleVisibility)
+    let role = (window._effectiveRole || window._userRole || '').toLowerCase();
+    // Ulteriore safety: se ancora 'user' ma CURRENT_USER ha management_role, usalo
+    if (role === 'user' && window.CURRENT_USER?.management_role) {
+        role = window.CURRENT_USER.management_role.toLowerCase();
+        window._effectiveRole = role;
+    }
     const isGlobal    = ['admin','manager'].includes(role);
     const isSocScoped = ['presidente','segretario'].includes(role);
     const isTeamScoped = ['responsabile','dirigente','allenatore'].includes(role);
