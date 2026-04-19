@@ -6551,6 +6551,8 @@ window.switchDashTab = function(idx) {
         const _initAndLoad = async () => {
             if (_r6 === 'genitore')    await _initGenitoreTeamScope();
             if (_r6 === 'responsabile') {
+                // Popola i filtri cat/team con le assegnazioni del responsabile, poi carica la vista
+                await _presPopulateCatTeam();
                 await window.loadDashResponsabile();
             } else {
                 await _presPopulateCatTeam();
@@ -9671,7 +9673,7 @@ async function _renderVistaResponsabile() {
             if (!vals.length) return '';
             const maxV=Math.max(...vals,1), minV=Math.min(...vals,0), range=maxV-minV||1;
             const W=60, H=20;
-            const pts = vals.map((v,i)=>(i/(vals.length-1)*W).toFixed(1)+','+(H-((v-minV)/range*H)).toFixed(1)).join(' ');
+            const pts = vals.map((v,i)=>((vals.length>1?i/(vals.length-1):0)*W).toFixed(1)+','+(H-((v-minV)/range*H)).toFixed(1)).join(' ');
             const lastT=vals.length>=2?vals[vals.length-1]-vals[vals.length-2]:0;
             const lc=lastT>=0.1?'#10b981':lastT<=-0.1?'#ef4444':'#0ea5e9';
             return '<svg viewBox="0 0 '+W+' '+H+'" style="width:60px;height:20px;overflow:visible;">'
@@ -9841,7 +9843,7 @@ async function _renderVistaResponsabile() {
                 const W=80,H=18;
                 const tvs=sorted.map(s=>s.val).filter(v=>v!=null);
                 let testSpark='';
-                if(tvs.length>1){const mx=Math.max(...tvs),mn=Math.min(...tvs),rng=mx-mn||1;const pts2=tvs.map((v,i)=>((i/(tvs.length-1)*W).toFixed(1))+','+(H-((v-mn)/rng*H)).toFixed(1)).join(' ');testSpark='<svg viewBox="0 0 '+W+' '+H+'" style="width:80px;height:18px;overflow:visible;"><polyline points="'+pts2+'" fill="none" stroke="'+tc+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
+                if(tvs.length>1){const mx=Math.max(...tvs),mn=Math.min(...tvs),rng=mx-mn||1;const pts2=tvs.map((v,i)=>(((tvs.length>1?i/(tvs.length-1):0)*W).toFixed(1))+','+(H-((v-mn)/rng*H)).toFixed(1)).join(' ');testSpark='<svg viewBox="0 0 '+W+' '+H+'" style="width:80px;height:18px;overflow:visible;"><polyline points="'+pts2+'" fill="none" stroke="'+tc+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
                 return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.04);">'
                     +'<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;">'+(d.perf)+'</div><div style="font-size:0.62rem;color:var(--text-muted);">'+(d.test)+'</div></div>'
                     +'<div>'+testSpark+'</div>'
@@ -9950,6 +9952,42 @@ async function _renderVistaResponsabile() {
                             +'<div style="height:100%;width:'+perc+'%;background:'+col+';border-radius:99px;"></div></div></div>';
                     }).join('')}
                 </div>
+            <!-- Alerts + Sessioni -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <!-- Alert squadra -->
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;">
+                    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;">🚨 Alert</div>
+                    ${alerts.length===0
+                        ? '<div style="text-align:center;padding:20px;color:#10b981;font-weight:600;">✅ Nessun alert</div>'
+                        : alerts.slice(0,8).map(al=>{
+                            const [bg,col]=alertColor(al.type);
+                            return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:5px;background:'+bg+';border-radius:8px;">'
+                                +'<span style="font-size:1rem;flex-shrink:0;">'+alertIcon(al.type)+'</span>'
+                                +'<div><div style="font-size:0.78rem;font-weight:700;color:'+col+';">'+al.name+'<span style="font-size:0.62rem;font-weight:400;color:var(--text-muted);margin-left:4px;">'+al.teamName+'</span></div>'
+                                +'<div style="font-size:0.7rem;color:var(--text-sub);">'+al.msg+'</div></div>'
+                                +'</div>';
+                          }).join('')
+                    }
+                </div>
+
+                <!-- Sessioni con filtro -->
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+                        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">⚡ Sessioni — presenze</div>
+                        <div style="display:flex;gap:4px;">
+                            <button id="resp-sess-btn-7"   onclick="window._resp_filterSess(7,this)"  style="padding:3px 9px;border-radius:5px;border:1px solid var(--primary);background:var(--primary);color:white;font-size:0.68rem;font-weight:700;cursor:pointer;">7gg</button>
+                            <button id="resp-sess-btn-30"  onclick="window._resp_filterSess(30,this)" style="padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:700;cursor:pointer;">30gg</button>
+                            <button id="resp-sess-btn-all" onclick="window._resp_filterSess(0,this)"  style="padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:700;cursor:pointer;">Tutte</button>
+                        </div>
+                    </div>
+                    <div id="resp-sess-list" style="max-height:280px;overflow-y:auto;">
+                        ${window._resp_renderSessList(7)}
+                    </div>
+                    <div style="font-size:0.65rem;color:var(--text-muted);margin-top:8px;text-align:right;">${trainSessions.length} sessioni totali</div>
+                </div>
+            </div>
+        </div>
+
             </div>
 
             <!-- Ranking giocatori -->
@@ -10014,41 +10052,6 @@ async function _renderVistaResponsabile() {
                 </div>
             </div>
 
-            <!-- Alerts + Sessioni -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-                <!-- Alert squadra -->
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;">
-                    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;">🚨 Alert</div>
-                    ${alerts.length===0
-                        ? '<div style="text-align:center;padding:20px;color:#10b981;font-weight:600;">✅ Nessun alert</div>'
-                        : alerts.slice(0,8).map(al=>{
-                            const [bg,col]=alertColor(al.type);
-                            return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;margin-bottom:5px;background:'+bg+';border-radius:8px;">'
-                                +'<span style="font-size:1rem;flex-shrink:0;">'+alertIcon(al.type)+'</span>'
-                                +'<div><div style="font-size:0.78rem;font-weight:700;color:'+col+';">'+al.name+'<span style="font-size:0.62rem;font-weight:400;color:var(--text-muted);margin-left:4px;">'+al.teamName+'</span></div>'
-                                +'<div style="font-size:0.7rem;color:var(--text-sub);">'+al.msg+'</div></div>'
-                                +'</div>';
-                          }).join('')
-                    }
-                </div>
-
-                <!-- Sessioni con filtro -->
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
-                        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">⚡ Sessioni — presenze</div>
-                        <div style="display:flex;gap:4px;">
-                            <button id="resp-sess-btn-7"   onclick="window._resp_filterSess(7,this)"  style="padding:3px 9px;border-radius:5px;border:1px solid var(--primary);background:var(--primary);color:white;font-size:0.68rem;font-weight:700;cursor:pointer;">7gg</button>
-                            <button id="resp-sess-btn-30"  onclick="window._resp_filterSess(30,this)" style="padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:700;cursor:pointer;">30gg</button>
-                            <button id="resp-sess-btn-all" onclick="window._resp_filterSess(0,this)"  style="padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:0.68rem;font-weight:700;cursor:pointer;">Tutte</button>
-                        </div>
-                    </div>
-                    <div id="resp-sess-list" style="max-height:280px;overflow-y:auto;">
-                        ${window._resp_renderSessList(7)}
-                    </div>
-                    <div style="font-size:0.65rem;color:var(--text-muted);margin-top:8px;text-align:right;">${trainSessions.length} sessioni totali</div>
-                </div>
-            </div>
-        </div>
 
         <!-- ══ TAB: KPI ════════════════════════════════════════════════════ -->
         <div id="resp-tab-kpi" class="resp-section">
