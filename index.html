@@ -4752,6 +4752,26 @@ window.openTabellino = async function(sessionId) {
         return na - nb || (a.athletes?.surname||'').localeCompare(b.athletes?.surname||'');
     });
 
+    // ── Sezione marcatori (costruita prima del template per evitare backtick annidati) ──
+    const marcatoriHtml = (() => {
+        const scorers = sortedConv.filter(att => (statsMap[att.athlete_id]?.goals || 0) > 0);
+        if (!scorers.length) return '<div id="marcatori-row" style="display:none;"></div>';
+        const pills = scorers.map(att => {
+            const surname = att.athletes?.surname || '';
+            const name    = att.athletes?.name    || '';
+            const fullName = (surname + ' ' + name).trim();
+            const g = statsMap[att.athlete_id]?.goals || 0;
+            const badge = g > 1
+                ? '<span style="background:#047857;color:white;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:800;">' + g + '</span>'
+                : '';
+            return '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#047857;padding:4px 10px;border-radius:99px;font-size:0.75rem;font-weight:700;">&#x26BD; ' + fullName + (badge ? ' ' + badge : '') + '</span>';
+        }).join('');
+        return '<div id="marcatori-row" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:10px;padding:10px 14px;">'
+            + '<div style="font-size:0.62rem;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;">&#x26BD; Marcatori</div>'
+            + '<div id="marcatori-pills" style="display:flex;flex-wrap:wrap;gap:6px;">' + pills + '</div>'
+            + '</div>';
+    })();
+
     container.innerHTML = `
     <div style="background:var(--card); border-radius:14px; box-shadow:0 4px 24px rgba(0,0,0,0.10); color:var(--text-main); font-family:'Outfit',sans-serif; overflow:hidden; border:1px solid var(--border);">
 
@@ -4834,21 +4854,8 @@ window.openTabellino = async function(sessionId) {
                 </div>
             </div>
 
-            <!-- ROW 3b: Marcatori (aggiornato live) -->
-            \${(() => {
-                const scorers = sortedConv.filter(att => (statsMap[att.athlete_id]?.goals || 0) > 0);
-                if (!scorers.length) return '<div id="marcatori-row" style="display:none;"></div>';
-                const pills = scorers.map(att => {
-                    const name = \`\${att.athletes?.surname || ''} \${att.athletes?.name || ''}\`.trim();
-                    const g = statsMap[att.athlete_id]?.goals || 0;
-                    const badge = g > 1 ? \` <span style="background:#047857;color:white;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:800;">\${g}</span>\` : '';
-                    return \`<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#047857;padding:4px 10px;border-radius:99px;font-size:0.75rem;font-weight:700;">&#x26BD; \${name}\${badge}</span>\`;
-                }).join('');
-                return \`<div id="marcatori-row" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:10px;padding:10px 14px;">
-                    <div style="font-size:0.62rem;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;">&#x26BD; Marcatori</div>
-                    <div id="marcatori-pills" style="display:flex;flex-wrap:wrap;gap:6px;">\${pills}</div>
-                </div>\`;
-            })()}
+            <!-- ROW 3b: Marcatori -->
+            ${marcatoriHtml}
 
             <!-- ROW 4: Griglia convocati con statistiche individuali -->
             <div style="background:rgba(0,0,0,0.03); border-radius:12px; border:1px solid var(--border); overflow:hidden;">
