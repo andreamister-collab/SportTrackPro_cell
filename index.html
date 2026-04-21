@@ -2776,21 +2776,20 @@ window.handleDeleteStaff = async function(id) {
                    (!team || a.team_id     == team);
         });
 
-        // Raggruppa le righe Responsabile (stesso user+stagione) in una riga unica
+        // Raggruppa le righe multi-team (Responsabile, Preparatore Atletico, Preparatore Portieri) in una riga unica
+        const _multiTeamRolesTable = ['Responsabile', 'Preparatore Atletico', 'Preparatore Portieri'];
         const rows = [];
-        const respGroups = {}; // key: userId+seasonId
+        const respGroups = {}; // key: userId+seasonId+role
         filtered.forEach(a => {
-            if (a.role === 'Responsabile') {
-                const key = `${a.user_id}_${a.season_id}`;
+            if (_multiTeamRolesTable.includes(a.role)) {
+                const key = `${a.user_id}_${a.season_id}_${a.role}`;
                 if (!respGroups[key]) {
                     respGroups[key] = { ...a, _cats: [], _teams: [] };
-                    rows.push({ _type: 'responsabile', key });
+                    rows.push({ _type: 'multiTeam', key });
                 }
                 if (a.team_id) {
-                    // Riga con squadra diretta
                     respGroups[key]._teams.push({ name: a.teams?.name || '-', id: a.id });
                 } else {
-                    // Riga con categoria (senza squadra specifica)
                     respGroups[key]._cats.push({ name: a.categories?.name || _lookupCats[a.category_id] || '-', id: a.id });
                 }
             } else {
@@ -2804,8 +2803,9 @@ window.handleDeleteStaff = async function(id) {
         if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7">Nessuna assegnazione trovata.</td></tr>'; return; }
 
         tbody.innerHTML = rows.map(row => {
-            if (row._type === 'responsabile') {
+            if (row._type === 'multiTeam') {
                 const a = respGroups[row.key];
+                const isResp = a.role === 'Responsabile';
                 const catBadges = a._cats.map(c =>
                     `<span style="background:rgba(99,102,241,0.1);color:#4f46e5;padding:2px 7px;border-radius:5px;font-size:0.78em;font-weight:600;white-space:nowrap;">📂 ${c.name}</span>`
                 ).join(' ');
@@ -2813,18 +2813,20 @@ window.handleDeleteStaff = async function(id) {
                     `<span style="background:rgba(14,165,233,0.1);color:#0369a1;padding:2px 7px;border-radius:5px;font-size:0.78em;font-weight:600;white-space:nowrap;">🛡️ ${t.name}</span>`
                 ).join(' ');
                 const allBadges = [catBadges, teamBadges].filter(Boolean).join(' ') || '<span style="color:var(--text-muted);font-size:0.82em;">—</span>';
-                // Per edit/delete usiamo il primo id del gruppo
                 const firstId = (a._cats[0] || a._teams[0])?.id || a.id;
+                const roleBg  = isResp ? '#ede9fe' : 'rgba(5,150,105,0.12)';
+                const roleClr = isResp ? '#6d28d9' : '#047857';
+                const roleIco = isResp ? '📂' : a.role === 'Preparatore Atletico' ? '🏋️' : '🧤';
                 return `
-                <tr style="background:rgba(99,102,241,0.03);">
+                <tr style="background:${isResp ? 'rgba(99,102,241,0.03)' : 'rgba(5,150,105,0.02)'};">
                     <td><strong>${a.users?.name || 'N/D'}</strong></td>
                     <td><span style="color:var(--primary-mid);font-weight:500;">${_lookupSocs[a.society_id] || '-'}</span></td>
                     <td>${_lookupSeas[a.season_id] || '-'}</td>
                     <td style="max-width:280px;" colspan="2"><div style="display:flex;flex-wrap:wrap;gap:4px;">${allBadges}</div></td>
-                    <td><span style="background:#ede9fe;color:#6d28d9;padding:4px 8px;border-radius:6px;font-size:0.85em;font-weight:600;">📂 Responsabile</span></td>
+                    <td><span style="background:${roleBg};color:${roleClr};padding:4px 8px;border-radius:6px;font-size:0.85em;font-weight:600;">${roleIco} ${a.role}</span></td>
                     <td style="text-align:right">
                         <button class="btn-sm btn-warning" onclick="handleEditAssignment('${firstId}')">✏️</button>
-                        <button class="btn-sm btn-danger" onclick="deleteResponsabile('${a.user_id}','${a.season_id}')">🗑️</button>
+                        <button class="btn-sm btn-danger" onclick="deleteMultiTeamRole('${a.user_id}','${a.season_id}','${a.role}')">🗑️</button>
                     </td>
                 </tr>`;
             } else {
@@ -2846,20 +2848,22 @@ window.handleDeleteStaff = async function(id) {
         }).join('');
     };
 
-    // Elimina TUTTE le righe Responsabile per un dato user+stagione
-    window.deleteResponsabile = async function(userId, seasonId) {
-        if (!confirm("Rimuovere tutte le assegnazioni Responsabile per questo membro?")) return;
+    // Elimina TUTTE le righe per un dato user+stagione+role (multi-team)
+    window.deleteMultiTeamRole = async function(userId, seasonId, role) {
+        if (!confirm(`Rimuovere tutte le assegnazioni "${role}" per questo membro?`)) return;
         const { data: existing } = await client.from('user_category_seasons')
             .select('id')
             .eq('user_id', userId)
             .eq('season_id', seasonId)
-            .eq('role', 'Responsabile');
+            .eq('role', role);
         if (existing?.length) {
             const ids = existing.map(r => r.id);
             const { error } = await client.from('user_category_seasons').delete().in('id', ids);
             if (!error) _fetchData(); else alert(error.message);
         }
     };
+    // Alias retrocompatibilità
+    window.deleteResponsabile = (userId, seasonId) => window.deleteMultiTeamRole(userId, seasonId, 'Responsabile');
 
     // --- LOGICA MODALE ---
     window.openAssignmentModal = async function(activeSeasonId, editData = null) {
@@ -2883,14 +2887,15 @@ window.handleDeleteStaff = async function(id) {
             ? (cRes.data || [])
             : (cRes.data || []).filter(c => !_mySocIdForCat || String(c.society_id) === String(_mySocIdForCat));
 
-        // Se in edit, recupera tutte le righe del responsabile (stesso user + stagione + role=Responsabile)
+        // Se in edit, recupera tutte le righe del responsabile/preparatore (stesso user + stagione + role)
+        const _multiTeamRoles = ['Responsabile', 'Preparatore Atletico', 'Preparatore Portieri'];
         let editCatIds = [], editTeamIds = [];
-        if (isEdit && editData.role === 'Responsabile') {
+        if (isEdit && _multiTeamRoles.includes(editData.role)) {
             const { data: siblings } = await client.from('user_category_seasons')
                 .select('category_id, team_id')
                 .eq('user_id', editData.user_id)
                 .eq('season_id', activeSeasonId)
-                .eq('role', 'Responsabile');
+                .eq('role', editData.role);
             editCatIds  = (siblings || []).filter(r => r.category_id && !r.team_id).map(r => String(r.category_id));
             editTeamIds = (siblings || []).filter(r => r.team_id).map(r => String(r.team_id));
         }
@@ -2918,10 +2923,11 @@ window.handleDeleteStaff = async function(id) {
                     </select>
                 </div>
 
-                <!-- BLOCCO RESPONSABILE: multi-categoria + multi-squadra diretta -->
+                <!-- BLOCCO MULTI-SQUADRA: Responsabile (cat+team), Preparatore Atletico/Portieri (solo team) -->
                 <div id="as-block-responsabile" style="display:none;">
 
-                    <!-- Categorie -->
+                    <!-- Categorie (solo Responsabile) -->
+                    <div id="as-cat-section">
                     <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                         📂 Categorie di competenza
                         <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">(tutte le squadre della categoria)</span>
@@ -2937,11 +2943,12 @@ window.handleDeleteStaff = async function(id) {
                             </label>
                         `).join('')}
                     </div>
+                    </div><!-- /as-cat-section -->
 
                     <!-- Squadre dirette -->
-                    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <label id="as-team-checkboxes-label" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                         🛡️ Squadre specifiche
-                        <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">(assegnazione diretta a singole squadre)</span>
+                        <span id="as-team-checkboxes-sub" style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">(assegnazione diretta a singole squadre)</span>
                     </label>
                     <div id="as-team-checkboxes" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:8px; padding:12px; background:rgba(0,0,0,0.025); border:1px solid var(--border); border-radius:8px;">
                         ${allTeams.map(t => `
@@ -2972,11 +2979,23 @@ window.handleDeleteStaff = async function(id) {
         `);
 
         // Gestione visibilità blocchi al cambio ruolo
+        const _multiTeamRolesUI = ['Responsabile', 'Preparatore Atletico', 'Preparatore Portieri'];
         window._onAssignmentRoleChange = function() {
             const role = document.getElementById('as-role').value;
-            const isResp = role === 'Responsabile';
-            document.getElementById('as-block-responsabile').style.display = isResp ? 'block' : 'none';
-            document.getElementById('as-block-team').style.display        = isResp ? 'none'  : 'block';
+            const isResp      = role === 'Responsabile';
+            const isMultiTeam = _multiTeamRolesUI.includes(role);
+            document.getElementById('as-block-responsabile').style.display = isMultiTeam ? 'block' : 'none';
+            document.getElementById('as-block-team').style.display         = isMultiTeam ? 'none'  : 'block';
+            // Mostra sezione categorie solo per Responsabile
+            const catSec = document.getElementById('as-cat-section');
+            if (catSec) catSec.style.display = isResp ? '' : 'none';
+            // Aggiorna label squadre
+            const lbl = document.getElementById('as-team-checkboxes-label');
+            const sub = document.getElementById('as-team-checkboxes-sub');
+            if (lbl) lbl.childNodes[0].textContent = isResp ? '🛡️ Squadre specifiche ' : '🛡️ Squadre assegnate ';
+            if (sub) sub.textContent = isResp
+                ? '(assegnazione diretta a singole squadre)'
+                : 'Seleziona tutte le squadre di competenza';
         };
         window._onAssignmentRoleChange(); // applica subito
 
@@ -2985,31 +3004,33 @@ window.handleDeleteStaff = async function(id) {
             const role   = document.getElementById('as-role').value;
             if (!userId || !role) return alert("Seleziona Staff e Ruolo!");
 
-            if (role === 'Responsabile') {
-                // Raccoglie categorie e squadre spuntate
-                const checkedCats  = [...document.querySelectorAll('#as-cat-checkboxes input[type=checkbox]:checked')];
+            if (_multiTeamRolesUI.includes(role)) {
+                // Raccoglie categorie (solo Responsabile) e squadre spuntate
+                const checkedCats  = role === 'Responsabile'
+                    ? [...document.querySelectorAll('#as-cat-checkboxes input[type=checkbox]:checked')]
+                    : [];
                 const checkedTeams = [...document.querySelectorAll('#as-team-checkboxes input[type=checkbox]:checked')];
                 if (!checkedCats.length && !checkedTeams.length)
-                    return alert("Seleziona almeno una categoria o una squadra per il Responsabile!");
+                    return alert(`Seleziona almeno una ${role === 'Responsabile' ? 'categoria o ' : ''}squadra!`);
 
-                // In edit: rimuovi PRIMA tutte le righe esistenti come Responsabile per questo user+stagione
+                // In edit: rimuovi PRIMA tutte le righe esistenti per questo user+stagione+role
                 if (isEdit) {
                     const { data: existing } = await client.from('user_category_seasons')
                         .select('id')
                         .eq('user_id', userId)
                         .eq('season_id', activeSeasonId)
-                        .eq('role', 'Responsabile');
+                        .eq('role', role);
                     if (existing?.length) {
                         const ids = existing.map(r => r.id);
                         await client.from('user_category_seasons').delete().in('id', ids);
                     }
                 }
 
-                // Righe per categoria (team_id null → il Responsabile vede tutte le squadre della cat.)
+                // Righe per categoria (solo Responsabile, team_id null)
                 const catRows = checkedCats.map(cb => ({
                     user_id:     userId,
                     season_id:   activeSeasonId,
-                    role:        'Responsabile',
+                    role:        role,
                     category_id: cb.value,
                     society_id:  cb.getAttribute('data-soc') || null,
                     team_id:     null
@@ -3019,7 +3040,7 @@ window.handleDeleteStaff = async function(id) {
                 const teamRows = checkedTeams.map(cb => ({
                     user_id:     userId,
                     season_id:   activeSeasonId,
-                    role:        'Responsabile',
+                    role:        role,
                     category_id: cb.getAttribute('data-cat') || null,
                     society_id:  cb.getAttribute('data-soc') || null,
                     team_id:     cb.value
