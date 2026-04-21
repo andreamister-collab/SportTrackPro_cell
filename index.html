@@ -968,6 +968,8 @@
             effectiveRole = mgmtRole || 'user';
         }
 
+        // Normalizza ruoli con spazio (es. 'preparatore atletico') → chiave usabile
+        if (effectiveRole === 'preparatore atletico') effectiveRole = 'preparatore atletico';
         // Salva il ruolo effettivo globalmente (utile per la dashboard e altri moduli)
         window._effectiveRole = effectiveRole;
 
@@ -993,6 +995,7 @@
             responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
             dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-import'],
             allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-import'],
+            'preparatore atletico': ['nav-atleti','nav-test'],
             genitore:     [],
         };
 
@@ -6539,6 +6542,13 @@ window.templateDashboard = function() {
                 </div>
             </div><!-- /pres-responsabile-section -->
 
+            <!-- VISTA PREPARATORE ATLETICO -->
+            <div id="pres-preparatore-section" style="display:none;">
+                <div id="preparatore-dash-content">
+                    <div style="text-align:center;padding:40px;color:var(--text-sub);">⏳ Caricamento...</div>
+                </div>
+            </div><!-- /pres-preparatore-section -->
+
             <!-- SEZIONE DETTAGLIO ATLETA (solo Genitore) -->
             <div id="pres-genitore-section" style="display:none; margin-top:20px;">
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border);">
@@ -6617,9 +6627,11 @@ window.switchDashTab = function(idx) {
         const _initAndLoad = async () => {
             if (_r6 === 'genitore')    await _initGenitoreTeamScope();
             if (_r6 === 'responsabile') {
-                // Popola i filtri cat/team con le assegnazioni del responsabile, poi carica la vista
                 await _presPopulateCatTeam();
                 await window.loadDashResponsabile();
+            } else if (_r6 === 'preparatore atletico') {
+                await _presPopulateCatTeam();
+                await window.loadDashPreparatore();
             } else {
                 await _presPopulateCatTeam();
                 window.loadDashPresidenza();
@@ -6691,7 +6703,7 @@ window.initDashboard = async function() {
 
         // Posiziona automaticamente sulla vista specializzata al primo accesso
         const _initRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-        const _strategicRoles = ['admin','manager','presidente','segretario','responsabile','dirigente','allenatore','genitore'];
+        const _strategicRoles = ['admin','manager','presidente','segretario','responsabile','dirigente','allenatore','genitore','preparatore atletico'];
         if (_strategicRoles.includes(_initRole)) {
             if (_initRole === 'genitore') {
                 _initGenitoreTeamScope().then(() => {
@@ -10714,6 +10726,429 @@ async function _renderVistaResponsabile() {
 }
 
 
+/* ════════════════════════════════════════════════════════════
+   VISTA PREPARATORE ATLETICO
+   Dashboard test fisici: progressi, KPI, drill-down per atleta
+════════════════════════════════════════════════════════════ */
+window.loadDashPreparatore = async function() {
+    window._userAssignedTeamIds = null;
+    window._userScopeData = null;
+    const presSeaSel = document.getElementById('pres-view-season');
+    if (presSeaSel && presSeaSel.options.length <= 1 && window._dashData?._seasons?.length) {
+        window._dashData._seasons.forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.id; o.textContent = s.name + (s.is_active ? ' ✓' : '');
+            if (s.is_active) o.selected = true;
+            presSeaSel.appendChild(o);
+        });
+    }
+    _renderVistaPreparatore();
+};
+
+async function _renderVistaPreparatore() {
+    const container = document.getElementById('preparatore-dash-content');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-sub);">⏳ Caricamento dati test atletici...</div>';
+
+    try {
+        const allTeamIds = window._userAssignedTeamIds || await window.loadUserAssignedTeams() || [];
+        if (!allTeamIds.length) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-sub);">Nessuna squadra assegnata.</div>';
+            return;
+        }
+        const uiSeasonId = document.getElementById('pres-view-season')?.value;
+        const activeSeason = (window._dashData._seasons || []).find(s => s.is_active);
+        const sid = (uiSeasonId && uiSeasonId !== 'all') ? uiSeasonId : (activeSeason?.id || null);
+        const uiTeamId = document.getElementById('pres-view-team')?.value;
+        const uiCatId  = document.getElementById('pres-view-cat')?.value;
+
+        let teamIds = allTeamIds;
+        if (uiTeamId && uiTeamId !== 'all' && allTeamIds.includes(uiTeamId)) {
+            teamIds = [uiTeamId];
+        } else if (uiCatId && uiCatId !== 'all') {
+            const { data: ct } = await client.from('teams').select('id').eq('category_id', uiCatId).in('id', allTeamIds);
+            if (ct?.length) teamIds = ct.map(t => t.id);
+        }
+
+        const fmtDate = d => d.toISOString().split('T')[0];
+        const today = new Date();
+
+        // ── Carica test sessions + results + roster ────────────────────────
+        const [testSessRes, rosterRes] = await Promise.all([
+            (() => {
+                let q = client.from('test_sessions')
+                    .select('id, session_date, team_id, test_definitions!inner(id, name)')
+                    .in('team_id', teamIds)
+                    .order('session_date', { ascending: false });
+                if (sid) q = q.eq('season_id', sid);
+                return q;
+            })(),
+            (() => {
+                let q = client.from('athlete_team_seasons')
+                    .select('athlete_id, jersey_number, role, team_id, athletes!inner(id, name, surname)')
+                    .in('team_id', teamIds);
+                if (sid) q = q.eq('season_id', sid);
+                return q;
+            })()
+        ]);
+
+        const testSessions = testSessRes.data || [];
+        const roster = rosterRes.data || [];
+
+        // Mappa atleti
+        const athMap = {};
+        roster.forEach(r => {
+            if (!athMap[r.athlete_id]) athMap[r.athlete_id] = {
+                id: r.athlete_id, surname: r.athletes?.surname || '', name: r.athletes?.name || '',
+                jersey: r.jersey_number, role: r.role, teamId: r.team_id
+            };
+        });
+        const athIds = Object.keys(athMap);
+
+        let testResults = [];
+        if (testSessions.length > 0) {
+            const sessIds = testSessions.map(s => s.id);
+            const { data: tr } = await client.from('test_results')
+                .select('athlete_id, value, performance_id, test_session_id, test_performances!inner(id, name, unit, lower_is_better, test_def_id)')
+                .in('test_session_id', sessIds);
+            testResults = tr || [];
+        }
+
+        // Mappa: athlete_id → perf_id → [{date, value, lowerIsBetter, perfName, unit, testDefId}]
+        const athPerfMap = {};
+        testResults.forEach(r => {
+            const sessDate = testSessions.find(s => s.id === r.test_session_id)?.session_date || '';
+            const aid = r.athlete_id;
+            const pid = r.performance_id;
+            if (!athPerfMap[aid]) athPerfMap[aid] = {};
+            if (!athPerfMap[aid][pid]) athPerfMap[aid][pid] = [];
+            athPerfMap[aid][pid].push({
+                date: sessDate, value: r.value,
+                lowerIsBetter: r.test_performances?.lower_is_better || false,
+                perfName: r.test_performances?.name || '',
+                unit: r.test_performances?.unit || '',
+                testDefId: r.test_performances?.test_def_id || ''
+            });
+        });
+
+        // ── Calcola KPI per atleta ─────────────────────────────────────────
+        // Per ogni atleta e performance: prende prima e ultima sessione → delta %
+        const athKPI = {};
+        athIds.forEach(aid => {
+            const perfs = athPerfMap[aid] || {};
+            let totalDelta = 0, deltaCount = 0;
+            const regressions = [];
+            const perfDetails = [];
+
+            Object.entries(perfs).forEach(([pid, vals]) => {
+                if (vals.length < 2) return;
+                const sorted = [...vals].sort((a, b) => a.date.localeCompare(b.date));
+                const first = sorted[0].value, last = sorted[sorted.length - 1].value;
+                const lowerIsBetter = sorted[0].lowerIsBetter;
+                // Miglioramento: se lower is better → first > last è positivo; altrimenti last > first
+                const improvement = lowerIsBetter ? (first - last) / (first || 1) * 100 : (last - first) / (first || 1) * 100;
+                totalDelta += improvement;
+                deltaCount++;
+                if (improvement < -5) {
+                    regressions.push({ perfName: sorted[0].perfName, delta: improvement.toFixed(1) });
+                }
+                perfDetails.push({
+                    perfName: sorted[0].perfName, unit: sorted[0].unit,
+                    first: first, last: last, lowerIsBetter,
+                    improvement: improvement.toFixed(1),
+                    dates: { first: sorted[0].date, last: sorted[sorted.length-1].date }
+                });
+            });
+
+            const avgDelta = deltaCount > 0 ? (totalDelta / deltaCount).toFixed(1) : null;
+            athKPI[aid] = { avgDelta, regressions, perfDetails, hasData: deltaCount > 0 };
+        });
+
+        // ── Test per tipo (per drilldown) ──────────────────────────────────
+        const testDefMap = {};
+        testSessions.forEach(s => {
+            const defId = s.test_definitions?.id;
+            const defName = s.test_definitions?.name;
+            if (!defId) return;
+            if (!testDefMap[defId]) testDefMap[defId] = { id: defId, name: defName, sessions: [] };
+            testDefMap[defId].sessions.push(s);
+        });
+
+        // ── RENDER ─────────────────────────────────────────────────────────
+        const tabs = [
+            { id: 'prep-tab-dashboard', label: '📊 Dashboard' },
+            { id: 'prep-tab-kpi',       label: '📈 KPI' },
+            { id: 'prep-tab-drilldown', label: '🔍 Drill-down' }
+        ];
+
+        const tabBtns = tabs.map((t, i) => `
+            <button class="prep-tab-btn ${i===0?'active':''}" onclick="window._prepTab('${t.id.replace('prep-tab-','')}')"
+                style="padding:7px 16px;border-radius:7px;border:1px solid ${i===0?'var(--primary)':'var(--border)'};cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;background:${i===0?'var(--primary)':'transparent'};color:${i===0?'white':'var(--text-muted)'};transition:all 0.15s;">
+                ${t.label}
+            </button>`).join('');
+
+        // Dashboard: top miglioratori, alert regressioni, ultima sessione per tipo test
+        const sorted = athIds
+            .filter(aid => athKPI[aid]?.hasData)
+            .sort((a, b) => parseFloat(athKPI[b]?.avgDelta || 0) - parseFloat(athKPI[a]?.avgDelta || 0));
+
+        const regressionAlerts = athIds.flatMap(aid => {
+            return (athKPI[aid]?.regressions || []).map(r => ({
+                ...r, name: athMap[aid] ? `${athMap[aid].surname} ${athMap[aid].name}` : aid
+            }));
+        });
+
+        const topImprovers = sorted.slice(0, 8).map(aid => {
+            const ath = athMap[aid];
+            const kpi = athKPI[aid];
+            const name = ath ? `${ath.surname} ${ath.name}` : aid;
+            const delta = parseFloat(kpi.avgDelta);
+            const col = delta >= 5 ? '#059669' : delta >= 0 ? '#0ea5e9' : '#ef4444';
+            const icon = delta >= 5 ? '▲' : delta >= 0 ? '→' : '▼';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+                <span style="font-size:0.7rem;font-weight:700;color:var(--text-muted);width:18px;text-align:right;">${ath?.jersey||'—'}</span>
+                <span style="flex:1;font-size:0.82rem;font-weight:600;">${name}</span>
+                <span style="font-weight:800;font-size:0.88rem;color:${col};font-family:'DM Mono',monospace;">${icon} ${Math.abs(delta)}%</span>
+            </div>`;
+        }).join('') || '<span style="color:var(--text-muted);font-size:0.8rem;">Dati insufficienti (serve almeno 2 sessioni per performance)</span>';
+
+        const alertRows = regressionAlerts.slice(0, 6).map(r =>
+            `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:rgba(239,68,68,0.07);border-left:3px solid #ef4444;margin-bottom:4px;">
+                <span style="font-size:0.9rem;">⚠️</span>
+                <span style="font-size:0.8rem;font-weight:700;flex:1;">${r.name}</span>
+                <span style="font-size:0.72rem;color:#dc2626;font-weight:700;">${r.perfName}: ${r.delta}%</span>
+            </div>`
+        ).join('') || '<span style="color:var(--text-muted);font-size:0.8rem;">Nessuna regressione rilevata ✅</span>';
+
+        // Ultima sessione per tipo test
+        const lastSessions = Object.values(testDefMap).map(td => {
+            const last = td.sessions[0]; // già ordinate DESC
+            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+                <span style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap;">${new Date(last.session_date).toLocaleDateString('it-IT')}</span>
+                <span style="font-size:0.82rem;font-weight:600;flex:1;">${td.name}</span>
+                <span style="font-size:0.7rem;color:var(--primary);font-weight:700;">${td.sessions.length} sess.</span>
+            </div>`;
+        }).join('') || '<span style="color:var(--text-muted);font-size:0.8rem;">Nessuna sessione test trovata</span>';
+
+        // KPI tab: tabella atleti con delta per performance
+        // Raccoglie tutte le performance unique
+        const allPerfs = {};
+        testResults.forEach(r => {
+            const pid = r.performance_id;
+            if (!allPerfs[pid]) allPerfs[pid] = { name: r.test_performances?.name || '', unit: r.test_performances?.unit || '', lowerIsBetter: r.test_performances?.lower_is_better || false };
+        });
+        const perfList = Object.entries(allPerfs).slice(0, 8); // max 8 colonne
+
+        const kpiHeaders = perfList.map(([, p]) =>
+            `<th style="padding:8px;text-align:center;font-size:0.62rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;">${p.name}<br><span style="font-weight:400;">(${p.unit})</span></th>`
+        ).join('');
+
+        const kpiRows = sorted.map(aid => {
+            const ath = athMap[aid];
+            if (!ath) return '';
+            const kpi = athKPI[aid];
+            const cells = perfList.map(([pid, p]) => {
+                const detail = kpi.perfDetails?.find(d => d.perfName === p.name);
+                if (!detail) return '<td style="padding:8px;text-align:center;color:var(--text-muted);">—</td>';
+                const delta = parseFloat(detail.improvement);
+                const col = delta >= 5 ? '#059669' : delta >= 0 ? '#0ea5e9' : '#ef4444';
+                return `<td style="padding:8px;text-align:center;">
+                    <div style="font-weight:800;font-size:0.82rem;color:${col};font-family:'DM Mono',monospace;">${delta > 0 ? '+' : ''}${delta}%</div>
+                    <div style="font-size:0.62rem;color:var(--text-muted);">${detail.first} → ${detail.last}</div>
+                </td>`;
+            }).join('');
+            const avgD = parseFloat(kpi.avgDelta);
+            const avgCol = avgD >= 5 ? '#059669' : avgD >= 0 ? '#0ea5e9' : '#ef4444';
+            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;" onclick="window._prepDrillAthlete('${aid}')">
+                <td style="padding:8px 10px;white-space:nowrap;font-weight:700;font-size:0.8rem;">${ath.jersey||'—'} ${ath.surname} ${ath.name}</td>
+                <td style="padding:8px;text-align:center;font-weight:800;font-size:0.88rem;color:${avgCol};font-family:'DM Mono',monospace;">${avgD > 0 ? '+' : ''}${kpi.avgDelta}%</td>
+                ${cells}
+            </tr>`;
+        }).join('') || `<tr><td colspan="${perfList.length + 2}" style="text-align:center;padding:24px;color:var(--text-sub);">Dati insufficienti (servono almeno 2 sessioni per performance)</td></tr>`;
+
+        // Drill-down tab: per atleta selezionato, mostra tutti i test nel tempo
+        const athOptions = sorted.map(aid => {
+            const ath = athMap[aid];
+            if (!ath) return '';
+            return `<option value="${aid}">${ath.surname} ${ath.name} (#${ath.jersey||'—'})</option>`;
+        }).join('');
+
+        container.innerHTML = `
+        <style>
+        .prep-tab-btn { transition: all 0.15s; }
+        .prep-tab-btn.active { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; }
+        .prep-section { display: none; }
+        .prep-section.active { display: block; }
+        </style>
+
+        <!-- TAB NAV -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">${tabBtns}</div>
+
+        <!-- ═══ TAB DASHBOARD ═══ -->
+        <div id="prep-tab-dashboard" class="prep-section active">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;">
+
+                <!-- Top Miglioratori -->
+                <div class="card" style="padding:18px;">
+                    <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:12px;">🏆 Top Miglioratori</div>
+                    ${topImprovers}
+                </div>
+
+                <!-- Alert Regressioni -->
+                <div class="card" style="padding:18px;">
+                    <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#dc2626;margin-bottom:12px;">⚠️ Alert Regressioni</div>
+                    ${alertRows}
+                </div>
+
+                <!-- Sessioni Test -->
+                <div class="card" style="padding:18px;">
+                    <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:12px;">📅 Ultime Sessioni Test</div>
+                    ${lastSessions}
+                </div>
+            </div>
+
+            <!-- Riepilogo numerico -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                ${[
+                    { icon:'🧪', label:'Sessioni Test', val: testSessions.length, col:'var(--primary)' },
+                    { icon:'👥', label:'Atleti testati', val: sorted.length, col:'#10b981' },
+                    { icon:'⚠️', label:'Alert regressioni', val: regressionAlerts.length, col:'#ef4444' },
+                    { icon:'📈', label:'Media miglioramento', val: (sorted.length > 0 ? (sorted.reduce((s,aid)=>s+parseFloat(athKPI[aid]?.avgDelta||0),0)/sorted.length).toFixed(1)+'%' : '—'), col:'#0ea5e9' }
+                ].map(k => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
+                    <div style="font-size:1.4rem;margin-bottom:4px;">${k.icon}</div>
+                    <div style="font-size:1.4rem;font-weight:900;font-family:'DM Mono',monospace;color:${k.col};">${k.val}</div>
+                    <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px;">${k.label}</div>
+                </div>`).join('')}
+            </div>
+        </div>
+
+        <!-- ═══ TAB KPI ═══ -->
+        <div id="prep-tab-kpi" class="prep-section">
+            <div class="card" style="padding:18px;">
+                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px;">📊 Delta Test per Atleta — Prima vs Ultima Sessione</div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                        <thead><tr style="background:rgba(0,0,0,0.03);">
+                            <th style="padding:8px 10px;text-align:left;font-size:0.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Atleta</th>
+                            <th style="padding:8px;text-align:center;font-size:0.65rem;font-weight:700;color:var(--primary);text-transform:uppercase;">Δ Medio</th>
+                            ${kpiHeaders}
+                        </tr></thead>
+                        <tbody>${kpiRows}</tbody>
+                    </table>
+                </div>
+                <div style="font-size:0.68rem;color:var(--text-muted);margin-top:10px;">Clicca su un atleta per il dettaglio · % = variazione prima vs ultima sessione registrata</div>
+            </div>
+        </div>
+
+        <!-- ═══ TAB DRILL-DOWN ═══ -->
+        <div id="prep-tab-drilldown" class="prep-section">
+            <div class="card" style="padding:18px;margin-bottom:14px;">
+                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;">🔍 Dettaglio Atleta</div>
+                <select id="prep-drill-athlete" onchange="window._prepDrillRender()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:inherit;min-width:220px;">
+                    <option value="">— Seleziona atleta —</option>
+                    ${athOptions}
+                </select>
+            </div>
+            <div id="prep-drill-content" style="color:var(--text-muted);text-align:center;padding:24px;">Seleziona un atleta per vedere il dettaglio dei test nel tempo.</div>
+        </div>`;
+
+        // Store data for drill-down
+        window._prepAthPerfMap = athPerfMap;
+        window._prepAthMap = athMap;
+        window._prepAthKPI = athKPI;
+
+        // ── Tab switching ──────────────────────────────────────────────────
+        window._prepTab = function(tab) {
+            document.querySelectorAll('.prep-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.prep-section').forEach(s => s.classList.remove('active'));
+            const btn = [...document.querySelectorAll('.prep-tab-btn')].find(b => b.getAttribute('onclick')?.includes(tab));
+            if (btn) btn.classList.add('active');
+            const sec = document.getElementById('prep-tab-' + tab);
+            if (sec) sec.classList.add('active');
+        };
+
+        // ── Drill-down per atleta ──────────────────────────────────────────
+        window._prepDrillAthlete = function(aid) {
+            const sel = document.getElementById('prep-drill-athlete');
+            if (sel) sel.value = aid;
+            window._prepTab('drilldown');
+            window._prepDrillRender();
+        };
+
+        window._prepDrillRender = function() {
+            const aid = document.getElementById('prep-drill-athlete')?.value;
+            const el = document.getElementById('prep-drill-content');
+            if (!aid || !el) return;
+
+            const ath = window._prepAthMap?.[aid];
+            const perfs = window._prepAthPerfMap?.[aid] || {};
+            const name = ath ? `${ath.surname} ${ath.name}` : aid;
+
+            if (!Object.keys(perfs).length) {
+                el.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:24px;">Nessun dato test per questo atleta.</div>';
+                return;
+            }
+
+            const cards = Object.entries(perfs).map(([, vals]) => {
+                if (!vals.length) return '';
+                const sorted = [...vals].sort((a, b) => a.date.localeCompare(b.date));
+                const perfName = sorted[0].perfName, unit = sorted[0].unit;
+                const lowerIsBetter = sorted[0].lowerIsBetter;
+                const maxVal = Math.max(...sorted.map(v => v.value), 0.01);
+                // Sparkline SVG
+                const W = 260, H = 56, padL = 4, padR = 4, padT = 8, padB = 18;
+                const n = sorted.length;
+                const xP = i => padL + (n === 1 ? (W-padL-padR)/2 : i * (W-padL-padR) / (n-1));
+                const yP = v => padT + (H-padT-padB) * (1 - v / maxVal);
+                const pts = sorted.map((v, i) => `${xP(i).toFixed(1)},${yP(v.value).toFixed(1)}`).join(' ');
+                const dots = sorted.map((v, i) => {
+                    const isLast = i === n - 1;
+                    const improvement = lowerIsBetter ? sorted[0].value - v.value : v.value - sorted[0].value;
+                    const col = isLast ? (improvement >= 0 ? '#059669' : '#ef4444') : '#94a3b8';
+                    return `<circle cx="${xP(i).toFixed(1)}" cy="${yP(v.value).toFixed(1)}" r="3.5" fill="${col}" stroke="white" stroke-width="1.5"/>`;
+                }).join('');
+                const lbls = sorted.map((v, i) => (n <= 5 || i === 0 || i === n-1)
+                    ? `<text x="${xP(i).toFixed(1)}" y="${H-2}" text-anchor="middle" font-size="7.5" fill="rgba(90,100,128,0.7)" font-family="Outfit,sans-serif">${new Date(v.date).toLocaleDateString('it-IT',{day:'2-digit',month:'short'})}</text>` : ''
+                ).join('');
+                const spark = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;"><polyline points="${pts}" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}${lbls}</svg>`;
+
+                const first = sorted[0].value, last = sorted[n-1].value;
+                const delta = lowerIsBetter ? (first - last) / (first || 1) * 100 : (last - first) / (first || 1) * 100;
+                const deltaCol = delta >= 5 ? '#059669' : delta >= 0 ? '#0ea5e9' : '#ef4444';
+                const trendLbl = lowerIsBetter ? 'meno = meglio' : 'più = meglio';
+
+                return `<div class="card" style="padding:16px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div>
+                            <div style="font-size:0.82rem;font-weight:700;color:var(--text-main);">${perfName}</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);">${unit} · ${trendLbl}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:1.2rem;font-weight:900;font-family:'DM Mono',monospace;color:${deltaCol};">${delta > 0 ? '+' : ''}${delta.toFixed(1)}%</div>
+                            <div style="font-size:0.65rem;color:var(--text-muted);">${first} → ${last} ${unit}</div>
+                        </div>
+                    </div>
+                    ${spark}
+                    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                        ${sorted.map(v => `<span style="background:rgba(0,0,0,0.04);border-radius:6px;padding:2px 8px;font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--text-sub);">${new Date(v.date).toLocaleDateString('it-IT',{day:'2-digit',month:'short'})}: <b>${v.value}</b></span>`).join('')}
+                    </div>
+                </div>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div style="font-size:0.82rem;font-weight:700;color:var(--text-main);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+                    📋 ${name} — Progressione Test Fisici
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">${cards}</div>`;
+        };
+
+    } catch(err) {
+        console.error('_renderVistaPreparatore error:', err);
+        const c = document.getElementById('preparatore-dash-content');
+        if (c) c.innerHTML = `<div style="color:#ef4444;padding:24px;">Errore caricamento: ${err.message}</div>`;
+    }
+}
+
 window.loadDashResponsabile = function() {
     window._userAssignedTeamIds = null; // forza reload squadre
     window._userScopeData = null;       // forza ricarico store categorie/team
@@ -10796,6 +11231,7 @@ function _applyTabFilterVisibility() {
         dirigente:    { icon:'👔',  title:'Vista Dirigente',         subtitle:'Statistiche delle squadre di cui sei dirigente',        badge:'Dirigente' },
         allenatore:   { icon:'⚽',  title:'Vista Allenatore',        subtitle:'Statistiche della tua squadra',                        badge:'Allenatore' },
         genitore:     { icon:'👨‍👩‍👧', title:'Vista Genitore',         subtitle:'Dati della squadra e dettaglio del tuo atleta',       badge:'Genitore' },
+        'preparatore atletico': { icon:'🏋️', title:'Vista Preparatore Atletico', subtitle:'Analisi test fisici, progressi e alert atleti', badge:'Preparatore' },
     };
     const lbl = roleLabels[role] || { icon:'📊', title:'Vista Dashboard', subtitle:'', badge:role };
     const titleEl    = document.getElementById('pres-view-title');
@@ -10812,8 +11248,12 @@ function _applyTabFilterVisibility() {
     // ── Mostra Vista Specializzata per tutti i ruoli nominati ──
     const presTabBtn = document.getElementById('dash-tab-btn-6');
     const presDivider = document.getElementById('dash-pres-divider');
+    const _isAllDirView = (role === 'allenatore' || role === 'dirigente');
+    const _isRespView   = (role === 'responsabile');
+    const _isPrepView   = (role === 'preparatore atletico');
+
     if (presTabBtn) {
-        const canSeePresView = isGlobal || isSocScoped || isTeamScoped || isGenitore;
+        const canSeePresView = isGlobal || isSocScoped || isTeamScoped || isGenitore || _isPrepView;
         presTabBtn.style.display = canSeePresView ? '' : 'none';
         if (presDivider) presDivider.style.display = canSeePresView ? '' : 'none';
     }
@@ -10826,11 +11266,11 @@ function _applyTabFilterVisibility() {
     const presGenericSections    = document.getElementById('pres-generic-sections');
     const allenatoreSectionWrap  = document.getElementById('pres-allenatore-section');
     const responsabileSectionWrap = document.getElementById('pres-responsabile-section');
-    const _isAllDirView = (role === 'allenatore' || role === 'dirigente');
-    const _isRespView   = (role === 'responsabile');
-    if (presGenericSections)       presGenericSections.style.display     = (_isAllDirView || _isRespView) ? 'none' : '';
+    if (presGenericSections)       presGenericSections.style.display     = (_isAllDirView || _isRespView || _isPrepView) ? 'none' : '';
     if (allenatoreSectionWrap)     allenatoreSectionWrap.style.display   = _isAllDirView ? '' : 'none';
     if (responsabileSectionWrap)   responsabileSectionWrap.style.display = _isRespView   ? '' : 'none';
+    const preparatoreSectionWrap = document.getElementById('pres-preparatore-section');
+    if (preparatoreSectionWrap)    preparatoreSectionWrap.style.display  = _isPrepView   ? '' : 'none';
 
     // ── Filtri nei tab generali (0-5) ──
     const seasonSelects = ['dash-stats-season','dash-match-season','dash-pres-season','dash-ath-season'];
