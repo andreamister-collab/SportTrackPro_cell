@@ -13329,9 +13329,10 @@ window.initGenitoreView = async function() {
         };
 
         // 3. Presenze agli allenamenti (ultime 60 sessioni)
+        // Usa la tabella reale: attendances + sessions
         const { data: attendances } = await client
-            .from('session_athletes')
-            .select('session_id, status, sessions(id, session_date)')
+            .from('attendances')
+            .select('session_id, status, is_called_up, sessions!inner(id, session_date, type_id, session_types(name))')
             .eq('athlete_id', athleteId)
             .order('session_id', { ascending: false })
             .limit(60);
@@ -13339,35 +13340,40 @@ window.initGenitoreView = async function() {
         const attended = (attendances || []).filter(a => a.status === 'presente').length;
         const totalTrainings = (attendances || []).length;
 
-        // 4. Partite (convocazioni + tabellino)
-        const { data: matchConvocations } = await client
-            .from('match_athletes')
+        // 4. Partite: usa match_stats + sessions + match_details (schema reale)
+        const { data: rawMatchStats } = await client
+            .from('match_stats')
             .select(`
-                participated, minutes_played, goals, yellow_cards,
-                matches(id, match_date, opponent, home_score, away_score, is_home)
+                athlete_id, goals, yellow_cards, red_cards, minutes_played, is_starter,
+                sessions!inner(id, session_date, title, team_id,
+                    match_details(opponent_name, is_home, goals_for, goals_against, match_status))
             `)
             .eq('athlete_id', athleteId)
-            .order('id', { ascending: false })
+            .order('sessions(session_date)', { ascending: false })
             .limit(10);
 
-        const matchesData = (matchConvocations || []).map(mc => {
-            const m = mc.matches;
-            const homeScore = m?.home_score ?? '?';
-            const awayScore = m?.away_score ?? '?';
-            const isHome = m?.is_home;
-            const myScore   = isHome ? homeScore : awayScore;
-            const theirScore = isHome ? awayScore : homeScore;
+        const matchesData = (rawMatchStats || []).map(ms => {
+            const s = ms.sessions;
+            const md = s?.match_details?.[0] || s?.match_details || null;
+            const goalsFor     = md?.goals_for     ?? '?';
+            const goalsAgainst = md?.goals_against ?? '?';
+            const isHome       = md?.is_home ?? true;
+            const myScore      = isHome ? goalsFor     : goalsAgainst;
+            const theirScore   = isHome ? goalsAgainst : goalsFor;
             let result = 'draw';
-            if (myScore > theirScore) result = 'win';
-            if (myScore < theirScore) result = 'loss';
-            const d = m?.match_date ? new Date(m.match_date) : null;
+            if (typeof myScore === 'number' && typeof theirScore === 'number') {
+                if (myScore > theirScore) result = 'win';
+                if (myScore < theirScore) result = 'loss';
+            }
+            const d = s?.session_date ? new Date(s.session_date) : null;
+            const played = ms.minutes_played > 0 || ms.is_starter;
             return {
-                participated: mc.participated,
-                minutes_played: mc.minutes_played,
-                goals: mc.goals || 0,
-                yellow_cards: mc.yellow_cards || 0,
-                opponent: m?.opponent || '?',
-                score: `${homeScore}–${awayScore}`,
+                participated: played,
+                minutes_played: ms.minutes_played || 0,
+                goals: ms.goals || 0,
+                yellow_cards: ms.yellow_cards || 0,
+                opponent: md?.opponent_name || s?.title || '?',
+                score: `${goalsFor}–${goalsAgainst}`,
                 result,
                 date_fmt: d ? d.toLocaleDateString('it-IT', {day:'2-digit', month:'short'}) : '—',
             };
@@ -13379,22 +13385,24 @@ window.initGenitoreView = async function() {
         const totalYellow      = matchesData.reduce((s,m) => s + (m.yellow_cards||0), 0);
         const totalMinutes     = matchesData.filter(m=>m.participated).reduce((s,m)=>s+(m.minutes_played||0),0);
 
-        // 5. Prossima partita
+        // 5. Prossima partita: usa sessions + match_details (schema reale)
         const { data: nextMatchRow } = await client
-            .from('matches')
-            .select('match_date, opponent, location, is_home')
-            .gt('match_date', new Date().toISOString())
-            .order('match_date', { ascending: true })
+            .from('sessions')
+            .select('id, session_date, title, match_details(opponent_name, is_home, address, match_status)')
+            .gt('session_date', new Date().toISOString().split('T')[0])
+            .eq('match_details.match_status', 'da giocare')
+            .order('session_date', { ascending: true })
             .limit(1)
             .maybeSingle();
 
         let nextMatch = null;
         if (nextMatchRow) {
-            const nd = new Date(nextMatchRow.match_date);
+            const nd = new Date(nextMatchRow.session_date);
+            const md = nextMatchRow.match_details?.[0] || nextMatchRow.match_details || null;
             nextMatch = {
                 date: nd.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'}),
-                opponent: nextMatchRow.opponent,
-                details: `${nextMatchRow.is_home ? 'Casa' : 'Trasferta'}${nextMatchRow.location ? ' · ' + nextMatchRow.location : ''}`,
+                opponent: md?.opponent_name || nextMatchRow.title || '?',
+                details: `${md?.is_home ? 'Casa' : 'Trasferta'}${md?.address ? ' · ' + md.address : ''}`,
             };
         }
 
