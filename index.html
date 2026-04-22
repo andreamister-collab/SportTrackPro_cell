@@ -11775,6 +11775,472 @@ window.deleteGenitore = async function(genitoreId) {
 };
 
 /* ============================================================
+   VISTA GENITORE — Dashboard personale figlio/i
+   ============================================================ */
+window.initGenitoreView = async function() {
+    const contentEl = document.getElementById('content');
+    if (!contentEl) return;
+    const userId = window._currentUserId;
+    contentEl.innerHTML = '<div class="card"><p style="color:var(--text-sub);text-align:center;padding:20px;">⏳ Caricamento...</p></div>';
+
+    try {
+        // 1. Atleti del genitore
+        const { data: links } = await client.from('parent_athletes')
+            .select('athlete_id, athletes(id,name,surname,born_date)')
+            .eq('parent_id', userId);
+
+        if (!links || links.length === 0) {
+            contentEl.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
+                <div style="font-size:3rem;margin-bottom:12px;">👶</div>
+                <h2 style="font-family:'DM Mono','Outfit',sans-serif;">Nessun atleta associato</h2>
+                <p style="color:var(--text-sub);">Contatta l'amministratore per associare il tuo figlio all'account.</p>
+            </div>`;
+            return;
+        }
+
+        const athletes = links.map(l => l.athletes).filter(Boolean);
+
+        // 2. Dati comuni
+        const { data: sessionTypes } = await client.from('session_types').select('id,name');
+        const garaTypeIds = new Set((sessionTypes||[])
+            .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+            .map(t => t.id));
+        const garaIdsArr = [...garaTypeIds];
+
+        const activeSeason = (await client.from('seasons').select('id,name').eq('is_active',true).maybeSingle()).data;
+        const sid = activeSeason?.id || null;
+
+        // 3. Dati per ogni atleta
+        const athIds = athletes.map(a => a.id);
+
+        const [tsRes, msRes, attRes] = await Promise.all([
+            client.from('athlete_team_seasons')
+                .select('athlete_id,season_id,team_id,seasons(id,name,is_active),teams(id,name,categories(name))')
+                .in('athlete_id', athIds),
+            client.from('match_stats')
+                .select('athlete_id,goals,yellow_cards,red_cards,minutes_played,sessions!inner(season_id,type_id,team_id)')
+                .in('athlete_id', athIds),
+            client.from('attendances')
+                .select('athlete_id,status,is_called_up,sessions!inner(season_id,type_id,team_id)')
+                .in('athlete_id', athIds),
+        ]);
+
+        const teamSeasons = tsRes.data || [];
+        const matchStats  = msRes.data || [];
+        const attendances = attRes.data || [];
+
+        // Aggrega stats per atleta+stagione
+        const statsBy = {};
+        matchStats.forEach(st => {
+            const s = st.sessions?.season_id;
+            if (!garaTypeIds.has(st.sessions?.type_id)) return;
+            if (!statsBy[st.athlete_id]) statsBy[st.athlete_id] = {};
+            if (!statsBy[st.athlete_id][s]) statsBy[st.athlete_id][s] = {goals:0,yc:0,rc:0,min:0};
+            statsBy[st.athlete_id][s].goals += st.goals||0;
+            statsBy[st.athlete_id][s].yc    += st.yellow_cards||0;
+            statsBy[st.athlete_id][s].rc    += st.red_cards||0;
+            statsBy[st.athlete_id][s].min   += st.minutes_played||0;
+        });
+        const presBy = {};
+        attendances.forEach(att => {
+            const s = att.sessions?.season_id;
+            if (!s || !garaTypeIds.has(att.sessions?.type_id)) return;
+            const aid = att.athlete_id;
+            if (!presBy[aid]) presBy[aid] = {};
+            if (!presBy[aid][s]) presBy[aid][s] = {pres:0,tot:0,conv:0};
+            presBy[aid][s].tot++;
+            if (att.is_called_up) presBy[aid][s].conv++;
+            if ((att.status||'').toLowerCase()==='presente') presBy[aid][s].pres++;
+        });
+
+        // Helper
+        const pill = (val, label, color, bg='rgba(0,0,0,0.06)', border='rgba(0,0,0,0.1)') =>
+            `<div style="text-align:center;background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 16px;min-width:72px;">
+                <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:${color};line-height:1;">${val}</div>
+                <div style="font-size:0.62rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:3px;">${label}</div>
+            </div>`;
+
+        const esitoBadge = s => {
+            const m = {vittoria:['rgba(6,214,160,0.12)','#06d6a0','VITTORIA'],sconfitta:['rgba(239,68,68,0.12)','#f87171','SCONFITTA'],pareggio:['rgba(255,209,102,0.12)','#ffd166','PAREGGIO']};
+            const [bg,col,lbl] = m[(s||'').toLowerCase()] || ['rgba(0,0,0,0.06)','var(--text-sub)',(s||'DA DISPUTARE').toUpperCase()];
+            return `<span style="background:${bg};color:${col};padding:2px 10px;border-radius:99px;font-size:0.7rem;font-weight:700;">${lbl}</span>`;
+        };
+
+        // Genera pagina per ogni atleta
+        const renderAthletePage = async (ath) => {
+            const athTeamSeasons = teamSeasons.filter(ts => ts.athlete_id === ath.id && ts.seasons?.is_active);
+            const teamIds = [...new Set(athTeamSeasons.map(ts => ts.team_id).filter(Boolean))];
+            const activeTsSeason = athTeamSeasons[0];
+            const teamName = activeTsSeason?.teams?.name || '—';
+            const catName  = activeTsSeason?.teams?.categories?.name || '';
+            const seasonName = activeTsSeason?.seasons?.name || activeSeason?.name || '—';
+
+            // Dati squadra
+            let matchSessions = [], matchDetailsMap = {}, presSessions = [], teamGaraStats = {};
+            if (teamIds.length > 0) {
+                const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+                const fromDate = sixMonthsAgo.toISOString().split('T')[0];
+
+                // Partite recenti (ultimi 6 mesi, filtrabili per data lato client)
+                let mq = client.from('sessions')
+                    .select('id,title,session_date,team_id,teams(name)')
+                    .in('team_id', teamIds)
+                    .gte('session_date', fromDate)
+                    .order('session_date', {ascending:false});
+                if (garaIdsArr.length > 0) mq = mq.in('type_id', garaIdsArr);
+                if (sid) mq = mq.eq('season_id', sid);
+                const { data: ms } = await mq;
+                matchSessions = ms || [];
+
+                const matchSessIds = matchSessions.map(s => s.id);
+                if (matchSessIds.length > 0) {
+                    const { data: mds } = await client.from('match_details').select('*').in('session_id', matchSessIds);
+                    (mds||[]).forEach(d => matchDetailsMap[d.session_id] = d);
+                }
+
+                // Presenze sessioni (allenamenti)
+                let pq = client.from('sessions')
+                    .select('id,title,session_date,team_id,teams(name),attendances(athlete_id,status)')
+                    .in('team_id', teamIds)
+                    .order('session_date', {ascending:false})
+                    .limit(8);
+                if (garaIdsArr.length > 0) pq = pq.not('type_id', 'in', `(${garaIdsArr.join(',')})`);
+                if (sid) pq = pq.eq('season_id', sid);
+                const { data: ps } = await pq;
+                presSessions = ps || [];
+
+                // Stats gare squadra
+                if (matchSessIds.length > 0) {
+                    const { data: mdetails } = await client.from('match_details')
+                        .select('session_id,goals_for,goals_against,match_status,is_friendly,is_home')
+                        .in('session_id', matchSessIds)
+                        .eq('is_friendly', false);
+                    (mdetails||[]).forEach(d => {
+                        const sess = matchSessions.find(s => s.id === d.session_id);
+                        if (!sess) return;
+                        const tid = sess.team_id;
+                        if (!teamGaraStats[tid]) teamGaraStats[tid] = {name:sess.teams?.name||'',p:0,w:0,dr:0,l:0,gf:0,gs:0,casa:0,trasf:0,pts:0};
+                        const t = teamGaraStats[tid];
+                        t.p++; t.gf+=d.goals_for||0; t.gs+=d.goals_against||0;
+                        if (d.is_home===true) t.casa++; else t.trasf++;
+                        if (d.match_status==='vittoria') { t.w++; t.pts+=3; }
+                        else if (d.match_status==='pareggio') { t.dr++; t.pts+=1; }
+                        else if (d.match_status==='sconfitta') { t.l++; }
+                    });
+                }
+            }
+
+            // Stats atleta stagione attiva
+            const stAct = statsBy[ath.id]?.[sid] || {};
+            const prAct = presBy[ath.id]?.[sid] || {};
+            const convPerc = prAct.tot > 0 ? Math.round(prAct.conv/prAct.tot*100) : null;
+            const percColor = convPerc === null ? '#94a3b8' : convPerc>=75 ? '#10b981' : convPerc>=50 ? '#0ea5e9' : '#ef4444';
+
+            // Totali carriera
+            const totGoals = Object.values(statsBy[ath.id]||{}).reduce((s,x)=>s+(x.goals||0),0);
+            const totMin   = Object.values(statsBy[ath.id]||{}).reduce((s,x)=>s+(x.min||0),0);
+            const totYC    = Object.values(statsBy[ath.id]||{}).reduce((s,x)=>s+(x.yc||0),0);
+            const totConv  = Object.values(presBy[ath.id]||{}).reduce((s,x)=>s+(x.conv||0),0);
+            const totPres  = Object.values(presBy[ath.id]||{}).reduce((s,x)=>s+(x.pres||0),0);
+            const totPts   = Object.values(teamGaraStats).reduce((s,t)=>s+(t.pts||0),0);
+
+            // HTML partite con filtro date
+            const athIdKey = String(ath.id).replace(/[^a-z0-9_]/gi, '_');
+            const matchTableId  = 'match-table-'  + athIdKey;
+            const matchCountId  = 'mf-count-'     + athIdKey;
+            const matchFromId   = 'mf-from-'      + athIdKey;
+            const matchToId     = 'mf-to-'        + athIdKey;
+
+            const allMatchRows = matchSessions.map(s => {
+                const d = matchDetailsMap[s.id];
+                return {
+                    date: s.session_date,
+                    opponent: d?.opponent_name ? 'vs ' + d.opponent_name : s.title,
+                    score: d ? (d.goals_for ?? '-') + ' - ' + (d.goals_against ?? '-') : '— —',
+                    esito: esitoBadge(d?.match_status),
+                    dateLabel: new Date(s.session_date).toLocaleDateString('it-IT')
+                };
+            });
+
+            // Salva i dati nel global store (sicuro, nessun JSON inline in funzioni)
+            if (!window._matchStore) window._matchStore = {};
+            window._matchStore[athIdKey] = allMatchRows;
+
+            // Default: ultimo mese
+            const defaultFrom = new Date(); defaultFrom.setMonth(defaultFrom.getMonth() - 1);
+            const defaultFromStr = defaultFrom.toISOString().split('T')[0];
+            const defaultToStr   = new Date().toISOString().split('T')[0];
+
+            // Helper per costruire la tabella (usato sia per render iniziale che per filtro)
+            const buildMatchTable = (rows) => {
+                if (rows.length === 0) return '<p style="color:var(--text-sub);text-align:center;padding:16px 0;">Nessuna partita nel periodo selezionato.</p>';
+                return `<table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--border);">
+                        <th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Data</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Partita</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Risultato</th>
+                        <th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Esito</th>
+                    </tr></thead>
+                    <tbody>${rows.map(r => `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:9px 10px;color:var(--text-muted);font-size:0.82rem;white-space:nowrap;">${r.dateLabel}</td>
+                        <td style="padding:9px 10px;font-weight:600;">${r.opponent}</td>
+                        <td style="padding:9px 10px;text-align:center;font-weight:800;font-family:'DM Mono','Outfit',sans-serif;">${r.score}</td>
+                        <td style="padding:9px 10px;text-align:center;">${r.esito}</td>
+                    </tr>`).join('')}</tbody>
+                </table>`;
+            };
+
+            const initialRows = allMatchRows.filter(r => r.date >= defaultFromStr && r.date <= defaultToStr);
+
+            const matchesHTML = `
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.03);border:1px solid var(--border);border-radius:10px;flex-wrap:nowrap;overflow-x:auto;">
+                    <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0;">
+                        <span style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">DA DATA</span>
+                        <input type="date" id="${matchFromId}" value="${defaultFromStr}"
+                            style="border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:0.8rem;font-family:inherit;color:var(--text-main);background:var(--card);cursor:pointer;min-width:140px;"
+                            onchange="window._gfm(this, '${athIdKey}')">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0;">
+                        <span style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">A DATA</span>
+                        <input type="date" id="${matchToId}" value="${defaultToStr}"
+                            style="border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:0.8rem;font-family:inherit;color:var(--text-main);background:var(--card);cursor:pointer;min-width:140px;"
+                            onchange="window._gfm(this, '${athIdKey}')">
+                    </div>
+                    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                        <span id="${matchCountId}" style="font-size:0.75rem;color:var(--text-sub);white-space:nowrap;">${initialRows.length} partita${initialRows.length !== 1 ? 'e' : ''}</span>
+                        <button onclick="window._grm('${athIdKey}')"
+                            style="font-size:0.72rem;font-weight:600;color:var(--text-muted);background:var(--card);border:1px solid var(--border);border-radius:7px;padding:5px 12px;cursor:pointer;font-family:inherit;white-space:nowrap;">
+                            ↺ Reimposta
+                        </button>
+                    </div>
+                </div>
+                <div id="${matchTableId}">${buildMatchTable(initialRows)}</div>`;
+
+            // HTML presenze sessioni
+            const presHTML = presSessions.length === 0
+                ? `<p style="color:var(--text-sub);text-align:center;padding:16px 0;">Nessuna sessione trovata.</p>`
+                : `<table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--border);">
+                        <th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Sessione</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#10b981;">P</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#ef4444;">A</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#0ea5e9;">G</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-muted);">%</th>
+                    </tr></thead>
+                    <tbody>${presSessions.map(s => {
+                        const att = s.attendances||[];
+                        const p = att.filter(a=>(a.status||'').toLowerCase()==='presente').length;
+                        const ab = att.filter(a=>(a.status||'').toLowerCase()==='assente').length;
+                        const g = att.filter(a=>(a.status||'').toLowerCase()==='giustificato').length;
+                        const tot = att.length;
+                        const perc = tot>0 ? Math.round(p/tot*100) : 0;
+                        const pc = perc>=75?'#10b981':perc>=50?'#0ea5e9':'#ef4444';
+                        return `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:8px 10px;">
+                                <div style="font-weight:600;font-size:0.8rem;">${s.title||'Sessione'}</div>
+                                <div style="font-size:0.7rem;color:var(--text-sub);">${new Date(s.session_date).toLocaleDateString('it-IT')} · ${s.teams?.name||''}</div>
+                            </td>
+                            <td style="padding:8px 10px;text-align:center;color:#10b981;font-weight:700;">${p}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${ab}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#0ea5e9;font-weight:700;">${g}</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:${pc};">${perc}%</td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>`;
+
+            // HTML stats gara squadra
+            const statsGaraList = Object.values(teamGaraStats).sort((a,b) => b.pts - a.pts);
+            const statsGaraHTML = statsGaraList.length === 0
+                ? `<p style="color:var(--text-sub);text-align:center;padding:16px 0;">Nessuna partita ufficiale registrata.</p>`
+                : `<table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--border);">
+                        <th style="padding:7px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Squadra</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#0ea5e9;" title="Punti">Pts</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);">P</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--primary);" title="Casa">🏠</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#8b5cf6;" title="Trasferta">🚌</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#10b981;">GF</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:#ef4444;">GS</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-muted);">V/P/S</th>
+                        <th style="padding:7px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--primary);">%V</th>
+                    </tr></thead>
+                    <tbody>${statsGaraList.map(t => `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">${t.name}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono','Outfit',sans-serif;font-size:1rem;color:#0ea5e9;">${t.pts}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--text-main);">${t.p}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--primary);">${t.casa}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:#8b5cf6;">${t.trasf}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:#10b981;">${t.gf}</td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:#ef4444;">${t.gs}</td>
+                        <td style="padding:8px 10px;text-align:center;font-size:0.8rem;">
+                            <span style="color:#10b981;font-weight:700;">${t.w}V</span> · <span style="color:var(--text-muted);font-weight:700;">${t.dr}P</span> · <span style="color:#ef4444;font-weight:700;">${t.l}S</span>
+                        </td>
+                        <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono','Outfit',sans-serif;color:var(--primary);">${t.p>0?Math.round(t.w/t.p*100):0}%</td>
+                    </tr>`).join('')}</tbody>
+                </table>`;
+
+            return `
+            <!-- 1. CARD SQUADRA -->
+            <div style="background:linear-gradient(135deg,var(--card) 0%,var(--bg-alt) 100%);border-radius:16px;border:1px solid var(--border-accent);padding:22px 26px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:var(--shadow-md);">
+                <div>
+                    <div style="font-size:0.62rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">🏟️ Squadra</div>
+                    <div style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-main);letter-spacing:-0.3px;">${teamName}</div>
+                    ${catName ? `<div style="font-size:0.75rem;color:var(--text-sub);margin-top:3px;">${catName} · ${seasonName}</div>` : `<div style="font-size:0.75rem;color:var(--text-sub);margin-top:3px;">${seasonName}</div>`}
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <div style="background:rgba(5,150,105,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(5,150,105,0.18);">
+                        <div style="font-size:1.4rem;font-weight:800;color:#059669;line-height:1;">${totGoals}</div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">⚽ Gol</div>
+                    </div>
+                    <div style="background:rgba(37,99,235,0.07);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(37,99,235,0.15);">
+                        <div style="font-size:1.4rem;font-weight:800;color:var(--primary);line-height:1;">${totMin}'</div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">⏱ Min</div>
+                    </div>
+                    <div style="background:rgba(245,158,11,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(245,158,11,0.18);">
+                        <div style="font-size:1.4rem;font-weight:800;color:#d97706;line-height:1;">${totConv}</div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Convoc.</div>
+                    </div>
+                    <div style="background:rgba(245,158,11,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(245,158,11,0.18);">
+                        <div style="font-size:1.4rem;font-weight:800;color:#d97706;line-height:1;">${totPts}</div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">🏆 Punti</div>
+                    </div>
+                    ${totYC>0 ? `<div style="background:rgba(245,158,11,0.08);border-radius:12px;padding:10px 18px;text-align:center;border:1px solid rgba(245,158,11,0.18);">
+                        <div style="font-size:1.4rem;font-weight:800;color:#d97706;line-height:1;">${totYC}</div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">🟨 Amm</div>
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- 2. STATISTICHE ATLETA -->
+            <div class="card" style="margin-bottom:1rem;">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">📊 Statistiche del tuo atleta — ${seasonName}</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    ${pill(stAct.goals||0,'⚽ Gol','#059669','rgba(5,150,105,0.1)','rgba(5,150,105,0.2)')}
+                    ${pill(stAct.min||0,'⏱ Min','var(--primary)','rgba(37,99,235,0.08)','rgba(37,99,235,0.2)')}
+                    ${pill(stAct.yc||0,'🟨 Amm','#ffd166')}
+                    ${pill(stAct.rc||0,'🟥 Esp','#ef4444','rgba(239,68,68,0.1)','rgba(239,68,68,0.25)')}
+                    <div style="width:1px;background:rgba(0,0,0,0.08);margin:0 4px;"></div>
+                    ${pill(totPts,'🏆 Punti','#ffd166')}
+                    <div style="width:1px;background:rgba(0,0,0,0.08);margin:0 4px;"></div>
+                    ${pill(prAct.pres||0,'Presenze','#059669','rgba(5,150,105,0.1)','rgba(5,150,105,0.2)')}
+                    ${pill(prAct.conv||0,'Convoc.','var(--primary)','rgba(37,99,235,0.08)','rgba(37,99,235,0.2)')}
+                    ${pill(prAct.tot||0,'Partite','#64748b')}
+                    ${convPerc !== null ? pill(convPerc+'%','Conv%',percColor) : ''}
+                </div>
+            </div>
+
+            <!-- 3. PARTITE RECENTI -->
+            <div class="card" style="margin-bottom:1rem;">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">🏆 Partite recenti</div>
+                ${matchesHTML}
+            </div>
+
+            <!-- 4. PRESENZE SESSIONI + STATS GARA -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div class="card">
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">📅 Presenze Sessioni</div>
+                    ${presHTML}
+                </div>
+                <div class="card">
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">⚽ Statistiche Gare per Squadra</div>
+                    <div style="font-size:0.68rem;color:var(--text-sub);margin-bottom:14px;">Solo partite ufficiali · Amichevoli escluse</div>
+                    ${statsGaraHTML}
+                </div>
+            </div>`;
+        };
+
+        // Genera tutte le pagine
+        const pages = await Promise.all(athletes.map(ath => renderAthletePage(ath)));
+
+        // Costruisci HTML finale
+        const multiChild = athletes.length > 1;
+        const tabsHTML = multiChild ? `
+            <div style="display:flex;gap:4px;margin-bottom:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:5px;width:fit-content;">
+                ${athletes.map((ath,i) => `
+                    <button id="child-tab-btn-${i}" onclick="window._switchChild(${i})"
+                        style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600;
+                        ${i===0 ? 'background:var(--primary);color:var(--text-main);' : 'background:transparent;color:var(--text-muted);'}">
+                        👤 ${ath.surname} ${ath.name}
+                    </button>`).join('')}
+            </div>` : '';
+
+        const pagesHTML = pages.map((html,i) =>
+            `<div id="child-page-${i}" style="${i===0?'':'display:none;'}">${html}</div>`
+        ).join('');
+
+        contentEl.innerHTML = `
+        <div style="font-family:'Outfit',sans-serif;padding:0;">
+            <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <h2 style="font-family:'DM Mono','Outfit',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-main);margin:0;">👨‍👩‍👧 Benvenuto, ${window.CURRENT_USER?.name || 'Genitore'}</h2>
+                    <div style="font-size:0.82rem;color:var(--text-sub);margin-top:4px;">🌐 Stagione: ${activeSeason?.name || '—'} · ${new Date().toLocaleDateString('it-IT',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-muted);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 14px;">
+                    ${athletes.length} figlio${athletes.length!==1?'i':''}  associato${athletes.length!==1?'i':''}
+                </div>
+            </div>
+            ${tabsHTML}
+            ${pagesHTML}
+        </div>`;
+
+        // ── FILTRO PARTITE GENITORE ─────────────────────────────────
+        // _gfm = filter  |  _grm = reset
+        if (!window._gfm) {
+            window._gfm = function(el, key) {
+                const store = (window._matchStore || {})[key] || [];
+                const from  = document.getElementById('mf-from-' + key)?.value || '';
+                const to    = document.getElementById('mf-to-'   + key)?.value || '';
+                const filtered = store.filter(function(r){ return (!from || r.date >= from) && (!to || r.date <= to); });
+                const tableDiv = document.getElementById('match-table-' + key);
+                const countEl  = document.getElementById('mf-count-'   + key);
+                if (countEl) countEl.textContent = filtered.length + ' partita' + (filtered.length !== 1 ? 'e' : '');
+                if (!tableDiv) return;
+                if (filtered.length === 0) {
+                    tableDiv.innerHTML = '<p style="color:var(--text-sub);text-align:center;padding:16px 0;">Nessuna partita nel periodo selezionato.</p>';
+                    return;
+                }
+                var thead = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Data</th><th style="padding:8px 10px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Partita</th><th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Risultato</th><th style="padding:8px 10px;text-align:center;font-size:0.7rem;font-weight:700;color:var(--text-sub);text-transform:uppercase;">Esito</th></tr></thead><tbody>';
+                var rows = filtered.map(function(r){
+                    return '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:9px 10px;color:var(--text-muted);font-size:0.82rem;white-space:nowrap;">' + r.dateLabel + '</td>' +
+                        '<td style="padding:9px 10px;font-weight:600;">' + r.opponent + '</td>' +
+                        '<td style="padding:9px 10px;text-align:center;font-weight:800;font-family:\'DM Mono\',sans-serif;">' + r.score + '</td>' +
+                        '<td style="padding:9px 10px;text-align:center;">' + r.esito + '</td>' +
+                        '</tr>';
+                }).join('');
+                tableDiv.innerHTML = thead + rows + '</tbody></table>';
+            };
+            window._grm = function(key) {
+                var defFrom = new Date(); defFrom.setMonth(defFrom.getMonth() - 1);
+                var fi = document.getElementById('mf-from-' + key);
+                var ti = document.getElementById('mf-to-'   + key);
+                if (fi) fi.value = defFrom.toISOString().split('T')[0];
+                if (ti) ti.value = new Date().toISOString().split('T')[0];
+                window._gfm(null, key);
+            };
+        }
+
+        // Switcher tra figli
+        window._switchChild = function(idx) {
+            athletes.forEach((_,i) => {
+                const page = document.getElementById('child-page-'+i);
+                const btn  = document.getElementById('child-tab-btn-'+i);
+                if (page) page.style.display = i===idx ? '' : 'none';
+                if (btn) {
+                    btn.style.background = i===idx ? 'var(--primary)' : 'transparent';
+                    btn.style.color      = i===idx ? 'white'   : '#64748b';
+                }
+            });
+        };
+
+    } catch(err) {
+        console.error('initGenitoreView error:', err);
+        contentEl.innerHTML = `<div class="card"><p style="color:#ef4444;">Errore caricamento dati: ${err.message}</p></div>`;
+    }
+};
+
+
+/* ============================================================
    MODULO TEST ATLETICI
    Tabelle Supabase richieste:
      test_definitions, test_performances,
@@ -12826,750 +13292,6 @@ window.openTestGrafico = async function(sessId) {
 
 window.templateTest   = window.templateTest;
 window.initTest       = window.initTest;
-
-/* ============================================================
-   VISTA GENITORE — Dashboard del figlio
-   Caricata automaticamente quando effectiveRole === 'genitore'
-   ============================================================ */
-
-// CSS aggiuntivo per la vista genitore (iniettato una sola volta)
-(function injectGenitoreStyles() {
-    if (document.getElementById('genitore-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'genitore-styles';
-    style.textContent = `
-        /* ── GENITORE: HERO ── */
-        .g-hero {
-            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 45%, #0369a1 100%);
-            border-radius: var(--r-xl);
-            padding: 1.8rem 2rem;
-            color: white;
-            margin-bottom: 1.5rem;
-            position: relative; overflow: hidden;
-            box-shadow: 0 8px 40px rgba(37,99,235,0.3);
-            animation: contentIn 0.35s cubic-bezier(.4,0,.2,1) both;
-        }
-        .g-hero::before {
-            content: '';
-            position: absolute; inset: 0;
-            background:
-                radial-gradient(ellipse 50% 80% at 85% 50%, rgba(255,255,255,0.07) 0%, transparent 60%),
-                radial-gradient(ellipse 40% 60% at 10% 20%, rgba(255,255,255,0.05) 0%, transparent 50%);
-        }
-        .g-hero::after {
-            content: '⚽';
-            position: absolute; right: 2rem; top: 50%;
-            transform: translateY(-50%) rotate(-15deg);
-            font-size: 5rem; opacity: 0.08; pointer-events:none;
-        }
-        .g-hero-row { display: flex; align-items: center; gap: 1.5rem; position: relative; z-index: 1; flex-wrap:wrap; }
-        .g-hero-avatar {
-            width: 60px; height: 60px; border-radius: 50%;
-            background: rgba(255,255,255,0.15);
-            border: 2px solid rgba(255,255,255,0.3);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; font-weight: 800;
-            font-family: 'Syne', sans-serif; flex-shrink: 0;
-        }
-        .g-hero-name { font-family: 'Syne', sans-serif; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
-        .g-hero-meta { font-size: 0.78rem; opacity: 0.7; margin-top: 2px; }
-        .g-hero-stats { display: flex; gap: 2rem; margin-left: auto; }
-        .g-hero-stat { text-align: center; }
-        .g-hero-stat-val { font-family: 'DM Mono', monospace; font-size: 1.55rem; font-weight: 500; }
-        .g-hero-stat-lab { font-size: 0.62rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.08em; }
-        .g-hero-status { margin-top: 1rem; position: relative; z-index: 1; }
-
-        /* ── STATUS PILLS ── */
-        .g-pill {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 0.28rem 0.75rem; border-radius: 999px;
-            font-size: 0.72rem; font-weight: 700;
-        }
-        .g-pill-ok   { background: rgba(5,150,105,0.15); color: #059669; }
-        .g-pill-warn { background: rgba(217,119,6,0.15); color: #d97706; }
-        .g-pill-err  { background: rgba(220,38,38,0.15); color: #dc2626; }
-        .g-pill-dot  { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink:0; }
-
-        /* ── KPI ROW ── */
-        .g-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.5rem; }
-        .g-kpi {
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: var(--r-lg); padding: 1.1rem 1.3rem;
-            transition: all 0.2s;
-            animation: contentIn 0.35s cubic-bezier(.4,0,.2,1) both;
-        }
-        .g-kpi:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-        .g-kpi-label {
-            font-size: 0.63rem; font-weight: 700; letter-spacing: 0.12em;
-            text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.45rem;
-        }
-        .g-kpi-val {
-            font-family: 'DM Mono', monospace; font-size: 1.85rem; font-weight: 500;
-            color: var(--text-main); line-height: 1;
-        }
-        .g-kpi-val span { font-size: 1rem; font-weight: 400; color: var(--text-muted); }
-        .g-kpi-sub { font-size: 0.71rem; color: var(--text-sub); margin-top: 0.3rem; }
-
-        /* ── SECTION HEADER ── */
-        .g-sec-title {
-            font-family: 'Syne', sans-serif;
-            font-size: 1rem; font-weight: 800;
-            color: var(--text-main); letter-spacing: -0.02em;
-            margin-bottom: 1rem; margin-top: 0.2rem;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .g-sec-dot { width: 4px; height: 18px; border-radius: 3px; flex-shrink: 0; }
-
-        /* ── GRID LAYOUTS ── */
-        .g-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem; }
-        .g-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem; }
-
-        /* ── SKILL BARS ── */
-        .g-skill { margin-bottom: 0.85rem; }
-        .g-skill-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .g-skill-name { font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
-        .g-skill-info { font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--text-sub); display:flex; align-items:center; gap:8px; }
-        .g-skill-track { height: 7px; background: rgba(0,0,0,0.06); border-radius: 999px; overflow: hidden; }
-        .g-skill-bar { height: 100%; border-radius: 999px; width: 0%; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
-
-        /* ── TREND CHIPS ── */
-        .g-trend { display: inline-flex; align-items: center; gap: 3px; padding: 0.12rem 0.45rem; border-radius: 999px; font-size: 0.62rem; font-weight: 700; }
-        .g-trend-up   { background: rgba(5,150,105,0.12); color: #059669; }
-        .g-trend-same { background: rgba(217,119,6,0.12);  color: #d97706; }
-        .g-trend-down { background: rgba(220,38,38,0.12);  color: #dc2626; }
-
-        /* ── FEEDBACK ROWS ── */
-        .g-feedback {
-            display: flex; gap: 0.5rem; align-items: flex-start;
-            padding: 0.75rem; background: rgba(0,0,0,0.02);
-            border-radius: var(--r-md); margin-bottom: 0.6rem;
-            border: 1px solid rgba(0,0,0,0.05);
-        }
-        .g-feedback-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
-        .g-feedback-text { font-size: 0.82rem; line-height: 1.5; color: var(--text-sub); }
-        .g-feedback-text strong { color: var(--text-main); }
-
-        /* ── DOT RATING ── */
-        .g-qual-row { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .g-qual-row:last-child { border-bottom: none; }
-        .g-qual-name { font-size: 0.82rem; font-weight: 500; color: var(--text-sub); }
-        .g-dots { display: flex; gap: 4px; }
-        .g-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(0,0,0,0.1); }
-        .g-dot.ok { background: #059669; }
-        .g-dot.pri { background: #2563eb; }
-
-        /* ── MATCH ROWS ── */
-        .g-match-row { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .g-match-row:last-child { border-bottom: none; }
-        .g-match-date { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-muted); min-width: 54px; }
-        .g-match-opp { font-size: 0.85rem; font-weight: 600; flex: 1; }
-        .g-match-result { font-family: 'DM Mono', monospace; font-size: 0.78rem; font-weight: 700; min-width: 40px; text-align:center; }
-        .g-match-min { font-size: 0.72rem; color: var(--text-muted); min-width: 44px; text-align: right; }
-        .g-event { display: inline-flex; align-items: center; gap: 3px; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.62rem; font-weight: 700; margin-left:3px; }
-        .g-event-goal { background: #fef9c3; color: #854d0e; }
-        .g-event-amm  { background: #fef3c7; color: #92400e; }
-        .g-absent { color: var(--text-muted) !important; text-decoration: line-through; }
-
-        /* ── TEST BOXES ── */
-        .g-test-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
-
-        /* ── CHART WRAPPER ── */
-        .g-chart-wrap { position: relative; width: 100%; height: 160px; }
-
-        /* Responsive */
-        @media(max-width:900px) {
-            .g-kpi-grid { grid-template-columns: repeat(2,1fr); }
-            .g-grid-2, .g-grid-3 { grid-template-columns: 1fr; }
-            .g-hero-stats { display: none; }
-            .g-test-grid { grid-template-columns: repeat(2,1fr); }
-        }
-    `;
-    document.head.appendChild(style);
-})();
-
-/* ── Chart.js loader (lazy, una sola volta) ── */
-function loadChartJs(cb) {
-    if (window.Chart) { cb(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    s.onload = cb;
-    document.head.appendChild(s);
-}
-
-/* ── Template HTML genitore ── */
-function templateGenitoreView(athlete, stats, trainings, matches, assessments) {
-    const initials = `${(athlete.name||'?')[0]}${(athlete.surname||'?')[0]}`.toUpperCase();
-    const fullName = `${athlete.name||''} ${athlete.surname||''}`.trim() || 'Atleta';
-
-    // Tendenze skill (confronto ultime 2 sessioni)
-    function trendChip(t) {
-        if (t === 'up')   return `<span class="g-trend g-trend-up">↑ In miglioramento</span>`;
-        if (t === 'down') return `<span class="g-trend g-trend-down">↓ Da rinforzare</span>`;
-        return `<span class="g-trend g-trend-same">→ Stabile</span>`;
-    }
-
-    // Stato fisico
-    const statoFisico = athlete.physical_status === 'infortunato'
-        ? `<span class="g-pill g-pill-err"><span class="g-pill-dot"></span>Infortunato</span>${athlete.injury_note ? `<span style="font-size:0.78rem;color:white;opacity:0.7;margin-left:8px;">${athlete.injury_note}</span>` : ''}`
-        : `<span class="g-pill g-pill-ok"><span class="g-pill-dot"></span>Disponibile</span><span style="font-size:0.78rem;color:white;opacity:0.75;margin-left:8px;">Nessun problema fisico</span>`;
-
-    const presenzaPerc = stats.totalTrainings > 0
-        ? Math.round((stats.attendedTrainings / stats.totalTrainings) * 100) : 0;
-
-    // Righe partite
-    const matchRows = (matches || []).slice(0, 8).map(m => {
-        const isPresent = m.participated;
-        const resultColor = m.result === 'win' ? 'var(--success)' : m.result === 'loss' ? 'var(--danger)' : 'var(--warning)';
-        const goals = m.goals > 0 ? `<span class="g-event g-event-goal">⚽ ${m.goals} gol</span>` : '';
-        const amm   = m.yellow_cards > 0 ? `<span class="g-event g-event-amm">🟡 amm.</span>` : '';
-        return `
-        <div class="g-match-row">
-            <div class="g-match-date">${m.date_fmt}</div>
-            <div class="g-match-opp ${isPresent ? '' : 'g-absent'}">vs. ${m.opponent}</div>
-            <div class="g-match-result" style="color:${isPresent ? resultColor : 'var(--text-muted)'}">
-                ${isPresent ? m.score : '—'}
-            </div>
-            <div class="g-match-min">${isPresent ? (m.minutes_played ? m.minutes_played + ' min' : '—') : 'Assente'}</div>
-            ${goals}${amm}
-        </div>`;
-    }).join('') || '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:1rem 0;">Nessuna partita registrata</p>';
-
-    // Righe skill
-    const skillRows = (assessments.skills || []).map(s => `
-        <div class="g-skill">
-            <div class="g-skill-row">
-                <span class="g-skill-name">${s.label}</span>
-                <span class="g-skill-info">${s.value}/10 ${trendChip(s.trend)}</span>
-            </div>
-            <div class="g-skill-track">
-                <div class="g-skill-bar" data-w="${s.value * 10}%" style="background:${s.color};"></div>
-            </div>
-        </div>`).join('');
-
-    // Test atletici
-    const testBoxes = (assessments.tests || []).map(t => `
-        <div style="text-align:center;padding:1rem;background:${t.bg};border-radius:var(--r-md);border:1px solid ${t.border};">
-            <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px;">${t.name}</div>
-            <div style="font-family:'DM Mono',monospace;font-size:1.25rem;font-weight:700;color:${t.color};">${t.value}</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;">era ${t.prev}</div>
-            <span class="g-trend g-trend-${t.trend}" style="margin-top:6px;display:inline-flex;">${t.trend === 'up' ? '↑' : '→'} ${t.delta}</span>
-        </div>`).join('');
-
-    // Dot rating
-    const dotRatings = (assessments.behavior || []).map(b => {
-        const dots = Array.from({length:5},(_,i) =>
-            `<div class="g-dot ${i < b.score ? (b.score >= 4 ? 'ok' : 'pri') : ''}"></div>`
-        ).join('');
-        return `<div class="g-qual-row"><span class="g-qual-name">${b.label}</span><div class="g-dots">${dots}</div></div>`;
-    }).join('');
-
-    // Feedback allenatore
-    const strengths = (assessments.feedback?.strengths || []).map(f =>
-        `<div class="g-feedback"><div class="g-feedback-icon">${f.icon}</div><div class="g-feedback-text"><strong>${f.title}.</strong> ${f.text}</div></div>`
-    ).join('');
-    const improve = (assessments.feedback?.improve || []).map(f =>
-        `<div class="g-feedback"><div class="g-feedback-icon">${f.icon}</div><div class="g-feedback-text"><strong>${f.title}.</strong> ${f.text}</div></div>`
-    ).join('');
-
-    // Prossima partita
-    const nextMatch = stats.nextMatch
-        ? `<div style="background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:var(--r-md);padding:0.85rem;">
-               <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--primary);font-weight:700;margin-bottom:4px;">Partita · ${stats.nextMatch.date}</div>
-               <div style="font-size:0.95rem;font-weight:700;color:var(--text-main);">vs. ${stats.nextMatch.opponent}</div>
-               <div style="font-size:0.78rem;color:var(--text-sub);margin-top:3px;">${stats.nextMatch.details}</div>
-               <div style="margin-top:8px;"><span class="g-pill g-pill-ok"><span class="g-pill-dot"></span>Convocato</span></div>
-           </div>`
-        : `<p style="color:var(--text-muted);font-size:0.82rem;">Nessuna partita programmata</p>`;
-
-    return `
-    <!-- HERO -->
-    <div class="g-hero">
-        <div class="g-hero-row">
-            <div class="g-hero-avatar">${initials}</div>
-            <div>
-                <div class="g-hero-name">${fullName}</div>
-                <div class="g-hero-meta">${athlete.team_name || '—'} · ${athlete.role || '—'} · #${athlete.jersey || '—'}</div>
-            </div>
-            <div class="g-hero-stats">
-                <div class="g-hero-stat">
-                    <div class="g-hero-stat-val">${stats.attendedTrainings}<span style="font-size:1rem;">/${stats.totalTrainings}</span></div>
-                    <div class="g-hero-stat-lab">Allenamenti</div>
-                </div>
-                <div class="g-hero-stat">
-                    <div class="g-hero-stat-val">${stats.matchesPlayed}<span style="font-size:1rem;">/${stats.matchesConvoked}</span></div>
-                    <div class="g-hero-stat-lab">Partite</div>
-                </div>
-                <div class="g-hero-stat">
-                    <div class="g-hero-stat-val">${presenzaPerc}<span style="font-size:1rem;">%</span></div>
-                    <div class="g-hero-stat-lab">Presenze</div>
-                </div>
-            </div>
-        </div>
-        <div class="g-hero-status">${statoFisico}</div>
-    </div>
-
-    <!-- KPI ROW -->
-    <div class="g-kpi-grid">
-        <div class="g-kpi">
-            <div class="g-kpi-label">🏃 Presenze allenamenti</div>
-            <div class="g-kpi-val">${presenzaPerc}<span>%</span></div>
-            <div class="g-kpi-sub" style="color:var(--success);font-weight:600;">↑ In linea col gruppo</div>
-        </div>
-        <div class="g-kpi">
-            <div class="g-kpi-label">📋 Convocazioni</div>
-            <div class="g-kpi-val">${stats.matchesConvoked}<span>/${stats.totalMatches}</span></div>
-            <div class="g-kpi-sub" style="color:var(--success);font-weight:600;">↑ Ottimo tasso</div>
-        </div>
-        <div class="g-kpi">
-            <div class="g-kpi-label">💪 Stato fisico</div>
-            <div class="g-kpi-val" style="font-size:1.15rem;padding-top:4px;">${statoFisico.split('</span>')[0]}</span></div>
-            <div class="g-kpi-sub">Aggiornato oggi</div>
-        </div>
-        <div class="g-kpi">
-            <div class="g-kpi-label">🤝 Comportamento</div>
-            <div class="g-kpi-val" style="font-size:1.15rem;padding-top:4px;"><span class="g-pill g-pill-ok"><span class="g-pill-dot"></span>Ottimo</span></div>
-            <div class="g-kpi-sub">Rispettoso e partecipativo</div>
-        </div>
-    </div>
-
-    <!-- ② PROGRESSI -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Progressi nel tempo</div>
-    <div class="g-grid-2">
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📊</span>
-                    Andamento valutazioni
-                </div>
-                <div class="g-chart-wrap"><canvas id="g-chart-allenamento"></canvas></div>
-                <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#2563eb;border-radius:2px;"></span> Tecnica</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#059669;border-radius:2px;"></span> Resistenza</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#d97706;border-radius:2px;"></span> Velocità</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#7c3aed;border-radius:2px;"></span> Forza</span>
-                </div>
-            </div>
-        </div>
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎯</span>
-                    Livello attuale &amp; tendenza
-                </div>
-                ${skillRows}
-                ${assessments.coachNote ? `
-                <div style="margin-top:1rem;padding:0.7rem;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.15);border-radius:var(--r-md);">
-                    <div style="font-size:0.72rem;color:#92400e;font-weight:600;">💡 Nota dell'allenatore</div>
-                    <div style="font-size:0.78rem;color:#78350f;margin-top:3px;line-height:1.5;">${assessments.coachNote}</div>
-                </div>` : ''}
-            </div>
-        </div>
-    </div>
-
-    <!-- Test atletici -->
-    <div class="card" style="margin-bottom:1.5rem;">
-        <div style="padding:1.4rem;">
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                <span style="background:rgba(14,165,233,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🏅</span>
-                Miglioramenti nei test atletici
-            </div>
-            <div class="g-test-grid">${testBoxes || '<p style="color:var(--text-muted);font-size:0.82rem;">Nessun test registrato</p>'}</div>
-        </div>
-    </div>
-
-    <!-- ③ VALUTAZIONE -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#059669;"></div> Valutazione qualitativa</div>
-    <div class="g-grid-2">
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🗣️</span>
-                    Parole dell'allenatore
-                </div>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;padding:0.8rem;background:rgba(37,99,235,0.04);border-radius:var(--r-md);">
-                    <div style="font-size:1.5rem;">👨‍💼</div>
-                    <div>
-                        <div style="font-size:0.82rem;font-weight:700;color:var(--text-main);">${assessments.feedback?.coach_name || 'Allenatore'}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">${athlete.team_name || ''}</div>
-                    </div>
-                </div>
-                ${strengths ? `<div style="margin-bottom:0.5rem;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--success);margin-bottom:6px;">✅ Punti di forza</div>${strengths}</div>` : ''}
-                ${improve ? `<div><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--warning);margin-bottom:6px;">🔧 Da migliorare</div>${improve}</div>` : ''}
-            </div>
-        </div>
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🧠</span>
-                    Comportamento &amp; impegno
-                </div>
-                ${dotRatings}
-                <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.8rem;">
-                    <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px;">Legenda</div>
-                    <div style="display:flex;gap:12px;font-size:0.7rem;flex-wrap:wrap;">
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--success);">● Ottimo (4-5)</span>
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--primary);">● Buono (3)</span>
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);">○ Da sviluppare</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ④ PARTITE -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#0ea5e9;"></div> Partecipazione alle partite</div>
-    <div class="g-grid-3">
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(14,165,233,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">⚽</span>
-                    Ultimi incontri
-                </div>
-                ${matchRows}
-                ${stats.yellowCardNote ? `
-                <div style="margin-top:0.75rem;padding:0.6rem 0.8rem;background:rgba(217,119,6,0.05);border:1px solid rgba(217,119,6,0.15);border-radius:var(--r-md);font-size:0.75rem;color:#92400e;">
-                    🟡 <strong>Nota sull'ammonizione:</strong> ${stats.yellowCardNote}
-                </div>` : ''}
-            </div>
-        </div>
-        <div>
-            <div class="card" style="margin-bottom:1rem;">
-                <div style="padding:1.4rem;">
-                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                        <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📋</span>
-                        Riepilogo stagione
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:0;">
-                        ${[
-                            ['Partite giocate', stats.matchesPlayed],
-                            ['Minuti totali', stats.totalMinutes || '—'],
-                            ['⚽ Gol', stats.goals || 0, 'var(--success)'],
-                            ['🟡 Ammonizioni', stats.yellowCards || 0, stats.yellowCards > 0 ? 'var(--warning)' : null]
-                        ].map(([lbl,val,col]) => `
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">
-                            <span style="font-size:0.82rem;color:var(--text-sub);">${lbl}</span>
-                            <span style="font-family:'DM Mono',monospace;font-weight:700;color:${col||'var(--text-main)'};">${val}</span>
-                        </div>`).join('')}
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div style="padding:1.4rem;">
-                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                        <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📣</span>
-                        Prossimo appuntamento
-                    </div>
-                    ${nextMatch}
-                </div>
-            </div>
-        </div>
-    </div>
-    <div style="height:2.5rem;"></div>`;
-}
-
-/* ── Funzione principale: carica dati reali da Supabase ── */
-window.initGenitoreView = async function() {
-    const content = document.getElementById('content');
-    if (!content) return;
-
-    content.innerHTML = `<div class="card" style="padding:2rem;text-align:center;">
-        <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>
-        <div style="color:var(--text-sub);font-size:0.9rem;">Caricamento dati in corso...</div>
-    </div>`;
-
-    try {
-        const userId = window._currentUserId;
-        if (!userId) throw new Error('Utente non identificato');
-
-        // 1. Recupera il figlio collegato dalla tabella parent_athletes
-        const { data: link } = await client
-            .from('parent_athletes')
-            .select('athlete_id')
-            .eq('parent_id', userId)
-            .maybeSingle();
-
-        let athleteId = link?.athlete_id;
-
-        if (!athleteId) {
-            content.innerHTML = `<div class="card" style="padding:2rem;text-align:center;">
-                <div style="font-size:2rem;margin-bottom:8px;">👨‍👩‍👧</div>
-                <div style="font-weight:700;font-size:1rem;color:var(--text-main);margin-bottom:6px;">Nessun atleta collegato</div>
-                <div style="color:var(--text-sub);font-size:0.85rem;">Contatta lo staff per collegare il profilo del tuo figlio a questo account.</div>
-            </div>`;
-            return;
-        }
-
-        // 2. Dati atleta da public.athletes (colonne reali: name, surname, born_date, society_id)
-        const { data: athlete } = await client
-            .from('athletes')
-            .select('id, name, surname, born_date')
-            .eq('id', athleteId)
-            .maybeSingle();
-
-        // Assegnazione squadra attiva
-        const { data: teamSeason } = await client
-            .from('athlete_team_seasons')
-            .select('jersey_number, teams(name)')
-            .eq('athlete_id', athleteId)
-            .order('id', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        const athleteData = {
-            id:        athlete?.id || athleteId,
-            name:      athlete?.name || '',
-            surname:   athlete?.surname || '',
-            born_date: athlete?.born_date || null,
-            // campi extra usati nel template con fallback sicuri
-            role:            teamSeason ? '—' : '—',
-            physical_status: 'disponibile',
-            injury_note:     null,
-            jersey:          teamSeason?.jersey_number || '—',
-            team_name:       teamSeason?.teams?.name || '—',
-        };
-
-        // 3. Presenze agli allenamenti (ultime 60 sessioni)
-        // Usa la tabella reale: attendances + sessions
-        const { data: attendances } = await client
-            .from('attendances')
-            .select('session_id, status, is_called_up, sessions!inner(id, session_date, type_id, session_types(name))')
-            .eq('athlete_id', athleteId)
-            .order('session_id', { ascending: false })
-            .limit(60);
-
-        const attended = (attendances || []).filter(a => a.status === 'presente').length;
-        const totalTrainings = (attendances || []).length;
-
-        // 4. Partite: usa match_stats + sessions + match_details (schema reale)
-        const { data: rawMatchStats } = await client
-            .from('match_stats')
-            .select(`
-                athlete_id, goals, yellow_cards, red_cards, minutes_played, is_starter,
-                sessions!inner(id, session_date, title, team_id,
-                    match_details(opponent_name, is_home, goals_for, goals_against, match_status))
-            `)
-            .eq('athlete_id', athleteId)
-            .order('sessions(session_date)', { ascending: false })
-            .limit(10);
-
-        const matchesData = (rawMatchStats || []).map(ms => {
-            const s = ms.sessions;
-            const md = s?.match_details?.[0] || s?.match_details || null;
-            const goalsFor     = md?.goals_for     ?? '?';
-            const goalsAgainst = md?.goals_against ?? '?';
-            const isHome       = md?.is_home ?? true;
-            const myScore      = isHome ? goalsFor     : goalsAgainst;
-            const theirScore   = isHome ? goalsAgainst : goalsFor;
-            let result = 'draw';
-            if (typeof myScore === 'number' && typeof theirScore === 'number') {
-                if (myScore > theirScore) result = 'win';
-                if (myScore < theirScore) result = 'loss';
-            }
-            const d = s?.session_date ? new Date(s.session_date) : null;
-            const played = ms.minutes_played > 0 || ms.is_starter;
-            return {
-                participated: played,
-                minutes_played: ms.minutes_played || 0,
-                goals: ms.goals || 0,
-                yellow_cards: ms.yellow_cards || 0,
-                opponent: md?.opponent_name || s?.title || '?',
-                score: `${goalsFor}–${goalsAgainst}`,
-                result,
-                date_fmt: d ? d.toLocaleDateString('it-IT', {day:'2-digit', month:'short'}) : '—',
-            };
-        });
-
-        const matchesPlayed    = matchesData.filter(m => m.participated).length;
-        const matchesConvoked  = matchesData.length;
-        const totalGoals       = matchesData.reduce((s,m) => s + (m.goals||0), 0);
-        const totalYellow      = matchesData.reduce((s,m) => s + (m.yellow_cards||0), 0);
-        const totalMinutes     = matchesData.filter(m=>m.participated).reduce((s,m)=>s+(m.minutes_played||0),0);
-
-        // 5. Prossima partita: usa sessions + match_details (schema reale)
-        const { data: nextMatchRow } = await client
-            .from('sessions')
-            .select('id, session_date, title, match_details(opponent_name, is_home, address, match_status)')
-            .gt('session_date', new Date().toISOString().split('T')[0])
-            .eq('match_details.match_status', 'da giocare')
-            .order('session_date', { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-        let nextMatch = null;
-        if (nextMatchRow) {
-            const nd = new Date(nextMatchRow.session_date);
-            const md = nextMatchRow.match_details?.[0] || nextMatchRow.match_details || null;
-            nextMatch = {
-                date: nd.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'}),
-                opponent: md?.opponent_name || nextMatchRow.title || '?',
-                details: `${md?.is_home ? 'Casa' : 'Trasferta'}${md?.address ? ' · ' + md.address : ''}`,
-            };
-        }
-
-        // 6. Valutazioni sessioni (stars / ratings) — legge training_ratings se esiste
-        // Struttura fallback: usa dati statici arricchiti se la tabella non esiste
-        let skillData = [
-            { label:'Tecnica',    value:7.4, trend:'up',   color:'linear-gradient(90deg,#2563eb,#3b82f6)' },
-            { label:'Resistenza', value:6.8, trend:'up',   color:'linear-gradient(90deg,#059669,#34d399)' },
-            { label:'Velocità',   value:6.2, trend:'same', color:'linear-gradient(90deg,#d97706,#fbbf24)' },
-            { label:'Forza',      value:5.5, trend:'down', color:'linear-gradient(90deg,#7c3aed,#a78bfa)' },
-        ];
-
-        // Prova a leggere valutazioni reali dalla tabella session_athlete_ratings
-        try {
-            const { data: ratings } = await client
-                .from('session_athlete_ratings')
-                .select('tecnica, resistenza, velocita, forza, session_id')
-                .eq('athlete_id', athleteId)
-                .order('session_id', { ascending: true })
-                .limit(20);
-
-            if (ratings && ratings.length >= 2) {
-                const last  = ratings[ratings.length - 1];
-                const prev  = ratings[ratings.length - 2];
-                const calcTrend = (a,b) => a > b ? 'up' : a < b ? 'down' : 'same';
-                skillData = [
-                    { label:'Tecnica',    value: parseFloat((last.tecnica||0).toFixed(1)),    trend: calcTrend(last.tecnica,    prev.tecnica),    color:'linear-gradient(90deg,#2563eb,#3b82f6)' },
-                    { label:'Resistenza', value: parseFloat((last.resistenza||0).toFixed(1)), trend: calcTrend(last.resistenza, prev.resistenza), color:'linear-gradient(90deg,#059669,#34d399)' },
-                    { label:'Velocità',   value: parseFloat((last.velocita||0).toFixed(1)),   trend: calcTrend(last.velocita,   prev.velocita),   color:'linear-gradient(90deg,#d97706,#fbbf24)' },
-                    { label:'Forza',      value: parseFloat((last.forza||0).toFixed(1)),       trend: calcTrend(last.forza,      prev.forza),       color:'linear-gradient(90deg,#7c3aed,#a78bfa)' },
-                ];
-            }
-        } catch(e) { /* tabella non presente, usa fallback */ }
-
-        // 7. Feedback allenatore — legge da coach_notes se esiste, altrimenti statico
-        let feedbackData = {
-            coach_name: 'Allenatore',
-            strengths: [
-                { icon:'⚡', title:'Visione di gioco', text:'Legge bene gli spazi e imposta le azioni con intelligenza tattica.' },
-                { icon:'🤝', title:'Spirito di squadra', text:'Sempre disponibile, aiuta i compagni e mantiene un atteggiamento positivo.' },
-            ],
-            improve: [
-                { icon:'💪', title:'Fisicità nei contrasti', text:'Negli scontri diretti deve migliorare la tenuta del corpo.' },
-            ]
-        };
-        try {
-            const { data: coachNote } = await client
-                .from('coach_notes')
-                .select('note_text, strengths, improvements, staff_id, users!inner(name,surname)')
-                .eq('athlete_id', athleteId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            if (coachNote) {
-                feedbackData.coach_name = coachNote.users ? `${coachNote.users.name||''} ${coachNote.users.surname||''}`.trim() : 'Allenatore';
-                if (coachNote.strengths) feedbackData.strengths = coachNote.strengths;
-                if (coachNote.improvements) feedbackData.improve = coachNote.improvements;
-            }
-        } catch(e) { /* tabella non presente */ }
-
-        // 8. Comportamento (static default — può essere esteso con DB)
-        const behaviorData = [
-            { label: 'Impegno agli allenamenti', score: 4 },
-            { label: 'Rispetto dell\'allenatore',  score: 5 },
-            { label: 'Rapporto coi compagni',      score: 4 },
-            { label: 'Gestione della sconfitta',   score: 3 },
-            { label: 'Autonomia sul campo',         score: 4 },
-        ];
-
-        // 9. Test atletici — legge test_results reali
-        let testsData = [
-            { name:'Resistenza 6\' Cooper', value:'1.240 m', prev:'1.160 m', trend:'up', delta:'+80m', color:'#059669', bg:'rgba(5,150,105,0.05)', border:'rgba(5,150,105,0.15)' },
-            { name:'Velocità 30m',          value:'4.8 s',   prev:'4.9 s',   trend:'up', delta:'-0.1s', color:'#2563eb', bg:'rgba(37,99,235,0.05)', border:'rgba(37,99,235,0.15)' },
-            { name:'Salto in lungo',         value:'1.72 m',  prev:'1.72 m',  trend:'same',delta:'Stabile',color:'#d97706',bg:'rgba(217,119,6,0.05)',border:'rgba(217,119,6,0.15)'},
-            { name:'Dribbling slalom',       value:'12.3 s',  prev:'13.1 s',  trend:'up', delta:'-0.8s', color:'#7c3aed', bg:'rgba(124,58,237,0.05)', border:'rgba(124,58,237,0.15)' },
-        ];
-
-        // ── Grafico: carica valori sessioni per chart
-        let chartLabels = ['Gen','Feb','Mar','Apr'];
-        let chartDatasets = [
-            { label:'Tecnica',    data:[6.0,6.4,7.0,7.4], color:'#2563eb' },
-            { label:'Resistenza', data:[5.8,6.2,6.5,6.8], color:'#059669' },
-            { label:'Velocità',   data:[6.0,6.1,6.2,6.2], color:'#d97706' },
-            { label:'Forza',      data:[5.0,5.2,5.3,5.5], color:'#7c3aed' },
-        ];
-
-        // Assembla dati
-        const stats = {
-            attendedTrainings: attended,
-            totalTrainings,
-            matchesPlayed,
-            matchesConvoked,
-            totalMatches: matchesData.length,
-            totalMinutes,
-            goals: totalGoals,
-            yellowCards: totalYellow,
-            yellowCardNote: totalYellow > 0 ? 'Episodio isolato, prontamente gestito. Nessun comportamento problematico.' : null,
-            nextMatch,
-        };
-
-        const assessments = {
-            skills:    skillData,
-            tests:     testsData,
-            behavior:  behaviorData,
-            feedback:  feedbackData,
-            coachNote: skillData.find(s=>s.trend==='down')
-                ? `La ${skillData.find(s=>s.trend==='down').label.toLowerCase()} è l'area su cui concentrarsi nei prossimi mesi.`
-                : null,
-        };
-
-        // Render
-        content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, assessments);
-
-        // Avvia skill bar animation
-        setTimeout(() => {
-            document.querySelectorAll('.g-skill-bar').forEach(bar => {
-                const w = bar.getAttribute('data-w');
-                if (w) bar.style.width = w;
-            });
-        }, 100);
-
-        // Grafico
-        loadChartJs(() => {
-            const ctx = document.getElementById('g-chart-allenamento');
-            if (!ctx || !window.Chart) return;
-            new window.Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartLabels,
-                    datasets: chartDatasets.map(d => ({
-                        label: d.label,
-                        data: d.data,
-                        borderColor: d.color,
-                        backgroundColor: d.color + '14',
-                        tension: 0.4,
-                        fill: d.label === 'Tecnica',
-                        pointRadius: 4,
-                        pointBackgroundColor: d.color
-                    }))
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            min: 4, max: 10,
-                            grid: { color: 'rgba(0,0,0,0.05)' },
-                            ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9aa0b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { family: 'Outfit', size: 11 }, color: '#9aa0b8' }
-                        }
-                    }
-                }
-            });
-        });
-
-    } catch(err) {
-        console.error('initGenitoreView error:', err);
-        content.innerHTML = `<div class="card" style="padding:2rem;text-align:center;">
-            <div style="font-size:1.5rem;margin-bottom:8px;">⚠️</div>
-            <div style="font-weight:700;font-size:0.9rem;color:var(--text-main);margin-bottom:6px;">Errore nel caricamento</div>
-            <div style="color:var(--text-sub);font-size:0.82rem;">${err.message}</div>
-        </div>`;
-    }
-};
 </script>
 </body>
 </html>
