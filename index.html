@@ -12997,16 +12997,9 @@ function loadChartJs(cb) {
 }
 
 /* ── Template HTML genitore ── */
-function templateGenitoreView(athlete, stats, trainings, matches, assessments) {
+function templateGenitoreView(athlete, stats, trainings, matches, assessments, presenzeRows, statsGareRows) {
     const initials = `${(athlete.name||'?')[0]}${(athlete.surname||'?')[0]}`.toUpperCase();
     const fullName = `${athlete.name||''} ${athlete.surname||''}`.trim() || 'Atleta';
-
-    // Tendenze skill (confronto ultime 2 sessioni)
-    function trendChip(t) {
-        if (t === 'up')   return `<span class="g-trend g-trend-up">↑ In miglioramento</span>`;
-        if (t === 'down') return `<span class="g-trend g-trend-down">↓ Da rinforzare</span>`;
-        return `<span class="g-trend g-trend-same">→ Stabile</span>`;
-    }
 
     // Stato fisico
     const statoFisico = athlete.physical_status === 'infortunato'
@@ -13016,68 +13009,31 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments) {
     const presenzaPerc = stats.totalTrainings > 0
         ? Math.round((stats.attendedTrainings / stats.totalTrainings) * 100) : 0;
 
-    // Righe partite
-    const matchRows = (matches || []).slice(0, 8).map(m => {
+    // Righe partite recenti
+    const matchRows = (matches || []).slice(0, 10).map(m => {
         const isPresent = m.participated;
         const resultColor = m.result === 'win' ? 'var(--success)' : m.result === 'loss' ? 'var(--danger)' : 'var(--warning)';
-        const goals = m.goals > 0 ? `<span class="g-event g-event-goal">⚽ ${m.goals} gol</span>` : '';
-        const amm   = m.yellow_cards > 0 ? `<span class="g-event g-event-amm">🟡 amm.</span>` : '';
+        const resultLabel = m.result === 'win' ? 'VITTORIA' : m.result === 'loss' ? 'SCONFITTA' : 'PAREGGIO';
+        const resultBg = m.result === 'win' ? 'rgba(5,150,105,0.1)' : m.result === 'loss' ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)';
         return `
-        <div class="g-match-row">
-            <div class="g-match-date">${m.date_fmt}</div>
-            <div class="g-match-opp ${isPresent ? '' : 'g-absent'}">vs. ${m.opponent}</div>
-            <div class="g-match-result" style="color:${isPresent ? resultColor : 'var(--text-muted)'}">
-                ${isPresent ? m.score : '—'}
-            </div>
-            <div class="g-match-min">${isPresent ? (m.minutes_played ? m.minutes_played + ' min' : '—') : 'Assente'}</div>
-            ${goals}${amm}
-        </div>`;
-    }).join('') || '<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:1rem 0;">Nessuna partita registrata</p>';
-
-    // Righe skill
-    const skillRows = (assessments.skills || []).map(s => `
-        <div class="g-skill">
-            <div class="g-skill-row">
-                <span class="g-skill-name">${s.label}</span>
-                <span class="g-skill-info">${s.value}/10 ${trendChip(s.trend)}</span>
-            </div>
-            <div class="g-skill-track">
-                <div class="g-skill-bar" data-w="${s.value * 10}%" style="background:${s.color};"></div>
-            </div>
-        </div>`).join('');
-
-    // Test atletici
-    const testBoxes = (assessments.tests || []).map(t => `
-        <div style="text-align:center;padding:1rem;background:${t.bg};border-radius:var(--r-md);border:1px solid ${t.border};">
-            <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px;">${t.name}</div>
-            <div style="font-family:'DM Mono',monospace;font-size:1.25rem;font-weight:700;color:${t.color};">${t.value}</div>
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;">era ${t.prev}</div>
-            <span class="g-trend g-trend-${t.trend}" style="margin-top:6px;display:inline-flex;">${t.trend === 'up' ? '↑' : '→'} ${t.delta}</span>
-        </div>`).join('');
-
-    // Dot rating
-    const dotRatings = (assessments.behavior || []).map(b => {
-        const dots = Array.from({length:5},(_,i) =>
-            `<div class="g-dot ${i < b.score ? (b.score >= 4 ? 'ok' : 'pri') : ''}"></div>`
-        ).join('');
-        return `<div class="g-qual-row"><span class="g-qual-name">${b.label}</span><div class="g-dots">${dots}</div></div>`;
-    }).join('');
-
-    // Feedback allenatore
-    const strengths = (assessments.feedback?.strengths || []).map(f =>
-        `<div class="g-feedback"><div class="g-feedback-icon">${f.icon}</div><div class="g-feedback-text"><strong>${f.title}.</strong> ${f.text}</div></div>`
-    ).join('');
-    const improve = (assessments.feedback?.improve || []).map(f =>
-        `<div class="g-feedback"><div class="g-feedback-icon">${f.icon}</div><div class="g-feedback-text"><strong>${f.title}.</strong> ${f.text}</div></div>`
-    ).join('');
+        <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 10px;font-size:0.78rem;color:var(--text-sub);">${m.date_fmt}</td>
+            <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">vs ${m.opponent}</td>
+            <td style="padding:8px 10px;text-align:center;font-family:'DM Mono',monospace;font-weight:700;">${isPresent ? m.score : '—'}</td>
+            <td style="padding:8px 10px;text-align:center;">
+                ${isPresent
+                    ? `<span style="padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:700;background:${resultBg};color:${resultColor};">${resultLabel}</span>`
+                    : `<span style="font-size:0.72rem;color:var(--text-muted);">—</span>`}
+            </td>
+        </tr>`;
+    }).join('') || `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna partita registrata</td></tr>`;
 
     // Prossima partita
     const nextMatch = stats.nextMatch
         ? `<div style="background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:var(--r-md);padding:0.85rem;">
-               <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--primary);font-weight:700;margin-bottom:4px;">Partita · ${stats.nextMatch.date}</div>
+               <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--primary);font-weight:700;margin-bottom:4px;">Prossima partita · ${stats.nextMatch.date}</div>
                <div style="font-size:0.95rem;font-weight:700;color:var(--text-main);">vs. ${stats.nextMatch.opponent}</div>
                <div style="font-size:0.78rem;color:var(--text-sub);margin-top:3px;">${stats.nextMatch.details}</div>
-               <div style="margin-top:8px;"><span class="g-pill g-pill-ok"><span class="g-pill-dot"></span>Convocato</span></div>
            </div>`
         : `<p style="color:var(--text-muted);font-size:0.82rem;">Nessuna partita programmata</p>`;
 
@@ -13088,7 +13044,7 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments) {
             <div class="g-hero-avatar">${initials}</div>
             <div>
                 <div class="g-hero-name">${fullName}</div>
-                <div class="g-hero-meta">${athlete.team_name || '—'} · ${athlete.role || '—'} · #${athlete.jersey || '—'}</div>
+                <div class="g-hero-meta">${athlete.team_name || '—'} · #${athlete.jersey || '—'}</div>
             </div>
             <div class="g-hero-stats">
                 <div class="g-hero-stat">
@@ -13113,158 +13069,113 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments) {
         <div class="g-kpi">
             <div class="g-kpi-label">🏃 Presenze allenamenti</div>
             <div class="g-kpi-val">${presenzaPerc}<span>%</span></div>
-            <div class="g-kpi-sub" style="color:var(--success);font-weight:600;">↑ In linea col gruppo</div>
+            <div class="g-kpi-sub" style="color:${presenzaPerc>=75?'var(--success)':'var(--warning)'};font-weight:600;">${presenzaPerc>=75?'↑ In linea col gruppo':'⚠ Sotto la media'}</div>
         </div>
         <div class="g-kpi">
-            <div class="g-kpi-label">📋 Convocazioni</div>
-            <div class="g-kpi-val">${stats.matchesConvoked}<span>/${stats.totalMatches}</span></div>
-            <div class="g-kpi-sub" style="color:var(--success);font-weight:600;">↑ Ottimo tasso</div>
+            <div class="g-kpi-label">📋 Partite giocate</div>
+            <div class="g-kpi-val">${stats.matchesPlayed}<span>/${stats.matchesConvoked}</span></div>
+            <div class="g-kpi-sub" style="color:var(--text-sub);">convocazioni stagione</div>
         </div>
         <div class="g-kpi">
-            <div class="g-kpi-label">💪 Stato fisico</div>
-            <div class="g-kpi-val" style="font-size:1.15rem;padding-top:4px;">${statoFisico.split('</span>')[0]}</span></div>
-            <div class="g-kpi-sub">Aggiornato oggi</div>
+            <div class="g-kpi-label">⚽ Gol</div>
+            <div class="g-kpi-val">${stats.goals || 0}</div>
+            <div class="g-kpi-sub" style="color:var(--text-sub);">stagione corrente</div>
         </div>
         <div class="g-kpi">
-            <div class="g-kpi-label">🤝 Comportamento</div>
-            <div class="g-kpi-val" style="font-size:1.15rem;padding-top:4px;"><span class="g-pill g-pill-ok"><span class="g-pill-dot"></span>Ottimo</span></div>
-            <div class="g-kpi-sub">Rispettoso e partecipativo</div>
+            <div class="g-kpi-label">⏱ Minuti giocati</div>
+            <div class="g-kpi-val">${stats.totalMinutes || 0}</div>
+            <div class="g-kpi-sub" style="color:var(--text-sub);">totale stagione</div>
         </div>
     </div>
 
-    <!-- ② PROGRESSI -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Progressi nel tempo</div>
-    <div class="g-grid-2">
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📊</span>
-                    Andamento valutazioni
-                </div>
-                <div class="g-chart-wrap"><canvas id="g-chart-allenamento"></canvas></div>
-                <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#2563eb;border-radius:2px;"></span> Tecnica</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#059669;border-radius:2px;"></span> Resistenza</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#d97706;border-radius:2px;"></span> Velocità</span>
-                    <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:3px;background:#7c3aed;border-radius:2px;"></span> Forza</span>
-                </div>
-            </div>
-        </div>
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🎯</span>
-                    Livello attuale &amp; tendenza
-                </div>
-                ${skillRows}
-                ${assessments.coachNote ? `
-                <div style="margin-top:1rem;padding:0.7rem;background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.15);border-radius:var(--r-md);">
-                    <div style="font-size:0.72rem;color:#92400e;font-weight:600;">💡 Nota dell'allenatore</div>
-                    <div style="font-size:0.78rem;color:#78350f;margin-top:3px;line-height:1.5;">${assessments.coachNote}</div>
-                </div>` : ''}
-            </div>
-        </div>
-    </div>
-
-    <!-- Test atletici -->
-    <div class="card" style="margin-bottom:1.5rem;">
-        <div style="padding:1.4rem;">
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                <span style="background:rgba(14,165,233,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🏅</span>
-                Miglioramenti nei test atletici
-            </div>
-            <div class="g-test-grid">${testBoxes || '<p style="color:var(--text-muted);font-size:0.82rem;">Nessun test registrato</p>'}</div>
-        </div>
-    </div>
-
-    <!-- ③ VALUTAZIONE -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#059669;"></div> Valutazione qualitativa</div>
-    <div class="g-grid-2">
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🗣️</span>
-                    Parole dell'allenatore
-                </div>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;padding:0.8rem;background:rgba(37,99,235,0.04);border-radius:var(--r-md);">
-                    <div style="font-size:1.5rem;">👨‍💼</div>
-                    <div>
-                        <div style="font-size:0.82rem;font-weight:700;color:var(--text-main);">${assessments.feedback?.coach_name || 'Allenatore'}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">${athlete.team_name || ''}</div>
-                    </div>
-                </div>
-                ${strengths ? `<div style="margin-bottom:0.5rem;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--success);margin-bottom:6px;">✅ Punti di forza</div>${strengths}</div>` : ''}
-                ${improve ? `<div><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--warning);margin-bottom:6px;">🔧 Da migliorare</div>${improve}</div>` : ''}
-            </div>
-        </div>
-        <div class="card">
-            <div style="padding:1.4rem;">
-                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                    <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🧠</span>
-                    Comportamento &amp; impegno
-                </div>
-                ${dotRatings}
-                <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:0.8rem;">
-                    <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:6px;">Legenda</div>
-                    <div style="display:flex;gap:12px;font-size:0.7rem;flex-wrap:wrap;">
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--success);">● Ottimo (4-5)</span>
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--primary);">● Buono (3)</span>
-                        <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);">○ Da sviluppare</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ④ PARTITE -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#0ea5e9;"></div> Partecipazione alle partite</div>
-    <div class="g-grid-3">
+    <!-- ① PARTITE RECENTI -->
+    <div class="g-sec-title"><div class="g-sec-dot" style="background:#0ea5e9;"></div> Partite recenti</div>
+    <div class="g-grid-2" style="margin-bottom:1.5rem;">
         <div class="card">
             <div style="padding:1.4rem;">
                 <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
                     <span style="background:rgba(14,165,233,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">⚽</span>
                     Ultimi incontri
                 </div>
-                ${matchRows}
-                ${stats.yellowCardNote ? `
-                <div style="margin-top:0.75rem;padding:0.6rem 0.8rem;background:rgba(217,119,6,0.05);border:1px solid rgba(217,119,6,0.15);border-radius:var(--r-md);font-size:0.75rem;color:#92400e;">
-                    🟡 <strong>Nota sull'ammonizione:</strong> ${stats.yellowCardNote}
-                </div>` : ''}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="padding:4px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Data</th>
+                            <th style="padding:4px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Partita</th>
+                            <th style="padding:4px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Risultato</th>
+                            <th style="padding:4px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Esito</th>
+                        </tr>
+                    </thead>
+                    <tbody>${matchRows}</tbody>
+                </table>
             </div>
         </div>
-        <div>
-            <div class="card" style="margin-bottom:1rem;">
-                <div style="padding:1.4rem;">
-                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                        <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📋</span>
-                        Riepilogo stagione
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:0;">
-                        ${[
-                            ['Partite giocate', stats.matchesPlayed],
-                            ['Minuti totali', stats.totalMinutes || '—'],
-                            ['⚽ Gol', stats.goals || 0, 'var(--success)'],
-                            ['🟡 Ammonizioni', stats.yellowCards || 0, stats.yellowCards > 0 ? 'var(--warning)' : null]
-                        ].map(([lbl,val,col]) => `
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">
-                            <span style="font-size:0.82rem;color:var(--text-sub);">${lbl}</span>
-                            <span style="font-family:'DM Mono',monospace;font-weight:700;color:${col||'var(--text-main)'};">${val}</span>
-                        </div>`).join('')}
-                    </div>
+        <div class="card">
+            <div style="padding:1.4rem;">
+                <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
+                    <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📣</span>
+                    Prossimo appuntamento
                 </div>
-            </div>
-            <div class="card">
-                <div style="padding:1.4rem;">
-                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                        <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📣</span>
-                        Prossimo appuntamento
-                    </div>
-                    ${nextMatch}
-                </div>
+                ${nextMatch}
             </div>
         </div>
     </div>
-    <div style="height:2.5rem;"></div>`;
+
+    <!-- ② PRESENZE SESSIONI -->
+    <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Presenze sessioni</div>
+    <div class="card" style="margin-bottom:1.5rem;">
+        <div style="padding:1.4rem;">
+            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
+                <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🗓️</span>
+                Allenamenti &amp; sessioni
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);">
+                        <th style="padding:6px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Sessione</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;font-weight:600;">P</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#ef4444;font-weight:600;">A</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#0ea5e9;font-weight:600;">G</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">%</th>
+                    </tr>
+                </thead>
+                <tbody id="g-pres-sessioni-body">
+                    ${presenzeRows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna sessione disponibile</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ③ STATISTICHE GARE PER SQUADRA -->
+    <div class="g-sec-title"><div class="g-sec-dot" style="background:#059669;"></div> Statistiche gare per squadra</div>
+    <div class="card" style="margin-bottom:2.5rem;">
+        <div style="padding:1.4rem;">
+            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem;display:flex;align-items:center;gap:6px;">
+                <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📊</span>
+                Solo partite ufficiali · Amichevoli escluse
+            </div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;min-width:600px;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);">
+                        <th style="padding:6px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Squadra</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#0ea5e9;font-weight:600;">PTS</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">P</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--primary);font-weight:600;" title="Casa">🏠</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#8b5cf6;font-weight:600;" title="Trasferta">✈️</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;font-weight:600;">GF</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#ef4444;font-weight:600;">GS</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">V/P/S</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">%V</th>
+                    </tr>
+                </thead>
+                <tbody id="g-stats-gare-body">
+                    ${statsGareRows || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-sub);">Nessun dato disponibile</td></tr>'}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>`;
 }
 
 /* ── Funzione principale: carica dati reali da Supabase ── */
@@ -13406,90 +13317,7 @@ window.initGenitoreView = async function() {
             };
         }
 
-        // 6. Valutazioni sessioni (stars / ratings) — legge training_ratings se esiste
-        // Struttura fallback: usa dati statici arricchiti se la tabella non esiste
-        let skillData = [
-            { label:'Tecnica',    value:7.4, trend:'up',   color:'linear-gradient(90deg,#2563eb,#3b82f6)' },
-            { label:'Resistenza', value:6.8, trend:'up',   color:'linear-gradient(90deg,#059669,#34d399)' },
-            { label:'Velocità',   value:6.2, trend:'same', color:'linear-gradient(90deg,#d97706,#fbbf24)' },
-            { label:'Forza',      value:5.5, trend:'down', color:'linear-gradient(90deg,#7c3aed,#a78bfa)' },
-        ];
-
-        // Prova a leggere valutazioni reali dalla tabella session_athlete_ratings
-        try {
-            const { data: ratings } = await client
-                .from('session_athlete_ratings')
-                .select('tecnica, resistenza, velocita, forza, session_id')
-                .eq('athlete_id', athleteId)
-                .order('session_id', { ascending: true })
-                .limit(20);
-
-            if (ratings && ratings.length >= 2) {
-                const last  = ratings[ratings.length - 1];
-                const prev  = ratings[ratings.length - 2];
-                const calcTrend = (a,b) => a > b ? 'up' : a < b ? 'down' : 'same';
-                skillData = [
-                    { label:'Tecnica',    value: parseFloat((last.tecnica||0).toFixed(1)),    trend: calcTrend(last.tecnica,    prev.tecnica),    color:'linear-gradient(90deg,#2563eb,#3b82f6)' },
-                    { label:'Resistenza', value: parseFloat((last.resistenza||0).toFixed(1)), trend: calcTrend(last.resistenza, prev.resistenza), color:'linear-gradient(90deg,#059669,#34d399)' },
-                    { label:'Velocità',   value: parseFloat((last.velocita||0).toFixed(1)),   trend: calcTrend(last.velocita,   prev.velocita),   color:'linear-gradient(90deg,#d97706,#fbbf24)' },
-                    { label:'Forza',      value: parseFloat((last.forza||0).toFixed(1)),       trend: calcTrend(last.forza,      prev.forza),       color:'linear-gradient(90deg,#7c3aed,#a78bfa)' },
-                ];
-            }
-        } catch(e) { /* tabella non presente, usa fallback */ }
-
-        // 7. Feedback allenatore — legge da coach_notes se esiste, altrimenti statico
-        let feedbackData = {
-            coach_name: 'Allenatore',
-            strengths: [
-                { icon:'⚡', title:'Visione di gioco', text:'Legge bene gli spazi e imposta le azioni con intelligenza tattica.' },
-                { icon:'🤝', title:'Spirito di squadra', text:'Sempre disponibile, aiuta i compagni e mantiene un atteggiamento positivo.' },
-            ],
-            improve: [
-                { icon:'💪', title:'Fisicità nei contrasti', text:'Negli scontri diretti deve migliorare la tenuta del corpo.' },
-            ]
-        };
-        try {
-            const { data: coachNote } = await client
-                .from('coach_notes')
-                .select('note_text, strengths, improvements, staff_id, users!inner(name,surname)')
-                .eq('athlete_id', athleteId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            if (coachNote) {
-                feedbackData.coach_name = coachNote.users ? `${coachNote.users.name||''} ${coachNote.users.surname||''}`.trim() : 'Allenatore';
-                if (coachNote.strengths) feedbackData.strengths = coachNote.strengths;
-                if (coachNote.improvements) feedbackData.improve = coachNote.improvements;
-            }
-        } catch(e) { /* tabella non presente */ }
-
-        // 8. Comportamento (static default — può essere esteso con DB)
-        const behaviorData = [
-            { label: 'Impegno agli allenamenti', score: 4 },
-            { label: 'Rispetto dell\'allenatore',  score: 5 },
-            { label: 'Rapporto coi compagni',      score: 4 },
-            { label: 'Gestione della sconfitta',   score: 3 },
-            { label: 'Autonomia sul campo',         score: 4 },
-        ];
-
-        // 9. Test atletici — legge test_results reali
-        let testsData = [
-            { name:'Resistenza 6\' Cooper', value:'1.240 m', prev:'1.160 m', trend:'up', delta:'+80m', color:'#059669', bg:'rgba(5,150,105,0.05)', border:'rgba(5,150,105,0.15)' },
-            { name:'Velocità 30m',          value:'4.8 s',   prev:'4.9 s',   trend:'up', delta:'-0.1s', color:'#2563eb', bg:'rgba(37,99,235,0.05)', border:'rgba(37,99,235,0.15)' },
-            { name:'Salto in lungo',         value:'1.72 m',  prev:'1.72 m',  trend:'same',delta:'Stabile',color:'#d97706',bg:'rgba(217,119,6,0.05)',border:'rgba(217,119,6,0.15)'},
-            { name:'Dribbling slalom',       value:'12.3 s',  prev:'13.1 s',  trend:'up', delta:'-0.8s', color:'#7c3aed', bg:'rgba(124,58,237,0.05)', border:'rgba(124,58,237,0.15)' },
-        ];
-
-        // ── Grafico: carica valori sessioni per chart
-        let chartLabels = ['Gen','Feb','Mar','Apr'];
-        let chartDatasets = [
-            { label:'Tecnica',    data:[6.0,6.4,7.0,7.4], color:'#2563eb' },
-            { label:'Resistenza', data:[5.8,6.2,6.5,6.8], color:'#059669' },
-            { label:'Velocità',   data:[6.0,6.1,6.2,6.2], color:'#d97706' },
-            { label:'Forza',      data:[5.0,5.2,5.3,5.5], color:'#7c3aed' },
-        ];
-
-        // Assembla dati
+        // Assembla dati stats
         const stats = {
             attendedTrainings: attended,
             totalTrainings,
@@ -13499,67 +13327,120 @@ window.initGenitoreView = async function() {
             totalMinutes,
             goals: totalGoals,
             yellowCards: totalYellow,
-            yellowCardNote: totalYellow > 0 ? 'Episodio isolato, prontamente gestito. Nessun comportamento problematico.' : null,
             nextMatch,
         };
 
-        const assessments = {
-            skills:    skillData,
-            tests:     testsData,
-            behavior:  behaviorData,
-            feedback:  feedbackData,
-            coachNote: skillData.find(s=>s.trend==='down')
-                ? `La ${skillData.find(s=>s.trend==='down').label.toLowerCase()} è l'area su cui concentrarsi nei prossimi mesi.`
-                : null,
-        };
+        // 6. PRESENZE SESSIONI — carica sessioni della squadra dell'atleta (solo allenamenti)
+        let presenzeRows = '';
+        try {
+            const { data: sessionTypes } = await client.from('session_types').select('id, name');
+            const garaTypeIds = new Set((sessionTypes||[])
+                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+                .map(t => t.id));
+
+            let presQ = client.from('sessions')
+                .select('id, title, session_date, teams(name, categories(name)), attendances(status)')
+                .order('session_date', { ascending: false })
+                .limit(20);
+            if (teamSeason?.team_id) presQ = presQ.eq('team_id', teamSeason.team_id);
+
+            const { data: sessions } = await presQ;
+            const trainingSessions = (sessions || []).filter(s => !garaTypeIds.has(s.type_id));
+
+            presenzeRows = trainingSessions.map(s => {
+                const att = s.attendances || [];
+                const p = att.filter(a => (a.status||'').toLowerCase() === 'presente').length;
+                const ab = att.filter(a => (a.status||'').toLowerCase() === 'assente').length;
+                const g = att.filter(a => (a.status||'').toLowerCase() === 'giustificato').length;
+                const tot = att.length;
+                const perc = tot > 0 ? Math.round((p / tot) * 100) : 0;
+                const percColor = perc >= 75 ? '#10b981' : perc >= 50 ? '#0ea5e9' : '#ef4444';
+                const teamName = s.teams?.name || '';
+                const catName  = s.teams?.categories?.name || '';
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:8px 10px;">
+                        <div style="font-weight:600;font-size:0.8rem;">${s.title || 'Sessione'}</div>
+                        <div style="font-size:0.7rem;color:var(--text-sub);">${new Date(s.session_date).toLocaleDateString('it-IT')}${teamName ? ' · ' + teamName : ''}${catName ? ' · ' + catName : ''}</div>
+                    </td>
+                    <td style="padding:8px 10px;text-align:center;color:#10b981;font-weight:700;">${p}</td>
+                    <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${ab}</td>
+                    <td style="padding:8px 10px;text-align:center;color:#0ea5e9;font-weight:700;">${g}</td>
+                    <td style="padding:8px 10px;text-align:center;font-weight:700;color:${percColor};">${perc}%</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna sessione trovata</td></tr>';
+        } catch(e) { console.warn('presenze sessioni error', e); }
+
+        // 7. STATISTICHE GARE PER SQUADRA — aggrega per team_id dell'atleta
+        let statsGareRows = '';
+        try {
+            const { data: sessionTypes2 } = await client.from('session_types').select('id, name');
+            const matchTypeIds = (sessionTypes2||[])
+                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+                .map(t => t.id);
+
+            if (matchTypeIds.length > 0) {
+                let msQ = client.from('sessions')
+                    .select('id, team_id, teams(name, categories(name))')
+                    .in('type_id', matchTypeIds);
+                if (teamSeason?.team_id) msQ = msQ.eq('team_id', teamSeason.team_id);
+
+                const { data: matchSessions } = await msQ;
+                const msIds = (matchSessions || []).map(s => s.id);
+
+                if (msIds.length > 0) {
+                    const [detRes, stRes] = await Promise.all([
+                        client.from('match_details').select('session_id, goals_for, goals_against, match_status, is_friendly, is_home').in('session_id', msIds),
+                        client.from('match_stats').select('session_id, yellow_cards, red_cards').in('session_id', msIds)
+                    ]);
+
+                    const detMap = {};
+                    (detRes.data || []).forEach(d => detMap[d.session_id] = d);
+
+                    const teamMap = {};
+                    (matchSessions || []).forEach(s => {
+                        if (!s.team_id) return;
+                        const det = detMap[s.id];
+                        if (det?.is_friendly === true) return;
+                        if (!teamMap[s.team_id]) teamMap[s.team_id] = {
+                            name: s.teams?.name || '—',
+                            cat:  s.teams?.categories?.name || '',
+                            p:0, casa:0, trasf:0, gf:0, gs:0, w:0, d:0, l:0, pts:0
+                        };
+                        const t = teamMap[s.team_id];
+                        t.p++;
+                        if (det) {
+                            if (det.is_home === true) t.casa++;
+                            else if (det.is_home === false) t.trasf++;
+                            t.gf += det.goals_for || 0;
+                            t.gs += det.goals_against || 0;
+                            if (det.match_status === 'vittoria')   { t.w++; t.pts += 3; }
+                            else if (det.match_status === 'pareggio') { t.d++; t.pts += 1; }
+                            else if (det.match_status === 'sconfitta') t.l++;
+                        }
+                    });
+
+                    statsGareRows = Object.values(teamMap).sort((a,b) => b.pts - a.pts).map(t => {
+                        const winPerc = t.p > 0 ? Math.round((t.w / t.p) * 100) : 0;
+                        return `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">${t.name}${t.cat ? `<br><span style="font-size:0.7rem;color:var(--text-sub);">${t.cat}</span>` : ''}</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono',monospace;font-size:1rem;color:#0ea5e9;">${t.pts}</td>
+                            <td style="padding:8px 10px;text-align:center;color:var(--text-muted);font-weight:700;">${t.p}</td>
+                            <td style="padding:8px 10px;text-align:center;color:var(--primary);font-weight:700;">${t.casa}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#8b5cf6;font-weight:700;">${t.trasf}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#10b981;font-weight:700;">${t.gf}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${t.gs}</td>
+                            <td style="padding:8px 10px;text-align:center;font-size:0.78rem;white-space:nowrap;">
+                                <span style="color:#10b981;">${t.w}V</span> · <span style="color:var(--text-muted);">${t.d}P</span> · <span style="color:#ef4444;">${t.l}S</span>
+                            </td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:${winPerc>=50?'#10b981':'var(--text-sub)'};">${winPerc}%</td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-sub);">Nessun dato partite ufficiali</td></tr>';
+                }
+            }
+        } catch(e) { console.warn('stats gare error', e); }
 
         // Render
-        content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, assessments);
-
-        // Avvia skill bar animation
-        setTimeout(() => {
-            document.querySelectorAll('.g-skill-bar').forEach(bar => {
-                const w = bar.getAttribute('data-w');
-                if (w) bar.style.width = w;
-            });
-        }, 100);
-
-        // Grafico
-        loadChartJs(() => {
-            const ctx = document.getElementById('g-chart-allenamento');
-            if (!ctx || !window.Chart) return;
-            new window.Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartLabels,
-                    datasets: chartDatasets.map(d => ({
-                        label: d.label,
-                        data: d.data,
-                        borderColor: d.color,
-                        backgroundColor: d.color + '14',
-                        tension: 0.4,
-                        fill: d.label === 'Tecnica',
-                        pointRadius: 4,
-                        pointBackgroundColor: d.color
-                    }))
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            min: 4, max: 10,
-                            grid: { color: 'rgba(0,0,0,0.05)' },
-                            ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9aa0b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { family: 'Outfit', size: 11 }, color: '#9aa0b8' }
-                        }
-                    }
-                }
-            });
-        });
+        content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows);
 
     } catch(err) {
         console.error('initGenitoreView error:', err);
