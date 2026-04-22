@@ -13281,24 +13281,14 @@ window.initGenitoreView = async function() {
         const userId = window._currentUserId;
         if (!userId) throw new Error('Utente non identificato');
 
-        // 1. Recupera il genitore e il figlio collegato
-        const { data: genitoreRow } = await client
-            .from('users')
-            .select('id, name, surname, athlete_id, society_id')
-            .eq('id', userId)
+        // 1. Recupera il figlio collegato dalla tabella parent_athletes
+        const { data: link } = await client
+            .from('parent_athletes')
+            .select('athlete_id')
+            .eq('parent_id', userId)
             .maybeSingle();
 
-        let athleteId = genitoreRow?.athlete_id;
-
-        // Fallback: cerca il figlio dalla tabella parents_athletes
-        if (!athleteId) {
-            const { data: link } = await client
-                .from('parents_athletes')
-                .select('athlete_id')
-                .eq('user_id', userId)
-                .maybeSingle();
-            athleteId = link?.athlete_id;
-        }
+        let athleteId = link?.athlete_id;
 
         if (!athleteId) {
             content.innerHTML = `<div class="card" style="padding:2rem;text-align:center;">
