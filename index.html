@@ -13299,10 +13299,10 @@ window.initGenitoreView = async function() {
             return;
         }
 
-        // 2. Dati atleta + squadra
+        // 2. Dati atleta da public.athletes (colonne reali: name, surname, born_date, society_id)
         const { data: athlete } = await client
             .from('athletes')
-            .select('id, name, surname, birth_date, role, physical_status, injury_note')
+            .select('id, name, surname, born_date')
             .eq('id', athleteId)
             .maybeSingle();
 
@@ -13316,9 +13316,16 @@ window.initGenitoreView = async function() {
             .maybeSingle();
 
         const athleteData = {
-            ...(athlete || {}),
-            jersey: teamSeason?.jersey_number || '—',
-            team_name: teamSeason?.teams?.name || '—',
+            id:        athlete?.id || athleteId,
+            name:      athlete?.name || '',
+            surname:   athlete?.surname || '',
+            born_date: athlete?.born_date || null,
+            // campi extra usati nel template con fallback sicuri
+            role:            teamSeason ? '—' : '—',
+            physical_status: 'disponibile',
+            injury_note:     null,
+            jersey:          teamSeason?.jersey_number || '—',
+            team_name:       teamSeason?.teams?.name || '—',
         };
 
         // 3. Presenze agli allenamenti (ultime 60 sessioni)
