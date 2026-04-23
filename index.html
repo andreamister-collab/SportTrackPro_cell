@@ -5204,7 +5204,7 @@ window.printTabellinoMatchPDF = async function(sessionId) {
         padding: 6px 10px;
     }
     .info-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 2px; }
-    .info-value { font-size: 10pt; font-weight: 700; color: #111; }
+    .info-value { font-size: 10pt; font-weight: 700; color: #111; word-break: break-word; overflow-wrap: break-word; white-space: normal; }
     .info-box.wide { grid-column: span 2; }
 
     /* ── SCORE BOX ── */
@@ -9133,8 +9133,18 @@ window.loadDashMatches = async function(seasonId, socId, scopedTeamIds) {
         const selSoc = document.getElementById('dash-match-soc');
         if (selSoc) {
             const matchSocs = [...new Map((sessions||[]).filter(s=>s.societies).map(s=>[s.society_id,{id:s.society_id,name:s.societies.name}])).values()];
-            selSoc.innerHTML = '<option value="">Tutte le società</option>' +
-                matchSocs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+            // Salva la lista completa delle società solo quando NON si sta già filtrando per società
+            if (!socId || socId === 'all') {
+                window._dashMatchSocieties = matchSocs;
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' +
+                    matchSocs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+            } else {
+                // Filtro società attivo: ripristina la lista completa e riseleziona il valore corrente
+                const allSocs = window._dashMatchSocieties || matchSocs;
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' +
+                    allSocs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+                selSoc.value = socId;
+            }
         }
         // Per ruoli scoped: usa _userScopeData per cat e team
         if (scopedTeamIds && scopedTeamIds.length > 0 && window._userScopeData) {
@@ -9321,7 +9331,16 @@ window.loadDashPresenze = async function(seasonId, socId, scopedTeamIds) {
         const selSoc = document.getElementById('dash-pres-soc');
         if (selSoc) {
             const pressSocs = [...new Map(window._dashSessions.filter(s=>s.society_id).map(s=>[s.society_id, s.societies?.name || '—'])).entries()];
-            selSoc.innerHTML = '<option value="">Tutte le società</option>' + pressSocs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+            // Salva la lista completa delle società solo quando NON si sta già filtrando per società
+            if (!socId || socId === 'all') {
+                window._dashPresSocieties = pressSocs;
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' + pressSocs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+            } else {
+                // Filtro società attivo: ripristina la lista completa e riseleziona il valore corrente
+                const allSocs = window._dashPresSocieties || pressSocs;
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' + allSocs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+                selSoc.value = socId;
+            }
         }
         // Per ruoli scoped: usa _userScopeData per cat e team
         if (scopedTeamIds && scopedTeamIds.length > 0 && window._userScopeData) {
@@ -9463,8 +9482,17 @@ window.loadDashStats = async function(seasonId, socId, scopedTeamIds) {
         // Popola filtri soc → cat → team in cascata
         const selSoc = document.getElementById('dash-stats-soc');
         if (selSoc) {
-            const socs = [...new Map(window._dashMatchStats.map(t=>[t.society_id, t.soc])).entries()];
-            selSoc.innerHTML = '<option value="">Tutte le società</option>' + socs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+            // Salva la lista completa delle società solo quando NON si sta già filtrando per società
+            if (!socId || socId === 'all') {
+                const socs = [...new Map(window._dashMatchStats.map(t=>[t.society_id, t.soc])).entries()];
+                window._dashStatsSocieties = socs;
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' + socs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+            } else {
+                // Filtro società attivo: ripristina la lista completa e riseleziona il valore corrente
+                const socs = window._dashStatsSocieties || [...new Map(window._dashMatchStats.map(t=>[t.society_id, t.soc])).entries()];
+                selSoc.innerHTML = '<option value="">Tutte le società</option>' + socs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+                selSoc.value = socId;
+            }
         }
         // Per ruoli scoped: usa _userScopeData per cat e team
         if (scopedTeamIds && scopedTeamIds.length > 0 && window._userScopeData) {
@@ -9557,7 +9585,7 @@ window.loadDashAthletes = async function(seasonId, socId, scopedTeamIds) {
         const { data: assignments } = await athQ;
         if (!assignments || assignments.length === 0) {
             window._dashAthletes = [];
-            _populateAthFilters([]);
+            _populateAthFilters([], socId);
             window.renderDashAthletes();
             return;
         }
@@ -9656,13 +9684,13 @@ window.loadDashAthletes = async function(seasonId, socId, scopedTeamIds) {
         window._dashAthletes = Object.values(athleteMap);
 
         // Popola filtri
-        _populateAthFilters(window._dashAthletes);
+        _populateAthFilters(window._dashAthletes, socId);
         window.renderDashAthletes();
 
     } catch(err) { console.error('loadDashAthletes error:', err); }
 };
 
-function _populateAthFilters(athletes) {
+function _populateAthFilters(athletes, activeSocId) {
     const selSoc  = document.getElementById('dash-ath-soc');
     const selCat  = document.getElementById('dash-ath-cat');
     const selTeam = document.getElementById('dash-ath-team');
@@ -9689,8 +9717,18 @@ function _populateAthFilters(athletes) {
     const cats  = [...new Map(athletes.filter(a=>a.category_id).map(a=>[a.category_id, a.category_name])).entries()];
     const teams = [...new Map(athletes.filter(a=>a.team_id).map(a=>[a.team_id, a.team])).entries()];
 
-    selSoc.innerHTML = '<option value="">Tutte le società</option>' +
-        socs.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+    // Salva la lista completa delle società solo quando NON si sta già filtrando per società
+    if (!activeSocId || activeSocId === 'all') {
+        window._dashAthSocieties = socs;
+        selSoc.innerHTML = '<option value="">Tutte le società</option>' +
+            socs.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+    } else {
+        // Filtro società attivo: ripristina la lista completa e riseleziona il valore corrente
+        const allSocs = window._dashAthSocieties || socs;
+        selSoc.innerHTML = '<option value="">Tutte le società</option>' +
+            allSocs.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+        selSoc.value = activeSocId;
+    }
 
     if (selCat) selCat.innerHTML = '<option value="">Tutte le categorie</option>' +
         cats.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
