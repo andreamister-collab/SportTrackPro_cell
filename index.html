@@ -13126,16 +13126,23 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
                    </div>`
                 : '';
 
+            const officialBadge = nm.isOfficial === true
+                ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(6,214,160,0.12);border:1px solid rgba(6,214,160,0.3);color:#06d6a0;padding:3px 8px;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;">🏆 Ufficiale</span>`
+                : nm.isOfficial === false
+                    ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,209,102,0.15);border:1px solid rgba(255,209,102,0.35);color:#d97706;padding:3px 8px;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;">🤝 Amichevole</span>`
+                    : '';
+
             return `<div style="background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:var(--r-md);padding:1rem;display:flex;flex-direction:column;gap:0.6rem;">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
                     <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--primary);font-weight:700;">Prossima partita · ${nm.date}</div>
                     ${convBadge}
                 </div>
                 <div style="font-size:0.95rem;font-weight:700;color:var(--text-main);">vs. ${nm.opponent}</div>
-                <div style="display:flex;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,99,235,0.08);padding:3px 9px;border-radius:99px;font-size:0.73rem;font-weight:600;color:var(--primary);">
                         ${locationIcon} ${locationLabel}
                     </span>
+                    ${officialBadge}
                 </div>
                 ${luogoRow}
                 ${orariRow}
@@ -13227,34 +13234,9 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
         </div>
     </div>
 
-    <!-- ② PRESENZE SESSIONI -->
-    <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Presenze sessioni</div>
-    <div class="card" style="margin-bottom:1.5rem;">
-        <div style="padding:1.4rem;">
-            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-                <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🗓️</span>
-                Allenamenti &amp; sessioni
-            </div>
-            <table style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="border-bottom:2px solid var(--border);">
-                        <th style="padding:6px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Sessione</th>
-                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;font-weight:600;">P</th>
-                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#ef4444;font-weight:600;">A</th>
-                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#0ea5e9;font-weight:600;">G</th>
-                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">%</th>
-                    </tr>
-                </thead>
-                <tbody id="g-pres-sessioni-body">
-                    ${presenzeRows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna sessione disponibile</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- ③ STATISTICHE GARE PER SQUADRA -->
+    <!-- ② STATISTICHE GARE PER SQUADRA -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#059669;"></div> Statistiche gare per squadra</div>
-    <div class="card" style="margin-bottom:2.5rem;">
+    <div class="card" style="margin-bottom:1.5rem;">
         <div style="padding:1.4rem;">
             <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem;display:flex;align-items:center;gap:6px;">
                 <span style="background:rgba(5,150,105,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">📊</span>
@@ -13280,6 +13262,31 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
                 </tbody>
             </table>
             </div>
+        </div>
+    </div>
+
+    <!-- ③ PRESENZE SESSIONI -->
+    <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Presenze sessioni</div>
+    <div class="card" style="margin-bottom:2.5rem;">
+        <div style="padding:1.4rem;">
+            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
+                <span style="background:rgba(37,99,235,0.1);border-radius:5px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;">🗓️</span>
+                Allenamenti &amp; sessioni
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);">
+                        <th style="padding:6px 10px;text-align:left;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">Sessione</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;font-weight:600;">P</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#ef4444;font-weight:600;">A</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#0ea5e9;font-weight:600;">G</th>
+                        <th style="padding:6px 10px;text-align:center;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:600;">%</th>
+                    </tr>
+                </thead>
+                <tbody id="g-pres-sessioni-body">
+                    ${presenzeRows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna sessione disponibile</td></tr>'}
+                </tbody>
+            </table>
         </div>
     </div>`;
 }
@@ -13407,7 +13414,7 @@ window.initGenitoreView = async function() {
         try {
             let nmQ = client
                 .from('match_details')
-                .select('id, session_id, opponent_name, is_home, address, match_status, meet_time, match_start_time, sessions!inner(id, session_date, title, team_id)')
+                .select('id, session_id, opponent_name, is_home, is_friendly, address, match_status, meet_time, match_start_time, sessions!inner(id, session_date, title, team_id)')
                 .eq('match_status', 'da giocare')
                 .order('sessions(session_date)', { ascending: true })
                 .limit(5); // prendi le prime 5 e filtra lato client per sicurezza
@@ -13444,6 +13451,7 @@ window.initGenitoreView = async function() {
                     date: nd.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'}),
                     opponent: nmRow.opponent_name || sess.title || '?',
                     isHome: nmRow.is_home ?? null,
+                    isOfficial: nmRow.is_friendly === false,
                     address: nmRow.address || null,
                     meetTime: nmRow.meet_time ? nmRow.meet_time.substring(0,5) : null,
                     startTime: nmRow.match_start_time ? nmRow.match_start_time.substring(0,5) : null,
