@@ -13331,13 +13331,14 @@ window.initGenitoreView = async function() {
             .maybeSingle();
 
         // Assegnazione squadra attiva
-        const { data: teamSeason } = await client
+        // Prendi il teamSeason con stagione attiva, altrimenti il più recente
+        const { data: teamSeasons } = await client
             .from('athlete_team_seasons')
-            .select('jersey_number, teams(name)')
+            .select('jersey_number, team_id, teams(name), seasons(is_active)')
             .eq('athlete_id', athleteId)
             .order('id', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .limit(10);
+        const activeTeamSeason = (teamSeasons || []).find(ts => ts.seasons?.is_active) || (teamSeasons || [])[0] || null;
 
         const athleteData = {
             id:        athlete?.id || athleteId,
@@ -13345,11 +13346,11 @@ window.initGenitoreView = async function() {
             surname:   athlete?.surname || '',
             born_date: athlete?.born_date || null,
             // campi extra usati nel template con fallback sicuri
-            role:            teamSeason ? '—' : '—',
+            role:            activeTeamSeason ? '—' : '—',
             physical_status: 'disponibile',
             injury_note:     null,
-            jersey:          teamSeason?.jersey_number || '—',
-            team_name:       teamSeason?.teams?.name || '—',
+            jersey:          activeTeamSeason?.jersey_number || '—',
+            team_name:       activeTeamSeason?.teams?.name || '—',
         };
 
         // 3. Presenze agli allenamenti (ultime 60 sessioni)
@@ -13415,11 +13416,11 @@ window.initGenitoreView = async function() {
             let nmQ = client
                 .from('match_details')
                 .select('id, session_id, opponent_name, is_home, is_friendly, address, match_status, meet_time, match_start_time, sessions!inner(id, session_date, title, team_id)')
-                .eq('match_status', 'da giocare')
+                .eq('match_status', 'da disputare')
                 .order('sessions(session_date)', { ascending: true })
                 .limit(5); // prendi le prime 5 e filtra lato client per sicurezza
 
-            if (teamSeason?.team_id) nmQ = nmQ.eq('sessions.team_id', teamSeason.team_id);
+            if (activeTeamSeason?.team_id) nmQ = nmQ.eq('sessions.team_id', activeTeamSeason.team_id);
 
             const { data: nmRows } = await nmQ;
 
@@ -13485,7 +13486,7 @@ window.initGenitoreView = async function() {
                 .select('id, title, session_date, teams(name, categories(name)), attendances(status)')
                 .order('session_date', { ascending: false })
                 .limit(20);
-            if (teamSeason?.team_id) presQ = presQ.eq('team_id', teamSeason.team_id);
+            if (activeTeamSeason?.team_id) presQ = presQ.eq('team_id', activeTeamSeason.team_id);
 
             const { data: sessions } = await presQ;
             const trainingSessions = (sessions || []).filter(s => !garaTypeIds.has(s.type_id));
@@ -13525,7 +13526,7 @@ window.initGenitoreView = async function() {
                 let msQ = client.from('sessions')
                     .select('id, team_id, teams(name, categories(name))')
                     .in('type_id', matchTypeIds);
-                if (teamSeason?.team_id) msQ = msQ.eq('team_id', teamSeason.team_id);
+                if (activeTeamSeason?.team_id) msQ = msQ.eq('team_id', activeTeamSeason.team_id);
 
                 const { data: matchSessions } = await msQ;
                 const msIds = (matchSessions || []).map(s => s.id);
