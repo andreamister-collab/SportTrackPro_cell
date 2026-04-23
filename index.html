@@ -7750,13 +7750,34 @@ window.loadDashPresidenza = async function() {
         const isTeamScoped = ['responsabile','dirigente','allenatore'].includes(role);
         const isGenitore  = role === 'genitore';
 
+        // ── Popola i select PRIMA di leggerli (evita race condition al primo render) ──
+        const presSeaSel = document.getElementById('pres-view-season');
+        if (presSeaSel && presSeaSel.options.length <= 1 && window._dashData._seasons?.length) {
+            window._dashData._seasons.forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.id;
+                o.textContent = s.name + (s.is_active ? ' \u2713' : '');
+                if (s.is_active) o.selected = true;
+                presSeaSel.appendChild(o);
+            });
+        }
+        const presSocSel = document.getElementById('pres-view-soc');
+        if (presSocSel && presSocSel.options.length <= 1 && window._dashData._societies?.length) {
+            window._dashData._societies.forEach(s => {
+                const o = document.createElement('option');
+                o.value = s.id;
+                o.textContent = s.name;
+                presSocSel.appendChild(o);
+            });
+        }
+
         const seasonId = document.getElementById('pres-view-season')?.value || 'all';
         const catId    = document.getElementById('pres-view-cat')?.value  || 'all';
 
         // ── Calcola socId (rispettando forced scope) ──
         const socId = window._dashData._forcedSocietyId ||
-                      (document.getElementById('pres-view-soc')?.style.display !== 'none'
-                         ? document.getElementById('pres-view-soc')?.value
+                      (presSocSel && presSocSel.style.display !== 'none'
+                         ? presSocSel.value
                          : 'all') || 'all';
 
         // ── Calcola teamId: per team-scoped viene forzato alle squadre assegnate ──
@@ -7780,38 +7801,37 @@ window.loadDashPresidenza = async function() {
             }
         }
 
-        // Sync season selector con main dashboard
-        const presSeaSel = document.getElementById('pres-view-season');
-        if (presSeaSel && presSeaSel.options.length <= 1 && window._dashData._seasons?.length) {
-            window._dashData._seasons.forEach(s => {
-                const o = document.createElement('option');
-                o.value = s.id;
-                o.textContent = s.name + (s.is_active ? ' \u2713' : '');
-                if (s.is_active) o.selected = true;
-                presSeaSel.appendChild(o);
-            });
+        // ── Pre-carica team IDs filtrati per società/categoria/stagione ──
+        // Questo risolve il problema di sessions.society_id potenzialmente NULL:
+        // invece di filtrare le sessioni per society_id diretto, filtriamo per team_id
+        // dei team appartenenti alla società selezionata.
+        let scopedTeamIdsForSoc = null; // null = nessun filtro aggiuntivo
+        if (!forcedTeamIds) {
+            // Applica il filtro per società tramite teams (più affidabile di sessions.society_id)
+            const needSocFilter  = socId    && socId    !== 'all';
+            const needCatFilter  = catId    && catId    !== 'all';
+            const needTeamFilter = teamId   && teamId   !== 'all';
+            if (needTeamFilter) {
+                scopedTeamIdsForSoc = [teamId];
+            } else if (needSocFilter || needCatFilter) {
+                let tq = client.from('teams').select('id');
+                if (needSocFilter)  tq = tq.eq('society_id', socId);
+                if (needCatFilter)  tq = tq.eq('category_id', catId);
+                if (seasonId && seasonId !== 'all') tq = tq.eq('season_id', seasonId);
+                const { data: filteredTeams } = await tq;
+                scopedTeamIdsForSoc = (filteredTeams || []).map(t => t.id);
+                if (scopedTeamIdsForSoc.length === 0) scopedTeamIdsForSoc = ['__no_match__'];
+            }
         }
-        const presSocSel = document.getElementById('pres-view-soc');
-        if (presSocSel && presSocSel.options.length <= 1 && window._dashData._societies?.length) {
-            window._dashData._societies.forEach(s => {
-                const o = document.createElement('option');
-                o.value = s.id;
-                o.textContent = s.name;
-                presSocSel.appendChild(o);
-            });
-        }
+
+        // teamIds effettivi da usare nelle query
+        const effectiveTeamIds = forcedTeamIds || scopedTeamIdsForSoc;
 
         // ── Helper per applicare filtri alle query ──
         function applyScope(q, tbl) {
-            // tbl: prefisso colonne ('sessions.' per join, '' per dirette)
             if (seasonId && seasonId !== 'all') q = q.eq(`${tbl}season_id`, seasonId);
-            if (!isGlobal && socId && socId !== 'all') q = q.eq(`${tbl}society_id`, socId);
-            if (forcedTeamIds) {
-                q = q.in(`${tbl}team_id`, forcedTeamIds);
-            } else if (teamId && teamId !== 'all') {
-                q = q.eq(`${tbl}team_id`, teamId);
-            } else if (catId && catId !== 'all') {
-                // cat filter applicato solo se non c'è team specifico
+            if (effectiveTeamIds) {
+                q = q.in(`${tbl}team_id`, effectiveTeamIds);
             }
             return q;
         }
@@ -7820,37 +7840,26 @@ window.loadDashPresidenza = async function() {
         let mdQ = client.from('match_details')
             .select('session_id, goals_for, goals_against, match_status, is_friendly, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') mdQ = mdQ.eq('sessions.season_id', seasonId);
-        if (!isGlobal && socId && socId !== 'all') mdQ = mdQ.eq('sessions.society_id', socId);
-        if (forcedTeamIds) mdQ = mdQ.in('sessions.team_id', forcedTeamIds);
-        else if (teamId && teamId !== 'all') mdQ = mdQ.eq('sessions.team_id', teamId);
-        else if (catId && catId !== 'all') mdQ = mdQ.eq('sessions.teams.category_id', catId);
+        if (effectiveTeamIds) mdQ = mdQ.in('sessions.team_id', effectiveTeamIds);
 
         // Query match_stats
         let msQ = client.from('match_stats')
             .select('session_id, yellow_cards, red_cards, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') msQ = msQ.eq('sessions.season_id', seasonId);
-        if (!isGlobal && socId && socId !== 'all') msQ = msQ.eq('sessions.society_id', socId);
-        if (forcedTeamIds) msQ = msQ.in('sessions.team_id', forcedTeamIds);
-        else if (teamId && teamId !== 'all') msQ = msQ.eq('sessions.team_id', teamId);
-        else if (catId && catId !== 'all') msQ = msQ.eq('sessions.teams.category_id', catId);
+        if (effectiveTeamIds) msQ = msQ.in('sessions.team_id', effectiveTeamIds);
 
         // Query presenze
         let attQ = client.from('attendances')
             .select('status, athlete_id, sessions!inner(session_date, team_id, society_id, season_id, teams!inner(category_id))');
         if (seasonId && seasonId !== 'all') attQ = attQ.eq('sessions.season_id', seasonId);
-        if (!isGlobal && socId && socId !== 'all') attQ = attQ.eq('sessions.society_id', socId);
-        if (forcedTeamIds) attQ = attQ.in('sessions.team_id', forcedTeamIds);
-        else if (teamId && teamId !== 'all') attQ = attQ.eq('sessions.team_id', teamId);
-        else if (catId && catId !== 'all') attQ = attQ.eq('sessions.teams.category_id', catId);
+        if (effectiveTeamIds) attQ = attQ.in('sessions.team_id', effectiveTeamIds);
 
         // Query atleti
         let athQ = client.from('athlete_team_seasons')
             .select('athlete_id, team_id, athletes!inner(id, name, surname)');
-        if (!isGlobal && socId && socId !== 'all') athQ = athQ.eq('society_id', socId);
+        if (socId && socId !== 'all') athQ = athQ.eq('society_id', socId);
         if (seasonId && seasonId !== 'all') athQ = athQ.eq('season_id', seasonId);
-        if (forcedTeamIds) athQ = athQ.in('team_id', forcedTeamIds);
-        else if (teamId && teamId !== 'all') athQ = athQ.eq('team_id', teamId);
-        else if (catId && catId !== 'all') athQ = athQ.eq('category_id', catId);
+        if (effectiveTeamIds) athQ = athQ.in('team_id', effectiveTeamIds);
 
         const [mdRes, msRes, attRes, athRes] = await Promise.all([mdQ, msQ, attQ, athQ]);
 
