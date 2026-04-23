@@ -6085,23 +6085,26 @@ window.templateDashboard = function() {
     return `
     <div id="dashboard-wrap" style="width:100%;">
 
-        <!-- HEADER DASHBOARD -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:12px;">
-            <div>
-                <h2 style="font-family:'Syne','Outfit',sans-serif; font-size:1.35rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:4px;">Dashboard ${roleName}</h2>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span style="color:var(--text-muted); font-size:0.82rem;">Panoramica globale ·</span>
-                    <span id="dash-season-label" style="color:var(--primary); font-size:0.82rem; font-weight:600;">⏳ Caricamento...</span>
-                    <span style="color:var(--text-muted); font-size:0.82rem;">· ${today}</span>
+        <!-- HERO DASHBOARD (stile genitore) -->
+        <div class="g-hero" style="margin-bottom:1.5rem;">
+            <div class="g-hero-row">
+                <div class="g-hero-avatar" style="font-size:18px;">🏟️</div>
+                <div style="position:relative;z-index:1;">
+                    <div class="g-hero-name">Dashboard ${roleName}</div>
+                    <div class="g-hero-meta">
+                        Panoramica globale ·
+                        <span id="dash-season-label" style="opacity:1;font-weight:700;color:rgba(255,255,255,0.9);">⏳ Caricamento...</span>
+                        · ${today}
+                    </div>
                 </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid var(--primary); border-radius:8px; font-weight:600; color:var(--primary); background:var(--primary-subtle); font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                    <option value="all">Tutte le stagioni</option>
-                </select>
-                <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-weight:500; color:var(--text-sub); background:var(--card); font-size:0.82rem; cursor:pointer; width:auto; margin:0;">
-                    <option value="all">Tutte le società</option>
-                </select>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative;z-index:1;">
+                    <select id="dash-season-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid rgba(255,255,255,0.3); border-radius:8px; font-weight:600; color:white; background:rgba(255,255,255,0.12); font-size:0.82rem; cursor:pointer; width:auto; margin:0; backdrop-filter:blur(4px);">
+                        <option value="all" style="color:#1a2240;background:white;">Tutte le stagioni</option>
+                    </select>
+                    <select id="dash-soc-filter" onchange="window.refreshDashboard()" style="padding:7px 12px; border:1.5px solid rgba(255,255,255,0.2); border-radius:8px; font-weight:500; color:rgba(255,255,255,0.85); background:rgba(255,255,255,0.08); font-size:0.82rem; cursor:pointer; width:auto; margin:0; backdrop-filter:blur(4px);">
+                        <option value="all" style="color:#1a2240;background:white;">Tutte le società</option>
+                    </select>
+                </div>
             </div>
         </div>
 
