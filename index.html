@@ -13402,44 +13402,55 @@ window.initGenitoreView = async function() {
         const totalYellow      = matchesData.reduce((s,m) => s + (m.yellow_cards||0), 0);
         const totalMinutes     = matchesData.filter(m=>m.participated).reduce((s,m)=>s+(m.minutes_played||0),0);
 
-        // 5. Prossima partita: usa sessions + match_details (schema reale)
-        const { data: nextMatchRow } = await client
-            .from('sessions')
-            .select('id, session_date, title, match_details(opponent_name, is_home, address, match_status, meet_time, match_start_time)')
-            .gt('session_date', new Date().toISOString().split('T')[0])
-            .eq('match_details.match_status', 'da giocare')
-            .order('session_date', { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
+        // 5. Prossima partita: query da match_details (tutti i campi diretti) + inner join sessions
         let nextMatch = null;
-        if (nextMatchRow) {
-            const nd = new Date(nextMatchRow.session_date);
-            const md = nextMatchRow.match_details?.[0] || nextMatchRow.match_details || null;
+        try {
+            let nmQ = client
+                .from('match_details')
+                .select('id, session_id, opponent_name, is_home, address, match_status, meet_time, match_start_time, sessions!inner(id, session_date, title, team_id)')
+                .eq('match_status', 'da giocare')
+                .order('sessions(session_date)', { ascending: true })
+                .limit(5); // prendi le prime 5 e filtra lato client per sicurezza
 
-            // Controlla se l'atleta è convocato per questa partita
-            let isConvoked = false;
-            try {
-                const { data: convRow } = await client
-                    .from('attendances')
-                    .select('status')
-                    .eq('session_id', nextMatchRow.id)
-                    .eq('athlete_id', athleteData.id)
-                    .maybeSingle();
-                isConvoked = convRow?.status === 'convocato' || convRow?.status === 'presente';
-            } catch(e) { console.warn('convocazione check error', e); }
+            if (teamSeason?.team_id) nmQ = nmQ.eq('sessions.team_id', teamSeason.team_id);
 
-            nextMatch = {
-                date: nd.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'}),
-                opponent: md?.opponent_name || nextMatchRow.title || '?',
-                isHome: md?.is_home ?? null,
-                address: md?.address || null,
-                meetTime: md?.meet_time ? md.meet_time.substring(0,5) : null,
-                startTime: md?.match_start_time ? md.match_start_time.substring(0,5) : null,
-                details: `${md?.is_home ? 'Casa' : 'Trasferta'}${md?.address ? ' · ' + md.address : ''}`,
-                isConvoked,
-            };
-        }
+            const { data: nmRows } = await nmQ;
+
+            // Filtra solo quelle future
+            const today = new Date().toISOString().split('T')[0];
+            const nmRow = (nmRows || []).find(r => {
+                const sd = r.sessions?.session_date || r.sessions?.[0]?.session_date;
+                return sd && sd > today;
+            });
+
+            if (nmRow) {
+                const sess = nmRow.sessions?.[0] || nmRow.sessions;
+                const nd = new Date(sess.session_date);
+                const sessionId = nmRow.session_id || sess.id;
+
+                // Controlla se l'atleta è convocato per questa partita
+                let isConvoked = false;
+                try {
+                    const { data: convRow } = await client
+                        .from('attendances')
+                        .select('status')
+                        .eq('session_id', sessionId)
+                        .eq('athlete_id', athleteData.id)
+                        .maybeSingle();
+                    isConvoked = convRow?.status === 'convocato' || convRow?.status === 'presente';
+                } catch(e) { console.warn('convocazione check error', e); }
+
+                nextMatch = {
+                    date: nd.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'}),
+                    opponent: nmRow.opponent_name || sess.title || '?',
+                    isHome: nmRow.is_home ?? null,
+                    address: nmRow.address || null,
+                    meetTime: nmRow.meet_time ? nmRow.meet_time.substring(0,5) : null,
+                    startTime: nmRow.match_start_time ? nmRow.match_start_time.substring(0,5) : null,
+                    isConvoked,
+                };
+            }
+        } catch(e) { console.warn('nextMatch error', e); }
 
         // Assembla dati stats
         const stats = {
