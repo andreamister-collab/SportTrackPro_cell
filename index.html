@@ -6824,13 +6824,15 @@ window.onDashAthSeasonChange = function() {
     window.loadDashAthletes(seasonId || null, socId || 'all', scopedIds);
 };
 
-/* Ripopola cat e team filtrati per stagione */
-async function _repopulateCatTeamForSeason(catSelId, teamSelId, seasonId) {
+/* Ripopola cat e team filtrati per stagione (e opzionalmente per società) */
+async function _repopulateCatTeamForSeason(catSelId, teamSelId, seasonId, socId) {
     const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
     const isScoped = ['dirigente','allenatore','responsabile'].includes(effRole);
     const scopedIds = isScoped ? (window._userAssignedTeamIds || []) : null;
 
-    let tq = client.from('teams').select('id, name, category_id').eq('season_id', seasonId).order('name');
+    let tq = client.from('teams').select('id, name, category_id').order('name');
+    if (seasonId) tq = tq.eq('season_id', seasonId);
+    if (socId && socId !== 'all') tq = tq.eq('society_id', socId);
     if (scopedIds && scopedIds.length) tq = tq.in('id', scopedIds);
     const { data: teams } = await tq;
 
@@ -11475,7 +11477,8 @@ async function _presPopulateCat() {
     if (!catSel) return;
 
     let q = client.from('categories').select('id, name').order('name');
-    if (!isGlobal && socId && socId !== 'all') q = q.eq('society_id', socId);
+    // Applica filtro società per tutti i ruoli (incluso admin/manager quando scelgono una società)
+    if (socId && socId !== 'all') q = q.eq('society_id', socId);
 
     // Per responsabile: limita alle categorie delle sue squadre assegnate
     if (role === 'responsabile') {
@@ -11487,8 +11490,10 @@ async function _presPopulateCat() {
             if (catIds.length) q = q.in('id', catIds);
         }
     } else if (seasonId && seasonId !== 'all') {
-        // Per altri ruoli: filtra per stagione
-        const { data: teams } = await client.from('teams').select('category_id').eq('season_id', seasonId);
+        // Per altri ruoli: filtra per stagione (rispettando anche la società già applicata)
+        let tq = client.from('teams').select('category_id').eq('season_id', seasonId);
+        if (socId && socId !== 'all') tq = tq.eq('society_id', socId);
+        const { data: teams } = await tq;
         const catIds = [...new Set((teams||[]).map(t=>t.category_id).filter(Boolean))];
         if (catIds.length) q = q.in('id', catIds);
     }
@@ -11514,7 +11519,8 @@ async function _presPopulateTeam() {
     if (!teamSel) return;
 
     let q = client.from('teams').select('id, name').order('name');
-    if (!isGlobal && socId && socId !== 'all') q = q.eq('society_id', socId);
+    // Applica filtro società per tutti i ruoli (incluso admin/manager quando scelgono una società)
+    if (socId    && socId    !== 'all') q = q.eq('society_id', socId);
     if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
     if (catId    && catId    !== 'all') q = q.eq('category_id', catId);
 
@@ -13220,7 +13226,7 @@ window.initGenitoreView = async function() {
         // Assegnazione squadra attiva
         const { data: teamSeason } = await client
             .from('athlete_team_seasons')
-            .select('team_id, jersey_number, teams(name, categories(name))')
+            .select('jersey_number, teams(name)')
             .eq('athlete_id', athleteId)
             .order('id', { ascending: false })
             .limit(1)
@@ -13232,12 +13238,11 @@ window.initGenitoreView = async function() {
             surname:   athlete?.surname || '',
             born_date: athlete?.born_date || null,
             // campi extra usati nel template con fallback sicuri
-            role:            '—',
+            role:            teamSeason ? '—' : '—',
             physical_status: 'disponibile',
             injury_note:     null,
             jersey:          teamSeason?.jersey_number || '—',
             team_name:       teamSeason?.teams?.name || '—',
-            category_name:   teamSeason?.teams?.categories?.name || '',
         };
 
         // 3. Presenze agli allenamenti (ultime 60 sessioni)
@@ -13331,46 +13336,28 @@ window.initGenitoreView = async function() {
             nextMatch,
         };
 
-        // 6 & 7. Carica session_types una sola volta, poi parallelizza le query
+        // 6. PRESENZE SESSIONI — carica sessioni della squadra dell'atleta (solo allenamenti)
         let presenzeRows = '';
-        let statsGareRows = '';
         try {
             const { data: sessionTypes } = await client.from('session_types').select('id, name');
             const garaTypeIds = new Set((sessionTypes||[])
                 .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
                 .map(t => t.id));
-            const matchTypeIds = [...garaTypeIds];
 
-            // Query parallele: sessioni allenamento + sessioni gara (solo squadra atleta)
-            const [presRes, matchSessRes] = await Promise.all([
-                // 6. Presenze sessioni (allenamenti della squadra dell'atleta)
-                (teamSeason?.team_id
-                    ? client.from('sessions')
-                        .select('id, type_id, title, session_date, teams(name, categories(name)), attendances(status)')
-                        .eq('team_id', teamSeason.team_id)
-                        .order('session_date', { ascending: false })
-                        .limit(20)
-                    : client.from('sessions')
-                        .select('id, type_id, title, session_date, teams(name, categories(name)), attendances(status)')
-                        .order('session_date', { ascending: false })
-                        .limit(20)
-                ),
-                // 7. Sessioni gara (solo squadra dell'atleta)
-                matchTypeIds.length > 0 && teamSeason?.team_id
-                    ? client.from('sessions')
-                        .select('id, team_id, teams(name, categories(name))')
-                        .in('type_id', matchTypeIds)
-                        .eq('team_id', teamSeason.team_id)
-                    : Promise.resolve({ data: [] })
-            ]);
+            let presQ = client.from('sessions')
+                .select('id, title, session_date, teams(name, categories(name)), attendances(status)')
+                .order('session_date', { ascending: false })
+                .limit(20);
+            if (teamSeason?.team_id) presQ = presQ.eq('team_id', teamSeason.team_id);
 
-            // ── 6. Presenze sessioni ──
-            const trainingSessions = (presRes.data || []).filter(s => !garaTypeIds.has(s.type_id));
+            const { data: sessions } = await presQ;
+            const trainingSessions = (sessions || []).filter(s => !garaTypeIds.has(s.type_id));
+
             presenzeRows = trainingSessions.map(s => {
                 const att = s.attendances || [];
-                const p  = att.filter(a => (a.status||'').toLowerCase() === 'presente').length;
+                const p = att.filter(a => (a.status||'').toLowerCase() === 'presente').length;
                 const ab = att.filter(a => (a.status||'').toLowerCase() === 'assente').length;
-                const g  = att.filter(a => (a.status||'').toLowerCase() === 'giustificato').length;
+                const g = att.filter(a => (a.status||'').toLowerCase() === 'giustificato').length;
                 const tot = att.length;
                 const perc = tot > 0 ? Math.round((p / tot) * 100) : 0;
                 const percColor = perc >= 75 ? '#10b981' : perc >= 50 ? '#0ea5e9' : '#ef4444';
@@ -13387,63 +13374,76 @@ window.initGenitoreView = async function() {
                     <td style="padding:8px 10px;text-align:center;font-weight:700;color:${percColor};">${perc}%</td>
                 </tr>`;
             }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-sub);">Nessuna sessione trovata</td></tr>';
+        } catch(e) { console.warn('presenze sessioni error', e); }
 
-            // ── 7. Statistiche gare per squadra dell'atleta ──
-            const matchSessions = matchSessRes.data || [];
-            const msIds = matchSessions.map(s => s.id);
+        // 7. STATISTICHE GARE PER SQUADRA — aggrega per team_id dell'atleta
+        let statsGareRows = '';
+        try {
+            const { data: sessionTypes2 } = await client.from('session_types').select('id, name');
+            const matchTypeIds = (sessionTypes2||[])
+                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+                .map(t => t.id);
 
-            if (msIds.length > 0) {
-                const { data: detData } = await client
-                    .from('match_details')
-                    .select('session_id, goals_for, goals_against, match_status, is_friendly, is_home')
-                    .in('session_id', msIds);
+            if (matchTypeIds.length > 0) {
+                let msQ = client.from('sessions')
+                    .select('id, team_id, teams(name, categories(name))')
+                    .in('type_id', matchTypeIds);
+                if (teamSeason?.team_id) msQ = msQ.eq('team_id', teamSeason.team_id);
 
-                const detMap = {};
-                (detData || []).forEach(d => { detMap[d.session_id] = d; });
+                const { data: matchSessions } = await msQ;
+                const msIds = (matchSessions || []).map(s => s.id);
 
-                const teamMap = {};
-                matchSessions.forEach(s => {
-                    if (!s.team_id) return;
-                    const det = detMap[s.id];
-                    if (det?.is_friendly === true) return;
-                    if (!teamMap[s.team_id]) teamMap[s.team_id] = {
-                        name: s.teams?.name || '—',
-                        cat:  s.teams?.categories?.name || '',
-                        p:0, casa:0, trasf:0, gf:0, gs:0, w:0, d:0, l:0, pts:0
-                    };
-                    const t = teamMap[s.team_id];
-                    t.p++;
-                    if (det) {
-                        if (det.is_home === true)  t.casa++;
-                        else if (det.is_home === false) t.trasf++;
-                        t.gf += det.goals_for || 0;
-                        t.gs += det.goals_against || 0;
-                        if (det.match_status === 'vittoria')    { t.w++; t.pts += 3; }
-                        else if (det.match_status === 'pareggio')  { t.d++; t.pts += 1; }
-                        else if (det.match_status === 'sconfitta')   t.l++;
-                    }
-                });
+                if (msIds.length > 0) {
+                    const [detRes, stRes] = await Promise.all([
+                        client.from('match_details').select('session_id, goals_for, goals_against, match_status, is_friendly, is_home').in('session_id', msIds),
+                        client.from('match_stats').select('session_id, yellow_cards, red_cards').in('session_id', msIds)
+                    ]);
 
-                statsGareRows = Object.values(teamMap).sort((a,b) => b.pts - a.pts).map(t => {
-                    const winPerc = t.p > 0 ? Math.round((t.w / t.p) * 100) : 0;
-                    return `<tr style="border-bottom:1px solid var(--border);">
-                        <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">${t.name}${t.cat ? `<br><span style="font-size:0.7rem;color:var(--text-sub);">${t.cat}</span>` : ''}</td>
-                        <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono',monospace;font-size:1rem;color:#0ea5e9;">${t.pts}</td>
-                        <td style="padding:8px 10px;text-align:center;color:var(--text-muted);font-weight:700;">${t.p}</td>
-                        <td style="padding:8px 10px;text-align:center;color:var(--primary);font-weight:700;">${t.casa}</td>
-                        <td style="padding:8px 10px;text-align:center;color:#8b5cf6;font-weight:700;">${t.trasf}</td>
-                        <td style="padding:8px 10px;text-align:center;color:#10b981;font-weight:700;">${t.gf}</td>
-                        <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${t.gs}</td>
-                        <td style="padding:8px 10px;text-align:center;font-size:0.78rem;white-space:nowrap;">
-                            <span style="color:#10b981;">${t.w}V</span> · <span style="color:var(--text-muted);">${t.d}P</span> · <span style="color:#ef4444;">${t.l}S</span>
-                        </td>
-                        <td style="padding:8px 10px;text-align:center;font-weight:700;color:${winPerc>=50?'#10b981':'var(--text-sub)'};">${winPerc}%</td>
-                    </tr>`;
-                }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-sub);">Nessun dato partite ufficiali</td></tr>';
-            } else if (matchTypeIds.length === 0) {
-                statsGareRows = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-sub);">Nessun tipo sessione gara configurato</td></tr>';
+                    const detMap = {};
+                    (detRes.data || []).forEach(d => detMap[d.session_id] = d);
+
+                    const teamMap = {};
+                    (matchSessions || []).forEach(s => {
+                        if (!s.team_id) return;
+                        const det = detMap[s.id];
+                        if (det?.is_friendly === true) return;
+                        if (!teamMap[s.team_id]) teamMap[s.team_id] = {
+                            name: s.teams?.name || '—',
+                            cat:  s.teams?.categories?.name || '',
+                            p:0, casa:0, trasf:0, gf:0, gs:0, w:0, d:0, l:0, pts:0
+                        };
+                        const t = teamMap[s.team_id];
+                        t.p++;
+                        if (det) {
+                            if (det.is_home === true) t.casa++;
+                            else if (det.is_home === false) t.trasf++;
+                            t.gf += det.goals_for || 0;
+                            t.gs += det.goals_against || 0;
+                            if (det.match_status === 'vittoria')   { t.w++; t.pts += 3; }
+                            else if (det.match_status === 'pareggio') { t.d++; t.pts += 1; }
+                            else if (det.match_status === 'sconfitta') t.l++;
+                        }
+                    });
+
+                    statsGareRows = Object.values(teamMap).sort((a,b) => b.pts - a.pts).map(t => {
+                        const winPerc = t.p > 0 ? Math.round((t.w / t.p) * 100) : 0;
+                        return `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:8px 10px;font-weight:600;font-size:0.82rem;">${t.name}${t.cat ? `<br><span style="font-size:0.7rem;color:var(--text-sub);">${t.cat}</span>` : ''}</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:800;font-family:'DM Mono',monospace;font-size:1rem;color:#0ea5e9;">${t.pts}</td>
+                            <td style="padding:8px 10px;text-align:center;color:var(--text-muted);font-weight:700;">${t.p}</td>
+                            <td style="padding:8px 10px;text-align:center;color:var(--primary);font-weight:700;">${t.casa}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#8b5cf6;font-weight:700;">${t.trasf}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#10b981;font-weight:700;">${t.gf}</td>
+                            <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${t.gs}</td>
+                            <td style="padding:8px 10px;text-align:center;font-size:0.78rem;white-space:nowrap;">
+                                <span style="color:#10b981;">${t.w}V</span> · <span style="color:var(--text-muted);">${t.d}P</span> · <span style="color:#ef4444;">${t.l}S</span>
+                            </td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:${winPerc>=50?'#10b981':'var(--text-sub)'};">${winPerc}%</td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-sub);">Nessun dato partite ufficiali</td></tr>';
+                }
             }
-        } catch(e) { console.warn('genitore presenze/stats error', e); }
+        } catch(e) { console.warn('stats gare error', e); }
 
         // Render
         content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows);
