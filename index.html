@@ -13103,18 +13103,42 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
                 : `<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(156,163,175,0.12);border:1px solid rgba(156,163,175,0.25);color:#9ca3af;padding:4px 10px;border-radius:99px;font-size:0.7rem;font-weight:700;letter-spacing:0.04em;">
                        <span style="width:6px;height:6px;border-radius:50%;background:#9ca3af;display:inline-block;"></span> Non convocato
                    </div>`;
+
+            const orariRow = (nm.meetTime || nm.startTime)
+                ? `<div style="display:flex;align-items:center;gap:16px;padding-top:0.55rem;border-top:1px solid rgba(37,99,235,0.1);flex-wrap:wrap;">
+                       <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">Orari</div>
+                       ${nm.meetTime ? `<div style="display:flex;align-items:center;gap:5px;">
+                           <span style="font-size:0.68rem;color:var(--text-sub);font-weight:600;">⏰ RITROVO</span>
+                           <span style="font-size:0.92rem;font-weight:800;font-family:'DM Mono',monospace;color:var(--text-main);">${nm.meetTime}</span>
+                       </div>` : ''}
+                       ${nm.meetTime && nm.startTime ? `<span style="color:var(--border-strong);font-size:0.8rem;">|</span>` : ''}
+                       ${nm.startTime ? `<div style="display:flex;align-items:center;gap:5px;">
+                           <span style="font-size:0.68rem;color:var(--text-sub);font-weight:600;">🏁 INIZIO</span>
+                           <span style="font-size:0.92rem;font-weight:800;font-family:'DM Mono',monospace;color:var(--text-main);">${nm.startTime}</span>
+                       </div>` : ''}
+                   </div>`
+                : '';
+
+            const luogoRow = nm.address
+                ? `<div style="display:flex;align-items:flex-start;gap:8px;padding-top:0.55rem;border-top:1px solid rgba(37,99,235,0.1);">
+                       <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);padding-top:1px;white-space:nowrap;">Luogo</div>
+                       <div style="font-size:0.78rem;color:var(--text-sub);font-weight:500;">📌 ${nm.address}</div>
+                   </div>`
+                : '';
+
             return `<div style="background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:var(--r-md);padding:1rem;display:flex;flex-direction:column;gap:0.6rem;">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
                     <div style="font-size:0.63rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--primary);font-weight:700;">Prossima partita · ${nm.date}</div>
                     ${convBadge}
                 </div>
                 <div style="font-size:0.95rem;font-weight:700;color:var(--text-main);">vs. ${nm.opponent}</div>
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;">
                     <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,99,235,0.08);padding:3px 9px;border-radius:99px;font-size:0.73rem;font-weight:600;color:var(--primary);">
                         ${locationIcon} ${locationLabel}
                     </span>
-                    ${nm.address ? `<span style="font-size:0.75rem;color:var(--text-sub);display:flex;align-items:center;gap:4px;">📌 ${nm.address}</span>` : ''}
                 </div>
+                ${luogoRow}
+                ${orariRow}
             </div>`;
         })()
         : `<p style="color:var(--text-muted);font-size:0.82rem;">Nessuna partita programmata</p>`;
@@ -13381,7 +13405,7 @@ window.initGenitoreView = async function() {
         // 5. Prossima partita: usa sessions + match_details (schema reale)
         const { data: nextMatchRow } = await client
             .from('sessions')
-            .select('id, session_date, title, match_details(opponent_name, is_home, address, match_status)')
+            .select('id, session_date, title, match_details(opponent_name, is_home, address, match_status, meet_time, match_start_time)')
             .gt('session_date', new Date().toISOString().split('T')[0])
             .eq('match_details.match_status', 'da giocare')
             .order('session_date', { ascending: true })
@@ -13410,6 +13434,8 @@ window.initGenitoreView = async function() {
                 opponent: md?.opponent_name || nextMatchRow.title || '?',
                 isHome: md?.is_home ?? null,
                 address: md?.address || null,
+                meetTime: md?.meet_time ? md.meet_time.substring(0,5) : null,
+                startTime: md?.match_start_time ? md.match_start_time.substring(0,5) : null,
                 details: `${md?.is_home ? 'Casa' : 'Trasferta'}${md?.address ? ' · ' + md.address : ''}`,
                 isConvoked,
             };
