@@ -5618,7 +5618,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
                         <!-- Luogo -->
                         <div style="flex:1.4; min-width:0; padding-right:14px;">
                             <div style="font-size:9px; color:#7a5c00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:3px; font-weight:700;">Luogo</div>
-                            <div style="font-size:11px; font-weight:600; color:#1a2240; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${detail?.address || '---'}</div>
+                            <div style="font-size:11px; font-weight:600; color:#1a2240; white-space:normal; overflow-wrap:break-word; word-break:break-word;">${detail?.address || '---'}</div>
                         </div>
                         <div style="width:1px; background:rgba(26,34,64,0.15); align-self:stretch; margin:0 14px;"></div>
                         <!-- Orari -->
