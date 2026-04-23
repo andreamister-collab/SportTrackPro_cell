@@ -6072,6 +6072,11 @@ async function initImportAtleti() {
 
 window.templateDashboard = function() {
     const userName = window.CURRENT_USER ? window.CURRENT_USER.name : "Utente";
+    // Calcola iniziali dal nome (es. "Onofrio D'Amico" → "OD")
+    const nameParts = userName.trim().split(/\s+/);
+    const initials = nameParts.length >= 2
+        ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+        : userName.slice(0, 2).toUpperCase();
     // Usa _effectiveRole (già risolto da applyRoleVisibility) per mostrare il ruolo corretto
     const userRole = (window._effectiveRole || window._userRole || '').toLowerCase();
     const roleLabels = {
@@ -6088,11 +6093,11 @@ window.templateDashboard = function() {
         <!-- HERO DASHBOARD (stile genitore) -->
         <div class="g-hero" style="margin-bottom:1.5rem;">
             <div class="g-hero-row">
-                <div class="g-hero-avatar" style="font-size:18px;">🏟️</div>
+                <div class="g-hero-avatar">${initials}</div>
                 <div style="position:relative;z-index:1;">
-                    <div class="g-hero-name">Dashboard ${roleName}</div>
+                    <div class="g-hero-name">${userName}</div>
                     <div class="g-hero-meta">
-                        Panoramica globale ·
+                        ${roleName} · Panoramica globale ·
                         <span id="dash-season-label" style="opacity:1;font-weight:700;color:rgba(255,255,255,0.9);">⏳ Caricamento...</span>
                         · ${today}
                     </div>
