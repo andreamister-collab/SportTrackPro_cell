@@ -9922,10 +9922,7 @@ window.loadUserAssignedTeams = async function() {
     const catIds = [...new Set((data||[]).filter(r => !r.team_id && r.category_id).map(r => r.category_id))];
     let catTeamIds = [];
     if (catIds.length > 0) {
-        const activeSeasonId = window._activeSeasonId;
-        let q = client.from('teams').select('id').in('category_id', catIds);
-        if (activeSeasonId) q = q.eq('season_id', activeSeasonId);
-        const { data: catTeams } = await q;
+        const { data: catTeams } = await client.from('teams').select('id').in('category_id', catIds);
         catTeamIds = (catTeams||[]).map(t => t.id);
     }
 
@@ -10002,9 +9999,10 @@ async function _renderVistaResponsabile() {
         const weekAgoStr = fmtDate(weekAgo);
 
         // ── Info squadre ─────────────────────────────────────────────────────
-        let teamsQ = client.from('teams').select('id, name, categories(name), category_id').in('id', teamIds);
-        if (sid) teamsQ = teamsQ.eq('season_id', sid);
-        const { data: teamsData } = await teamsQ;
+        const { data: teamsData } = await client
+            .from('teams')
+            .select('id, name, categories(name), category_id')
+            .in('id', teamIds);
         const myTeams     = teamsData || [];
         const teamNameMap = {};
         const teamCatMap  = {};
@@ -10012,13 +10010,9 @@ async function _renderVistaResponsabile() {
 
         // ── Query principali: match_stats, sessions, attendances ─────────────
         // match_stats.session_id → sessions.id (join inner), stagione filtrata via sessions.season_id
-        const rosterQ = (() => {
-            let q = client.from('athlete_team_seasons')
-                .select('athlete_id, jersey_number, role, team_id, athletes!inner(id, name, surname, born_date)')
-                .in('team_id', teamIds);
-            if (sid) q = q.eq('season_id', sid);
-            return q;
-        })();
+        const rosterQ = client.from('athlete_team_seasons')
+            .select('athlete_id, jersey_number, role, team_id, athletes!inner(id, name, surname, born_date)')
+            .in('team_id', teamIds);
 
         const [sessRes, attRes, matchStatsRes, matchDetRes, rosterRes, testSessRes, nextMatchRes] = await Promise.all([
             (() => {
