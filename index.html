@@ -1665,11 +1665,11 @@ async function initCategoria() {
     const tbody = document.getElementById('list-categoria');
     if (!tbody) return;
 
-    // FIX: Rimosso !fk_cat_to_soc per evitare l'errore 400
-    const { data, error } = await client
-        .from('categories')
-        .select('*, societies(name)') 
-        .order('name');
+    const mySocId = window._currentSocietyId || null;
+    const isScoped = ['presidente','segretario'].includes((window._effectiveRole || window._userRole || '').toLowerCase());
+    if (isScoped && mySocId) catQ = catQ.eq('society_id', mySocId);
+
+    const { data, error } = await catQ;
 
     if (error) { 
         console.error("Errore fetch categorie:", error);
@@ -1858,11 +1858,16 @@ async function initSquadra() {
     const tbody = document.getElementById('list-squadra');
     if (!tbody) return;
 
-    // 1. Carica tutte le stagioni, società, categorie, sport
+    const mySocId = window._currentSocietyId || null;
+    const isScoped = ['presidente','segretario'].includes((window._effectiveRole || window._userRole || '').toLowerCase());
+
+    // 1. Carica stagioni, società, categorie, sport — filtrati per società se scoped
     const [seasRes, socRes, catRes, sporRes] = await Promise.all([
         client.from('seasons').select('id, name, is_active').order('name', { ascending: false }),
         client.from('societies').select('id, name').order('name'),
-        client.from('categories').select('id, name, society_id').order('name'),
+        isScoped && mySocId
+            ? client.from('categories').select('id, name, society_id').eq('society_id', mySocId).order('name')
+            : client.from('categories').select('id, name, society_id').order('name'),
         client.from('sports').select('id, name, icon').order('name')
     ]);
 
@@ -1889,12 +1894,14 @@ async function initSquadra() {
         (sporRes.data || []).forEach(sp => fSport.innerHTML += `<option value="${sp.id}">${sp.icon} ${sp.name}</option>`);
     }
 
-    // 2. Carica tutte le squadre senza filtro stagione fisso
-    const { data, error } = await client
-        .from('teams')
+    // 2. Carica squadre filtrate per società se scoped
+    let tQ = client.from('teams')
         .select(`id, name, season_id, society_id, category_id, sport_id,
             societies (name), categories (name), sports (name, icon)`)
         .order('name');
+    if (isScoped && mySocId) tQ = tQ.eq('society_id', mySocId);
+
+    const { data, error } = await tQ;
 
     if (error) {
         tbody.innerHTML = `<tr><td colspan="5">Errore: ${error.message}</td></tr>`;
