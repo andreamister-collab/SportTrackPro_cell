@@ -4389,7 +4389,9 @@ async function initPartite() {
 
     const { data: types } = await client.from('session_types').select('id, name');
     const validIds = (types || []).filter(t => 
-        t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')
+        t.name.toLowerCase().includes('partita') ||
+        t.name.toLowerCase().includes('gara')    ||
+        t.name.toLowerCase().includes('torneo')
     ).map(t => t.id);
 
     // Per dirigente: filtra ulteriormente per i suoi team assegnati
@@ -5756,7 +5758,7 @@ window.openStatistiche = async function(sessionId) {
     const teamId = currentSession.team_id;
 
     const { data: types } = await client.from('session_types').select('id, name');
-    const validTypeIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+    const validTypeIds = (types || []).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo')).map(t => t.id);
 
     const { data: allMatches } = await client.from('match_details').select(`*, sessions!inner(team_id, type_id)`).eq('sessions.team_id', teamId).in('sessions.type_id', validTypeIds);
     const { data: allAttendances } = await client.from('attendances').select(`athlete_id, status, is_called_up, athletes(name, surname), sessions!inner(type_id)`).eq('sessions.team_id', teamId).in('sessions.type_id', validTypeIds);
@@ -9774,7 +9776,7 @@ window._dashMatchTeams = [];
 window.loadDashMatches = async function(seasonId, socId, scopedTeamIds) {
     try {
         const { data: types } = await client.from('session_types').select('id, name');
-        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t => t.id);
+        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo')).map(t => t.id);
 
         let q = client.from('sessions')
             .select('id, title, session_date, society_id, season_id, team_id, teams(name, category_id, categories(id, name)), societies(name)')
@@ -9995,7 +9997,7 @@ window.loadDashPresenze = async function(seasonId, socId, scopedTeamIds) {
 
         // Escludi sessioni di tipo gara/partita
         const { data: types } = await client.from('session_types').select('id, name');
-        const garaIds = new Set((types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id));
+        const garaIds = new Set((types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo')).map(t=>t.id));
 
         window._dashSessions = (data||[]).filter(s => !garaIds.has(s.type_id)).map(s => ({
             ...s,
@@ -10090,7 +10092,7 @@ window.loadDashStats = async function(seasonId, socId, scopedTeamIds) {
             .select('id, team_id, society_id, season_id, teams(name, category_id, categories(id, name)), societies(name)');
 
         const { data: types } = await client.from('session_types').select('id, name');
-        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara')).map(t=>t.id);
+        const validIds = (types||[]).filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo')).map(t=>t.id);
         if (validIds.length > 0) q = q.in('type_id', validIds);
         if (seasonId && seasonId !== 'all') q = q.eq('season_id', seasonId);
         if (socId && socId !== 'all') q = q.eq('society_id', socId);
@@ -10294,7 +10296,7 @@ window.loadDashAthletes = async function(seasonId, socId, scopedTeamIds) {
         // 2. Recupera tipi sessione per distinguere allenamenti da gare
         const { data: types } = await client.from('session_types').select('id, name');
         const garaTypeIds = new Set((types||[])
-            .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+            .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo'))
             .map(t => t.id));
 
         // 3. Recupera presenze (tutte le sessioni) filtrate per stagione/società
@@ -14300,7 +14302,7 @@ window.initGenitoreView = async function() {
         try {
             const { data: sessionTypes } = await client.from('session_types').select('id, name');
             const garaTypeIds = new Set((sessionTypes||[])
-                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo'))
                 .map(t => t.id));
 
             let presQ = client.from('sessions')
@@ -14350,7 +14352,7 @@ window.initGenitoreView = async function() {
         try {
             const { data: sessionTypes2 } = await client.from('session_types').select('id, name');
             const matchTypeIds = (sessionTypes2||[])
-                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara'))
+                .filter(t => t.name.toLowerCase().includes('partita') || t.name.toLowerCase().includes('gara') || t.name.toLowerCase().includes('torneo'))
                 .map(t => t.id);
 
             if (matchTypeIds.length > 0) {
