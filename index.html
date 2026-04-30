@@ -14559,15 +14559,42 @@ function templateTornei() {
 }
 
 window.initTornei = async function() {
-    const { data: teams } = await client.from('teams').select('id, name').order('name');
+    // Carica squadre rispettando lo scope dell'utente (stessa logica degli altri tab)
+    const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+    const isGlobal = ['admin','manager'].includes(effRole);
+    const forcedSocId = window._currentSocietyId || window._dashData?._forcedSocietyId || null;
+    const scopedTeamIds = window._userAssignedTeamIds;
+
+    let tQ = client.from('teams').select('id, name').order('name');
+    if (!isGlobal && forcedSocId) tQ = tQ.eq('society_id', forcedSocId);
+    if (scopedTeamIds && scopedTeamIds.length > 0) tQ = tQ.in('id', scopedTeamIds);
+
+    const { data: teams } = await tQ;
     const sel = document.getElementById('tc-team');
     if (sel && teams) {
+        // Svuota opzioni esistenti (tranne la prima placeholder)
+        while (sel.options.length > 1) sel.remove(1);
         teams.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; sel.appendChild(o); });
     }
     window._torneoTeams = teams || [];
+
+    // Quando si seleziona una squadra, aggiunge automaticamente il suo nome nel girone
+    sel && sel.addEventListener('change', window._torneoOnTeamSelect);
+
     window._torneoUpdateGroupInputs();
     window._torneoUpdateFinalPreview();
     await window._torneoLoadList();
+};
+
+// Aggiunge la squadra selezionata come prima voce del Girone A (se il campo è vuoto)
+window._torneoOnTeamSelect = function() {
+    const sel = document.getElementById('tc-team');
+    const teamName = sel?.options[sel.selectedIndex]?.text;
+    if (!teamName || teamName.startsWith('—')) return;
+    const firstInput = document.querySelector('#tc-group-0-teams input[data-team-input]');
+    if (firstInput && !firstInput.value.trim()) {
+        firstInput.value = teamName;
+    }
 };
 
 window._torneoLoadList = async function() {
@@ -14650,11 +14677,46 @@ window._torneoUpdateFinalPreview = function() {
 };
 
 function _generateRoundRobin(teams) {
-    const m = [];
+    // Genera tutte le coppie
+    const pairs = [];
     for (let i = 0; i < teams.length; i++)
         for (let j = i+1; j < teams.length; j++)
-            m.push({ home: teams[i], away: teams[j], goalsHome: null, goalsAway: null });
-    return m;
+            pairs.push({ home: teams[i], away: teams[j], goalsHome: null, goalsAway: null });
+
+    if (pairs.length <= 1) return pairs;
+
+    // Fisher-Yates shuffle
+    for (let i = pairs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+    }
+
+    // Riordina: la stessa squadra non gioca più di 2 partite consecutive
+    const result = [pairs.shift()];
+    const remaining = [...pairs];
+    let attempts = 0;
+    while (remaining.length > 0 && attempts < 2000) {
+        attempts++;
+        const last1 = result[result.length - 1];
+        const last2 = result.length >= 2 ? result[result.length - 2] : null;
+        // Squadre che hanno già giocato le ultime 2 partite consecutive
+        const busyTeams = new Set();
+        if (last2) {
+            const played1 = new Set([last1.home, last1.away]);
+            const played2 = new Set([last2.home, last2.away]);
+            for (const t of played1) { if (played2.has(t)) busyTeams.add(t); }
+        }
+        // Trova la prossima partita che non coinvolge squadre "busy"
+        const idx = remaining.findIndex(m => !busyTeams.has(m.home) && !busyTeams.has(m.away));
+        if (idx === -1) {
+            // Nessuna scelta valida: prendi la prima disponibile (fallback)
+            result.push(remaining.shift());
+        } else {
+            result.push(...remaining.splice(idx, 1));
+        }
+    }
+    result.push(...remaining); // eventuali residui
+    return result;
 }
 
 function _generateFinalPhases(tot) {
@@ -14693,7 +14755,10 @@ window._torneoSave = async function() {
         const allMatches = groups.flatMap(g => g.matches);
         const ownMatches = allMatches.filter(m => m.home.toLowerCase() === ownTeamName.toLowerCase() || m.away.toLowerCase() === ownTeamName.toLowerCase());
         const { data: sessTypes } = await client.from('session_types').select('id, name');
-        const garaType = sessTypes?.find(st => st.name?.toLowerCase().includes('gara'));
+        // Cerca prima il tipo 'Torneo', poi fallback 'Gara' (compatibilità DB)
+        const garaType = sessTypes?.find(st => st.name?.toLowerCase().includes('torneo'))
+                      || sessTypes?.find(st => st.name?.toLowerCase().includes('gara'))
+                      || sessTypes?.[0];
         const { data: seasons } = await client.from('seasons').select('id').eq('is_active', true).limit(1);
         const activeSeason = seasons?.[0];
         if (garaType && activeSeason && date) {
