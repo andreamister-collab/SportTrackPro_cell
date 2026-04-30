@@ -14574,7 +14574,7 @@ window.initTornei = async function() {
     const forcedSocId = window._currentSocietyId || window._dashData?._forcedSocietyId || null;
     const scopedTeamIds = window._userAssignedTeamIds;
 
-    let tQ = client.from('teams').select('id, name').order('name');
+    let tQ = client.from('teams').select('id, name, society_id').order('name');
     if (!isGlobal && forcedSocId) tQ = tQ.eq('society_id', forcedSocId);
     if (scopedTeamIds && scopedTeamIds.length > 0) tQ = tQ.in('id', scopedTeamIds);
 
@@ -14774,9 +14774,14 @@ window._torneoSave = async function() {
             for (const m of ownMatches) {
                 const opponent = m.home.toLowerCase() === ownTeamName.toLowerCase() ? m.away : m.home;
                 const isHome   = m.home.toLowerCase() === ownTeamName.toLowerCase();
+                // Recupera society_id dalla squadra selezionata
+                const ownTeamData = window._torneoTeams?.find(t => t.id === teamId);
+                const societyId = ownTeamData?.society_id || window._currentSocietyId || window._dashData?._forcedSocietyId || null;
+
                 const { data: sess } = await client.from('sessions').insert([{
                     team_id: teamId, type_id: garaType.id, season_id: activeSeason.id,
-                    session_date: date, title: name + ' — vs ' + opponent
+                    session_date: date, title: name + ' — vs ' + opponent,
+                    society_id: societyId
                 }]).select('id').maybeSingle();
                 if (sess?.id) {
                     await client.from('match_details').insert([{
