@@ -891,6 +891,7 @@
 
     <script type="module">
     import { client } from './db.js';
+    window._client = client;
 
     /* ============================================================
        STATO GLOBALE (Sincronizzato Build 2.01)
@@ -14606,6 +14607,7 @@ window.initTornei = async function() {
 
 // ── Lista tornei dal DB ───────────────────────────────────────────────────────
 window._torneoLoadList = async function() {
+    const client = window._client;
     const wrap = document.getElementById('tornei-list-wrap');
     if (!wrap) return;
     wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Caricamento...</div>';
@@ -14756,6 +14758,7 @@ function _generateFinalPhases(tot) {
 
 // ── Salva torneo nel DB ───────────────────────────────────────────────────────
 window._torneoSave = async function() {
+    const client = window._client;
     const editId   = document.getElementById('tc-edit-id').value || null;
     const name     = document.getElementById('tc-name')?.value?.trim();
     const date     = document.getElementById('tc-date')?.value;
@@ -14896,6 +14899,7 @@ window._torneoSave = async function() {
 
 // ── Modifica torneo ───────────────────────────────────────────────────────────
 window._torneoEdit = async function(id) {
+    const client = window._client;
     const {data:t}=await client.from('tournaments').select('*').eq('id',id).maybeSingle();
     if(!t)return;
     const {data:grps}=await client.from('tournament_groups').select('id,letter').eq('tournament_id',id).order('letter');
@@ -14947,6 +14951,7 @@ window._torneoEdit = async function(id) {
 
 // ── Tabellone ─────────────────────────────────────────────────────────────────
 window._torneoShowDetail = async function(id) {
+    const client = window._client;
     const wrap=document.getElementById('torneo-detail-wrap');
     if(!wrap)return;
     wrap.style.display='block';
@@ -15081,6 +15086,7 @@ window._torneoRenderTabellone = function(t, groups, finalPhases) {
 
 // ── Aggiornamento risultati girone (DB) ───────────────────────────────────────
 window._torneoUpdateMatchScore = async function(matchId, side, val, tournamentId) {
+    const client = window._client;
     const v=val===''?null:parseInt(val);
     const upd=side==='home'?{goals_home:v}:{goals_away:v};
     await client.from('tournament_matches').update(upd).eq('id',matchId);
@@ -15089,6 +15095,7 @@ window._torneoUpdateMatchScore = async function(matchId, side, val, tournamentId
 
 // ── Aggiornamento risultati fase finale (DB) ──────────────────────────────────
 window._torneoUpdatePhaseScore = async function(matchId, side, val, tournamentId) {
+    const client = window._client;
     const v=val===''?null:parseInt(val);
     const upd=side==='home'?{goals_home:v}:{goals_away:v};
     await client.from('tournament_phase_matches').update(upd).eq('id',matchId);
@@ -15097,6 +15104,7 @@ window._torneoUpdatePhaseScore = async function(matchId, side, val, tournamentId
 
 // ── Elimina torneo (cascade DB) ───────────────────────────────────────────────
 window._torneoDelete = async function(id, name) {
+    const client = window._client;
     if(!confirm('Eliminare il torneo "'+name+'"?\n\nVerranno cancellate tutte le partite, sessioni e statistiche collegate.\n\nL\'operazione è irreversibile.'))return;
     try {
         // Raccogli session_ids da cancellare
@@ -15133,6 +15141,7 @@ window._torneoDelete = async function(id, name) {
 
 // ── Stampa ────────────────────────────────────────────────────────────────────
 window._torneoPrint = async function(id) {
+    const client = window._client;
     const {data:t}=await client.from('tournaments').select('*').eq('id',id).maybeSingle();
     if(!t)return;
     const {data:grps}=await client.from('tournament_groups').select('id,letter').eq('tournament_id',id).order('letter');
