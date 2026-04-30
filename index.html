@@ -14794,19 +14794,20 @@ window._torneoSave = async function() {
                 const {data:pm}=await client.from('tournament_phase_matches').select('session_id').in('phase_id',phIds).not('session_id','is',null);
                 sessIds.push(...(pm||[]).map(m=>m.session_id).filter(Boolean));
             }
-            // 2. Prima cancella tutte le dipendenze delle sessioni (ordine FK)
+            // 2. Cancella in ordine corretto rispettando tutti i FK
+            // Prima scollega session_id dalle tabelle torneo (FK verso sessions)
+            if(gIds.length) await client.from('tournament_matches').update({session_id:null}).in('group_id',gIds);
+            if(phIds.length) await client.from('tournament_phase_matches').update({session_id:null}).in('phase_id',phIds);
+            // Poi cancella le righe delle tabelle torneo (cascade da groups e phases)
+            await client.from('tournament_phases').delete().eq('tournament_id',editId);
+            await client.from('tournament_groups').delete().eq('tournament_id',editId);
+            // Ora cancella le sessioni e tutte le loro dipendenze
             if(sessIds.length){
                 await client.from('match_stats').delete().in('session_id',sessIds);
                 await client.from('attendances').delete().in('session_id',sessIds);
                 await client.from('match_details').delete().in('session_id',sessIds);
-                // Scollega session_id dalle partite torneo PRIMA di cancellare le sessioni
-                if(gIds.length) await client.from('tournament_matches').update({session_id:null}).in('group_id',gIds);
-                if(phIds.length) await client.from('tournament_phase_matches').update({session_id:null}).in('phase_id',phIds);
                 await client.from('sessions').delete().in('id',sessIds);
             }
-            // 3. Cascade torneo (on delete cascade gestisce tournament_matches e tournament_group_teams)
-            await client.from('tournament_phases').delete().eq('tournament_id',editId);
-            await client.from('tournament_groups').delete().eq('tournament_id',editId);
             // 4. Aggiorna metadati torneo
             await client.from('tournaments').update({
                 name,date,location,duration_minutes:duration,
@@ -15124,14 +15125,20 @@ window._torneoDelete = async function(id, name) {
             const {data:pm}=await client.from('tournament_phase_matches').select('session_id').in('phase_id',phIds).not('session_id','is',null);
             sessIds.push(...(pm||[]).map(m=>m.session_id).filter(Boolean));
         }
-        // Cancella sessioni collegate
+        // Prima scollega session_id dalle tabelle torneo per evitare FK conflict
+        if(gIds.length) await client.from('tournament_matches').update({session_id:null}).in('group_id',gIds);
+        if(phIds.length) await client.from('tournament_phase_matches').update({session_id:null}).in('phase_id',phIds);
+        // Cancella tabelle torneo (cascade)
+        await client.from('tournament_phases').delete().eq('tournament_id',id);
+        await client.from('tournament_groups').delete().eq('tournament_id',id);
+        // Ora cancella sessioni e dipendenze
         if(sessIds.length){
             await client.from('match_stats').delete().in('session_id',sessIds);
             await client.from('attendances').delete().in('session_id',sessIds);
             await client.from('match_details').delete().in('session_id',sessIds);
             await client.from('sessions').delete().in('id',sessIds);
         }
-        // Cascade torneo (groups, phases, matches via FK on delete cascade)
+        // Cancella il torneo
         await client.from('tournaments').delete().eq('id',id);
         const dw=document.getElementById('torneo-detail-wrap');
         if(dw)dw.style.display='none';
