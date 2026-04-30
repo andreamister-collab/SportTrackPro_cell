@@ -14499,12 +14499,12 @@ window.initGenitoreView = async function() {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SEZIONE TORNEI
+   SEZIONE TORNEI — DB version (tournaments, tournament_groups, etc.)
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function templateTornei() {
     return `
-    <div style="padding:24px; max-width:1100px; margin:0 auto;">
+    <div style="padding:24px; max-width:1160px; margin:0 auto;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
             <div>
                 <h2 style="font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:var(--text-main); margin:0;">🏅 Tornei</h2>
@@ -14512,609 +14512,654 @@ function templateTornei() {
             </div>
             <button onclick="window._torneoShowCreate()" style="padding:9px 18px; background:var(--primary); color:white; border:none; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:700; cursor:pointer;">+ Nuovo Torneo</button>
         </div>
+
+        <!-- Lista tornei -->
         <div id="tornei-list-wrap">
-            <div style="text-align:center; padding:40px; color:var(--text-muted); font-size:0.9rem;">⏳ Caricamento tornei...</div>
+            <div style="text-align:center;padding:40px;color:var(--text-muted);">⏳ Caricamento...</div>
         </div>
+
+        <!-- Form creazione/modifica -->
         <div id="torneo-create-panel" style="display:none;">
             <div class="card" style="padding:24px; margin-bottom:16px;">
                 <h3 id="tc-form-title" style="font-size:1rem; font-weight:700; margin:0 0 16px; color:var(--primary);">📋 Nuovo Torneo</h3>
+                <input type="hidden" id="tc-edit-id">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                     <div>
-                        <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Nome Torneo *</label>
-                        <input id="tc-name" type="text" placeholder="es. Torneo Primavera 2026" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Nome Torneo *</label>
+                        <input id="tc-name" type="text" placeholder="es. Torneo Primavera 2026" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
-                        <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Data Torneo *</label>
-                        <input id="tc-date" type="date" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Data Torneo *</label>
+                        <input id="tc-date" type="date" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
-                        <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Squadra organizzatrice (nostra)</label>
-                        <select id="tc-team" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
-                            <option value="">— nessuna (torneo esterno) —</option>
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Squadra organizzatrice (nostra)</label>
+                        <select id="tc-team" onchange="window._torneoOnTeamSelect()" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
+                            <option value="">— nessuna —</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Luogo</label>
-                        <input id="tc-location" type="text" placeholder="es. Campo Primario, Torino" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Luogo</label>
+                        <input id="tc-location" type="text" placeholder="es. Campo Primario, Torino" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                 </div>
-                <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:4px; margin-bottom:14px;">
-                    <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">⚙️ Struttura Gironi</div>
-                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
+                <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px;">
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">⚙️ Struttura</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
                         <div>
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">N° Gironi *</label>
-                            <input id="tc-num-groups" type="number" min="1" max="8" value="2" oninput="window._torneoUpdateGroupInputs()" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                            <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">N° Gironi *</label>
+                            <input id="tc-num-groups" type="number" min="1" max="8" value="2" oninput="window._torneoUpdateGroupInputs()" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Qualificate per Girone *</label>
-                            <input id="tc-qual-per-group" type="number" min="1" max="8" value="2" oninput="window._torneoUpdateFinalPreview()" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                            <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Qualificate per Girone *</label>
+                            <input id="tc-qual-per-group" type="number" min="1" max="8" value="2" oninput="window._torneoUpdateFinalPreview()" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Durata partita (min)</label>
-                            <input id="tc-match-duration" type="number" min="5" max="90" value="20" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.85rem; box-sizing:border-box;">
+                            <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Durata partita (min)</label>
+                            <input id="tc-match-duration" type="number" min="5" max="90" value="20" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                     </div>
-                    <div id="tc-final-preview" style="margin-top:10px; padding:8px 12px; background:rgba(37,99,235,0.06); border-radius:8px; font-size:0.78rem; color:var(--primary); font-weight:600;"></div>
+                    <div id="tc-final-preview" style="margin-top:10px;padding:8px 12px;background:rgba(37,99,235,0.06);border-radius:8px;font-size:0.78rem;color:var(--primary);font-weight:600;"></div>
                 </div>
                 <div id="tc-groups-wrap" style="margin-bottom:16px;"></div>
-                <div style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button onclick="window._torneoHideCreate()" style="padding:9px 18px; background:transparent; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.82rem; cursor:pointer; color:var(--text-muted);">Annulla</button>
-                    <button id="tc-save-btn" onclick="window._torneoSave()" style="padding:9px 20px; background:var(--primary); color:white; border:none; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:700; cursor:pointer;">💾 Crea Torneo & Genera Partite</button>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="window._torneoHideCreate()" style="padding:9px 18px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;cursor:pointer;color:var(--text-muted);">Annulla</button>
+                    <button id="tc-save-btn" onclick="window._torneoSave()" style="padding:9px 20px;background:var(--primary);color:white;border:none;border-radius:8px;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;">💾 Crea Torneo & Genera Partite</button>
                 </div>
             </div>
         </div>
+
+        <!-- Tabellone dettaglio -->
         <div id="torneo-detail-wrap" style="display:none;"></div>
     </div>`;
 }
 
+// ── Init ─────────────────────────────────────────────────────────────────────
 window.initTornei = async function() {
-    // Carica squadre rispettando lo scope dell'utente (stessa logica degli altri tab)
-    const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-    const isGlobal = ['admin','manager'].includes(effRole);
-    const forcedSocId = window._currentSocietyId || window._dashData?._forcedSocietyId || null;
-    const scopedTeamIds = window._userAssignedTeamIds;
+    // Carica squadre scope-aware
+    const effRole   = (window._effectiveRole || window._userRole || '').toLowerCase();
+    const isGlobal  = ['admin','manager'].includes(effRole);
+    const forcedSoc = window._currentSocietyId || window._dashData?._forcedSocietyId || null;
+    const scoped    = window._userAssignedTeamIds;
 
     let tQ = client.from('teams').select('id, name, society_id').order('name');
-    if (!isGlobal && forcedSocId) tQ = tQ.eq('society_id', forcedSocId);
-    if (scopedTeamIds && scopedTeamIds.length > 0) tQ = tQ.in('id', scopedTeamIds);
+    if (!isGlobal && forcedSoc) tQ = tQ.eq('society_id', forcedSoc);
+    if (scoped && scoped.length) tQ = tQ.in('id', scoped);
 
     const { data: teams } = await tQ;
-    const sel = document.getElementById('tc-team');
-    if (sel && teams) {
-        // Svuota opzioni esistenti (tranne la prima placeholder)
-        while (sel.options.length > 1) sel.remove(1);
-        teams.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; sel.appendChild(o); });
-    }
     window._torneoTeams = teams || [];
 
-    // Quando si seleziona una squadra, aggiunge automaticamente il suo nome nel girone
-    sel && sel.addEventListener('change', window._torneoOnTeamSelect);
+    const sel = document.getElementById('tc-team');
+    if (sel) {
+        while (sel.options.length > 1) sel.remove(1);
+        (teams || []).forEach(t => {
+            const o = document.createElement('option');
+            o.value = t.id; o.textContent = t.name;
+            sel.appendChild(o);
+        });
+    }
 
     window._torneoUpdateGroupInputs();
     window._torneoUpdateFinalPreview();
     await window._torneoLoadList();
 };
 
-// Aggiunge la squadra selezionata come prima voce del Girone A (se il campo è vuoto)
-window._torneoOnTeamSelect = function() {
-    const sel = document.getElementById('tc-team');
-    const teamName = sel?.options[sel.selectedIndex]?.text;
-    if (!teamName || teamName.startsWith('—')) return;
-    const firstInput = document.querySelector('#tc-group-0-teams input[data-team-input]');
-    if (firstInput && !firstInput.value.trim()) {
-        firstInput.value = teamName;
-    }
-};
-
+// ── Lista tornei dal DB ───────────────────────────────────────────────────────
 window._torneoLoadList = async function() {
     const wrap = document.getElementById('tornei-list-wrap');
     if (!wrap) return;
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    if (!saved.length) {
-        wrap.innerHTML = '<div class="card" style="padding:32px; text-align:center; color:var(--text-muted);">🏅 Nessun torneo creato. Clicca <strong>+ Nuovo Torneo</strong> per iniziare.</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Caricamento...</div>';
+
+    const socId = window._currentSocietyId || window._dashData?._forcedSocietyId;
+    let q = client.from('tournaments').select('id,name,date,location,duration_minutes,qual_per_group,team_id,society_id,season_id,created_at').order('date', { ascending: false });
+    if (socId) q = q.eq('society_id', socId);
+    const { data: list, error } = await q;
+
+    if (error || !list || !list.length) {
+        wrap.innerHTML = '<div class="card" style="padding:32px;text-align:center;color:var(--text-muted);">🏅 Nessun torneo. Clicca <strong>+ Nuovo Torneo</strong> per iniziare.</div>';
         return;
     }
-    wrap.innerHTML = '<div style="display:grid; gap:10px;">'
-        + saved.map((t, i) => {
-            const totalTeams = t.groups.reduce((s, g) => s + g.teams.length, 0);
-            const totalMatches = t.matches ? t.matches.length : 0;
-            return `<div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:14px;">
-                <div style="flex:1;">
-                    <div style="font-size:0.95rem; font-weight:700; color:var(--text-main);">🏅 ${t.name}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">${t.date || '—'} · ${t.groups.length} gironi · ${totalTeams} squadre</div>
-                    ${t.location ? '<div style="font-size:0.72rem; color:var(--text-muted);">📍 ' + t.location + '</div>' : ''}
-                    ${t.createdSessionIds && t.createdSessionIds.length ? '<div style="font-size:0.68rem; color:#059669; margin-top:2px;">✅ ' + t.createdSessionIds.length + ' partite registrate in Gestione Partite</div>' : ''}
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <button onclick="window._torneoShowDetail(${i})" style="padding:7px 14px; background:var(--primary); color:white; border:none; border-radius:7px; font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">📊 Tabellone</button>
-                    <button onclick="window._torneoEdit(${i})" style="padding:7px 14px; background:rgba(0,0,0,0.05); color:var(--text-main); border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">✏️ Modifica</button>
-                    <button onclick="window._torneoPrint(${i})" style="padding:7px 14px; background:rgba(0,0,0,0.05); color:var(--text-main); border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">🖨️ Stampa</button>
-                    <button onclick="window._torneoDelete(${i})" style="padding:7px 12px; background:rgba(220,38,38,0.08); color:#dc2626; border:1px solid rgba(220,38,38,0.2); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">🗑️</button>
-                </div>
-            </div>`;
-        }).join('') + '</div>';
-};
 
-window._torneoShowCreate = function() {
-    window._torneoEditIdx = null;
-    const title = document.getElementById('tc-form-title');
-    const btn   = document.getElementById('tc-save-btn');
-    if (title) title.textContent = '📋 Nuovo Torneo';
-    if (btn)   btn.textContent   = '💾 Crea Torneo & Genera Partite';
-    // Reset fields
-    ['tc-name','tc-location'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-    const dateEl = document.getElementById('tc-date'); if(dateEl) dateEl.value='';
-    const teamEl = document.getElementById('tc-team'); if(teamEl) teamEl.value='';
-    document.getElementById('tc-num-groups').value = 2;
-    document.getElementById('tc-qual-per-group').value = 2;
-    document.getElementById('tc-match-duration').value = 20;
-    document.getElementById('torneo-create-panel').style.display = 'block';
-    document.getElementById('torneo-detail-wrap').style.display = 'none';
-    window._torneoUpdateGroupInputs();
-    window._torneoUpdateFinalPreview();
-};
-
-// ── Modifica torneo esistente ────────────────────────────────────────────────
-window._torneoEdit = function(idx) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const t = saved[idx];
-    if (!t) return;
-
-    window._torneoEditIdx = idx;
-
-    // Aggiorna intestazione form
-    const title = document.getElementById('tc-form-title');
-    const btn   = document.getElementById('tc-save-btn');
-    if (title) title.textContent = '✏️ Modifica Torneo';
-    if (btn)   btn.textContent   = '💾 Salva Modifiche';
-
-    // Popola campi
-    const nameEl = document.getElementById('tc-name');     if(nameEl) nameEl.value = t.name || '';
-    const dateEl = document.getElementById('tc-date');     if(dateEl) dateEl.value = t.date || '';
-    const locEl  = document.getElementById('tc-location'); if(locEl)  locEl.value  = t.location || '';
-    const durEl  = document.getElementById('tc-match-duration'); if(durEl) durEl.value = t.duration || 20;
-
-    // Squadra organizzatrice
-    const teamSel = document.getElementById('tc-team');
-    if (teamSel && t.teamId) {
-        teamSel.value = t.teamId;
-        if (teamSel.value !== t.teamId) {
-            // Aggiungi opzione se non c'è ancora
-            const o = document.createElement('option');
-            o.value = t.teamId; o.textContent = t.ownTeamName || t.teamId;
-            teamSel.appendChild(o);
-            teamSel.value = t.teamId;
+    // Per ogni torneo carica conteggio gironi e squadre
+    const rows = await Promise.all(list.map(async t => {
+        const { data: grps } = await client.from('tournament_groups').select('id').eq('tournament_id', t.id);
+        const gCount = grps?.length || 0;
+        let tCount = 0;
+        if (grps?.length) {
+            const gIds = grps.map(g => g.id);
+            const { count } = await client.from('tournament_group_teams').select('id', { count: 'exact', head: true }).in('group_id', gIds);
+            tCount = count || 0;
         }
-    }
+        return { ...t, gCount, tCount };
+    }));
 
-    // Gironi: imposta numero e squadre
-    const numGroupsEl = document.getElementById('tc-num-groups');
-    if (numGroupsEl) numGroupsEl.value = t.groups.length;
-    const qualEl = document.getElementById('tc-qual-per-group');
-    if (qualEl) qualEl.value = t.qualPG || 2;
-
-    // Render inputs gironi con le squadre già inserite
-    window._torneoUpdateGroupInputs();
-    // Poi sovrascrive i valori squadra
-    t.groups.forEach((g, gi) => {
-        const wrap = document.getElementById('tc-group-' + gi + '-teams');
-        if (!wrap) return;
-        const inputs = wrap.querySelectorAll('input[data-team-input]');
-        g.teams.forEach((team, ti) => {
-            if (inputs[ti]) {
-                inputs[ti].value = team;
-            } else {
-                // Aggiungi input extra se servono
-                const inp = document.createElement('input');
-                inp.setAttribute('data-team-input', '');
-                inp.type = 'text'; inp.value = team;
-                inp.style.cssText = 'width:100%; padding:7px 8px; margin-bottom:6px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.82rem; box-sizing:border-box;';
-                wrap.appendChild(inp);
-            }
-        });
-    });
-
-    window._torneoUpdateFinalPreview();
-    document.getElementById('torneo-create-panel').style.display = 'block';
-    document.getElementById('torneo-detail-wrap').style.display = 'none';
-    document.getElementById('torneo-create-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wrap.innerHTML = '<div style="display:grid;gap:10px;">'
+        + rows.map(t => `
+        <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
+            <div style="flex:1;">
+                <div style="font-size:0.95rem;font-weight:700;color:var(--text-main);">🏅 ${t.name}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">${t.date || '—'} · ${t.gCount} gironi · ${t.tCount} squadre</div>
+                ${t.location ? '<div style="font-size:0.72rem;color:var(--text-muted);">📍 ' + t.location + '</div>' : ''}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="window._torneoShowDetail('${t.id}')" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:7px;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;">📊 Tabellone</button>
+                <button onclick="window._torneoEdit('${t.id}')" style="padding:7px 14px;background:rgba(0,0,0,0.05);color:var(--text-main);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">✏️ Modifica</button>
+                <button onclick="window._torneoPrint('${t.id}')" style="padding:7px 14px;background:rgba(0,0,0,0.05);color:var(--text-main);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">🖨️ Stampa</button>
+                <button onclick="window._torneoDelete('${t.id}','${t.name}')" style="padding:7px 12px;background:rgba(220,38,38,0.08);color:#dc2626;border:1px solid rgba(220,38,38,0.2);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">🗑️</button>
+            </div>
+        </div>`).join('')
+        + '</div>';
 };
-window._torneoHideCreate = function() { document.getElementById('torneo-create-panel').style.display = 'none'; };
+
+// ── Form helpers ─────────────────────────────────────────────────────────────
+window._torneoShowCreate = function() {
+    document.getElementById('tc-edit-id').value = '';
+    document.getElementById('tc-form-title').textContent = '📋 Nuovo Torneo';
+    document.getElementById('tc-save-btn').textContent   = '💾 Crea Torneo & Genera Partite';
+    ['tc-name','tc-location'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    const d=document.getElementById('tc-date'); if(d) d.value='';
+    const te=document.getElementById('tc-team'); if(te) te.value='';
+    document.getElementById('tc-num-groups').value      = 2;
+    document.getElementById('tc-qual-per-group').value  = 2;
+    document.getElementById('tc-match-duration').value  = 20;
+    document.getElementById('torneo-create-panel').style.display = 'block';
+    document.getElementById('torneo-detail-wrap').style.display  = 'none';
+    window._torneoUpdateGroupInputs();
+    window._torneoUpdateFinalPreview();
+};
+window._torneoHideCreate = function() { document.getElementById('torneo-create-panel').style.display='none'; };
+
+window._torneoOnTeamSelect = function() {
+    const sel = document.getElementById('tc-team');
+    const name = sel?.options[sel.selectedIndex]?.text;
+    if (!name || name.startsWith('—')) return;
+    const first = document.querySelector('#tc-group-0-teams input[data-team-input]');
+    if (first && !first.value.trim()) first.value = name;
+};
 
 window._torneoUpdateGroupInputs = function() {
-    const n = parseInt(document.getElementById('tc-num-groups')?.value) || 2;
-    const LETTERS = 'ABCDEFGH';
-    const wrap = document.getElementById('tc-groups-wrap');
+    const n = parseInt(document.getElementById('tc-num-groups')?.value)||2;
+    const LETTERS='ABCDEFGH';
+    const wrap=document.getElementById('tc-groups-wrap');
     if (!wrap) return;
-    const existing = {};
+    const existing={};
     wrap.querySelectorAll('[data-group]').forEach(div => {
-        existing[div.dataset.group] = Array.from(div.querySelectorAll('input[data-team-input]')).map(i => i.value);
+        existing[div.dataset.group]=Array.from(div.querySelectorAll('input[data-team-input]')).map(i=>i.value);
     });
-    wrap.innerHTML = '<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">👥 Squadre per Girone</div>'
-        + '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px;">'
-        + Array.from({length: n}, (_, gi) => {
-            const prev = existing[gi] || ['','','',''];
-            return '<div data-group="' + gi + '" style="background:rgba(0,0,0,0.03); border-radius:10px; padding:12px;">'
-                + '<div style="font-size:0.72rem; font-weight:800; color:var(--primary); margin-bottom:8px;">Girone ' + LETTERS[gi] + '</div>'
-                + '<div id="tc-group-' + gi + '-teams">'
-                + prev.slice(0,4).map((v, ti) => '<input data-team-input type="text" value="' + v + '" placeholder="Squadra ' + (ti+1) + '" style="width:100%; padding:7px 8px; margin-bottom:6px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.82rem; box-sizing:border-box;">').join('')
-                + '</div>'
-                + '<button onclick="window._torneoAddTeamInput(' + gi + ')" style="font-size:0.72rem; color:var(--primary); background:none; border:none; cursor:pointer; padding:0; font-family:inherit;">+ aggiungi squadra</button>'
-                + '</div>';
-        }).join('') + '</div>';
+    wrap.innerHTML='<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">👥 Squadre per Girone</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">'
+        +Array.from({length:n},(_,gi)=>{
+            const prev=existing[gi]||['','','',''];
+            return '<div data-group="'+gi+'" style="background:rgba(0,0,0,0.03);border-radius:10px;padding:12px;">'
+                +'<div style="font-size:0.72rem;font-weight:800;color:var(--primary);margin-bottom:8px;">Girone '+LETTERS[gi]+'</div>'
+                +'<div id="tc-group-'+gi+'-teams">'
+                +prev.slice(0,4).map((v,ti)=>'<input data-team-input type="text" value="'+v+'" placeholder="Squadra '+(ti+1)+'" style="width:100%;padding:7px 8px;margin-bottom:6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;">').join('')
+                +'</div>'
+                +'<button onclick="window._torneoAddTeamInput('+gi+')" style="font-size:0.72rem;color:var(--primary);background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">+ aggiungi squadra</button>'
+                +'</div>';
+        }).join('')+'</div>';
     window._torneoUpdateFinalPreview();
 };
 
 window._torneoAddTeamInput = function(gi) {
-    const wrap = document.getElementById('tc-group-' + gi + '-teams');
-    if (!wrap) return;
-    const inp = document.createElement('input');
-    inp.setAttribute('data-team-input', '');
-    inp.type = 'text'; inp.placeholder = 'Nuova squadra';
-    inp.style.cssText = 'width:100%; padding:7px 8px; margin-bottom:6px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.82rem; box-sizing:border-box;';
-    wrap.appendChild(inp); inp.focus();
+    const wrap=document.getElementById('tc-group-'+gi+'-teams');
+    if(!wrap)return;
+    const inp=document.createElement('input');
+    inp.setAttribute('data-team-input','');inp.type='text';inp.placeholder='Nuova squadra';
+    inp.style.cssText='width:100%;padding:7px 8px;margin-bottom:6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;';
+    wrap.appendChild(inp);inp.focus();
 };
 
 window._torneoUpdateFinalPreview = function() {
-    const prev = document.getElementById('tc-final-preview');
-    if (!prev) return;
-    const nG = parseInt(document.getElementById('tc-num-groups')?.value) || 2;
-    const qPG = parseInt(document.getElementById('tc-qual-per-group')?.value) || 2;
-    const tot = nG * qPG;
-    const phase = tot >= 8 ? 'Quarti → Semifinali → Finale + 3°/4°' : tot >= 4 ? 'Semifinali → Finale + 3°/4°' : tot === 2 ? 'Finale diretta' : tot + ' qualificate';
-    prev.textContent = '📊 ' + tot + ' squadre qualificate → ' + phase;
+    const prev=document.getElementById('tc-final-preview'); if(!prev)return;
+    const nG=parseInt(document.getElementById('tc-num-groups')?.value)||2;
+    const qPG=parseInt(document.getElementById('tc-qual-per-group')?.value)||2;
+    const tot=nG*qPG;
+    const phase=tot>=8?'Quarti → Semifinali → Finale + 3°/4°':tot>=4?'Semifinali → Finale + 3°/4°':tot===2?'Finale diretta':tot+' qualificate';
+    prev.textContent='📊 '+tot+' squadre qualificate → '+phase;
 };
 
+// ── Round robin con shuffle e vincolo max 2 partite consecutive ──────────────
 function _generateRoundRobin(teams) {
-    // Genera tutte le coppie
-    const pairs = [];
-    for (let i = 0; i < teams.length; i++)
-        for (let j = i+1; j < teams.length; j++)
-            pairs.push({ home: teams[i], away: teams[j], goalsHome: null, goalsAway: null });
-
-    if (pairs.length <= 1) return pairs;
-
-    // Fisher-Yates shuffle
-    for (let i = pairs.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
-    }
-
-    // Riordina: la stessa squadra non gioca più di 2 partite consecutive
-    const result = [pairs.shift()];
-    const remaining = [...pairs];
-    let attempts = 0;
-    while (remaining.length > 0 && attempts < 2000) {
+    const pairs=[];
+    for(let i=0;i<teams.length;i++)
+        for(let j=i+1;j<teams.length;j++)
+            pairs.push({home:teams[i],away:teams[j]});
+    if(pairs.length<=1)return pairs;
+    for(let i=pairs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pairs[i],pairs[j]]=[pairs[j],pairs[i]];}
+    const result=[pairs.shift()],remaining=[...pairs];
+    let attempts=0;
+    while(remaining.length>0&&attempts<2000){
         attempts++;
-        const last1 = result[result.length - 1];
-        const last2 = result.length >= 2 ? result[result.length - 2] : null;
-        // Squadre che hanno già giocato le ultime 2 partite consecutive
-        const busyTeams = new Set();
-        if (last2) {
-            const played1 = new Set([last1.home, last1.away]);
-            const played2 = new Set([last2.home, last2.away]);
-            for (const t of played1) { if (played2.has(t)) busyTeams.add(t); }
-        }
-        // Trova la prossima partita che non coinvolge squadre "busy"
-        const idx = remaining.findIndex(m => !busyTeams.has(m.home) && !busyTeams.has(m.away));
-        if (idx === -1) {
-            // Nessuna scelta valida: prendi la prima disponibile (fallback)
-            result.push(remaining.shift());
-        } else {
-            result.push(...remaining.splice(idx, 1));
-        }
+        const last1=result[result.length-1];
+        const last2=result.length>=2?result[result.length-2]:null;
+        const busy=new Set();
+        if(last2){const p1=new Set([last1.home,last1.away]),p2=new Set([last2.home,last2.away]);for(const t of p1){if(p2.has(t))busy.add(t);}}
+        const idx=remaining.findIndex(m=>!busy.has(m.home)&&!busy.has(m.away));
+        if(idx===-1)result.push(remaining.shift());
+        else result.push(...remaining.splice(idx,1));
     }
-    result.push(...remaining); // eventuali residui
+    result.push(...remaining);
     return result;
 }
 
 function _generateFinalPhases(tot) {
-    const phases = [];
-    if (tot >= 8) phases.push({ name: 'Quarti di Finale', matches: Array(4).fill(0).map((_,i) => ({ home: 'Q' + (i*2+1), away: 'Q' + (i*2+2), goalsHome: null, goalsAway: null })) });
-    if (tot >= 4) {
-        phases.push({ name: 'Semifinali', matches: [{ home: 'Vinc. QF1/QF4', away: 'Vinc. QF2/QF3', goalsHome: null, goalsAway: null }, { home: 'Vinc. QF2/QF3', away: 'Vinc. QF1/QF4', goalsHome: null, goalsAway: null }] });
-        phases.push({ name: 'Finale 3°/4° Posto', matches: [{ home: 'Perd. SF1', away: 'Perd. SF2', goalsHome: null, goalsAway: null }] });
+    const phases=[];
+    if(tot>=8)phases.push({name:'Quarti di Finale',order:1,matches:[{hl:'1°A',al:'2°B'},{hl:'1°B',al:'2°A'},{hl:'1°C',al:'2°D'},{hl:'1°D',al:'2°C'}]});
+    if(tot>=4){
+        phases.push({name:'Semifinali',order:2,matches:[{hl:'Vinc. QF1/1°A',al:'Vinc. QF2/1°B'},{hl:'Vinc. QF3/1°C',al:'Vinc. QF4/1°D'}]});
+        phases.push({name:'Finale 3°/4° Posto',order:3,matches:[{hl:'Perd. SF1',al:'Perd. SF2'}]});
     }
-    if (tot >= 2) phases.push({ name: 'Finale', matches: [{ home: tot === 2 ? '1° Girone A' : 'Vinc. SF1', away: tot === 2 ? '1° Girone B' : 'Vinc. SF2', goalsHome: null, goalsAway: null }] });
+    if(tot>=2)phases.push({name:'Finale',order:tot>=4?4:2,matches:[{hl:tot===2?'1° Girone A':'Vinc. SF1',al:tot===2?'1° Girone B':'Vinc. SF2'}]});
     return phases;
 }
 
+// ── Salva torneo nel DB ───────────────────────────────────────────────────────
 window._torneoSave = async function() {
+    const editId   = document.getElementById('tc-edit-id').value || null;
     const name     = document.getElementById('tc-name')?.value?.trim();
     const date     = document.getElementById('tc-date')?.value;
     const teamId   = document.getElementById('tc-team')?.value || null;
-    const location = document.getElementById('tc-location')?.value?.trim();
-    const nGroups  = parseInt(document.getElementById('tc-num-groups')?.value) || 2;
-    const qualPG   = parseInt(document.getElementById('tc-qual-per-group')?.value) || 2;
-    const duration = parseInt(document.getElementById('tc-match-duration')?.value) || 20;
-    if (!name) { alert('Inserisci il nome del torneo.'); return; }
+    const location = document.getElementById('tc-location')?.value?.trim() || null;
+    const nGroups  = parseInt(document.getElementById('tc-num-groups')?.value)||2;
+    const qualPG   = parseInt(document.getElementById('tc-qual-per-group')?.value)||2;
+    const duration = parseInt(document.getElementById('tc-match-duration')?.value)||20;
+    if(!name){alert('Inserisci il nome del torneo.');return;}
 
-    const LETTERS = 'ABCDEFGH';
-    const groups = Array.from({length: nGroups}, (_, gi) => {
-        const inputs = document.querySelectorAll('#tc-group-' + gi + '-teams input[data-team-input]');
-        const teams = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
-        return { letter: LETTERS[gi], teams, matches: _generateRoundRobin(teams) };
-    });
-    const finalPhases = _generateFinalPhases(nGroups * qualPG);
-    const ownTeam = window._torneoTeams?.find(t => t.id === teamId);
-    const ownTeamName = ownTeam?.name || null;
+    const saveBtn=document.getElementById('tc-save-btn');
+    if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='⏳ Salvataggio...';}
 
-    let createdSessionIds = [];
-    if (teamId && ownTeamName) {
-        const allMatches = groups.flatMap(g => g.matches);
-        const ownMatches = allMatches.filter(m => m.home.toLowerCase() === ownTeamName.toLowerCase() || m.away.toLowerCase() === ownTeamName.toLowerCase());
-        const { data: sessTypes } = await client.from('session_types').select('id, name');
-        // Cerca prima il tipo 'Torneo', poi fallback 'Gara' (compatibilità DB)
-        const garaType = sessTypes?.find(st => st.name?.toLowerCase().includes('torneo'))
-                      || sessTypes?.find(st => st.name?.toLowerCase().includes('gara'))
-                      || sessTypes?.[0];
-        const { data: seasons } = await client.from('seasons').select('id').eq('is_active', true).limit(1);
-        const activeSeason = seasons?.[0];
-        if (garaType && activeSeason && date) {
-            for (const m of ownMatches) {
-                const opponent = m.home.toLowerCase() === ownTeamName.toLowerCase() ? m.away : m.home;
-                const isHome   = m.home.toLowerCase() === ownTeamName.toLowerCase();
-                // Recupera society_id dalla squadra selezionata
-                const ownTeamData = window._torneoTeams?.find(t => t.id === teamId);
-                const societyId = ownTeamData?.society_id || window._currentSocietyId || window._dashData?._forcedSocietyId || null;
+    try {
+        const socId  = window._currentSocietyId || window._dashData?._forcedSocietyId || null;
+        const ownTeam= window._torneoTeams?.find(t=>t.id===teamId);
+        const ownName= ownTeam?.name||null;
 
-                const { data: sess } = await client.from('sessions').insert([{
-                    team_id: teamId, type_id: garaType.id, season_id: activeSeason.id,
-                    session_date: date, title: name + ' — vs ' + opponent,
-                    society_id: societyId
-                }]).select('id').maybeSingle();
-                if (sess?.id) {
-                    await client.from('match_details').insert([{
-                        session_id: sess.id, opponent_name: opponent, is_home: isHome,
-                        is_friendly: null, match_status: 'da disputare', goals_for: 0, goals_against: 0, address: location || ''
-                    }]);
-                    createdSessionIds.push(sess.id);
-                    m.sessionId = sess.id;
+        // Stagione attiva
+        const {data:seasons}=await client.from('seasons').select('id').eq('is_active',true).limit(1);
+        const seasonId=seasons?.[0]?.id||null;
+
+        // ── Se modifica: elimina gironi/partite/fasi vecchie (cascade) ──────
+        if(editId) {
+            const {data:oldGrps}=await client.from('tournament_groups').select('id').eq('tournament_id',editId);
+            // match_details e sessions legate a partite del torneo (nostra squadra)
+            if(oldGrps?.length){
+                const gIds=oldGrps.map(g=>g.id);
+                const {data:oldMatches}=await client.from('tournament_matches').select('session_id').in('group_id',gIds).not('session_id','is',null);
+                const {data:oldPMatches}=await client.from('tournament_phase_matches')
+                    .select('session_id')
+                    .in('phase_id',(await client.from('tournament_phases').select('id').eq('tournament_id',editId)).data?.map(p=>p.id)||[])
+                    .not('session_id','is',null);
+                const sessIds=[...(oldMatches||[]),...(oldPMatches||[])].map(m=>m.session_id).filter(Boolean);
+                if(sessIds.length){
+                    await client.from('match_stats').delete().in('session_id',sessIds);
+                    await client.from('attendances').delete().in('session_id',sessIds);
+                    await client.from('match_details').delete().in('session_id',sessIds);
+                    await client.from('sessions').delete().in('id',sessIds);
                 }
             }
+            // Cascade: tournament_groups → tournament_matches, tournament_group_teams
+            await client.from('tournament_phases').delete().eq('tournament_id',editId);
+            await client.from('tournament_groups').delete().eq('tournament_id',editId);
+            await client.from('tournaments').update({name,date,location,duration_minutes:duration,team_id:teamId||null,qual_per_group:qualPG}).eq('id',editId);
         }
-    }
 
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const editIdx = window._torneoEditIdx;
-    const isEdit  = editIdx != null && editIdx >= 0;
+        // ── Crea o ottieni tournament ID ─────────────────────────────────────
+        let tournamentId=editId;
+        if(!editId){
+            const {data:newT,error:tErr}=await client.from('tournaments').insert([{
+                name,date,location,duration_minutes:duration,
+                team_id:teamId||null,society_id:socId,season_id:seasonId,qual_per_group:qualPG
+            }]).select('id').maybeSingle();
+            if(tErr)throw tErr;
+            tournamentId=newT.id;
+        }
 
-    if (isEdit) {
-        // Modifica: preserva i risultati già inseriti nelle partite esistenti, aggiorna metadati e struttura gironi
-        const existing = saved[editIdx];
-        // Aggiorna metadati
-        existing.name     = name;
-        existing.date     = date;
-        existing.location = location;
-        existing.duration = duration;
-        existing.qualPG   = qualPG;
-        existing.nGroups  = nGroups;
-        existing.finalPhases = finalPhases;
-        // Aggiorna gironi: mantieni i risultati delle partite che già esistono tra le stesse squadre
-        existing.groups = groups.map((newG, gi) => {
-            const oldG = existing.groups[gi];
-            if (!oldG) return newG;
-            // Ri-mappa i risultati delle partite vecchie sulle nuove
-            newG.matches = newG.matches.map(nm => {
-                const oldM = oldG.matches.find(om =>
-                    (om.home === nm.home && om.away === nm.away) ||
-                    (om.home === nm.away && om.away === nm.home)
-                );
-                if (oldM) {
-                    nm.goalsHome = oldM.goalsHome;
-                    nm.goalsAway = oldM.goalsAway;
-                    if (oldM.sessionId) nm.sessionId = oldM.sessionId;
+        // ── Session type per partite nostra squadra ───────────────────────────
+        const {data:sessTypes}=await client.from('session_types').select('id,name');
+        const garaType=sessTypes?.find(st=>st.name?.toLowerCase().includes('torneo'))
+                    ||sessTypes?.find(st=>st.name?.toLowerCase().includes('gara'))
+                    ||sessTypes?.[0];
+
+        // ── Inserisci gironi, squadre e partite ───────────────────────────────
+        const LETTERS='ABCDEFGH';
+        for(let gi=0;gi<nGroups;gi++){
+            const inputs=document.querySelectorAll('#tc-group-'+gi+'-teams input[data-team-input]');
+            const teams=Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+            if(!teams.length)continue;
+
+            // Crea girone
+            const {data:grp,error:gErr}=await client.from('tournament_groups').insert([{tournament_id:tournamentId,letter:LETTERS[gi]}]).select('id').maybeSingle();
+            if(gErr)throw gErr;
+            const groupId=grp.id;
+
+            // Inserisci squadre
+            await client.from('tournament_group_teams').insert(
+                teams.map(tn=>({group_id:groupId,team_name:tn,is_own_team:ownName?tn.toLowerCase()===ownName.toLowerCase():false}))
+            );
+
+            // Genera e inserisci partite round-robin
+            const matches=_generateRoundRobin(teams);
+            for(let mi=0;mi<matches.length;mi++){
+                const m=matches[mi];
+                let sessionId=null;
+                // Se coinvolge la nostra squadra → crea sessione in sessions + match_details
+                const ownIsHome=ownName&&m.home.toLowerCase()===ownName.toLowerCase();
+                const ownIsAway=ownName&&m.away.toLowerCase()===ownName.toLowerCase();
+                if((ownIsHome||ownIsAway)&&garaType&&seasonId&&date&&teamId){
+                    const opponent=ownIsHome?m.away:m.home;
+                    const {data:sess}=await client.from('sessions').insert([{
+                        team_id:teamId,type_id:garaType.id,season_id:seasonId,
+                        session_date:date,title:name+' — vs '+opponent,society_id:socId
+                    }]).select('id').maybeSingle();
+                    if(sess?.id){
+                        await client.from('match_details').insert([{
+                            session_id:sess.id,opponent_name:opponent,is_home:ownIsHome,
+                            is_friendly:null,match_status:'da disputare',goals_for:0,goals_against:0,address:location||''
+                        }]);
+                        sessionId=sess.id;
+                    }
                 }
-                return nm;
-            });
-            return newG;
-        });
-        // Nuove sessioni DB solo per nuove partite della nostra squadra (non già registrate)
-        if (createdSessionIds.length) {
-            existing.createdSessionIds = [...(existing.createdSessionIds || []), ...createdSessionIds];
+                await client.from('tournament_matches').insert([{
+                    group_id:groupId,home_team:m.home,away_team:m.away,
+                    goals_home:null,goals_away:null,match_order:mi,session_id:sessionId
+                }]);
+            }
         }
-        saved[editIdx] = existing;
-        localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-        window._torneoEditIdx = null;
-        document.getElementById('torneo-create-panel').style.display = 'none';
+
+        // ── Fasi finali ───────────────────────────────────────────────────────
+        const finalPhases=_generateFinalPhases(nGroups*qualPG);
+        for(const phase of finalPhases){
+            const {data:ph}=await client.from('tournament_phases').insert([{
+                tournament_id:tournamentId,phase_name:phase.name,phase_order:phase.order
+            }]).select('id').maybeSingle();
+            if(!ph?.id)continue;
+            await client.from('tournament_phase_matches').insert(
+                phase.matches.map((m,mi)=>({
+                    phase_id:ph.id,home_label:m.hl,away_label:m.al,
+                    goals_home:null,goals_away:null,match_order:mi,session_id:null
+                }))
+            );
+        }
+
+        document.getElementById('torneo-create-panel').style.display='none';
         await window._torneoLoadList();
-        alert('✅ Torneo aggiornato!' + (createdSessionIds.length ? ' ' + createdSessionIds.length + ' nuove partite registrate in Gestione Partite.' : ''));
-        window._torneoShowDetail(editIdx);
-    } else {
-        // Creazione nuova
-        const torneo = { name, date, location, teamId, ownTeamName, nGroups, qualPG, duration, groups, finalPhases, createdSessionIds, createdAt: new Date().toISOString() };
-        saved.unshift(torneo);
-        localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-        document.getElementById('torneo-create-panel').style.display = 'none';
-        await window._torneoLoadList();
-        alert(createdSessionIds.length ? '✅ Torneo creato! ' + createdSessionIds.length + ' partita/e registrata/e in Gestione Partite come Torneo.' : '✅ Torneo creato!');
-        window._torneoShowDetail(0);
+        alert(editId?'✅ Torneo aggiornato!':'✅ Torneo creato!');
+        window._torneoShowDetail(tournamentId);
+
+    } catch(err) {
+        console.error('_torneoSave error:',err);
+        alert('Errore: '+err.message);
+    } finally {
+        if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=editId?'💾 Salva Modifiche':'💾 Crea Torneo & Genera Partite';}
     }
 };
 
-window._torneoRenderTabellone = function(t, idx) {
-    const LETTERS = 'ABCDEFGH';
-    const giorniHtml = t.groups.map((g, gi) => {
-        const standings = {};
-        g.teams.forEach(team => { standings[team] = { pts:0, v:0, p:0, s:0, gf:0, gs:0, pg:0 }; });
-        g.matches.forEach(m => {
-            if (m.goalsHome == null || m.goalsAway == null) return;
-            const gH = parseInt(m.goalsHome), gA = parseInt(m.goalsAway);
-            const h = standings[m.home], a = standings[m.away];
-            if (!h || !a) return;
-            h.gf += gH; h.gs += gA; h.pg++; a.gf += gA; a.gs += gH; a.pg++;
-            if (gH > gA)      { h.pts+=3; h.v++; a.s++; }
-            else if (gH < gA) { a.pts+=3; a.v++; h.s++; }
-            else               { h.pts+=1; h.p++; a.pts+=1; a.p++; }
+// ── Modifica torneo ───────────────────────────────────────────────────────────
+window._torneoEdit = async function(id) {
+    const {data:t}=await client.from('tournaments').select('*').eq('id',id).maybeSingle();
+    if(!t)return;
+    const {data:grps}=await client.from('tournament_groups').select('id,letter').eq('tournament_id',id).order('letter');
+
+    document.getElementById('tc-edit-id').value  = id;
+    document.getElementById('tc-form-title').textContent='✏️ Modifica Torneo';
+    document.getElementById('tc-save-btn').textContent  ='💾 Salva Modifiche';
+    document.getElementById('tc-name').value     = t.name||'';
+    document.getElementById('tc-date').value     = t.date||'';
+    document.getElementById('tc-location').value = t.location||'';
+    document.getElementById('tc-match-duration').value=t.duration_minutes||20;
+    document.getElementById('tc-qual-per-group').value =t.qual_per_group||2;
+    document.getElementById('tc-num-groups').value     =(grps||[]).length||2;
+
+    const teamSel=document.getElementById('tc-team');
+    if(teamSel&&t.team_id){
+        teamSel.value=t.team_id;
+        if(teamSel.value!==t.team_id){
+            const o=document.createElement('option');o.value=t.team_id;o.textContent=t.team_id;
+            teamSel.appendChild(o);teamSel.value=t.team_id;
+        }
+    }
+
+    window._torneoUpdateGroupInputs();
+
+    // Popola squadre per girone
+    for(let gi=0;gi<(grps||[]).length;gi++){
+        const grp=grps[gi];
+        const {data:gTeams}=await client.from('tournament_group_teams').select('team_name').eq('group_id',grp.id).order('id');
+        const wrap=document.getElementById('tc-group-'+gi+'-teams');
+        if(!wrap)continue;
+        const inputs=wrap.querySelectorAll('input[data-team-input]');
+        (gTeams||[]).forEach((gt,ti)=>{
+            if(inputs[ti])inputs[ti].value=gt.team_name;
+            else{
+                const inp=document.createElement('input');
+                inp.setAttribute('data-team-input','');inp.type='text';inp.value=gt.team_name;
+                inp.style.cssText='width:100%;padding:7px 8px;margin-bottom:6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;';
+                wrap.appendChild(inp);
+            }
         });
-        const ranked = Object.entries(standings).sort((a,b) => (b[1].pts - a[1].pts) || ((b[1].gf - b[1].gs) - (a[1].gf - a[1].gs)));
+    }
 
-        const matchesHtml = g.matches.map((m, mi) =>
+    window._torneoUpdateFinalPreview();
+    document.getElementById('torneo-create-panel').style.display='block';
+    document.getElementById('torneo-detail-wrap').style.display='none';
+    document.getElementById('torneo-create-panel').scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+// ── Tabellone ─────────────────────────────────────────────────────────────────
+window._torneoShowDetail = async function(id) {
+    const wrap=document.getElementById('torneo-detail-wrap');
+    if(!wrap)return;
+    wrap.style.display='block';
+    wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Caricamento tabellone...</div>';
+
+    // Carica torneo
+    const {data:t}=await client.from('tournaments').select('*').eq('id',id).maybeSingle();
+    if(!t){wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);">Torneo non trovato.</div>';return;}
+
+    // Carica gironi con squadre e partite
+    const {data:grps}=await client.from('tournament_groups').select('id,letter').eq('tournament_id',id).order('letter');
+    const groups=[];
+    for(const g of (grps||[])){
+        const {data:gTeams}=await client.from('tournament_group_teams').select('team_name,is_own_team').eq('group_id',g.id);
+        const {data:gMatches}=await client.from('tournament_matches').select('id,home_team,away_team,goals_home,goals_away,match_order,session_id').eq('group_id',g.id).order('match_order');
+        groups.push({...g,teams:(gTeams||[]).map(t=>t.team_name),gTeams:gTeams||[],matches:gMatches||[]});
+    }
+
+    // Carica fasi finali
+    const {data:phases}=await client.from('tournament_phases').select('id,phase_name,phase_order').eq('tournament_id',id).order('phase_order');
+    const finalPhases=[];
+    for(const ph of (phases||[])){
+        const {data:phMatches}=await client.from('tournament_phase_matches').select('id,home_label,away_label,goals_home,goals_away,match_order,session_id').eq('phase_id',ph.id).order('match_order');
+        finalPhases.push({...ph,matches:phMatches||[]});
+    }
+
+    wrap.innerHTML=window._torneoRenderTabellone(t,groups,finalPhases);
+    wrap.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window._torneoRenderTabellone = function(t, groups, finalPhases) {
+    const giorniHtml=groups.map(g=>{
+        // Classifica
+        const st={};
+        g.teams.forEach(team=>{st[team]={pts:0,v:0,p:0,s:0,gf:0,gs:0,pg:0};});
+        g.matches.forEach(m=>{
+            if(m.goals_home==null||m.goals_away==null)return;
+            const gH=parseInt(m.goals_home),gA=parseInt(m.goals_away);
+            const h=st[m.home_team],a=st[m.away_team];
+            if(!h||!a)return;
+            h.gf+=gH;h.gs+=gA;h.pg++;a.gf+=gA;a.gs+=gH;a.pg++;
+            if(gH>gA){h.pts+=3;h.v++;a.s++;}
+            else if(gH<gA){a.pts+=3;a.v++;h.s++;}
+            else{h.pts+=1;h.p++;a.pts+=1;a.p++;}
+        });
+        const ranked=Object.entries(st).sort((a,b)=>(b[1].pts-a[1].pts)||((b[1].gf-b[1].gs)-(a[1].gf-a[1].gs)));
+
+        const matchesHtml=g.matches.map(m=>
             '<tr style="border-bottom:1px solid rgba(0,0,0,0.04);">'
-            + '<td style="padding:8px 10px; font-size:0.82rem; font-weight:600; text-align:right; width:38%;">' + m.home + '</td>'
-            + '<td style="padding:8px 6px; text-align:center; width:24%;">'
-            +   '<div style="display:flex; align-items:center; justify-content:center; gap:4px;">'
-            +   '<input type="number" min="0" max="99" value="' + (m.goalsHome ?? '') + '" placeholder="—" onchange="window._torneoUpdateScore(' + idx + ',' + gi + ',' + mi + ',\'home\',this.value)" style="width:40px; text-align:center; padding:4px; border:1.5px solid var(--border); border-radius:6px; font-family:\'DM Mono\',monospace; font-weight:700; font-size:0.9rem; background:var(--card);">'
-            +   '<span style="font-weight:800; color:var(--text-muted);">-</span>'
-            +   '<input type="number" min="0" max="99" value="' + (m.goalsAway ?? '') + '" placeholder="—" onchange="window._torneoUpdateScore(' + idx + ',' + gi + ',' + mi + ',\'away\',this.value)" style="width:40px; text-align:center; padding:4px; border:1.5px solid var(--border); border-radius:6px; font-family:\'DM Mono\',monospace; font-weight:700; font-size:0.9rem; background:var(--card);">'
-            +   '</div></td>'
-            + '<td style="padding:8px 10px; font-size:0.82rem; font-weight:600; text-align:left; width:38%;">' + m.away + '</td>'
-            + '</tr>'
+            +'<td style="padding:8px 10px;font-size:0.82rem;font-weight:600;text-align:right;width:37%;">'+m.home_team+'</td>'
+            +'<td style="padding:8px 6px;text-align:center;width:26%;">'
+            +'<div style="display:flex;align-items:center;justify-content:center;gap:4px;">'
+            +'<input type="number" min="0" max="99" value="'+(m.goals_home??'')+'" placeholder="—" '
+            +'onchange="window._torneoUpdateMatchScore(\''+m.id+'\',\'home\',this.value,\''+t.id+'\')" '
+            +'style="width:40px;text-align:center;padding:4px;border:1.5px solid var(--border);border-radius:6px;font-family:\'DM Mono\',monospace;font-weight:700;font-size:0.9rem;background:var(--card);">'
+            +'<span style="font-weight:800;color:var(--text-muted);">-</span>'
+            +'<input type="number" min="0" max="99" value="'+(m.goals_away??'')+'" placeholder="—" '
+            +'onchange="window._torneoUpdateMatchScore(\''+m.id+'\',\'away\',this.value,\''+t.id+'\')" '
+            +'style="width:40px;text-align:center;padding:4px;border:1.5px solid var(--border);border-radius:6px;font-family:\'DM Mono\',monospace;font-weight:700;font-size:0.9rem;background:var(--card);">'
+            +'</div></td>'
+            +'<td style="padding:8px 10px;font-size:0.82rem;font-weight:600;text-align:left;width:37%;">'+m.away_team+'</td>'
+            +'</tr>'
         ).join('');
 
-        const standingsHtml = ranked.map(([team, s], ri) =>
-            '<tr style="background:' + (ri < t.qualPG ? 'rgba(5,150,105,0.06)' : '') + '; border-bottom:1px solid rgba(0,0,0,0.04);">'
-            + '<td style="padding:6px 8px; font-size:0.72rem; font-weight:700; color:var(--text-muted);">' + (ri+1) + '</td>'
-            + '<td style="padding:6px 8px; font-size:0.8rem; font-weight:' + (ri < t.qualPG ? '700' : '500') + '; color:' + (ri < t.qualPG ? '#059669' : 'var(--text-main)') + ';">' + team + (ri < t.qualPG ? ' <span style="font-size:0.6rem;background:rgba(5,150,105,0.15);color:#059669;padding:1px 5px;border-radius:99px;">✓</span>' : '') + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.75rem; color:var(--text-muted);">' + s.pg + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.75rem; color:#059669;">' + s.v + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.75rem; color:#d97706;">' + s.p + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.75rem; color:#dc2626;">' + s.s + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.75rem;">' + s.gf + '-' + s.gs + '</td>'
-            + '<td style="padding:6px 8px; text-align:center; font-size:0.82rem; font-weight:800; font-family:\'DM Mono\',monospace; color:var(--primary);">' + s.pts + '</td>'
-            + '</tr>'
+        const standingsHtml=ranked.map(([team,s],ri)=>
+            '<tr style="background:'+(ri<t.qual_per_group?'rgba(5,150,105,0.06)':'')+';border-bottom:1px solid rgba(0,0,0,0.04);">'
+            +'<td style="padding:6px 8px;font-size:0.72rem;font-weight:700;color:var(--text-muted);">'+(ri+1)+'</td>'
+            +'<td style="padding:6px 8px;font-size:0.8rem;font-weight:'+(ri<t.qual_per_group?'700':'500')+';color:'+(ri<t.qual_per_group?'#059669':'var(--text-main)')+';">'+team+(ri<t.qual_per_group?' <span style="font-size:0.6rem;background:rgba(5,150,105,0.15);color:#059669;padding:1px 5px;border-radius:99px;">✓</span>':'')+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.75rem;color:var(--text-muted);">'+s.pg+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.75rem;color:#059669;">'+s.v+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.75rem;color:#d97706;">'+s.p+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.75rem;color:#dc2626;">'+s.s+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.75rem;">'+s.gf+'-'+s.gs+'</td>'
+            +'<td style="padding:6px 8px;text-align:center;font-size:0.82rem;font-weight:800;font-family:\'DM Mono\',monospace;color:var(--primary);">'+s.pts+'</td>'
+            +'</tr>'
         ).join('');
 
-        return '<div class="card" style="padding:0; overflow:hidden; margin-bottom:12px;">'
-            + '<div style="padding:12px 16px; background:linear-gradient(135deg,rgba(37,99,235,0.08),transparent); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;">'
-            +   '<span style="background:var(--primary); color:white; width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem;">G' + g.letter + '</span>'
-            +   '<span style="font-size:0.78rem; color:var(--text-muted);">' + g.teams.length + ' squadre · Round robin</span>'
-            + '</div>'
-            + '<div style="display:grid; grid-template-columns:1fr 1fr;">'
-            +   '<div style="border-right:1px solid var(--border);">'
-            +     '<div style="padding:10px 12px; font-size:0.62rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); background:rgba(0,0,0,0.02);">Partite</div>'
-            +     '<table style="width:100%; border-collapse:collapse;"><tbody>' + matchesHtml + '</tbody></table>'
-            +   '</div>'
-            +   '<div>'
-            +     '<div style="padding:10px 12px; font-size:0.62rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); background:rgba(0,0,0,0.02);">Classifica</div>'
-            +     '<table style="width:100%; border-collapse:collapse;">'
-            +       '<thead><tr style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">'
-            +         '<th style="padding:5px 8px;">#</th><th style="padding:5px 8px; text-align:left;">Squadra</th>'
-            +         '<th style="padding:5px 8px;">PG</th><th style="padding:5px 8px; color:#059669;">V</th><th style="padding:5px 8px; color:#d97706;">P</th><th style="padding:5px 8px; color:#dc2626;">S</th><th style="padding:5px 8px;">GF-GS</th><th style="padding:5px 8px; color:var(--primary);">PTS</th>'
-            +       '</tr></thead>'
-            +       '<tbody>' + standingsHtml + '</tbody>'
-            +     '</table>'
-            +   '</div>'
-            + '</div>'
-            + '</div>';
+        return '<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">'
+            +'<div style="padding:12px 16px;background:linear-gradient(135deg,rgba(37,99,235,0.08),transparent);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">'
+            +'<span style="background:var(--primary);color:white;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;">G'+g.letter+'</span>'
+            +'<span style="font-size:0.78rem;color:var(--text-muted);">'+g.teams.length+' squadre · Round robin</span>'
+            +'</div>'
+            +'<div style="display:grid;grid-template-columns:1fr 1fr;">'
+            +'<div style="border-right:1px solid var(--border);">'
+            +'<div style="padding:10px 12px;font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:rgba(0,0,0,0.02);">Partite</div>'
+            +'<table style="width:100%;border-collapse:collapse;"><tbody>'+matchesHtml+'</tbody></table></div>'
+            +'<div>'
+            +'<div style="padding:10px 12px;font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:rgba(0,0,0,0.02);">Classifica</div>'
+            +'<table style="width:100%;border-collapse:collapse;">'
+            +'<thead><tr style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;">'
+            +'<th style="padding:5px 8px;">#</th><th style="padding:5px 8px;text-align:left;">Squadra</th>'
+            +'<th style="padding:5px 8px;">PG</th><th style="padding:5px 8px;color:#059669;">V</th><th style="padding:5px 8px;color:#d97706;">P</th><th style="padding:5px 8px;color:#dc2626;">S</th><th style="padding:5px 8px;">GF-GS</th><th style="padding:5px 8px;color:var(--primary);">PTS</th>'
+            +'</tr></thead><tbody>'+standingsHtml+'</tbody></table>'
+            +'</div></div></div>';
     }).join('');
 
-    const finaliHtml = t.finalPhases.map((phase, pi) => {
-        const matchesHtml = phase.matches.map((m, mi) =>
-            '<div style="background:rgba(0,0,0,0.03); border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:8px; min-width:280px;">'
-            + '<span style="flex:1; font-size:0.82rem; font-weight:600; text-align:right;">' + m.home + '</span>'
-            + '<div style="display:flex; align-items:center; gap:4px;">'
-            +   '<input type="number" min="0" value="' + (m.goalsHome ?? '') + '" placeholder="—" onchange="window._torneoUpdateFinalScore(' + idx + ',' + pi + ',' + mi + ',\'home\',this.value)" style="width:40px; text-align:center; padding:5px; border:1.5px solid var(--border); border-radius:6px; font-family:\'DM Mono\',monospace; font-weight:700; font-size:0.95rem; background:var(--card);">'
-            +   '<span style="font-weight:800; color:var(--text-muted);">-</span>'
-            +   '<input type="number" min="0" value="' + (m.goalsAway ?? '') + '" placeholder="—" onchange="window._torneoUpdateFinalScore(' + idx + ',' + pi + ',' + mi + ',\'away\',this.value)" style="width:40px; text-align:center; padding:5px; border:1.5px solid var(--border); border-radius:6px; font-family:\'DM Mono\',monospace; font-weight:700; font-size:0.95rem; background:var(--card);">'
-            + '</div>'
-            + '<span style="flex:1; font-size:0.82rem; font-weight:600;">' + m.away + '</span>'
-            + '</div>'
+    const finaliHtml=finalPhases.map(ph=>{
+        const mHtml=ph.matches.map(m=>
+            '<div style="background:rgba(0,0,0,0.03);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;min-width:280px;">'
+            +'<span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right;">'+m.home_label+'</span>'
+            +'<div style="display:flex;align-items:center;gap:4px;">'
+            +'<input type="number" min="0" value="'+(m.goals_home??'')+'" placeholder="—" '
+            +'onchange="window._torneoUpdatePhaseScore(\''+m.id+'\',\'home\',this.value,\''+t.id+'\')" '
+            +'style="width:40px;text-align:center;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-family:\'DM Mono\',monospace;font-weight:700;font-size:0.95rem;background:var(--card);">'
+            +'<span style="font-weight:800;color:var(--text-muted);">-</span>'
+            +'<input type="number" min="0" value="'+(m.goals_away??'')+'" placeholder="—" '
+            +'onchange="window._torneoUpdatePhaseScore(\''+m.id+'\',\'away\',this.value,\''+t.id+'\')" '
+            +'style="width:40px;text-align:center;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-family:\'DM Mono\',monospace;font-weight:700;font-size:0.95rem;background:var(--card);">'
+            +'</div>'
+            +'<span style="flex:1;font-size:0.82rem;font-weight:600;">'+m.away_label+'</span>'
+            +'</div>'
         ).join('');
         return '<div style="margin-bottom:12px;">'
-            + '<div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#8b5cf6; margin-bottom:8px;">🏆 ' + phase.name + '</div>'
-            + '<div style="display:flex; flex-wrap:wrap; gap:8px;">' + matchesHtml + '</div>'
-            + '</div>';
+            +'<div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#8b5cf6;margin-bottom:8px;">🏆 '+ph.phase_name+'</div>'
+            +'<div style="display:flex;flex-wrap:wrap;gap:8px;">'+mHtml+'</div></div>';
     }).join('');
 
-    return '<div class="card" style="padding:20px; margin-bottom:16px;" id="torneo-tabellone-' + idx + '">'
-        + '<div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;">'
-        +   '<div>'
-        +     '<div style="font-size:1.1rem; font-weight:800; font-family:\'Syne\',sans-serif; color:var(--text-main);">🏅 ' + t.name + '</div>'
-        +     '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + (t.date || '') + (t.location ? ' · 📍 ' + t.location : '') + ' · ' + t.groups.length + ' gironi · prime ' + t.qualPG + ' qualificate</div>'
-        +   '</div>'
-        +   '<div style="display:flex; gap:8px;">'
-        +     '<button onclick="window._torneoPrint(' + idx + ')" style="padding:7px 14px; background:rgba(0,0,0,0.05); color:var(--text-main); border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">🖨️ Stampa</button>'
-        +     '<button onclick="document.getElementById(\'torneo-detail-wrap\').style.display=\'none\'" style="padding:7px 14px; background:transparent; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer; color:var(--text-muted);">✕ Chiudi</button>'
-        +   '</div>'
-        + '</div>'
-        + '<div style="margin-bottom:18px;">'
-        +   '<div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:10px;">📊 Gironi</div>'
-        +   giorniHtml
-        + '</div>'
-        + (t.finalPhases.length ? '<div><div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-muted); margin-bottom:10px;">🏆 Fasi Finali</div>' + finaliHtml + '</div>' : '')
-        + '</div>';
+    return '<div class="card" style="padding:20px;margin-bottom:16px;">'
+        +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">'
+        +'<div>'
+        +'<div style="font-size:1.1rem;font-weight:800;font-family:\'Syne\',sans-serif;color:var(--text-main);">🏅 '+t.name+'</div>'
+        +'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'+(t.date||'')+(t.location?' · 📍 '+t.location:'')+' · prime '+t.qual_per_group+' qualificate</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:8px;">'
+        +'<button onclick="window._torneoPrint(\''+t.id+'\')" style="padding:7px 14px;background:rgba(0,0,0,0.05);color:var(--text-main);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">🖨️ Stampa</button>'
+        +'<button onclick="document.getElementById(\'torneo-detail-wrap\').style.display=\'none\'" style="padding:7px 14px;background:transparent;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;color:var(--text-muted);">✕ Chiudi</button>'
+        +'</div></div>'
+        +(groups.length?'<div style="margin-bottom:18px;"><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:10px;">📊 Gironi</div>'+giorniHtml+'</div>':'')
+        +(finalPhases.length?'<div><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:10px;">🏆 Fasi Finali</div>'+finaliHtml+'</div>':'')
+        +'</div>';
 };
 
-window._torneoShowDetail = function(idx) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const t = saved[idx]; if (!t) return;
-    const wrap = document.getElementById('torneo-detail-wrap');
-    if (!wrap) return;
-    wrap.style.display = 'block';
-    wrap.innerHTML = window._torneoRenderTabellone(t, idx);
-    wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+// ── Aggiornamento risultati girone (DB) ───────────────────────────────────────
+window._torneoUpdateMatchScore = async function(matchId, side, val, tournamentId) {
+    const v=val===''?null:parseInt(val);
+    const upd=side==='home'?{goals_home:v}:{goals_away:v};
+    await client.from('tournament_matches').update(upd).eq('id',matchId);
+    window._torneoShowDetail(tournamentId);
 };
 
-window._torneoUpdateScore = function(idx, gi, mi, side, val) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const m = saved[idx]?.groups[gi]?.matches[mi]; if (!m) return;
-    if (side === 'home') m.goalsHome = val === '' ? null : parseInt(val);
-    else m.goalsAway = val === '' ? null : parseInt(val);
-    localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-    window._torneoShowDetail(idx);
+// ── Aggiornamento risultati fase finale (DB) ──────────────────────────────────
+window._torneoUpdatePhaseScore = async function(matchId, side, val, tournamentId) {
+    const v=val===''?null:parseInt(val);
+    const upd=side==='home'?{goals_home:v}:{goals_away:v};
+    await client.from('tournament_phase_matches').update(upd).eq('id',matchId);
+    window._torneoShowDetail(tournamentId);
 };
 
-window._torneoUpdateFinalScore = function(idx, pi, mi, side, val) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const m = saved[idx]?.finalPhases[pi]?.matches[mi]; if (!m) return;
-    if (side === 'home') m.goalsHome = val === '' ? null : parseInt(val);
-    else m.goalsAway = val === '' ? null : parseInt(val);
-    localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-    window._torneoShowDetail(idx);
-};
-
-window._torneoDelete = async function(idx) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const torneo = saved[idx];
-    if (!torneo) return;
-
-    const sessIds = torneo.createdSessionIds || [];
-    const hasDb = sessIds.length > 0;
-    const msg = hasDb
-        ? `Eliminare il torneo "${torneo.name}"?\n\nVerranno cancellate anche:\n• ${sessIds.length} sessioni in Gestione Partite\n• Tabellini, convocazioni e statistiche collegate\n\nL'operazione è irreversibile.`
-        : `Eliminare il torneo "${torneo.name}"?`;
-
-    if (!confirm(msg)) return;
-
-    // ── Cancellazione DB a cascata ─────────────────────────────────────────
-    if (hasDb) {
-        try {
-            // 1. match_stats (statistiche giocatori per sessione)
-            await client.from('match_stats').delete().in('session_id', sessIds);
-            // 2. attendances (convocazioni/presenze)
-            await client.from('attendances').delete().in('session_id', sessIds);
-            // 3. match_details (tabellino)
-            await client.from('match_details').delete().in('session_id', sessIds);
-            // 4. sessioni stesse
-            await client.from('sessions').delete().in('id', sessIds);
-        } catch(e) {
-            console.warn('Errore cancellazione sessioni torneo:', e);
-            if (!confirm('Errore durante la cancellazione dal DB. Rimuovere comunque il torneo dalla lista?')) return;
+// ── Elimina torneo (cascade DB) ───────────────────────────────────────────────
+window._torneoDelete = async function(id, name) {
+    if(!confirm('Eliminare il torneo "'+name+'"?\n\nVerranno cancellate tutte le partite, sessioni e statistiche collegate.\n\nL\'operazione è irreversibile.'))return;
+    try {
+        // Raccogli session_ids da cancellare
+        const {data:grps}=await client.from('tournament_groups').select('id').eq('tournament_id',id);
+        const {data:phases}=await client.from('tournament_phases').select('id').eq('tournament_id',id);
+        const gIds=(grps||[]).map(g=>g.id);
+        const phIds=(phases||[]).map(p=>p.id);
+        let sessIds=[];
+        if(gIds.length){
+            const {data:gm}=await client.from('tournament_matches').select('session_id').in('group_id',gIds).not('session_id','is',null);
+            sessIds.push(...(gm||[]).map(m=>m.session_id).filter(Boolean));
         }
+        if(phIds.length){
+            const {data:pm}=await client.from('tournament_phase_matches').select('session_id').in('phase_id',phIds).not('session_id','is',null);
+            sessIds.push(...(pm||[]).map(m=>m.session_id).filter(Boolean));
+        }
+        // Cancella sessioni collegate
+        if(sessIds.length){
+            await client.from('match_stats').delete().in('session_id',sessIds);
+            await client.from('attendances').delete().in('session_id',sessIds);
+            await client.from('match_details').delete().in('session_id',sessIds);
+            await client.from('sessions').delete().in('id',sessIds);
+        }
+        // Cascade torneo (groups, phases, matches via FK on delete cascade)
+        await client.from('tournaments').delete().eq('id',id);
+        const dw=document.getElementById('torneo-detail-wrap');
+        if(dw)dw.style.display='none';
+        await window._torneoLoadList();
+    } catch(e){
+        console.error('_torneoDelete error:',e);
+        alert('Errore durante la cancellazione: '+e.message);
     }
-
-    // ── Rimuovi da localStorage ────────────────────────────────────────────
-    saved.splice(idx, 1);
-    localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-    document.getElementById('torneo-detail-wrap').style.display = 'none';
-    await window._torneoLoadList();
 };
 
-window._torneoPrint = function(idx) {
-    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    const t = saved[idx]; if (!t) return;
-    const html = window._torneoRenderTabellone(t, idx);
-    const win = window.open('', '_blank');
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tabellone — ' + t.name + '</title>'
-        + '<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">'
-        + '<style>*{box-sizing:border-box;margin:0;padding:0;}:root{--primary:#2563eb;--text-main:#1a2240;--text-muted:#9aa0b8;--text-sub:#5a6480;--border:rgba(0,0,0,0.1);--card:#fff;}'
-        + 'body{font-family:Outfit,sans-serif;background:#f0f2f7;padding:20px;font-size:13px;}.card{background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
-        + 'input{pointer-events:none;background:transparent!important;border-color:rgba(0,0,0,0.15)!important;}button{display:none!important;}'
-        + '@media print{body{background:white;padding:0;}.card{box-shadow:none;border:1px solid #ddd;}@page{margin:15mm;}}'
-        + '</style></head><body>' + html + '<script>window.onload=()=>window.print();<\/script></body></html>');
+// ── Stampa ────────────────────────────────────────────────────────────────────
+window._torneoPrint = async function(id) {
+    const {data:t}=await client.from('tournaments').select('*').eq('id',id).maybeSingle();
+    if(!t)return;
+    const {data:grps}=await client.from('tournament_groups').select('id,letter').eq('tournament_id',id).order('letter');
+    const groups=[];
+    for(const g of (grps||[])){
+        const {data:gTeams}=await client.from('tournament_group_teams').select('team_name').eq('group_id',g.id);
+        const {data:gMatches}=await client.from('tournament_matches').select('id,home_team,away_team,goals_home,goals_away,match_order,session_id').eq('group_id',g.id).order('match_order');
+        groups.push({...g,teams:(gTeams||[]).map(t=>t.team_name),matches:gMatches||[]});
+    }
+    const {data:phases}=await client.from('tournament_phases').select('id,phase_name,phase_order').eq('tournament_id',id).order('phase_order');
+    const finalPhases=[];
+    for(const ph of (phases||[])){
+        const {data:phMatches}=await client.from('tournament_phase_matches').select('id,home_label,away_label,goals_home,goals_away,match_order').eq('phase_id',ph.id).order('match_order');
+        finalPhases.push({...ph,matches:phMatches||[]});
+    }
+    const html=window._torneoRenderTabellone(t,groups,finalPhases);
+    const win=window.open('','_blank');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tabellone — '+t.name+'</title>'
+        +'<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">'
+        +'<style>*{box-sizing:border-box;margin:0;padding:0;}:root{--primary:#2563eb;--text-main:#1a2240;--text-muted:#9aa0b8;--text-sub:#5a6480;--border:rgba(0,0,0,0.1);--card:#fff;}'
+        +'body{font-family:Outfit,sans-serif;background:#f0f2f7;padding:20px;font-size:13px;}.card{background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
+        +'input{pointer-events:none;background:transparent!important;border-color:rgba(0,0,0,0.15)!important;}button{display:none!important;}'
+        +'@media print{body{background:white;padding:0;}.card{box-shadow:none;border:1px solid #ddd;}@page{margin:15mm;}}'
+        +'</style></head><body>'+html+'<script>window.onload=()=>window.print();<\/script></body></html>');
     win.document.close();
 };
+
 
 </script>
 </body>
