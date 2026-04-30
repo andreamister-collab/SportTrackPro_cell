@@ -14938,8 +14938,36 @@ window._torneoUpdateFinalScore = function(idx, pi, mi, side, val) {
 };
 
 window._torneoDelete = async function(idx) {
-    if (!confirm('Eliminare questo torneo? Le partite registrate in Gestione Partite non verranno cancellate.')) return;
     const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
+    const torneo = saved[idx];
+    if (!torneo) return;
+
+    const sessIds = torneo.createdSessionIds || [];
+    const hasDb = sessIds.length > 0;
+    const msg = hasDb
+        ? `Eliminare il torneo "${torneo.name}"?\n\nVerranno cancellate anche:\n• ${sessIds.length} sessioni in Gestione Partite\n• Tabellini, convocazioni e statistiche collegate\n\nL'operazione è irreversibile.`
+        : `Eliminare il torneo "${torneo.name}"?`;
+
+    if (!confirm(msg)) return;
+
+    // ── Cancellazione DB a cascata ─────────────────────────────────────────
+    if (hasDb) {
+        try {
+            // 1. match_stats (statistiche giocatori per sessione)
+            await client.from('match_stats').delete().in('session_id', sessIds);
+            // 2. attendances (convocazioni/presenze)
+            await client.from('attendances').delete().in('session_id', sessIds);
+            // 3. match_details (tabellino)
+            await client.from('match_details').delete().in('session_id', sessIds);
+            // 4. sessioni stesse
+            await client.from('sessions').delete().in('id', sessIds);
+        } catch(e) {
+            console.warn('Errore cancellazione sessioni torneo:', e);
+            if (!confirm('Errore durante la cancellazione dal DB. Rimuovere comunque il torneo dalla lista?')) return;
+        }
+    }
+
+    // ── Rimuovi da localStorage ────────────────────────────────────────────
     saved.splice(idx, 1);
     localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
     document.getElementById('torneo-detail-wrap').style.display = 'none';
