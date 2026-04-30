@@ -4306,6 +4306,11 @@ function templatePartite() {
                 <label style="font-size:11px; color:var(--text-muted); font-weight:bold;">A DATA</label>
                 <input type="date" id="f-match-to" style="width:100%; padding:8px; margin-top:4px;" onchange="initPartite()">
             </div>
+            <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
+                <button onclick="document.getElementById('f-match-from').value=''; document.getElementById('f-match-to').value=''; initPartite();"
+                    title="Reimposta date (usa range stagione)"
+                    style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text-muted); font-size:0.78rem; cursor:pointer; font-family:inherit; white-space:nowrap;">&#8635; Reset date</button>
+            </div>
         </div>
 
         <div class="table-container" style="overflow-x:auto;">
@@ -4374,10 +4379,12 @@ async function initPartite() {
     if (!socId) return;
 
     // --- FILTRI E QUERY SESSIONS ---
-    // Stagione: se selezionata, usa le sue date; altrimenti usa i campi da/a data
-    const seasonRange = _matchGetSeasonRange();
-    const dateFrom = seasonRange ? seasonRange.from : document.getElementById('f-match-from')?.value;
-    const dateTo   = seasonRange ? seasonRange.to   : document.getElementById('f-match-to')?.value;
+    // I filtri manuali da/a hanno sempre priorità; la stagione è il default se non ci sono date manuali
+    const manualFrom = document.getElementById('f-match-from')?.value;
+    const manualTo   = document.getElementById('f-match-to')?.value;
+    const seasonRange = (!manualFrom && !manualTo) ? _matchGetSeasonRange() : null;
+    const dateFrom = manualFrom || (seasonRange ? seasonRange.from : null);
+    const dateTo   = manualTo   || (seasonRange ? seasonRange.to   : null);
     const teamFilter = document.getElementById('f-match-team')?.value;
 
     const { data: types } = await client.from('session_types').select('id, name');
