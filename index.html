@@ -14517,7 +14517,7 @@ function templateTornei() {
         </div>
         <div id="torneo-create-panel" style="display:none;">
             <div class="card" style="padding:24px; margin-bottom:16px;">
-                <h3 style="font-size:1rem; font-weight:700; margin:0 0 16px; color:var(--primary);">📋 Nuovo Torneo</h3>
+                <h3 id="tc-form-title" style="font-size:1rem; font-weight:700; margin:0 0 16px; color:var(--primary);">📋 Nuovo Torneo</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                     <div>
                         <label style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:4px;">Nome Torneo *</label>
@@ -14559,7 +14559,7 @@ function templateTornei() {
                 <div id="tc-groups-wrap" style="margin-bottom:16px;"></div>
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     <button onclick="window._torneoHideCreate()" style="padding:9px 18px; background:transparent; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.82rem; cursor:pointer; color:var(--text-muted);">Annulla</button>
-                    <button onclick="window._torneoSave()" style="padding:9px 20px; background:var(--primary); color:white; border:none; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:700; cursor:pointer;">💾 Crea Torneo & Genera Partite</button>
+                    <button id="tc-save-btn" onclick="window._torneoSave()" style="padding:9px 20px; background:var(--primary); color:white; border:none; border-radius:8px; font-family:inherit; font-size:0.82rem; font-weight:700; cursor:pointer;">💾 Crea Torneo & Genera Partite</button>
                 </div>
             </div>
         </div>
@@ -14627,6 +14627,7 @@ window._torneoLoadList = async function() {
                 </div>
                 <div style="display:flex; gap:8px;">
                     <button onclick="window._torneoShowDetail(${i})" style="padding:7px 14px; background:var(--primary); color:white; border:none; border-radius:7px; font-family:inherit; font-size:0.78rem; font-weight:700; cursor:pointer;">📊 Tabellone</button>
+                    <button onclick="window._torneoEdit(${i})" style="padding:7px 14px; background:rgba(0,0,0,0.05); color:var(--text-main); border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">✏️ Modifica</button>
                     <button onclick="window._torneoPrint(${i})" style="padding:7px 14px; background:rgba(0,0,0,0.05); color:var(--text-main); border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">🖨️ Stampa</button>
                     <button onclick="window._torneoDelete(${i})" style="padding:7px 12px; background:rgba(220,38,38,0.08); color:#dc2626; border:1px solid rgba(220,38,38,0.2); border-radius:7px; font-family:inherit; font-size:0.78rem; cursor:pointer;">🗑️</button>
                 </div>
@@ -14635,9 +14636,88 @@ window._torneoLoadList = async function() {
 };
 
 window._torneoShowCreate = function() {
+    window._torneoEditIdx = null;
+    const title = document.getElementById('tc-form-title');
+    const btn   = document.getElementById('tc-save-btn');
+    if (title) title.textContent = '📋 Nuovo Torneo';
+    if (btn)   btn.textContent   = '💾 Crea Torneo & Genera Partite';
+    // Reset fields
+    ['tc-name','tc-location'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    const dateEl = document.getElementById('tc-date'); if(dateEl) dateEl.value='';
+    const teamEl = document.getElementById('tc-team'); if(teamEl) teamEl.value='';
+    document.getElementById('tc-num-groups').value = 2;
+    document.getElementById('tc-qual-per-group').value = 2;
+    document.getElementById('tc-match-duration').value = 20;
     document.getElementById('torneo-create-panel').style.display = 'block';
     document.getElementById('torneo-detail-wrap').style.display = 'none';
     window._torneoUpdateGroupInputs();
+    window._torneoUpdateFinalPreview();
+};
+
+// ── Modifica torneo esistente ────────────────────────────────────────────────
+window._torneoEdit = function(idx) {
+    const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
+    const t = saved[idx];
+    if (!t) return;
+
+    window._torneoEditIdx = idx;
+
+    // Aggiorna intestazione form
+    const title = document.getElementById('tc-form-title');
+    const btn   = document.getElementById('tc-save-btn');
+    if (title) title.textContent = '✏️ Modifica Torneo';
+    if (btn)   btn.textContent   = '💾 Salva Modifiche';
+
+    // Popola campi
+    const nameEl = document.getElementById('tc-name');     if(nameEl) nameEl.value = t.name || '';
+    const dateEl = document.getElementById('tc-date');     if(dateEl) dateEl.value = t.date || '';
+    const locEl  = document.getElementById('tc-location'); if(locEl)  locEl.value  = t.location || '';
+    const durEl  = document.getElementById('tc-match-duration'); if(durEl) durEl.value = t.duration || 20;
+
+    // Squadra organizzatrice
+    const teamSel = document.getElementById('tc-team');
+    if (teamSel && t.teamId) {
+        teamSel.value = t.teamId;
+        if (teamSel.value !== t.teamId) {
+            // Aggiungi opzione se non c'è ancora
+            const o = document.createElement('option');
+            o.value = t.teamId; o.textContent = t.ownTeamName || t.teamId;
+            teamSel.appendChild(o);
+            teamSel.value = t.teamId;
+        }
+    }
+
+    // Gironi: imposta numero e squadre
+    const numGroupsEl = document.getElementById('tc-num-groups');
+    if (numGroupsEl) numGroupsEl.value = t.groups.length;
+    const qualEl = document.getElementById('tc-qual-per-group');
+    if (qualEl) qualEl.value = t.qualPG || 2;
+
+    // Render inputs gironi con le squadre già inserite
+    window._torneoUpdateGroupInputs();
+    // Poi sovrascrive i valori squadra
+    t.groups.forEach((g, gi) => {
+        const wrap = document.getElementById('tc-group-' + gi + '-teams');
+        if (!wrap) return;
+        const inputs = wrap.querySelectorAll('input[data-team-input]');
+        g.teams.forEach((team, ti) => {
+            if (inputs[ti]) {
+                inputs[ti].value = team;
+            } else {
+                // Aggiungi input extra se servono
+                const inp = document.createElement('input');
+                inp.setAttribute('data-team-input', '');
+                inp.type = 'text'; inp.value = team;
+                inp.style.cssText = 'width:100%; padding:7px 8px; margin-bottom:6px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.82rem; box-sizing:border-box;';
+                wrap.appendChild(inp);
+            }
+        });
+    });
+
+    window._torneoUpdateFinalPreview();
+    document.getElementById('torneo-create-panel').style.display = 'block';
+    document.getElementById('torneo-detail-wrap').style.display = 'none';
+    document.getElementById('torneo-create-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 window._torneoHideCreate = function() { document.getElementById('torneo-create-panel').style.display = 'none'; };
 
@@ -14795,14 +14875,61 @@ window._torneoSave = async function() {
         }
     }
 
-    const torneo = { name, date, location, teamId, ownTeamName, nGroups, qualPG, duration, groups, finalPhases, createdSessionIds, createdAt: new Date().toISOString() };
     const saved = JSON.parse(localStorage.getItem('sporttrack_tornei') || '[]');
-    saved.unshift(torneo);
-    localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
-    document.getElementById('torneo-create-panel').style.display = 'none';
-    await window._torneoLoadList();
-    alert(createdSessionIds.length ? '✅ Torneo creato! ' + createdSessionIds.length + ' partita/e registrata/e in Gestione Partite come Torneo.' : '✅ Torneo creato!');
-    window._torneoShowDetail(0);
+    const editIdx = window._torneoEditIdx;
+    const isEdit  = editIdx != null && editIdx >= 0;
+
+    if (isEdit) {
+        // Modifica: preserva i risultati già inseriti nelle partite esistenti, aggiorna metadati e struttura gironi
+        const existing = saved[editIdx];
+        // Aggiorna metadati
+        existing.name     = name;
+        existing.date     = date;
+        existing.location = location;
+        existing.duration = duration;
+        existing.qualPG   = qualPG;
+        existing.nGroups  = nGroups;
+        existing.finalPhases = finalPhases;
+        // Aggiorna gironi: mantieni i risultati delle partite che già esistono tra le stesse squadre
+        existing.groups = groups.map((newG, gi) => {
+            const oldG = existing.groups[gi];
+            if (!oldG) return newG;
+            // Ri-mappa i risultati delle partite vecchie sulle nuove
+            newG.matches = newG.matches.map(nm => {
+                const oldM = oldG.matches.find(om =>
+                    (om.home === nm.home && om.away === nm.away) ||
+                    (om.home === nm.away && om.away === nm.home)
+                );
+                if (oldM) {
+                    nm.goalsHome = oldM.goalsHome;
+                    nm.goalsAway = oldM.goalsAway;
+                    if (oldM.sessionId) nm.sessionId = oldM.sessionId;
+                }
+                return nm;
+            });
+            return newG;
+        });
+        // Nuove sessioni DB solo per nuove partite della nostra squadra (non già registrate)
+        if (createdSessionIds.length) {
+            existing.createdSessionIds = [...(existing.createdSessionIds || []), ...createdSessionIds];
+        }
+        saved[editIdx] = existing;
+        localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
+        window._torneoEditIdx = null;
+        document.getElementById('torneo-create-panel').style.display = 'none';
+        await window._torneoLoadList();
+        alert('✅ Torneo aggiornato!' + (createdSessionIds.length ? ' ' + createdSessionIds.length + ' nuove partite registrate in Gestione Partite.' : ''));
+        window._torneoShowDetail(editIdx);
+    } else {
+        // Creazione nuova
+        const torneo = { name, date, location, teamId, ownTeamName, nGroups, qualPG, duration, groups, finalPhases, createdSessionIds, createdAt: new Date().toISOString() };
+        saved.unshift(torneo);
+        localStorage.setItem('sporttrack_tornei', JSON.stringify(saved));
+        document.getElementById('torneo-create-panel').style.display = 'none';
+        await window._torneoLoadList();
+        alert(createdSessionIds.length ? '✅ Torneo creato! ' + createdSessionIds.length + ' partita/e registrata/e in Gestione Partite come Torneo.' : '✅ Torneo creato!');
+        window._torneoShowDetail(0);
+    }
 };
 
 window._torneoRenderTabellone = function(t, idx) {
