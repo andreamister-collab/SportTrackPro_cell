@@ -10509,7 +10509,7 @@ window.loadUserAssignedTeams = async function() {
     // Restituisce array di team_id assegnati all'utente corrente via user_category_seasons
     // Per "Responsabile": team_id è null, ma recupera tutti i team delle categorie assegnate
     const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-    const isScopedStaff = ['dirigente','allenatore','responsabile'].includes(effRole);
+    const isScopedStaff = ['dirigente','allenatore','responsabile','preparatore atletico'].includes(effRole);
     if (!isScopedStaff) { window._userAssignedTeamIds = null; return null; }
     if (window._userAssignedTeamIds !== null) return window._userAssignedTeamIds; // usa cache
 
