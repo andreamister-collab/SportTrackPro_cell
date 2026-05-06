@@ -11664,7 +11664,7 @@ async function _renderVistaPreparatore() {
         const testSessions = testSessRes.data || [];
         const roster = rosterRes.data || [];
 
-        // Mappa atleti
+        // Mappa atleti dal roster
         const athMap = {};
         roster.forEach(r => {
             if (!athMap[r.athlete_id]) athMap[r.athlete_id] = {
@@ -11672,7 +11672,6 @@ async function _renderVistaPreparatore() {
                 jersey: r.jersey_number, role: r.role, teamId: r.team_id
             };
         });
-        const athIds = Object.keys(athMap);
 
         let testResults = [];
         if (testSessions.length > 0) {
@@ -11681,7 +11680,21 @@ async function _renderVistaPreparatore() {
                 .select('athlete_id, value, performance_id, test_session_id, test_performances!inner(id, name, unit, lower_is_better, test_def_id)')
                 .in('test_session_id', sessIds);
             testResults = tr || [];
+
+            // Se il roster è vuoto o incompleto, recupera gli atleti direttamente dai test_results
+            const athIdsFromTests = [...new Set((testResults).map(r => r.athlete_id).filter(Boolean))];
+            const missingIds = athIdsFromTests.filter(id => !athMap[id]);
+            if (missingIds.length > 0) {
+                const { data: missingAths } = await client.from('athletes')
+                    .select('id, name, surname')
+                    .in('id', missingIds);
+                (missingAths || []).forEach(a => {
+                    athMap[a.id] = { id: a.id, surname: a.surname || '', name: a.name || '', jersey: null, role: '', teamId: teamIds[0] };
+                });
+            }
         }
+
+        const athIds = Object.keys(athMap);
 
         // Mappa: athlete_id → perf_id → [{date, value, lowerIsBetter, perfName, unit, testDefId}]
         const athPerfMap = {};
