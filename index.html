@@ -14319,6 +14319,37 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
         </div>
     </div>
 
+    <!-- ⑤ VISTA MENSILE FIGLIO -->
+    <div class="g-sec-title"><div class="g-sec-dot" style="background:#f59e0b;"></div> Vista Mensile — ${fullName}</div>
+    <div class="card" style="margin-bottom:1.5rem;padding:16px 18px;">
+
+        <!-- Navigazione mese -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button id="g-month-prev" onclick="window._gMonthNav(-1)"
+                    style="padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;font-family:inherit;font-size:0.82rem;">◀</button>
+                <span id="g-month-label" style="font-size:0.9rem;font-weight:700;color:var(--text-main);min-width:140px;text-align:center;">—</span>
+                <button id="g-month-next" onclick="window._gMonthNav(1)"
+                    style="padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;font-family:inherit;font-size:0.82rem;">▶</button>
+            </div>
+            <div style="display:flex;gap:8px;font-size:0.7rem;flex-wrap:wrap;">
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block;"></span>Presente</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Assente</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#2563eb;display:inline-block;"></span>Partita</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>Test</span>
+            </div>
+        </div>
+
+        <!-- Griglia calendario -->
+        <div id="g-month-calendar" style="overflow-x:auto;"></div>
+
+        <!-- Riepilogo mese -->
+        <div id="g-month-summary" style="margin-top:14px;padding:12px 14px;background:rgba(0,0,0,0.03);border-radius:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;"></div>
+
+        <!-- Dettaglio eventi del giorno selezionato -->
+        <div id="g-month-day-detail" style="margin-top:12px;display:none;padding:12px 14px;background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:10px;"></div>
+    </div>
+
     `;  // end templateGenitoreView
 }
 
@@ -14634,6 +14665,170 @@ window.initGenitoreView = async function() {
         // Render
         content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows);
 
+        // ── Vista Mensile Figlio ─────────────────────────────────────────────
+        // Costruisce mappa eventi per data: { 'YYYY-MM-DD': [{type, label, status}] }
+        const eventsByDate = {};
+        const addEvent = (date, ev) => {
+            if (!date) return;
+            const d = date.slice(0, 10);
+            if (!eventsByDate[d]) eventsByDate[d] = [];
+            eventsByDate[d].push(ev);
+        };
+
+        // Presenze sessioni del figlio
+        (attendances || []).forEach(a => {
+            const date = a.sessions?.session_date;
+            const st   = (a.status || '').toLowerCase();
+            const typeN = (a.sessions?.session_types?.name || '').toLowerCase();
+            const isGara = typeN.includes('gara') || typeN.includes('partita') || typeN.includes('torneo');
+            addEvent(date, {
+                type:   isGara ? 'partita' : (st === 'presente' ? 'allenamento' : 'assenza'),
+                status: st,
+                label:  a.sessions?.session_types?.name || 'Sessione',
+                isGara
+            });
+        });
+
+        // Partite (match_stats)
+        (matchesData || []).forEach(m => {
+            // cerca la data dalle sessioni caricate in presenzeAllRows
+        });
+
+        // Test atletici del figlio — già caricati dopo dal blocco test
+        // Aggiungiamo i test dopo il render, con la funzione _gAddTestEvents
+
+        let _gCurrentMonth = new Date().getMonth();
+        let _gCurrentYear  = new Date().getFullYear();
+        let _gTestEvents   = {}; // { 'YYYY-MM-DD': [{label}] } – popolato dopo
+
+        const MONTH_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                          'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+        const DOW_IT   = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+
+        window._gRenderMonthCalendar = function() {
+            const cal  = document.getElementById('g-month-calendar');
+            const lbl  = document.getElementById('g-month-label');
+            const summ = document.getElementById('g-month-summary');
+            const det  = document.getElementById('g-month-day-detail');
+            if (!cal) return;
+
+            lbl.textContent = MONTH_IT[_gCurrentMonth] + ' ' + _gCurrentYear;
+            if (det) { det.style.display = 'none'; det.innerHTML = ''; }
+
+            const firstDay = new Date(_gCurrentYear, _gCurrentMonth, 1);
+            const lastDay  = new Date(_gCurrentYear, _gCurrentMonth + 1, 0);
+            // Lunedì = 0 ... Domenica = 6
+            const startDow = (firstDay.getDay() + 6) % 7;
+
+            // Riepilogo mese
+            let mPresente = 0, mAssente = 0, mPartita = 0, mTest = 0;
+
+            let html = '<table style="width:100%;border-collapse:collapse;min-width:420px;">';
+            html += '<thead><tr>';
+            DOW_IT.forEach(d => {
+                html += `<th style="padding:4px 2px;text-align:center;font-size:0.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">${d}</th>`;
+            });
+            html += '</tr></thead><tbody><tr>';
+
+            // Empty cells before first day
+            for (let i = 0; i < startDow; i++) html += '<td></td>';
+
+            let dow = startDow;
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dateStr = `${_gCurrentYear}-${String(_gCurrentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const evs = [...(eventsByDate[dateStr] || []), ...((_gTestEvents[dateStr] || []).map(e => ({...e, type:'test'})))];
+
+                const isToday = (new Date().toISOString().slice(0,10) === dateStr);
+
+                let dots = '';
+                let hasPresente = false, hasAssente = false, hasPartita = false, hasTest = false;
+                evs.forEach(e => {
+                    if (e.type === 'test')    { hasTest = true;    mTest++; }
+                    if (e.type === 'partita') { hasPartita = true; mPartita++; }
+                    if (e.type === 'allenamento' && e.status === 'presente') { hasPresente = true; mPresente++; }
+                    if (e.type === 'assenza'  || (e.type === 'allenamento' && e.status !== 'presente')) { hasAssente = true; mAssente++; }
+                });
+
+                if (hasPresente) dots += '<span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;margin:0 1px;"></span>';
+                if (hasAssente)  dots += '<span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;margin:0 1px;"></span>';
+                if (hasPartita)  dots += '<span style="width:7px;height:7px;border-radius:50%;background:#2563eb;display:inline-block;margin:0 1px;"></span>';
+                if (hasTest)     dots += '<span style="width:7px;height:7px;border-radius:50%;background:#8b5cf6;display:inline-block;margin:0 1px;"></span>';
+
+                const hasBg = evs.length > 0;
+                const bgStyle = isToday ? 'background:rgba(37,99,235,0.12);border-radius:8px;' : (hasBg ? 'background:rgba(0,0,0,0.02);border-radius:8px;' : '');
+                const cursor  = evs.length ? 'cursor:pointer;' : '';
+                const click   = evs.length ? `onclick="window._gShowDayDetail('${dateStr}')"` : '';
+
+                html += `<td style="padding:3px 2px;text-align:center;vertical-align:top;${cursor}" ${click}>
+                    <div style="${bgStyle}padding:4px 2px;">
+                        <div style="font-size:0.78rem;font-weight:${isToday?'800':'500'};color:${isToday?'var(--primary)':'var(--text-main)'};">${day}</div>
+                        <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-top:2px;min-height:8px;">${dots}</div>
+                    </div>
+                </td>`;
+
+                dow++;
+                if (dow === 7 && day < lastDay.getDate()) { html += '</tr><tr>'; dow = 0; }
+            }
+            // Fill remaining cells
+            while (dow > 0 && dow < 7) { html += '<td></td>'; dow++; }
+            html += '</tr></tbody></table>';
+            cal.innerHTML = html;
+
+            // Summary
+            summ.innerHTML = [
+                { label:'Presenze', val: mPresente, color:'#10b981' },
+                { label:'Assenze',  val: mAssente,  color:'#ef4444' },
+                { label:'Partite',  val: mPartita,  color:'#2563eb' },
+                { label:'Test',     val: mTest,     color:'#8b5cf6' },
+            ].map(s => `<div style="text-align:center;">
+                <div style="font-size:1.4rem;font-weight:800;font-family:'DM Mono',monospace;color:${s.color};">${s.val}</div>
+                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);font-weight:700;">${s.label}</div>
+            </div>`).join('');
+        };
+
+        window._gMonthNav = function(dir) {
+            _gCurrentMonth += dir;
+            if (_gCurrentMonth > 11) { _gCurrentMonth = 0; _gCurrentYear++; }
+            if (_gCurrentMonth < 0)  { _gCurrentMonth = 11; _gCurrentYear--; }
+            window._gRenderMonthCalendar();
+        };
+
+        window._gShowDayDetail = function(dateStr) {
+            const det = document.getElementById('g-month-day-detail');
+            if (!det) return;
+            const evs = [...(eventsByDate[dateStr] || []), ...((_gTestEvents[dateStr] || []).map(e => ({...e, type:'test'})))];
+            if (!evs.length) { det.style.display = 'none'; return; }
+
+            const d = new Date(dateStr);
+            const fmt = d.toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+            const rows = evs.map(e => {
+                const col = e.type === 'test' ? '#8b5cf6' : e.type === 'partita' ? '#2563eb' : e.status === 'presente' ? '#10b981' : '#ef4444';
+                const icon = e.type === 'test' ? '🧪' : e.type === 'partita' ? '⚽' : e.status === 'presente' ? '✅' : '❌';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+                    <span>${icon}</span>
+                    <span style="font-size:0.82rem;color:${col};font-weight:600;">${e.label}</span>
+                    ${e.status && e.type !== 'test' ? '<span style="font-size:0.72rem;color:var(--text-muted);">· ' + e.status + '</span>' : ''}
+                    ${e.opponent ? '<span style="font-size:0.72rem;color:var(--text-muted);">vs ' + e.opponent + '</span>' : ''}
+                    ${e.score ? '<span style="font-size:0.72rem;font-weight:700;font-family:\'DM Mono\',monospace;color:var(--text-main);">' + e.score + '</span>' : ''}
+                </div>`;
+            }).join('');
+
+            det.innerHTML = `<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary);margin-bottom:8px;">${fmt}</div>${rows}`;
+            det.style.display = 'block';
+        };
+
+        // Popola eventi partita nel calendario
+        (matchesData || []).forEach(m => {
+            // Cerca la data dalle sessioni di presenze
+            const pres = (attendances || []).find(a => {
+                const typeN = (a.sessions?.session_types?.name || '').toLowerCase();
+                return typeN.includes('gara') || typeN.includes('partita') || typeN.includes('torneo');
+            });
+        });
+
+        // Render calendario con il mese corrente
+        window._gRenderMonthCalendar();
+
         // ── Filtro presenze sessioni lato client ──
         window._filterGPresenze = function() {
             const tipo    = document.getElementById('g-pres-tipo')?.value || '';
@@ -14691,8 +14886,22 @@ window.initGenitoreView = async function() {
                     if (typeof window.buildTestTable === 'function') {
                         gTestCont.innerHTML = window.buildTestTable(gTList);
                     } else {
-                        // Fallback inline se buildTestTable non ancora disponibile
                         gTestCont.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:12px;">Dati caricati. Ricarica per visualizzare la tabella.</div>';
+                    }
+
+                    // Inietta eventi test nel calendario mensile
+                    if (typeof _gTestEvents !== 'undefined') {
+                        gTestResults.forEach(r => {
+                            const date = gSessMap[r.test_session_id]?.session_date;
+                            if (!date) return;
+                            const d = date.slice(0, 10);
+                            if (!_gTestEvents[d]) _gTestEvents[d] = [];
+                            const defName = gSessMap[r.test_session_id]?.test_definitions?.name || 'Test';
+                            if (!_gTestEvents[d].find(e => e.label === defName)) {
+                                _gTestEvents[d].push({ type: 'test', label: defName });
+                            }
+                        });
+                        if (typeof window._gRenderMonthCalendar === 'function') window._gRenderMonthCalendar();
                     }
                 }
             } catch(e) {
