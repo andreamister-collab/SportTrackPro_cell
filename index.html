@@ -994,8 +994,8 @@
                            'nav-anagrafica-pura','nav-assegnazioni','nav-atleti',
                            'nav-sessioni','nav-partite','nav-test','nav-tornei','nav-import','nav-group-admin'],
             responsabile: ['nav-anagrafica-pura','nav-atleti','nav-group-admin'],
-            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei','nav-import'],
-            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei','nav-import'],
+            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
+            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
             'preparatore atletico': ['nav-atleti','nav-test'],
             genitore:     [],
         };
@@ -1672,7 +1672,10 @@ async function initCategoria() {
     if (!tbody) return;
 
     const mySocId = window._currentSocietyId || null;
-    const isScoped = ['presidente','segretario'].includes((window._effectiveRole || window._userRole || '').toLowerCase());
+    const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
+    const isScoped = ['presidente','segretario','allenatore','dirigente'].includes(effRole);
+
+    let catQ = client.from('categories').select('id, name, society_id, societies(name)');
     if (isScoped && mySocId) catQ = catQ.eq('society_id', mySocId);
 
     const { data, error } = await catQ;
@@ -11744,7 +11747,8 @@ async function _renderVistaPreparatore() {
         const tabs = [
             { id: 'prep-tab-dashboard', label: '📊 Dashboard' },
             { id: 'prep-tab-kpi',       label: '📈 KPI' },
-            { id: 'prep-tab-drilldown', label: '🔍 Drill-down' }
+            { id: 'prep-tab-drilldown', label: '🔍 Drill-down' },
+            { id: 'prep-tab-newtest',   label: '➕ Nuovo Test' }
         ];
 
         const tabBtns = tabs.map((t, i) => `
@@ -11839,6 +11843,30 @@ async function _renderVistaPreparatore() {
             return `<option value="${aid}">${ath.surname} ${ath.name} (#${ath.jersey||'—'})</option>`;
         }).join('');
 
+        // Build test definition options for new test tab
+        // Load all test_definitions for this team scope
+        let testDefOptions = '';
+        {
+            const { data: allDefs } = await client.from('test_definitions')
+                .select('id, name')
+                .in('team_id', teamIds)
+                .order('name');
+            // Also load definitions without team (shared definitions)
+            const { data: socDefs } = await client.from('test_definitions')
+                .select('id, name')
+                .eq('society_id', window._currentSocietyId || window._dashData?._forcedSocietyId || '')
+                .is('team_id', null)
+                .order('name');
+            const defsAll = [...(allDefs || []), ...(socDefs || [])];
+            // Deduplicate
+            const seen = new Set();
+            const defs = defsAll.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; });
+            testDefOptions = defs.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            window._prepTestDefs = defs;
+            window._prepTeamIds = teamIds;
+            window._prepAthList = Object.values(athMap).sort((a, b) => (a.surname + a.name).localeCompare(b.surname + b.name));
+        }
+
         container.innerHTML = `
         <style>
         .prep-tab-btn { transition: all 0.15s; }
@@ -11916,6 +11944,42 @@ async function _renderVistaPreparatore() {
                 </select>
             </div>
             <div id="prep-drill-content" style="color:var(--text-muted);text-align:center;padding:24px;">Seleziona un atleta per vedere il dettaglio dei test nel tempo.</div>
+        </div>
+
+        <!-- ═══ TAB NUOVO TEST ═══ -->
+        <div id="prep-tab-newtest" class="prep-section">
+            <div class="card" style="padding:20px;margin-bottom:14px;">
+                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8b5cf6;margin-bottom:16px;">🧪 Registra Sessione Test Atletico</div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Tipo Test *</label>
+                        <select id="prep-new-testdef" onchange="window._prepLoadTestPerfs()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;">
+                            <option value="">— Seleziona tipo test —</option>
+                            ${testDefOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Data Sessione *</label>
+                        <input id="prep-new-date" type="date" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Note sessione</label>
+                        <input id="prep-new-notes" type="text" placeholder="es. Primo test stagionale" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.82rem;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div id="prep-new-perfs-info" style="display:none;padding:8px 12px;background:rgba(139,92,246,0.06);border-radius:8px;font-size:0.78rem;color:#8b5cf6;font-weight:600;margin-bottom:14px;"></div>
+
+                <!-- Tabella atleti con input risultati -->
+                <div id="prep-new-athletes-wrap">
+                    <div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:24px;">Seleziona un tipo di test per inserire i risultati degli atleti.</div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+                    <button onclick="window._prepSaveTest()" style="padding:9px 22px;background:var(--primary);color:white;border:none;border-radius:8px;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;">💾 Salva Sessione Test</button>
+                </div>
+            </div>
         </div>`;
 
         // Store data for drill-down
@@ -11939,6 +12003,138 @@ async function _renderVistaPreparatore() {
             if (sel) sel.value = aid;
             window._prepTab('drilldown');
             window._prepDrillRender();
+        };
+
+        // ── Carica performances per tipo test selezionato ─────────────────────
+        window._prepLoadTestPerfs = async function() {
+            const defId = document.getElementById('prep-new-testdef')?.value;
+            const wrap  = document.getElementById('prep-new-athletes-wrap');
+            const info  = document.getElementById('prep-new-perfs-info');
+            if (!defId || !wrap) return;
+
+            const { data: perfs } = await client.from('test_performances')
+                .select('id, name, unit, lower_is_better, sort_order')
+                .eq('test_def_id', defId)
+                .order('sort_order');
+
+            if (!perfs?.length) {
+                wrap.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:20px;">Nessuna performance configurata per questo test.</div>';
+                if (info) info.style.display = 'none';
+                return;
+            }
+
+            window._prepCurrentPerfs = perfs;
+            if (info) {
+                info.style.display = '';
+                info.textContent = '📐 Misure: ' + perfs.map(p => p.name + ' (' + p.unit + ')').join(' · ');
+            }
+
+            const athletes = window._prepAthList || [];
+            const perfHeaders = perfs.map(p =>
+                `<th style="padding:8px 10px;text-align:center;font-size:0.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;white-space:nowrap;border-left:1px solid rgba(0,0,0,0.05);">${p.name}<br><span style="font-weight:400;opacity:0.7;">(${p.unit})</span></th>`
+            ).join('');
+
+            const rows = athletes.map(ath =>
+                `<tr style="border-bottom:1px solid rgba(0,0,0,0.04);">
+                    <td style="padding:8px 10px;white-space:nowrap;">
+                        <div style="font-size:0.8rem;font-weight:700;">${ath.jersey ? '#' + ath.jersey + ' ' : ''}${ath.surname} ${ath.name}</div>
+                        <div style="font-size:0.65rem;color:var(--text-muted);">${ath.role || ''}</div>
+                    </td>
+                    ${perfs.map(p =>
+                        `<td style="padding:6px 8px;text-align:center;border-left:1px solid rgba(0,0,0,0.05);">
+                            <input type="number" step="any" placeholder="—"
+                                data-athlete="${ath.id}" data-perf="${p.id}"
+                                style="width:72px;text-align:center;padding:5px 4px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Mono',monospace;font-size:0.85rem;background:var(--card);">
+                        </td>`
+                    ).join('')}
+                </tr>`
+            ).join('');
+
+            wrap.innerHTML = `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                    <thead><tr style="background:rgba(0,0,0,0.03);border-bottom:1px solid var(--border);">
+                        <th style="padding:8px 10px;text-align:left;font-size:0.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Atleta</th>
+                        ${perfHeaders}
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table></div>`;
+        };
+
+        // ── Salva sessione test ────────────────────────────────────────────────
+        window._prepSaveTest = async function() {
+            const defId = document.getElementById('prep-new-testdef')?.value;
+            const date  = document.getElementById('prep-new-date')?.value;
+            const notes = document.getElementById('prep-new-notes')?.value?.trim() || null;
+            const perfs = window._prepCurrentPerfs;
+
+            if (!defId) { alert('Seleziona un tipo di test.'); return; }
+            if (!date)  { alert('Inserisci la data della sessione.'); return; }
+            if (!perfs?.length) { alert('Carica le performance prima di salvare.'); return; }
+
+            // Raccoglie i valori inseriti
+            const inputs = document.querySelectorAll('#prep-new-athletes-wrap input[data-athlete]');
+            const results = [];
+            inputs.forEach(inp => {
+                const val = inp.value.trim();
+                if (val === '' || isNaN(parseFloat(val))) return;
+                results.push({
+                    athlete_id:    inp.getAttribute('data-athlete'),
+                    performance_id: inp.getAttribute('data-perf'),
+                    value: parseFloat(val)
+                });
+            });
+
+            if (!results.length) { alert('Inserisci almeno un risultato.'); return; }
+
+            const btn = document.querySelector('#prep-tab-newtest button');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvataggio...'; }
+
+            try {
+                // Usa il team_id del primo atleta con risultato
+                const firstAthId = results[0].athlete_id;
+                const ath = (window._prepAthList || []).find(a => a.id === firstAthId);
+                const teamId = ath?.teamId || window._prepTeamIds?.[0];
+
+                // Crea test_session
+                const { data: sess, error: sessErr } = await client.from('test_sessions').insert([{
+                    test_def_id: defId,
+                    session_date: date,
+                    notes: notes,
+                    team_id: teamId
+                }]).select('id').maybeSingle();
+
+                if (sessErr) throw sessErr;
+                const sessId = sess.id;
+
+                // Inserisci risultati
+                const toInsert = results.map(r => ({
+                    test_session_id: sessId,
+                    athlete_id: r.athlete_id,
+                    performance_id: r.performance_id,
+                    value: r.value
+                }));
+                const { error: resErr } = await client.from('test_results').insert(toInsert);
+                if (resErr) throw resErr;
+
+                alert('✅ Sessione test salvata! ' + results.length + ' risultati registrati.');
+
+                // Reset form e ricarica vista
+                document.getElementById('prep-new-testdef').value = '';
+                document.getElementById('prep-new-notes').value = '';
+                document.getElementById('prep-new-athletes-wrap').innerHTML =
+                    '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:24px;">Seleziona un tipo di test per inserire i risultati degli atleti.</div>';
+                document.getElementById('prep-new-perfs-info').style.display = 'none';
+                window._prepCurrentPerfs = null;
+
+                // Ricarica la vista per aggiornare dashboard e KPI
+                _renderVistaPreparatore();
+
+            } catch(err) {
+                console.error('_prepSaveTest error:', err);
+                alert('Errore durante il salvataggio: ' + err.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '💾 Salva Sessione Test'; }
+            }
         };
 
         window._prepDrillRender = function() {
@@ -14204,13 +14400,19 @@ window.initGenitoreView = async function() {
             const md = s?.match_details?.[0] || s?.match_details || null;
             const goalsFor     = md?.goals_for     ?? '?';
             const goalsAgainst = md?.goals_against ?? '?';
-            const isHome       = md?.is_home ?? true;
-            const myScore      = isHome ? goalsFor     : goalsAgainst;
-            const theirScore   = isHome ? goalsAgainst : goalsFor;
+            // Usa match_status dal DB come fonte di verità (già calcolato correttamente al salvataggio)
+            // Fallback: ricalcola da goals_for/goals_against (sempre squadra nostra vs avversario)
             let result = 'draw';
-            if (typeof myScore === 'number' && typeof theirScore === 'number') {
-                if (myScore > theirScore) result = 'win';
-                if (myScore < theirScore) result = 'loss';
+            const dbStatus = (md?.match_status || '').toLowerCase();
+            if (dbStatus === 'vittoria') {
+                result = 'win';
+            } else if (dbStatus === 'sconfitta') {
+                result = 'loss';
+            } else if (dbStatus === 'pareggio') {
+                result = 'draw';
+            } else if (typeof goalsFor === 'number' && typeof goalsAgainst === 'number') {
+                if (goalsFor > goalsAgainst) result = 'win';
+                else if (goalsFor < goalsAgainst) result = 'loss';
             }
             const d = s?.session_date ? new Date(s.session_date) : null;
             const played = ms.minutes_played > 0 || ms.is_starter;
