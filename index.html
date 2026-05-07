@@ -15285,16 +15285,16 @@ window._initGentioreMensile = function() {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-presenze" onclick="window._gmOpenPopup('gm-chart-presenze')" title="Clicca per espandere"></div>
-            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-radar" onclick="window._gmOpenPopup('gm-chart-radar')" title="Clicca per espandere"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-presenze" title="Clicca per espandere"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-radar" title="Clicca per espandere"></div>
         </div>
-        <div class="card gm-expandable" style="padding:16px 18px;margin-bottom:14px;cursor:pointer;" id="gm-chart-trend" onclick="window._gmOpenPopup('gm-chart-trend')" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:16px 18px;margin-bottom:14px;cursor:pointer;" id="gm-chart-trend" title="Clicca per espandere"></div>
 
         <!-- ── PRESENZE MENSILI ATLETA ── -->
-        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-ath-monthly" onclick="window._gmOpenPopup('gm-ath-monthly')" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-ath-monthly" title="Clicca per espandere"></div>
 
         <!-- ── ANDAMENTO MENSILE SQUADRA ── -->
-        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" onclick="window._gmOpenPopup('gm-team-monthly')" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" title="Clicca per espandere"></div>
     </div>`;
 
     const render = () => {
@@ -15766,17 +15766,17 @@ window._initGentioreMensile = function() {
     };
 
     // ── Popup espandi grafico ─────────────────────────────────────────────
-    window._gmOpenPopup = function(cardId) {
+    const openGmPopup = function(cardId) {
         const card = document.getElementById(cardId);
         if (!card) return;
         const overlay = document.getElementById('monthly-chart-popup-overlay');
         const box     = document.getElementById('monthly-chart-popup-content');
         if (!overlay || !box) return;
 
-        // Clona il contenuto (non il card stesso, per non spostare gli event listener)
+        // Clona il contenuto
         box.innerHTML = card.innerHTML;
 
-        // Allarga gli SVG nel popup (riscala larghezza al 100%)
+        // Allarga gli SVG nel popup
         box.querySelectorAll('svg').forEach(svg => {
             const origW = svg.getAttribute('width');
             const origH = svg.getAttribute('height');
@@ -15789,14 +15789,35 @@ window._initGentioreMensile = function() {
         });
 
         overlay.style.display = 'flex';
-        // Prevent click-through inside box
-        overlay.querySelector('#monthly-chart-popup-box').onclick = e => e.stopPropagation();
+        const popBox = overlay.querySelector('#monthly-chart-popup-box');
+        if (popBox) popBox.onclick = e => e.stopPropagation();
+    };
+
+    // Attacca click listeners a tutte le card espandibili
+    const attachExpandListeners = () => {
+        const IDS = ['gm-chart-presenze','gm-chart-radar','gm-chart-trend','gm-ath-monthly','gm-team-monthly'];
+        IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            // Rimuovi listener precedente per evitare duplicati
+            el.onclick = null;
+            el.addEventListener('click', (e) => {
+                // Non aprire se il click è su un elemento interattivo figlio
+                if (e.target.closest('button,a,select,input')) return;
+                openGmPopup(id);
+            });
+        });
     };
 
     renderAthMonthly();
     renderTeamMonthly();
+    attachExpandListeners();
 
-    render();
+    // Riattacca dopo ogni render (i chart interni vengono riscritti)
+    const _origRender = render;
+    const wrappedRender = () => { _origRender(); attachExpandListeners(); };
+
+    wrappedRender();
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
