@@ -14467,6 +14467,7 @@ window.initGenitoreView = async function() {
                 score: `${goalsFor}–${goalsAgainst}`,
                 result,
                 date_fmt: d ? d.toLocaleDateString('it-IT', {day:'2-digit', month:'short'}) : '—',
+                session_date: s?.session_date || null,
             };
         });
 
@@ -14997,7 +14998,7 @@ window.initGenitoreView = async function() {
         };
 
         // ── Salva dati globalmente per la pagina Vista Mensile ───────────────
-        window._gGenitoreData = { eventsByDate, attendances, fullName, athleteId };
+        window._gGenitoreData = { eventsByDate, attendances, fullName, athleteId, matchesData, teamName: athleteData.team_name };
 
         // ── Sintesi Andamentale (pagina principale) ───────────────────────────
         const sintesiKpi = document.getElementById('g-sintesi-kpi');
@@ -15283,6 +15284,12 @@ window._initGentioreMensile = function() {
             <div class="card" style="padding:16px 18px;" id="gm-chart-radar"></div>
         </div>
         <div class="card" style="padding:16px 18px;margin-bottom:14px;" id="gm-chart-trend"></div>
+
+        <!-- ── PRESENZE MENSILI ATLETA ── -->
+        <div class="card" style="padding:20px 22px;margin-bottom:14px;" id="gm-ath-monthly"></div>
+
+        <!-- ── ANDAMENTO MENSILE SQUADRA ── -->
+        <div class="card" style="padding:20px 22px;margin-bottom:14px;" id="gm-team-monthly"></div>
     </div>`;
 
     const render = () => {
@@ -15472,6 +15479,289 @@ window._initGentioreMensile = function() {
     document.getElementById('gm-next')?.addEventListener('click',()=>{
         _curMonth++; if(_curMonth>11){_curMonth=0;_curYear++;} render();
     });
+
+    // ── GRAFICO PRESENZE MENSILI ATLETA (statico, su tutti i mesi) ──────────
+    const renderAthMonthly = () => {
+        const wrap = document.getElementById('gm-ath-monthly');
+        if (!wrap) return;
+
+        const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+        const allAtt = data?.attendances || [];
+
+        // Aggrega per mese YYYY-MM
+        const byMonth = {};
+        allAtt.forEach(a => {
+            const d = a.sessions?.session_date;
+            if (!d) return;
+            const m = d.slice(0,7);
+            if (!byMonth[m]) byMonth[m] = { p:0, ab:0, gi:0, tot:0 };
+            const st = (a.status||'').toLowerCase();
+            byMonth[m].tot++;
+            if (st === 'presente') byMonth[m].p++;
+            else if (st === 'assente') byMonth[m].ab++;
+            else if (st === 'giustificato') byMonth[m].gi++;
+        });
+
+        const months = Object.keys(byMonth).sort();
+        if (!months.length) {
+            wrap.innerHTML = '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">👤 Presenze Mensili — '+ fullName +'</div><div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:20px;">Nessun dato disponibile</div>';
+            return;
+        }
+
+        // Totali
+        let totP=0, totAb=0, totGi=0, totAll=0;
+        months.forEach(m=>{ totP+=byMonth[m].p; totAb+=byMonth[m].ab; totGi+=byMonth[m].gi; totAll+=byMonth[m].tot; });
+        const percMed = totAll > 0 ? Math.round(totP/totAll*100) : 0;
+
+        // Pills
+        const pills = [
+            { label: percMed+'% presenze medie', bg:'rgba(16,185,129,0.12)', color:'#059669', border:'rgba(16,185,129,0.3)' },
+            { label: '✅ '+totP+' presenti',      bg:'rgba(16,185,129,0.07)', color:'#059669', border:'rgba(16,185,129,0.2)' },
+            { label: '✖ '+totAb+' assenti',       bg:'rgba(239,68,68,0.07)',  color:'#dc2626', border:'rgba(239,68,68,0.2)' },
+            { label: '📋 '+totAll+' sessioni',     bg:'rgba(37,99,235,0.07)', color:'#2563eb', border:'rgba(37,99,235,0.2)' },
+        ].map(p=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:${p.bg};border:1px solid ${p.border};border-radius:99px;font-size:0.72rem;font-weight:700;color:${p.color};">${p.label}</span>`).join('');
+
+        // SVG line chart % Presenze + % Assenze
+        const svgW=520, svgH=140, pL=36, pR=16, pT=14, pB=28;
+        const plotW=svgW-pL-pR, plotH=svgH-pT-pB;
+        const n=months.length;
+        const xOf = i => pL + (n>1 ? (i/(n-1))*plotW : plotW/2);
+        const yOf = v => pT + plotH - Math.max(0,Math.min(plotH,(v/100)*plotH));
+
+        const presArr = months.map(m=>{ const b=byMonth[m]; return b.tot>0?Math.round(b.p/b.tot*100):0; });
+        const assArr  = months.map(m=>{ const b=byMonth[m]; return b.tot>0?Math.round(b.ab/b.tot*100):0; });
+
+        const makeLine=(arr,color,dash)=>{
+            const pts=arr.map((v,i)=>xOf(i).toFixed(1)+','+yOf(v).toFixed(1)).join(' ');
+            const areaBot=yOf(0).toFixed(1);
+            const areaPts=xOf(0).toFixed(1)+','+areaBot+' '+pts+' '+xOf(n-1).toFixed(1)+','+areaBot;
+            return (color==='#10b981'
+                ?`<polygon points="${areaPts}" fill="rgba(16,185,129,0.1)"/>`:'')
+                +`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${dash||''}" stroke-linejoin="round" stroke-linecap="round"/>`
+                +arr.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`).join('');
+        };
+
+        const gridLs=[0,25,50,75,100].map(v=>`<line x1="${pL}" y1="${yOf(v).toFixed(1)}" x2="${svgW-pR}" y2="${yOf(v).toFixed(1)}" stroke="rgba(0,0,0,0.05)" stroke-width="1"/><text x="${pL-4}" y="${(yOf(v)+3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#94a3b8">${v}%</text>`).join('');
+        const xlbls=months.map((m,i)=>{ const [y,mo]=m.split('-'); return `<text x="${xOf(i).toFixed(1)}" y="${svgH-4}" text-anchor="middle" font-size="9" fill="#94a3b8">${MONTH_SHORT[+mo-1]} ${y.slice(2)}</text>`; }).join('');
+
+        const svg=`<svg width="${svgW}" height="${svgH}" style="display:block;max-width:100%;">
+            <line x1="${pL}" y1="${pT}" x2="${pL}" y2="${svgH-pB}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <line x1="${pL}" y1="${svgH-pB}" x2="${svgW-pR}" y2="${svgH-pB}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            ${gridLs}${makeLine(presArr,'#10b981','')}${makeLine(assArr,'#ef4444','5,3')}${xlbls}
+        </svg>`;
+
+        const legend=`<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.68rem;">
+            <span style="display:flex;align-items:center;gap:4px;color:#10b981;font-weight:700;"><span style="width:14px;height:2px;background:#10b981;display:inline-block;border-radius:2px;"></span>% Presenze</span>
+            <span style="display:flex;align-items:center;gap:4px;color:#ef4444;font-weight:700;"><span style="width:14px;height:2px;background:#ef4444;display:inline-block;border-radius:2px;border-style:dashed;"></span>% Assenze</span>
+        </div>`;
+
+        // Tabella dettaglio
+        const tableRows = months.map(m=>{
+            const b=byMonth[m]; const [y,mo]=m.split('-');
+            const perc=b.tot>0?Math.round(b.p/b.tot*100):0;
+            const col=perc>=75?'#10b981':perc>=50?'#f59e0b':'#ef4444';
+            const barW=Math.round(perc); // 0-100
+            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                <td style="padding:7px 8px;font-weight:600;font-size:0.82rem;">${MONTH_SHORT[+mo-1]} ${y.slice(2)}</td>
+                <td style="padding:7px 8px;text-align:center;color:#10b981;font-weight:700;">${b.p}</td>
+                <td style="padding:7px 8px;text-align:center;color:#ef4444;font-weight:700;">${b.ab}</td>
+                <td style="padding:7px 8px;text-align:center;color:#f59e0b;font-weight:700;">${b.gi}</td>
+                <td style="padding:7px 8px;text-align:center;color:var(--text-muted);font-weight:600;">${b.tot}</td>
+                <td style="padding:7px 8px;min-width:120px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <div style="flex:1;height:7px;background:rgba(0,0,0,0.06);border-radius:99px;overflow:hidden;">
+                            <div style="width:${barW}%;height:100%;background:${col};border-radius:99px;transition:width .4s;"></div>
+                        </div>
+                        <span style="font-size:0.75rem;font-weight:800;color:${col};min-width:34px;">${perc}%</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        wrap.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+            <div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);">👤 PRESENZE MENSILI</div>
+                <div style="font-size:1.25rem;font-weight:800;font-family:'Syne',sans-serif;color:var(--text-main);margin-top:2px;">${fullName}</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">${pills}</div>
+        </div>
+        <div style="overflow-x:auto;margin-bottom:16px;">${svg}</div>
+        <div style="margin-bottom:12px;">${legend}</div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:420px;">
+            <thead><tr style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);border-bottom:2px solid rgba(0,0,0,0.08);">
+                <th style="padding:6px 8px;text-align:left;">Mese</th>
+                <th style="padding:6px 8px;text-align:center;color:#10b981;">✅ Pres.</th>
+                <th style="padding:6px 8px;text-align:center;color:#ef4444;">✖ Ass.</th>
+                <th style="padding:6px 8px;text-align:center;color:#f59e0b;">🟡 Giust.</th>
+                <th style="padding:6px 8px;text-align:center;">Tot.</th>
+                <th style="padding:6px 8px;text-align:left;">%</th>
+            </tr></thead>
+            <tbody>${tableRows}</tbody>
+        </table></div>`;
+    };
+
+    // ── GRAFICO ANDAMENTO MENSILE SQUADRA (statico, su tutti i mesi) ─────────
+    const renderTeamMonthly = () => {
+        const wrap = document.getElementById('gm-team-monthly');
+        if (!wrap) return;
+
+        const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+        const allAtt = data?.attendances || [];
+        const matches = data?.matchesData || [];
+
+        // Aggrega presenze PER MESE
+        const byMonth = {};
+        allAtt.forEach(a => {
+            const d = a.sessions?.session_date;
+            if (!d) return;
+            const m = d.slice(0,7);
+            if (!byMonth[m]) byMonth[m] = { p:0, ab:0, gi:0, tot:0, goals:0, pts:0 };
+            const st = (a.status||'').toLowerCase();
+            byMonth[m].tot++;
+            if (st === 'presente') byMonth[m].p++;
+            else if (st === 'assente') byMonth[m].ab++;
+            else if (st === 'giustificato') byMonth[m].gi++;
+        });
+
+        // Aggrega gol e punti da matchesData per mese
+        // Nota: matchesData è array di partite dell'atleta; usiamo per gol/punti partita
+        // Punti: vittoria=3, pareggio=1, sconfitta=0
+        matches.forEach(m => {
+            // ricava data dalla sessione se disponibile; altrimenti skip
+            const sd = m.session_date;
+            if (!sd) return;
+            const mo = sd.slice(0,7);
+            if (!byMonth[mo]) byMonth[mo] = { p:0, ab:0, gi:0, tot:0, goals:0, pts:0 };
+            byMonth[mo].goals += m.goals || 0;
+            if (m.result === 'win') byMonth[mo].pts += 3;
+            else if (m.result === 'draw') byMonth[mo].pts += 1;
+        });
+
+        const months = Object.keys(byMonth).sort();
+        if (!months.length) {
+            wrap.innerHTML = '<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">📊 ANDAMENTO MENSILE SQUADRA</div><div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:20px;">Nessun dato disponibile</div>';
+            return;
+        }
+
+        // KPI globali
+        let totP=0,totAb=0,totGi=0,totAll=0,totGoals=0,totPts=0;
+        months.forEach(m=>{ const b=byMonth[m]; totP+=b.p; totAb+=b.ab; totGi+=b.gi; totAll+=b.tot; totGoals+=b.goals; totPts+=b.pts; });
+        const percGlob = totAll>0?Math.round(totP/totAll*100):0;
+        const percCol  = percGlob>=75?'#10b981':percGlob>=50?'#f59e0b':'#ef4444';
+
+        const kpis=[
+            { val:percGlob+'%', label:'% Presenze',   color:percCol,   icon:'👥', bg:`rgba(16,185,129,0.08)`,  border:`rgba(16,185,129,0.2)` },
+            { val:totP,         label:'Presenti',      color:'#10b981', icon:'✅', bg:`rgba(16,185,129,0.08)`,  border:`rgba(16,185,129,0.2)` },
+            { val:totAb,        label:'Assenti',       color:'#ef4444', icon:'✖', bg:`rgba(239,68,68,0.08)`,   border:`rgba(239,68,68,0.2)` },
+            { val:totGi,        label:'Giustificati',  color:'#f59e0b', icon:'🟡', bg:`rgba(245,158,11,0.08)`, border:`rgba(245,158,11,0.2)` },
+            { val:totGoals,     label:'Gol Totali',    color:'#2563eb', icon:'⚽', bg:`rgba(37,99,235,0.08)`,  border:`rgba(37,99,235,0.2)` },
+            { val:totPts,       label:'Punti Totali',  color:'#f59e0b', icon:'🏆', bg:`rgba(245,158,11,0.08)`, border:`rgba(245,158,11,0.2)` },
+        ].map(k=>`<div style="flex:1;min-width:90px;text-align:center;padding:10px 8px;background:${k.bg};border:1px solid ${k.border};border-radius:10px;">
+            <div style="font-size:0.7rem;margin-bottom:2px;">${k.icon}</div>
+            <div style="font-size:1.35rem;font-weight:800;font-family:'DM Mono',monospace;color:${k.color};">${k.val}</div>
+            <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:700;margin-top:2px;">${k.label}</div>
+        </div>`).join('');
+
+        // SVG dual-axis line chart: % presenze (sx) + gol & punti (dx)
+        const svgW=560, svgH=160, pL=40, pR=40, pT=16, pB=30;
+        const plotW=svgW-pL-pR, plotH=svgH-pT-pB;
+        const n=months.length;
+        const xOf = i => pL + (n>1?(i/(n-1))*plotW:plotW/2);
+
+        // Scale presenze 0-100%
+        const presArr = months.map(m=>{ const b=byMonth[m]; return b.tot>0?Math.round(b.p/b.tot*100):0; });
+        // Scale gol/punti: max of both
+        const goalArr = months.map(m=>byMonth[m].goals||0);
+        const ptsArr  = months.map(m=>byMonth[m].pts||0);
+        const maxRight = Math.max(1,...goalArr,...ptsArr);
+
+        const yOfL = v => pT + plotH - Math.max(0,Math.min(plotH,(v/100)*plotH));   // left axis 0-100%
+        const yOfR = v => pT + plotH - Math.max(0,Math.min(plotH,(v/maxRight)*plotH)); // right axis
+
+        const makePolyL=(arr,color,fill)=>{
+            const pts=arr.map((v,i)=>xOf(i).toFixed(1)+','+yOfL(v).toFixed(1)).join(' ');
+            const area=xOf(0).toFixed(1)+','+yOfL(0).toFixed(1)+' '+pts+' '+xOf(n-1).toFixed(1)+','+yOfL(0).toFixed(1);
+            return (fill?`<polygon points="${area}" fill="${fill}"/>`:'')
+                +`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`
+                +arr.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOfL(v).toFixed(1)}" r="3.5" fill="${color}" stroke="white" stroke-width="1.5"/>`).join('');
+        };
+        const makePolyR=(arr,color,dash)=>{
+            const pts=arr.map((v,i)=>xOf(i).toFixed(1)+','+yOfR(v).toFixed(1)).join(' ');
+            return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${dash||''}" stroke-linejoin="round" stroke-linecap="round"/>`
+                +arr.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOfR(v).toFixed(1)}" r="3" fill="${color}" stroke="white" stroke-width="1.5"/>`).join('');
+        };
+
+        // Grid lines left (% pres)
+        const gridLs=[0,25,50,75,100].map(v=>`<line x1="${pL}" y1="${yOfL(v).toFixed(1)}" x2="${svgW-pR}" y2="${yOfL(v).toFixed(1)}" stroke="rgba(0,0,0,0.05)" stroke-width="1"/><text x="${pL-4}" y="${(yOfL(v)+3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#94a3b8">${v}%</text>`).join('');
+        // Right axis ticks
+        const rightTicks=[0,Math.ceil(maxRight/2),maxRight].map(v=>`<text x="${svgW-pR+4}" y="${(yOfR(v)+3.5).toFixed(1)}" text-anchor="start" font-size="8" fill="#94a3b8">${v}</text>`).join('');
+        const xlbls=months.map((m,i)=>{ const [y,mo]=m.split('-'); return `<text x="${xOf(i).toFixed(1)}" y="${svgH-4}" text-anchor="middle" font-size="9" fill="#94a3b8">${MONTH_SHORT[+mo-1]} ${y.slice(2)}</text>`; }).join('');
+
+        const svg=`<svg width="${svgW}" height="${svgH}" style="display:block;max-width:100%;">
+            <line x1="${pL}" y1="${pT}" x2="${pL}" y2="${svgH-pB}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <line x1="${pL}" y1="${svgH-pB}" x2="${svgW-pR}" y2="${svgH-pB}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <line x1="${svgW-pR}" y1="${pT}" x2="${svgW-pR}" y2="${svgH-pB}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+            ${gridLs}${rightTicks}
+            ${makePolyL(presArr,'#10b981','rgba(16,185,129,0.1)')}
+            ${makePolyR(goalArr,'#2563eb','')}
+            ${makePolyR(ptsArr,'#f59e0b','4,3')}
+            ${xlbls}
+        </svg>`;
+
+        const legend=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.68rem;">
+            <span style="display:flex;align-items:center;gap:4px;color:#10b981;font-weight:700;"><span style="width:14px;height:2px;background:#10b981;display:inline-block;border-radius:2px;"></span>% Presenze (asse sx)</span>
+            <span style="display:flex;align-items:center;gap:4px;color:#2563eb;font-weight:700;"><span style="width:14px;height:2px;background:#2563eb;display:inline-block;border-radius:2px;"></span>Gol (asse dx)</span>
+            <span style="display:flex;align-items:center;gap:4px;color:#f59e0b;font-weight:700;"><span style="width:14px;height:2px;background:#f59e0b;display:inline-block;border-radius:2px;"></span>Punti (asse dx)</span>
+        </div>`;
+
+        // Tabella
+        const tableRows=months.map(m=>{
+            const b=byMonth[m]; const [y,mo]=m.split('-');
+            const perc=b.tot>0?Math.round(b.p/b.tot*100):0;
+            const col=perc>=75?'#10b981':perc>=50?'#f59e0b':'#ef4444';
+            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                <td style="padding:7px 8px;font-weight:600;font-size:0.82rem;">${MONTH_SHORT[+mo-1]} ${y.slice(2)}</td>
+                <td style="padding:7px 8px;text-align:center;color:#10b981;font-weight:700;">${b.p}</td>
+                <td style="padding:7px 8px;text-align:center;color:#ef4444;font-weight:700;">${b.ab}</td>
+                <td style="padding:7px 8px;text-align:center;color:#f59e0b;font-weight:700;">${b.gi}</td>
+                <td style="padding:7px 8px;text-align:center;color:var(--text-muted);">${b.tot}</td>
+                <td style="padding:7px 8px;text-align:center;font-weight:800;color:${col};">${perc}%</td>
+                <td style="padding:7px 8px;text-align:center;color:#2563eb;font-weight:700;">${b.goals||0}</td>
+                <td style="padding:7px 8px;text-align:center;color:#f59e0b;font-weight:700;">${b.pts||0}</td>
+            </tr>`;
+        }).join('');
+
+        wrap.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+            <div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);">📊 ANDAMENTO MENSILE</div>
+                <div style="font-size:1.25rem;font-weight:800;font-family:'Syne',sans-serif;color:var(--text-main);margin-top:2px;">${data?.teamName||'Squadra'}</div>
+            </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">${kpis}</div>
+        <div style="overflow-x:auto;margin-bottom:12px;">${svg}</div>
+        <div style="margin-bottom:14px;">${legend}</div>
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px;">Dettaglio per mese</div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:480px;">
+            <thead><tr style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);border-bottom:2px solid rgba(0,0,0,0.08);">
+                <th style="padding:6px 8px;text-align:left;">Mese</th>
+                <th style="padding:6px 8px;text-align:center;color:#10b981;">Pres.</th>
+                <th style="padding:6px 8px;text-align:center;color:#ef4444;">Ass.</th>
+                <th style="padding:6px 8px;text-align:center;color:#f59e0b;">Giust.</th>
+                <th style="padding:6px 8px;text-align:center;">Tot.</th>
+                <th style="padding:6px 8px;text-align:center;">% Pres.</th>
+                <th style="padding:6px 8px;text-align:center;color:#2563eb;">⚽ Gol</th>
+                <th style="padding:6px 8px;text-align:center;color:#f59e0b;">🏆 Pts</th>
+            </tr></thead>
+            <tbody>${tableRows}</tbody>
+        </table></div>`;
+    };
+
+    renderAthMonthly();
+    renderTeamMonthly();
 
     render();
 };
