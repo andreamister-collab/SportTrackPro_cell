@@ -15030,8 +15030,8 @@ window.initGenitoreView = async function() {
 
             // KPI globali
             const percColor = percGlobal>=75?'#10b981':percGlobal>=50?'#f59e0b':'#ef4444';
-            const matchCount = (matches||[]).length;
-            const goalCount  = (matches||[]).reduce((s,m2)=>s+(m2.goals||0),0);
+            const matchCount = (matchesData||[]).length;
+            const goalCount  = (matchesData||[]).reduce((s,m2)=>s+(m2.goals||0),0);
 
             sintesiKpi.innerHTML = [
                 {label:'% Presenze Globale', val: percGlobal+'%', color: percColor, sub: totPres+'/'+totAtt+' sess.'},
