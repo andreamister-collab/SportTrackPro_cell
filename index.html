@@ -9651,6 +9651,272 @@ document.getElementById('monthly-chart-popup-overlay')?.addEventListener('click'
     if (e.target === this) window.closeMonthlyChartPopup();
 });
 
+/* ── Popup grafici Vista Mensile Figlio (Genitore) ─────────────────────── */
+window.openGmChartPopup = function(chartId) {
+    const data     = window._gGenitoreData || {};
+    const allAtt   = data.attendances  || [];
+    const matches  = data.matchesData  || [];
+    const fullName = data.fullName     || 'Atleta';
+    const teamName = data.teamName     || 'Squadra';
+
+    const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+    // ── Aggrega presenze per mese ──────────────────────────────────────────
+    const byMonthAtt = {};
+    allAtt.forEach(a => {
+        const d = a.sessions?.session_date; if (!d) return;
+        const m = d.slice(0,7);
+        if (!byMonthAtt[m]) byMonthAtt[m] = { p:0, ab:0, gi:0, tot:0, goals:0, pts:0 };
+        const st = (a.status||'').toLowerCase();
+        byMonthAtt[m].tot++;
+        if (st==='presente') byMonthAtt[m].p++;
+        else if (st==='assente') byMonthAtt[m].ab++;
+        else if (st==='giustificato') byMonthAtt[m].gi++;
+    });
+    matches.forEach(m => {
+        const sd = m.session_date; if (!sd) return;
+        const mo = sd.slice(0,7);
+        if (!byMonthAtt[mo]) byMonthAtt[mo] = { p:0, ab:0, gi:0, tot:0, goals:0, pts:0 };
+        byMonthAtt[mo].goals += m.goals||0;
+        if (m.result==='win') byMonthAtt[mo].pts += 3;
+        else if (m.result==='draw') byMonthAtt[mo].pts += 1;
+    });
+
+    const months = Object.keys(byMonthAtt).sort();
+    if (!months.length) return;
+
+    // Converti nel formato atteso da _buildFullLineChart: [[key, {pres,ass,giust,total,goals,pts,label}], ...]
+    const monthsForChart = months.map(m => {
+        const [y,mo] = m.split('-');
+        const b = byMonthAtt[m];
+        return [m, { pres:b.p, ass:b.ab, giust:b.gi, total:b.tot, goals:b.goals, pts:b.pts, label:`${MONTH_SHORT[+mo-1]} ${y.slice(2)}` }];
+    });
+
+    // ── Totali ─────────────────────────────────────────────────────────────
+    let totP=0,totAb=0,totGi=0,totAll=0,totGoals=0,totPts=0;
+    months.forEach(m=>{ const b=byMonthAtt[m]; totP+=b.p; totAb+=b.ab; totGi+=b.gi; totAll+=b.tot; totGoals+=b.goals; totPts+=b.pts; });
+    const percGlob = totAll>0 ? Math.round(totP/totAll*100) : 0;
+    const percColor = percGlob>=70 ? '#059669' : percGlob>=40 ? '#d97706' : '#dc2626';
+
+    // ── Scegli quale contenuto mostrare in base al chartId ─────────────────
+    let titleLabel, subtitleLabel, extraTop='';
+
+    if (chartId === 'gm-ath-monthly') {
+        titleLabel   = fullName;
+        subtitleLabel = '👤 Presenze Mensili';
+
+        // Per atleta: grafico presenze vs assenze (asse sinistra % pres, asse destra % ass)
+        // Riuso _buildFullLineChart passando goals=0, pts=0 (mostra solo % presenze)
+        // e aggiungo una linea assenze manualmente
+        const W=760, H=260;
+        const padL=44,padR=20,padT=20,padB=38;
+        const cW=W-padL-padR, cH=H-padT-padB;
+        const n=monthsForChart.length;
+        const xPos = i => padL + (n===1 ? cW/2 : i*(cW/(n-1)));
+        const yL   = v => padT + cH - (v/100)*cH;
+
+        const presArr = monthsForChart.map(([,m]) => m.total>0?Math.round(m.pres/m.total*100):0);
+        const assArr  = monthsForChart.map(([,m]) => m.total>0?Math.round(m.ass/m.total*100):0);
+
+        const gridLines = [0,25,50,75,100].map(v=>{
+            const y=yL(v);
+            return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+cW}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-dasharray="4,4"/>
+                    <text x="${padL-6}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="9" fill="rgba(90,100,128,0.75)" font-family="Outfit,sans-serif">${v}%</text>`;
+        }).join('');
+        const axisX = `<line x1="${padL}" y1="${padT+cH}" x2="${padL+cW}" y2="${padT+cH}" stroke="rgba(0,0,0,0.18)" stroke-width="1.5"/>`;
+        const axisY = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="rgba(0,0,0,0.12)" stroke-width="1"/>`;
+
+        const buildArea = (arr,color,dash='') => {
+            const pts = arr.map((v,i)=>`${xPos(i).toFixed(1)},${yL(v).toFixed(1)}`).join(' ');
+            const area = pts+` ${xPos(n-1).toFixed(1)},${padT+cH} ${xPos(0).toFixed(1)},${padT+cH}`;
+            return (dash?'':`<polygon points="${area}" fill="${color}" opacity="0.08"/>`)
+                +`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"${dash?` stroke-dasharray="${dash}"`:''}/>  `
+                +arr.map((v,i)=>`<circle cx="${xPos(i).toFixed(1)}" cy="${yL(v).toFixed(1)}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/>`).join('');
+        };
+        const xLabels = monthsForChart.map(([,m],i)=>`<text x="${xPos(i).toFixed(1)}" y="${padT+cH+22}" text-anchor="middle" font-size="10" fill="rgba(90,100,128,0.9)" font-family="Outfit,sans-serif" font-weight="500">${m.label}</text>`).join('');
+
+        const chartSVG = `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible;">
+            ${gridLines}${axisX}${axisY}
+            ${buildArea(presArr,'#10b981','')}
+            ${buildArea(assArr,'#ef4444','5,3')}
+            ${xLabels}
+        </svg>`;
+
+        // Tabella
+        const tableRows = monthsForChart.map(([,m])=>{
+            const perc=m.total>0?Math.round(m.pres/m.total*100):0;
+            const col=perc>=75?'#059669':perc>=50?'#d97706':'#dc2626';
+            const bw=perc;
+            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                <td style="padding:8px 10px;font-weight:600;">${m.label}</td>
+                <td style="padding:8px 10px;text-align:center;color:#059669;font-weight:700;">${m.pres}</td>
+                <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${m.ass}</td>
+                <td style="padding:8px 10px;text-align:center;color:#d97706;">${m.giust}</td>
+                <td style="padding:8px 10px;text-align:center;color:var(--text-sub);">${m.total}</td>
+                <td style="padding:8px 10px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <div style="flex:1;height:7px;background:rgba(0,0,0,0.07);border-radius:99px;overflow:hidden;">
+                            <div style="width:${bw}%;height:100%;background:${col};border-radius:99px;"></div>
+                        </div>
+                        <span style="font-weight:800;color:${col};font-family:'DM Mono',monospace;min-width:38px;">${perc}%</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        extraTop = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+            <div style="background:rgba(16,185,129,0.09);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:${percColor};font-family:'DM Mono',monospace;line-height:1;">${percGlob}%</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">% Presenze</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.14);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#10b981;font-family:'DM Mono',monospace;line-height:1;">${totP}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Presenti</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#ef4444;font-family:'DM Mono',monospace;line-height:1;">${totAb}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Assenti</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.16);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#d97706;font-family:'DM Mono',monospace;line-height:1;">${totGi}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Giustificati</div>
+            </div>
+        </div>
+        <div style="background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 12px 8px;margin-bottom:16px;">
+            ${chartSVG}
+        </div>
+        <div style="display:flex;gap:18px;margin-bottom:20px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#10b981"/></svg>
+                % Presenze
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="5,3" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#ef4444"/></svg>
+                % Assenze
+            </div>
+        </div>
+        <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:16px;">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;">Dettaglio per Mese</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.79rem;">
+                <thead><tr style="background:rgba(0,0,0,0.03);">
+                    <th style="padding:7px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Mese</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#10b981;">Pres.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#ef4444;">Ass.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#d97706;">Giust.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:var(--text-muted);">Tot.</th>
+                    <th style="padding:7px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:#059669;">%</th>
+                </tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table></div>
+        </div>`;
+
+    } else {
+        // gm-team-monthly e tutti gli altri → usa _buildFullLineChart (stessa vista presidente)
+        titleLabel    = teamName;
+        subtitleLabel = '📊 Andamento Mensile';
+
+        const chartSVG = typeof _buildFullLineChart === 'function'
+            ? _buildFullLineChart(monthsForChart, 760, 280)
+            : '';
+
+        const tableRows = monthsForChart.map(([,m])=>{
+            const p=m.total>0?Math.round(m.pres/m.total*100):0;
+            const pc=p>=70?'#059669':p>=40?'#d97706':'#dc2626';
+            return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
+                <td style="padding:8px 10px;font-weight:600;">${m.label}</td>
+                <td style="padding:8px 10px;text-align:center;color:#059669;font-weight:700;">${m.pres}</td>
+                <td style="padding:8px 10px;text-align:center;color:#ef4444;font-weight:700;">${m.ass}</td>
+                <td style="padding:8px 10px;text-align:center;color:#d97706;">${m.giust}</td>
+                <td style="padding:8px 10px;text-align:center;color:var(--text-sub);">${m.total}</td>
+                <td style="padding:8px 10px;text-align:center;"><span style="font-weight:800;color:${pc};font-family:'DM Mono',monospace;">${p}%</span></td>
+                <td style="padding:8px 10px;text-align:center;color:#2563eb;font-weight:700;">${m.goals}</td>
+                <td style="padding:8px 10px;text-align:center;color:#d97706;font-weight:700;">${m.pts}</td>
+            </tr>`;
+        }).join('');
+
+        extraTop = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+            <div style="background:rgba(16,185,129,0.09);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:${percColor};font-family:'DM Mono',monospace;line-height:1;">${percGlob}%</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">% Presenze</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.14);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#10b981;font-family:'DM Mono',monospace;line-height:1;">${totP}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Presenti</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#ef4444;font-family:'DM Mono',monospace;line-height:1;">${totAb}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Assenti</div>
+            </div>
+            <div style="background:rgba(14,165,233,0.07);border:1px solid rgba(245,158,11,0.16);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#d97706;font-family:'DM Mono',monospace;line-height:1;">${totGi}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Giustificati</div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#2563eb;font-family:'DM Mono',monospace;line-height:1;">⚽ ${totGoals}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Gol Totali</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.18);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:80px;">
+                <div style="font-size:1.35rem;font-weight:800;color:#d97706;font-family:'DM Mono',monospace;line-height:1;">🏆 ${totPts}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;margin-top:3px;">Punti Totali</div>
+            </div>
+        </div>
+        <div style="background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 12px 8px;">
+            ${chartSVG}
+        </div>
+        <div style="display:flex;gap:18px;justify-content:center;margin-top:14px;flex-wrap:wrap;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#10b981"/></svg>
+                % Presenze (asse sx)
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="6,3" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#3b82f6"/></svg>
+                Gol (asse dx)
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:0.75rem;color:var(--text-sub);">
+                <svg width="24" height="10"><line x1="0" y1="5" x2="24" y2="5" stroke="#0ea5e9" stroke-width="2.5" stroke-dasharray="3,2" stroke-linecap="round"/><circle cx="12" cy="5" r="3.5" fill="#0ea5e9"/></svg>
+                Punti (asse dx)
+            </div>
+        </div>
+        <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:16px;">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;">Dettaglio per Mese</div>
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.79rem;">
+                <thead><tr style="background:rgba(0,0,0,0.03);">
+                    <th style="padding:7px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Mese</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#10b981;">Pres.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#ef4444;">Ass.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#d97706;">Giust.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:var(--text-muted);">Tot.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#059669;">% Pres.</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#2563eb;">⚽ Gol</th>
+                    <th style="padding:7px 10px;text-align:center;font-size:0.66rem;font-weight:700;color:#d97706;">🏆 Pts</th>
+                </tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table></div>
+        </div>`;
+    }
+
+    // ── Scrivi nel popup e mostralo ────────────────────────────────────────
+    const popupContent = document.getElementById('monthly-chart-popup-content');
+    if (!popupContent) return;
+
+    popupContent.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:4px;height:36px;background:#10b981;border-radius:3px;flex-shrink:0;"></div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">${subtitleLabel}</div>
+                <div style="font-size:1.25rem;font-weight:800;color:var(--text-main);font-family:'Syne',sans-serif;">${titleLabel}</div>
+            </div>
+        </div>
+        ${extraTop}`;
+
+    const overlay = document.getElementById('monthly-chart-popup-overlay');
+    if (overlay) overlay.style.display = 'flex';
+};
+
 /* ── KPI ── */
 window.loadDashKPIs = async function(seasonId, socId, scopedTeamIds) {
     const grid = document.getElementById('dash-kpi-grid');
@@ -15285,16 +15551,16 @@ window._initGentioreMensile = function() {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-presenze" title="Clicca per espandere"></div>
-            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-radar" title="Clicca per espandere"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-presenze" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-chart-presenze')"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-radar" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-chart-radar')"></div>
         </div>
-        <div class="card gm-expandable" style="padding:16px 18px;margin-bottom:14px;cursor:pointer;" id="gm-chart-trend" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:16px 18px;margin-bottom:14px;cursor:pointer;" id="gm-chart-trend" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-chart-trend')"></div>
 
         <!-- ── PRESENZE MENSILI ATLETA ── -->
-        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-ath-monthly" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-ath-monthly" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-ath-monthly')"></div>
 
         <!-- ── ANDAMENTO MENSILE SQUADRA ── -->
-        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" title="Clicca per espandere"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-team-monthly')"></div>
     </div>`;
 
     const render = () => {
@@ -15765,59 +16031,10 @@ window._initGentioreMensile = function() {
         </table></div>`;
     };
 
-    // ── Popup espandi grafico ─────────────────────────────────────────────
-    const openGmPopup = function(cardId) {
-        const card = document.getElementById(cardId);
-        if (!card) return;
-        const overlay = document.getElementById('monthly-chart-popup-overlay');
-        const box     = document.getElementById('monthly-chart-popup-content');
-        if (!overlay || !box) return;
-
-        // Clona il contenuto
-        box.innerHTML = card.innerHTML;
-
-        // Allarga gli SVG nel popup
-        box.querySelectorAll('svg').forEach(svg => {
-            const origW = svg.getAttribute('width');
-            const origH = svg.getAttribute('height');
-            if (origW && origH) {
-                svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
-                svg.style.width  = '100%';
-                svg.style.height = 'auto';
-                svg.removeAttribute('width');
-            }
-        });
-
-        overlay.style.display = 'flex';
-        const popBox = overlay.querySelector('#monthly-chart-popup-box');
-        if (popBox) popBox.onclick = e => e.stopPropagation();
-    };
-
-    // Attacca click listeners a tutte le card espandibili
-    const attachExpandListeners = () => {
-        const IDS = ['gm-chart-presenze','gm-chart-radar','gm-chart-trend','gm-ath-monthly','gm-team-monthly'];
-        IDS.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            // Rimuovi listener precedente per evitare duplicati
-            el.onclick = null;
-            el.addEventListener('click', (e) => {
-                // Non aprire se il click è su un elemento interattivo figlio
-                if (e.target.closest('button,a,select,input')) return;
-                openGmPopup(id);
-            });
-        });
-    };
-
     renderAthMonthly();
     renderTeamMonthly();
-    attachExpandListeners();
 
-    // Riattacca dopo ogni render (i chart interni vengono riscritti)
-    const _origRender = render;
-    const wrappedRender = () => { _origRender(); attachExpandListeners(); };
-
-    wrappedRender();
+    render();
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
