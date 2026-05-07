@@ -6651,6 +6651,11 @@ window.templateDashboard = function() {
 
     <style>
         @keyframes pulse { 0%,100%{opacity:0.8} 50%{opacity:0.35} }
+        .gm-expandable { transition: box-shadow 0.18s, transform 0.18s; }
+        .gm-expandable:hover { box-shadow: 0 4px 24px rgba(37,99,235,0.13), 0 0 0 2px rgba(37,99,235,0.18) !important; transform: translateY(-1px); }
+        .gm-expandable::after { content:'⛶'; position:absolute; top:10px; right:12px; font-size:0.75rem; color:rgba(99,102,241,0.35); pointer-events:none; transition:color 0.15s; }
+        .gm-expandable { position:relative; }
+        .gm-expandable:hover::after { color:rgba(99,102,241,0.75); }
         /* Dashboard filter selects - dark theme */
         #dash-stats-soc, #dash-stats-cat, #dash-stats-team,
         #dash-match-soc, #dash-match-cat, #dash-match-team,
@@ -15280,16 +15285,16 @@ window._initGentioreMensile = function() {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-            <div class="card" style="padding:16px 18px;" id="gm-chart-presenze"></div>
-            <div class="card" style="padding:16px 18px;" id="gm-chart-radar"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-presenze" onclick="window._gmOpenPopup('gm-chart-presenze')" title="Clicca per espandere"></div>
+            <div class="card gm-expandable" style="padding:16px 18px;cursor:pointer;" id="gm-chart-radar" onclick="window._gmOpenPopup('gm-chart-radar')" title="Clicca per espandere"></div>
         </div>
-        <div class="card" style="padding:16px 18px;margin-bottom:14px;" id="gm-chart-trend"></div>
+        <div class="card gm-expandable" style="padding:16px 18px;margin-bottom:14px;cursor:pointer;" id="gm-chart-trend" onclick="window._gmOpenPopup('gm-chart-trend')" title="Clicca per espandere"></div>
 
         <!-- ── PRESENZE MENSILI ATLETA ── -->
-        <div class="card" style="padding:20px 22px;margin-bottom:14px;" id="gm-ath-monthly"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-ath-monthly" onclick="window._gmOpenPopup('gm-ath-monthly')" title="Clicca per espandere"></div>
 
         <!-- ── ANDAMENTO MENSILE SQUADRA ── -->
-        <div class="card" style="padding:20px 22px;margin-bottom:14px;" id="gm-team-monthly"></div>
+        <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" onclick="window._gmOpenPopup('gm-team-monthly')" title="Clicca per espandere"></div>
     </div>`;
 
     const render = () => {
@@ -15758,6 +15763,34 @@ window._initGentioreMensile = function() {
             </tr></thead>
             <tbody>${tableRows}</tbody>
         </table></div>`;
+    };
+
+    // ── Popup espandi grafico ─────────────────────────────────────────────
+    window._gmOpenPopup = function(cardId) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        const overlay = document.getElementById('monthly-chart-popup-overlay');
+        const box     = document.getElementById('monthly-chart-popup-content');
+        if (!overlay || !box) return;
+
+        // Clona il contenuto (non il card stesso, per non spostare gli event listener)
+        box.innerHTML = card.innerHTML;
+
+        // Allarga gli SVG nel popup (riscala larghezza al 100%)
+        box.querySelectorAll('svg').forEach(svg => {
+            const origW = svg.getAttribute('width');
+            const origH = svg.getAttribute('height');
+            if (origW && origH) {
+                svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
+                svg.style.width  = '100%';
+                svg.style.height = 'auto';
+                svg.removeAttribute('width');
+            }
+        });
+
+        overlay.style.display = 'flex';
+        // Prevent click-through inside box
+        overlay.querySelector('#monthly-chart-popup-box').onclick = e => e.stopPropagation();
     };
 
     renderAthMonthly();
