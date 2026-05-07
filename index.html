@@ -14661,6 +14661,7 @@ window.initGenitoreView = async function() {
         } catch(e) { console.warn('stats gare error', e); }
 
         // Render
+        const fullName = `${athleteData.name||''} ${athleteData.surname||''}`.trim() || 'Atleta';
         content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows);
 
         // ── Vista Mensile Figlio ─────────────────────────────────────────────
