@@ -6642,12 +6642,7 @@ window.templateDashboard = function() {
             </div>
 
         </div>
-    <div id="monthly-chart-popup-overlay" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(200,205,220,0.75); backdrop-filter:blur(16px) saturate(0.6); align-items:center; justify-content:center; padding:20px;">
-        <div id="monthly-chart-popup-box" style="background:var(--card-raised); border-radius:var(--r-2xl); box-shadow:var(--shadow-xl), 0 0 0 1px rgba(37,99,235,0.1); width:100%; max-width:860px; max-height:92vh; overflow-y:auto; position:relative; animation:popupIn 0.28s cubic-bezier(.34,1.36,.64,1); border:1px solid var(--border-accent); padding:28px 32px 24px;">
-            <button onclick="window.closeMonthlyChartPopup()" style="position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.05); border:1px solid var(--border); width:32px; height:32px; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-sub); transition:all 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.12)';this.style.color='#dc2626'" onmouseout="this.style.background='rgba(0,0,0,0.05)';this.style.color='var(--text-sub)'">✕</button>
-            <div id="monthly-chart-popup-content"></div>
-        </div>
-    </div>
+
 
     <style>
         @keyframes pulse { 0%,100%{opacity:0.8} 50%{opacity:0.35} }
@@ -16719,5 +16714,13 @@ window._torneoPrint = async function(id) {
 
 
 </script>
+
+    <div id="monthly-chart-popup-overlay" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(200,205,220,0.75); backdrop-filter:blur(16px) saturate(0.6); align-items:center; justify-content:center; padding:20px;">
+        <div id="monthly-chart-popup-box" style="background:var(--card-raised); border-radius:var(--r-2xl); box-shadow:var(--shadow-xl), 0 0 0 1px rgba(37,99,235,0.1); width:100%; max-width:860px; max-height:92vh; overflow-y:auto; position:relative; animation:popupIn 0.28s cubic-bezier(.34,1.36,.64,1); border:1px solid var(--border-accent); padding:28px 32px 24px;">
+            <button onclick="window.closeMonthlyChartPopup()" style="position:absolute; top:14px; right:14px; background:rgba(0,0,0,0.05); border:1px solid var(--border); width:32px; height:32px; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-sub); transition:all 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.12)';this.style.color='#dc2626'" onmouseout="this.style.background='rgba(0,0,0,0.05)';this.style.color='var(--text-sub)'">✕</button>
+            <div id="monthly-chart-popup-content"></div>
+        </div>
+    </div>
+
 </body>
 </html>
