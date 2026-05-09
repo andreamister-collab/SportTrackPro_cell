@@ -14655,7 +14655,7 @@ function loadChartJs(cb) {
 }
 
 /* ── Template HTML genitore ── */
-function templateGenitoreView(athlete, stats, trainings, matches, assessments, presenzeRows, statsGareRows) {
+function templateGenitoreView(athlete, stats, trainings, matches, assessments, presenzeRows, statsGareRows, perTeamData) {
     const initials = `${(athlete.name||'?')[0]}${(athlete.surname||'?')[0]}`.toUpperCase();
     const fullName = `${athlete.name||''} ${athlete.surname||''}`.trim() || 'Atleta';
 
@@ -14666,6 +14666,32 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     const presenzaPerc = stats.totalTrainings > 0
         ? Math.round((stats.attendedTrainings / stats.totalTrainings) * 100) : 0;
+
+    // ── Helper: scrolling banner per-team ──────────────────────────────────
+    const _mkTeamBanner = (fields) => {
+        if (!perTeamData || !perTeamData.length || !athlete.isMultiTeam) return '';
+        const cards = perTeamData.map(t => {
+            const vals = fields.map(f => {
+                const v = t[f.key] !== undefined && t[f.key] !== null ? t[f.key] : '—';
+                const disp = f.suffix ? v + f.suffix : v;
+                return '<div style="text-align:center;padding:0 6px;">'
+                    + '<div style="font-size:' + (f.big ? '1.05rem' : '0.88rem') + ';font-weight:800;color:' + (f.color || t.tColor) + ';font-family:DM Mono,monospace;line-height:1.1;">' + disp + '</div>'
+                    + '<div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-top:2px;white-space:nowrap;">' + f.label + '</div>'
+                    + '</div>';
+            }).join('<div style="width:1px;background:rgba(0,0,0,0.07);align-self:stretch;margin:0 2px;"></div>');
+            return '<div style="display:inline-flex;align-items:center;gap:0;padding:10px 14px;background:rgba(0,0,0,0.025);border:1.5px solid ' + t.tColor + '33;border-radius:10px;flex-shrink:0;margin-right:10px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;margin-right:10px;padding-right:10px;border-right:1px solid rgba(0,0,0,0.07);">'
+                + '<span style="width:9px;height:9px;border-radius:50%;background:' + t.tColor + ';display:inline-block;flex-shrink:0;"></span>'
+                + '<div><div style="font-size:0.78rem;font-weight:800;color:var(--text-main);white-space:nowrap;">' + t.tName + '</div>'
+                + (t.tCat ? '<div style="font-size:0.62rem;color:var(--text-muted);">' + t.tCat + (t.tJersey ? ' · ' + t.tJersey : '') + '</div>' : '')
+                + '</div></div>'
+                + '<div style="display:flex;align-items:center;gap:0;">' + vals + '</div>'
+                + '</div>';
+        }).join('');
+        return '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;">'
+            + '<div style="display:flex;align-items:stretch;flex-wrap:nowrap;padding:2px 0 6px;">' + cards + '</div>'
+            + '</div>';
+    };
 
     // Righe partite recenti
     const matchRows = (matches || []).slice(0, 10).map(m => {
@@ -14810,6 +14836,15 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     <!-- ① PARTITE RECENTI -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#0ea5e9;"></div> Partite recenti</div>
+    ${_mkTeamBanner([
+        {key:'tConv',   label:'Convocazioni', color:'#2563eb', big:true},
+        {key:'tPlayed', label:'Giocate',       color:'#10b981'},
+        {key:'tGoals',  label:'Gol',           color:'#f59e0b'},
+        {key:'tWins',   label:'Vittorie',      color:'#10b981'},
+        {key:'tDraw',   label:'Pareggi',       color:'#6366f1'},
+        {key:'tLoss',   label:'Sconfitte',     color:'#ef4444'},
+        {key:'tMins',   label:'Minuti',        color:'var(--text-sub)'},
+    ])}
     <div class="g-grid-2" style="margin-bottom:1.5rem;">
         <div class="card">
             <div style="padding:1.4rem;">
@@ -14843,6 +14878,13 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     <!-- ② PROGRESSIONE TEST ATLETICI — layout tabella (nome test | data | misura 1..5) -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#8b5cf6;"></div> Progressione Test Atletici</div>
+    ${_mkTeamBanner([
+        {key:'tPres',  label:'Presenze all.',  color:'#10b981', big:true, suffix:''},
+        {key:'tAss',   label:'Assenze',        color:'#ef4444'},
+        {key:'tGiust', label:'Giustificati',   color:'#f59e0b'},
+        {key:'tTot',   label:'Sessioni tot.',  color:'var(--text-sub)'},
+        {key:'tPerc',  label:'% Presenze',     color:'#2563eb', suffix:'%'},
+    ])}
     <div class="card" style="margin-bottom:1.5rem;padding:16px 18px;">
         <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:10px;">🏃 Test Atletici</div>
         <div id="g-test-atletici-content">
@@ -14855,6 +14897,14 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     <!-- ③ STATISTICHE GARE PER SQUADRA -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#059669;"></div> Statistiche gare per squadra</div>
+    ${_mkTeamBanner([
+        {key:'tConv',   label:'Convocazioni', color:'#2563eb', big:true},
+        {key:'tPlayed', label:'Giocate',      color:'#10b981'},
+        {key:'tWins',   label:'Vittorie',     color:'#10b981'},
+        {key:'tDraw',   label:'Pareggi',      color:'#6366f1'},
+        {key:'tLoss',   label:'Sconfitte',    color:'#ef4444'},
+        {key:'tGoals',  label:'Gol',          color:'#f59e0b'},
+    ])}
     <div class="card" style="margin-bottom:1.5rem;">
         <div style="padding:1.4rem;">
             <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.4rem;display:flex;align-items:center;gap:6px;">
@@ -14886,6 +14936,13 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     <!-- ④ PRESENZE SESSIONI -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#2563eb;"></div> Presenze sessioni</div>
+    ${_mkTeamBanner([
+        {key:'tPerc',  label:'% Presenze',    color:'#2563eb', big:true, suffix:'%'},
+        {key:'tPres',  label:'Presenti',      color:'#10b981'},
+        {key:'tAss',   label:'Assenti',       color:'#ef4444'},
+        {key:'tGiust', label:'Giustificati',  color:'#f59e0b'},
+        {key:'tTot',   label:'Tot. sessioni', color:'var(--text-sub)'},
+    ])}
     <div class="card" style="margin-bottom:1.5rem;">
         <div style="padding:1.4rem;">
             <!-- Filtri su unica riga -->
@@ -14931,6 +14988,14 @@ function templateGenitoreView(athlete, stats, trainings, matches, assessments, p
 
     <!-- ⑤ SINTESI ANDAMENTALE GLOBALE -->
     <div class="g-sec-title"><div class="g-sec-dot" style="background:#f59e0b;"></div> Sintesi Andamentale</div>
+    ${_mkTeamBanner([
+        {key:'tPerc',   label:'% Presenze',    color:'#f59e0b', big:true, suffix:'%'},
+        {key:'tPres',   label:'Allenamenti P', color:'#10b981'},
+        {key:'tConv',   label:'Convocazioni',  color:'#2563eb'},
+        {key:'tGoals',  label:'Gol',           color:'#f59e0b'},
+        {key:'tWins',   label:'Vittorie',      color:'#10b981'},
+        {key:'tMins',   label:'Minuti',        color:'var(--text-sub)'},
+    ])}
     <div class="card" style="margin-bottom:1.5rem;padding:16px 18px;">
         <!-- Indicatori globali -->
         <div id="g-sintesi-kpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px;"></div>
@@ -15291,7 +15356,36 @@ window.initGenitoreView = async function() {
 
         // Render
         const fullName = `${athleteData.name||''} ${athleteData.surname||''}`.trim() || 'Atleta';
-        content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows);
+
+        // Precompute per-team stats for the scrolling banners
+        const _TEAM_COLORS = ['#2563eb','#10b981','#8b5cf6','#f59e0b','#ef4444'];
+        const perTeamData = isMultiTeam ? displayAssignments.map((ass, idx) => {
+            const tId     = ass.team_id;
+            const tColor  = _TEAM_COLORS[idx % _TEAM_COLORS.length];
+            const tName   = ass.teams?.name || '?';
+            const tCat    = ass.categories?.name || '';
+            const tJersey = ass.jersey_number ? '#' + ass.jersey_number : '';
+            // Training attendances for this team
+            const tTrain  = _trainings.filter(a => a.sessions?.team_id === tId);
+            const tPres   = tTrain.filter(a => a.status === 'presente').length;
+            const tAss    = tTrain.filter(a => a.status === 'assente').length;
+            const tGiust  = tTrain.filter(a => a.status === 'giustificato').length;
+            const tTot    = tTrain.length;
+            const tPerc   = tTot > 0 ? Math.round(tPres/tTot*100) : null;
+            // Matches for this team
+            const tMatches = matchesData.filter(m => m.team_id === tId);
+            const tPlayed  = tMatches.filter(m => m.participated).length;
+            const tConv    = tMatches.length;
+            const tGoals   = tMatches.reduce((s,m) => s+(m.goals||0), 0);
+            const tWins    = tMatches.filter(m => m.result==='win').length;
+            const tDraw    = tMatches.filter(m => m.result==='draw').length;
+            const tLoss    = tMatches.filter(m => m.result==='loss').length;
+            const tMins    = tMatches.reduce((s,m) => s+(m.minutes_played||0), 0);
+            return { tId, tColor, tName, tCat, tJersey, tPres, tAss, tGiust, tTot, tPerc,
+                     tPlayed, tConv, tGoals, tWins, tDraw, tLoss, tMins };
+        }) : [];
+
+        content.innerHTML = templateGenitoreView(athleteData, stats, attendances, matchesData, null, presenzeRows, statsGareRows, perTeamData);
 
         // ── Multi-team banner: mostra switcher per squadra quando figlio è in più squadre ──
         if (isMultiTeam && displayAssignments.length > 1) {
