@@ -16133,8 +16133,48 @@ window._initGentioreMensile = function() {
     if (!content) return;
 
     const data = window._gGenitoreData;
-    const fullName = data?.fullName || 'Figlio';
-    const eventsByDate = data?.eventsByDate || {};
+    const fullName      = data?.fullName       || 'Figlio';
+    const allAssigns    = data?.allAssignments || [];
+    const isMultiTeam   = allAssigns.length > 1;
+    const TEAM_COLORS   = ['#2563eb','#10b981','#8b5cf6','#f59e0b','#ef4444'];
+
+    // Build per-team eventsByDate from raw attendances + matchesData
+    const allAttendances = data?.attendances   || [];
+    const allMatches     = data?.matchesData   || [];
+
+    const _buildEvsByDate = (filterTeamId) => {
+        const evs = {};
+        const add = (date, ev) => {
+            if (!date) return;
+            const d = date.slice(0,10);
+            if (!evs[d]) evs[d] = [];
+            evs[d].push(ev);
+        };
+        allAttendances.forEach(a => {
+            if (filterTeamId && a.sessions?.team_id !== filterTeamId) return;
+            const date  = a.sessions?.session_date;
+            const st    = (a.status||'').toLowerCase();
+            const typeN = (a.sessions?.session_types?.name||'').toLowerCase();
+            const isGara = typeN.includes('gara')||typeN.includes('partita')||typeN.includes('torneo');
+            const pd = a.performance_data || {};
+            add(date, { type: isGara?'partita':(st==='presente'?'allenamento':'assenza'),
+                status: st, label: a.sessions?.session_types?.name||'Sessione',
+                isGara, rating: a.rating||null, perf: pd, sessionDate: date });
+        });
+        allMatches.forEach(m => {
+            if (filterTeamId && m.team_id !== filterTeamId) return;
+            if (m.session_date) add(m.session_date, { type:'partita', isGara:true,
+                status:'partita', label:'Partita', result: m.result, opponent: m.opponent });
+        });
+        return evs;
+    };
+
+    // eventsByDate: all teams combined (default), plus per-team maps
+    let eventsByDate = data?.eventsByDate || _buildEvsByDate(null);
+    const _evsByTeam = {};
+    allAssigns.forEach(a => { _evsByTeam[a.team_id] = _buildEvsByDate(a.team_id); });
+
+    let _gmActiveTeamId = null; // null = all teams
 
     const MONTH_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                       'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -16155,6 +16195,8 @@ window._initGentioreMensile = function() {
             </div>
             <button onclick="window.loadPage('dashboard')" style="padding:7px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.78rem;cursor:pointer;color:var(--text-muted);">← Torna alla Dashboard</button>
         </div>
+
+        <div id="gm-team-switcher" style="margin-bottom:12px;"></div>
 
         <div class="card" style="padding:18px 20px;margin-bottom:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
@@ -16187,6 +16229,43 @@ window._initGentioreMensile = function() {
         <!-- ── ANDAMENTO MENSILE SQUADRA ── -->
         <div class="card gm-expandable" style="padding:20px 22px;margin-bottom:14px;cursor:pointer;" id="gm-team-monthly" title="Clicca per espandere" onclick="window.openGmChartPopup('gm-team-monthly')"></div>
     </div>`;
+
+    // ── Team switcher render ──────────────────────────────────────────────────
+    const renderTeamSwitcher = () => {
+        const sw = document.getElementById('gm-team-switcher');
+        if (!sw || !isMultiTeam) { if (sw) sw.style.display='none'; return; }
+        const pills = [{ team_id: null, name: 'Tutte le squadre', cat: '', jersey: '' }, ...allAssigns.map((a,i) => ({
+            team_id: a.team_id,
+            name: a.teams?.name || '?',
+            cat:  a.categories?.name || '',
+            jersey: a.jersey_number ? '#'+a.jersey_number : '',
+            color: TEAM_COLORS[i % TEAM_COLORS.length],
+        }))].map((t, i) => {
+            const isActive = t.team_id === _gmActiveTeamId;
+            const col = t.color || '#64748b';
+            return '<button onclick="window._gmSwitchTeam(\'' + (t.team_id||'') + '\')" '
+                + 'style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;'
+                + 'border:2px solid ' + (isActive ? col : col+'55') + ';'
+                + 'border-radius:99px;background:' + (isActive ? col+'18' : 'transparent') + ';'
+                + 'font-size:0.78rem;font-weight:' + (isActive?'800':'600') + ';'
+                + 'color:' + (isActive ? col : 'var(--text-muted)') + ';'
+                + 'cursor:pointer;font-family:inherit;transition:all 0.15s;">'
+                + (i > 0 ? '<span style="width:8px;height:8px;border-radius:50%;background:'+col+';display:inline-block;flex-shrink:0;"></span>' : '⚡ ')
+                + t.name
+                + (t.jersey ? ' <span style="font-size:0.68rem;opacity:0.7;">'+t.jersey+'</span>' : '')
+                + '</button>';
+        }).join('');
+        sw.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' + pills + '</div>';
+    };
+
+    window._gmSwitchTeam = function(teamId) {
+        _gmActiveTeamId = teamId || null;
+        eventsByDate = _gmActiveTeamId ? (_evsByTeam[_gmActiveTeamId] || {}) : (data?.eventsByDate || _buildEvsByDate(null));
+        renderTeamSwitcher();
+        render();
+    };
+
+    renderTeamSwitcher();
 
     const render = () => {
         const cal    = document.getElementById('gm-calendar');
