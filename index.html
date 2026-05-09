@@ -16263,6 +16263,9 @@ window._initGentioreMensile = function() {
         eventsByDate = _gmActiveTeamId ? (_evsByTeam[_gmActiveTeamId] || {}) : (data?.eventsByDate || _buildEvsByDate(null));
         renderTeamSwitcher();
         render();
+        // Re-render the two static monthly charts with the new team filter
+        renderAthMonthly();
+        renderTeamMonthly();
     };
 
     renderTeamSwitcher();
@@ -16468,7 +16471,10 @@ window._initGentioreMensile = function() {
         if (!wrap) return;
 
         const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-        const allAtt = data?.attendances || [];
+        const _rawAtt = data?.attendances || [];
+        const allAtt = _gmActiveTeamId
+            ? _rawAtt.filter(a => a.sessions?.team_id === _gmActiveTeamId)
+            : _rawAtt;
 
         // Aggrega per mese YYYY-MM
         const byMonth = {};
@@ -16590,8 +16596,14 @@ window._initGentioreMensile = function() {
         if (!wrap) return;
 
         const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-        const allAtt = data?.attendances || [];
-        const matches = data?.matchesData || [];
+        const _rawAtt2 = data?.attendances || [];
+        const allAtt = _gmActiveTeamId
+            ? _rawAtt2.filter(a => a.sessions?.team_id === _gmActiveTeamId)
+            : _rawAtt2;
+        const _rawMatches = data?.matchesData || [];
+        const matches = _gmActiveTeamId
+            ? _rawMatches.filter(m => m.team_id === _gmActiveTeamId)
+            : _rawMatches;
 
         // Aggrega presenze PER MESE
         const byMonth = {};
@@ -16719,7 +16731,7 @@ window._initGentioreMensile = function() {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
             <div>
                 <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);">📊 ANDAMENTO MENSILE</div>
-                <div style="font-size:1.25rem;font-weight:800;font-family:'Syne',sans-serif;color:var(--text-main);margin-top:2px;">${data?.teamName||'Squadra'}</div>
+                <div style="font-size:1.25rem;font-weight:800;font-family:'Syne',sans-serif;color:var(--text-main);margin-top:2px;">${_gmActiveTeamId ? (allAssigns.find(a=>a.team_id===_gmActiveTeamId)?.teams?.name||data?.teamName||'Squadra') : (allAssigns.length>1?'Tutte le squadre':data?.teamName||'Squadra')}</div>
             </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">${kpis}</div>
