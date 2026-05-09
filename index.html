@@ -15115,7 +15115,7 @@ window.initGenitoreView = async function() {
                 .order('sessions(session_date)', { ascending: true })
                 .limit(5); // prendi le prime 5 e filtra lato client per sicurezza
 
-            if (activeTeamSeason?.team_id) nmQ = nmQ.eq('sessions.team_id', activeTeamSeason.team_id);
+            if (primaryAssign?.team_id) nmQ = nmQ.eq('sessions.team_id', primaryAssign.team_id);
 
             const { data: nmRows } = await nmQ;
 
@@ -15182,7 +15182,7 @@ window.initGenitoreView = async function() {
                 .select('id, title, session_date, type_id, teams(name, categories(name)), attendances(status)')
                 .order('session_date', { ascending: false })
                 .limit(40);
-            if (activeTeamSeason?.team_id) presQ = presQ.eq('team_id', activeTeamSeason.team_id);
+            if (primaryAssign?.team_id) presQ = presQ.eq('team_id', primaryAssign.team_id);
 
             const { data: sessions } = await presQ;
 
@@ -15232,7 +15232,7 @@ window.initGenitoreView = async function() {
                 let msQ = client.from('sessions')
                     .select('id, team_id, teams(name, categories(name))')
                     .in('type_id', matchTypeIds);
-                if (activeTeamSeason?.team_id) msQ = msQ.eq('team_id', activeTeamSeason.team_id);
+                if (primaryAssign?.team_id) msQ = msQ.eq('team_id', primaryAssign.team_id);
 
                 const { data: matchSessions } = await msQ;
                 const msIds = (matchSessions || []).map(s => s.id);
@@ -15833,9 +15833,9 @@ window.initGenitoreView = async function() {
         // ── Tab switching per test atletici (genitore) ──
         // ── Progressione Test Atletici (genitore) — usa buildTestTable globale ──
         const gTestCont = document.getElementById('g-test-atletici-content');
-        if (gTestCont && activeTeamSeason?.team_id) {
+        if (gTestCont && primaryAssign?.team_id) {
             try {
-                const gTeamId = activeTeamSeason.team_id;
+                const gTeamId = primaryAssign.team_id;
                 const gTestSessRes = await client.from('test_sessions')
                     .select('id, session_date, team_id, test_definitions!inner(id, name)')
                     .eq('team_id', gTeamId)
