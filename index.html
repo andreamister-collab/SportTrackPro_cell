@@ -3547,7 +3547,210 @@ window.handleDeleteStaff = async function(id) {
         data.forEach(t => mTea.innerHTML += `<option value="${t.id}">${t.name}</option>`);
     };
 
-    window.handleEditAtleta = (id) => window.openAtletaModal(id);
+    // ── Multi-assegnazione: modifica atleta con più squadre/categorie ──────────
+    window.handleEditAtleta = async function(assignmentId) {
+        const ref = _allAtletiAssignments.find(x => x.id == assignmentId);
+        if (!ref) return;
+        const athleteId  = ref.athlete_id;
+        const activeSea  = document.getElementById('f-atleta-sea').value;
+        const seaLabel   = _lookupSeas[activeSea] || activeSea;
+
+        // Carica tutte le assegnazioni dell'atleta in questa stagione
+        const { data: allAssigns } = await client
+            .from('athlete_team_seasons')
+            .select('id, jersey_number, role, team_id, category_id, society_id, teams(name), categories(name)')
+            .eq('athlete_id', athleteId)
+            .eq('season_id', activeSea);
+
+        const assigns = allAssigns || [];
+        const athlete = ref.athletes;
+
+        const effRole2 = (window._effectiveRole || window._userRole || '').toLowerCase();
+        const isGlobal2 = ['admin','manager'].includes(effRole2);
+        const mySocId2 = window._currentSocietyId;
+
+        // Carica società, categorie per il form aggiunta
+        let socsData = [];
+        if (isGlobal2) {
+            const { data } = await client.from('societies').select('id, name').order('name');
+            socsData = data || [];
+        } else {
+            const { data } = await client.from('societies').select('id, name').eq('id', mySocId2);
+            socsData = data || [];
+        }
+        const socOptions = socsData.map(s => `<option value="${s.id}" ${s.id===ref.society_id?'selected':''}>${s.name}</option>`).join('');
+
+        const renderAssignRows = (list) => {
+            if (!list.length) return '<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0;">Nessuna assegnazione</div>';
+            return list.map(a => {
+                const teamPart  = a.teams?.name
+                    ? '· <span style="color:#2563eb;">' + a.teams.name + '</span>'
+                    : '<span style="color:var(--text-muted);">· Intera categoria</span>';
+                const jerseyPart = a.jersey_number ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · #' + a.jersey_number + '</span>' : '';
+                const rolePart   = a.role ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · ' + a.role + '</span>' : '';
+                return '<div id="arow-' + a.id + '" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;">'
+                    + '<span style="font-size:0.78rem;color:var(--text-main);flex:1;min-width:120px;">'
+                    + '<strong>' + (a.categories?.name||'?') + '</strong> ' + teamPart + jerseyPart + rolePart
+                    + '</span>'
+                    + '<button onclick="window._deleteAtletaAssignRow(\'' + a.id + '\')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#dc2626;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✕ Rimuovi</button>'
+                    + '</div>';
+            }).join('');
+        };
+
+        modal.open('Modifica Atleta', `
+            <div style="display:grid;gap:14px;">
+                <div style="background:var(--primary-subtle);padding:10px 12px;border-radius:6px;border:1px solid rgba(59,130,246,0.25);color:#1d4ed8;font-size:0.88em;">
+                    <strong>📍 Stagione:</strong> ${seaLabel}
+                </div>
+
+                <!-- Dati anagrafici -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div><label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Cognome *</label>
+                        <input type="text" id="mma-surname" value="${athlete?.surname||''}" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
+                    <div><label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Nome *</label>
+                        <input type="text" id="mma-name" value="${athlete?.name||''}" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
+                </div>
+
+                <!-- Assegnazioni correnti -->
+                <div>
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:8px;">📋 Assegnazioni attuali</div>
+                    <div id="mma-assign-list">${renderAssignRows(assigns)}</div>
+                </div>
+
+                <!-- Form nuova assegnazione -->
+                <div style="border:1px dashed rgba(99,102,241,0.35);border-radius:10px;padding:14px 12px;background:rgba(99,102,241,0.03);">
+                    <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6366f1;margin-bottom:10px;">➕ Aggiungi assegnazione</div>
+                    <div style="display:grid;gap:8px;">
+                        ${isGlobal2
+                            ? '<div><label style="font-size:0.73rem;color:var(--text-muted);display:block;margin-bottom:3px;">Società *</label>'
+                              + '<select id="mma-soc" onchange="window._mmaLoadCats(this.value,\'' + activeSea + '\')" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);">'
+                              + '<option value="">-- Scegli --</option>' + socOptions + '</select></div>'
+                            : '<input type="hidden" id="mma-soc" value="' + mySocId2 + '">'
+                        }
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div><label style="font-size:0.73rem;color:var(--text-muted);display:block;margin-bottom:3px;">Categoria *</label>
+                                <select id="mma-cat" onchange="window._mmaLoadTeams(this.value,'${activeSea}')" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);">
+                                    <option value="">--</option></select></div>
+                            <div><label style="font-size:0.73rem;color:var(--text-muted);display:block;margin-bottom:3px;">Squadra</label>
+                                <select id="mma-team" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);">
+                                    <option value="">Intera categoria</option></select></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div><label style="font-size:0.73rem;color:var(--text-muted);display:block;margin-bottom:3px;">N° Maglia</label>
+                                <input type="number" id="mma-jersey" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
+                            <div><label style="font-size:0.73rem;color:var(--text-muted);display:block;margin-bottom:3px;">Ruolo</label>
+                                <input type="text" id="mma-role" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
+                        </div>
+                        <button onclick="window._mmaAddAssign('${athleteId}','${activeSea}','${ref.society_id}')" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:0.83rem;width:100%;">➕ Aggiungi squadra/categoria</button>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        // Precarica categorie se società già selezionata
+        const initSoc = isGlobal2 ? ref.society_id : mySocId2;
+        if (initSoc) setTimeout(() => window._mmaLoadCats(initSoc, activeSea), 50);
+
+        // Pulsante Salva → aggiorna solo l'anagrafica (nome/cognome)
+        document.getElementById('btn-modal-save').textContent = '💾 Salva Anagrafica';
+        document.getElementById('btn-modal-save').onclick = async () => {
+            const sur = document.getElementById('mma-surname').value.trim().toUpperCase();
+            const nom = document.getElementById('mma-name').value.trim();
+            if (!sur || !nom) return alert('Nome e Cognome obbligatori!');
+            const { error } = await client.from('athletes').update({ surname: sur, name: nom }).eq('id', athleteId);
+            if (!error) { modal.close(); _fetchAtletiData(); }
+            else alert('Errore salvataggio: ' + error.message);
+        };
+    };
+
+    // Carica categorie nel form aggiunta
+    window._mmaLoadCats = async (socId, seaId) => {
+        const el = document.getElementById('mma-cat');
+        if (!el) return;
+        el.innerHTML = '<option value="">--</option>';
+        if (!socId) return;
+        const { data } = await client.from('categories').select('id, name').eq('society_id', socId).order('name');
+        (data||[]).forEach(c => el.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+        document.getElementById('mma-team').innerHTML = '<option value="">Intera categoria</option>';
+    };
+
+    // Carica squadre nel form aggiunta
+    window._mmaLoadTeams = async (catId, seaId) => {
+        const el = document.getElementById('mma-team');
+        if (!el) return;
+        el.innerHTML = '<option value="">Intera categoria</option>';
+        if (!catId) return;
+        const { data } = await client.from('teams').select('id, name').eq('category_id', catId).eq('season_id', seaId).order('name');
+        (data||[]).forEach(t => el.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    };
+
+    // Aggiungi nuova assegnazione
+    window._mmaAddAssign = async (athleteId, seaId, defaultSocId) => {
+        const socId = document.getElementById('mma-soc')?.value || defaultSocId;
+        const catId = document.getElementById('mma-cat')?.value;
+        const teamId = document.getElementById('mma-team')?.value || null;
+        const jersey = document.getElementById('mma-jersey')?.value || null;
+        const role   = document.getElementById('mma-role')?.value || null;
+        if (!catId) return alert('Seleziona almeno una categoria!');
+
+        // Verifica duplicato
+        const { data: existing } = await client
+            .from('athlete_team_seasons')
+            .select('id')
+            .eq('athlete_id', athleteId)
+            .eq('season_id', seaId)
+            .eq('category_id', catId)
+            .eq('team_id', teamId || '00000000-0000-0000-0000-000000000000');
+        // team_id null match workaround
+        const { data: existingNull } = teamId ? {data:[]} : await client
+            .from('athlete_team_seasons').select('id')
+            .eq('athlete_id', athleteId).eq('season_id', seaId).eq('category_id', catId).is('team_id', null);
+
+        if ((existing||[]).length > 0 || (existingNull||[]).length > 0) {
+            return alert('Questa assegnazione esiste già!');
+        }
+
+        const { data: newRow, error } = await client.from('athlete_team_seasons').insert({
+            athlete_id: athleteId, season_id: seaId, society_id: socId,
+            category_id: catId, team_id: teamId, jersey_number: jersey, role: role
+        }).select('id, jersey_number, role, team_id, category_id, society_id, teams(name), categories(name)').single();
+
+        if (error) return alert('Errore: ' + error.message);
+
+        // Aggiunge la riga alla lista senza riaprire il modale
+        const list = document.getElementById('mma-assign-list');
+        if (list) {
+            const div = document.createElement('div');
+            div.id = `arow-${newRow.id}`;
+            div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;';
+            const teamP2   = newRow.teams?.name ? '· <span style="color:#2563eb;">' + newRow.teams.name + '</span>' : '· <span style="color:var(--text-muted);">Intera categoria</span>';
+            const jerseyP2 = jersey ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · #' + jersey + '</span>' : '';
+            const roleP2   = role   ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · ' + role + '</span>'   : '';
+            div.innerHTML = '<span style="font-size:0.78rem;color:var(--text-main);flex:1;min-width:120px;">'
+                + '<strong>' + (newRow.categories?.name||'?') + '</strong> ' + teamP2 + jerseyP2 + roleP2
+                + '</span>'
+                + '<button onclick="window._deleteAtletaAssignRow(\'' + newRow.id + '\')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#dc2626;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✕ Rimuovi</button>';
+            list.appendChild(div);
+        }
+        // Reset form
+        if(document.getElementById('mma-cat')) document.getElementById('mma-cat').value='';
+        if(document.getElementById('mma-team')) document.getElementById('mma-team').innerHTML='<option value="">Intera categoria</option>';
+        if(document.getElementById('mma-jersey')) document.getElementById('mma-jersey').value='';
+        if(document.getElementById('mma-role')) document.getElementById('mma-role').value='';
+        _fetchAtletiData();
+    };
+
+    // Rimuovi assegnazione singola
+    window._deleteAtletaAssignRow = async (assignId) => {
+        if (!confirm('Rimuovere questa assegnazione?')) return;
+        const { error } = await client.from('athlete_team_seasons').delete().eq('id', assignId);
+        if (!error) {
+            const row = document.getElementById(`arow-${assignId}`);
+            if (row) row.remove();
+            _fetchAtletiData();
+        } else { alert('Errore: ' + error.message); }
+    };
+
     window.deleteAtletaAssignment = async (id) => { if(confirm("Rimuovere dalla stagione?")) { await client.from('athlete_team_seasons').delete().eq('id', id); _fetchAtletiData(); } };
 })();
 /* ============================================================
