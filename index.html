@@ -2365,7 +2365,18 @@ window.handleDeleteStaff = async function(id) {
                     <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Anno di Nascita</label>
                     <input type="number" id="f-bp-year" placeholder="es. 2008" oninput="window.applyAnagraficaFilters()" style="width:100%">
                 </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-sub); font-weight:bold;">Visita Medica</label>
+                    <select id="f-bp-medical" onchange="window.applyAnagraficaFilters()" style="width:100%">
+                        <option value="">Tutte</option>
+                        <option value="expired">⚠️ Scadute</option>
+                        <option value="expiring">⏳ In scadenza (30gg)</option>
+                        <option value="valid">✅ Valide</option>
+                        <option value="missing">— Nessuna data</option>
+                    </select>
+                </div>
             </div>
+            <div id="medical-alert-banner" style="display:none;margin-bottom:12px;"></div>
 
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse: collapse;">
@@ -2373,6 +2384,7 @@ window.handleDeleteStaff = async function(id) {
                         <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase;">
                             <th style="text-align:left; padding:15px;">Atleta</th>
                             <th style="text-align:left; padding:15px;">Nascita</th>
+                            <th style="text-align:left; padding:15px;">Visita Medica</th>
                             <th style="text-align:left; padding:15px;">Società</th>
                             <th style="text-align:right; padding:15px;">Azioni</th>
                         </tr>
@@ -2384,6 +2396,17 @@ window.handleDeleteStaff = async function(id) {
     };
 
     // 3. CARICAMENTO DATI
+    // ── Migration check: ensure medical_expiry column exists ──
+    // Run once in Supabase: ALTER TABLE public.athletes ADD COLUMN IF NOT EXISTS medical_expiry date;
+    window._checkMedicalColumn = async function() {
+        try {
+            await client.from('athletes').select('medical_expiry').limit(1);
+        } catch(e) {
+            console.warn('medical_expiry column missing — run: ALTER TABLE public.athletes ADD COLUMN IF NOT EXISTS medical_expiry date;');
+        }
+    };
+    window._checkMedicalColumn();
+
     window.initAnagraficaPura = async function() {
         const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
         const mySocId = window._currentSocietyId;
@@ -2412,6 +2435,29 @@ window.handleDeleteStaff = async function(id) {
         }
         
         renderAnagraficaTable(_atletiBase);
+
+        // Alert banner for expired/expiring medical visits
+        const now2 = new Date(); now2.setHours(0,0,0,0);
+        const expired  = _atletiBase.filter(a => a.medical_expiry && new Date(a.medical_expiry) < now2);
+        const expiring = _atletiBase.filter(a => {
+            if (!a.medical_expiry) return false;
+            const d = new Date(a.medical_expiry); const diff = Math.ceil((d-now2)/(1000*60*60*24));
+            return diff >= 0 && diff <= 30;
+        });
+        const banner = document.getElementById('medical-alert-banner');
+        if (banner) {
+            const parts = [];
+            if (expired.length)  parts.push('<span style="padding:4px 12px;border-radius:99px;background:rgba(239,68,68,0.1);color:#dc2626;font-weight:700;font-size:0.8rem;">⚠️ ' + expired.length  + ' visite scadute</span>');
+            if (expiring.length) parts.push('<span style="padding:4px 12px;border-radius:99px;background:rgba(245,158,11,0.1);color:#d97706;font-weight:700;font-size:0.8rem;">⏳ ' + expiring.length + ' in scadenza (30gg)</span>');
+            if (parts.length) {
+                banner.innerHTML = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15);border-radius:8px;">'
+                    + '<span style="font-size:0.78rem;color:var(--text-muted);">📋 Visita medica:</span>'
+                    + parts.join('') + '</div>';
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
     };
 
     // 4. RENDER TABELLA
@@ -2425,6 +2471,16 @@ window.handleDeleteStaff = async function(id) {
                     <div style="color:var(--text-muted); font-size:13px;">${a.name}</div>
                 </td>
                 <td style="padding:15px;">${a.born_date ? new Date(a.born_date).toLocaleDateString('it-IT') : '-'}</td>
+                <td style="padding:15px;">${(() => {
+                    if (!a.medical_expiry) return '<span style="color:var(--text-muted);font-size:0.82rem;">—</span>';
+                    const exp = new Date(a.medical_expiry);
+                    const now = new Date();
+                    const diff = Math.ceil((exp - now) / (1000*60*60*24));
+                    const label = exp.toLocaleDateString('it-IT');
+                    if (diff < 0)    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;background:rgba(239,68,68,0.12);color:#dc2626;font-size:0.75rem;font-weight:700;">⚠️ Scaduta ' + label + '</span>';
+                    if (diff <= 30)  return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;background:rgba(245,158,11,0.12);color:#d97706;font-size:0.75rem;font-weight:700;">⏳ Scade ' + label + '</span>';
+                    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;background:rgba(16,185,129,0.1);color:#059669;font-size:0.75rem;font-weight:700;">✅ ' + label + '</span>';
+                })()}</td>
                 <td style="padding:15px;"><span style="background:var(--card-raised); padding:5px 10px; border-radius:15px; font-size:11px;">${_socLook[a.society_id] || 'N.D.'}</span></td>
                 <td style="padding:15px; text-align:right; white-space:nowrap;">
                     <button class="btn-icon-atleta link" onclick="window.openAssociaGiocatoreModal('${a.id}')" title="Associa">🔗</button>
@@ -2534,14 +2590,25 @@ window.handleDeleteStaff = async function(id) {
 
     // 6. FILTRI E MODAL ANAGRAFICA BASE
     window.applyAnagraficaFilters = function() {
-        const search = document.getElementById('f-bp-search').value.toLowerCase();
-        const socId = document.getElementById('f-bp-soc').value;
-        const year = document.getElementById('f-bp-year').value;
+        const search    = document.getElementById('f-bp-search').value.toLowerCase();
+        const socId     = document.getElementById('f-bp-soc').value;
+        const year      = document.getElementById('f-bp-year').value;
+        const medFilter = document.getElementById('f-bp-medical')?.value || '';
+        const now = new Date(); now.setHours(0,0,0,0);
         const filtered = _atletiBase.filter(a => {
             const matchesName = (a.surname + ' ' + a.name).toLowerCase().includes(search);
-            const matchesSoc = !socId || a.society_id === socId;
+            const matchesSoc  = !socId || a.society_id === socId;
             const matchesYear = !year || (a.born_date && a.born_date.startsWith(year));
-            return matchesName && matchesSoc && matchesYear;
+            const matchesMed  = !medFilter || (() => {
+                if (!a.medical_expiry) return medFilter === 'missing';
+                const exp = new Date(a.medical_expiry);
+                const diff = Math.ceil((exp - now) / (1000*60*60*24));
+                if (medFilter === 'expired')  return diff < 0;
+                if (medFilter === 'expiring') return diff >= 0 && diff <= 30;
+                if (medFilter === 'valid')    return diff > 30;
+                return false;
+            })();
+            return matchesName && matchesSoc && matchesYear && matchesMed;
         });
         renderAnagraficaTable(filtered);
     };
@@ -2556,6 +2623,10 @@ window.handleDeleteStaff = async function(id) {
                 <input type="text" id="m-bp-surname" value="${atleta.surname || ''}" placeholder="COGNOME" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); text-transform:uppercase;">
                 <input type="text" id="m-bp-name" value="${atleta.name || ''}" placeholder="NOME" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                 <input type="date" id="m-bp-date" value="${atleta.born_date || ''}" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
+                <div>
+                    <label style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">📋 Scadenza Visita Medica</label>
+                    <input type="date" id="m-bp-medical" value="${atleta.medical_expiry || ''}" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); width:100%; box-sizing:border-box;">
+                </div>
                 ${isGlobal
                     ? `<select id="m-bp-soc" style="padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
                         <option value="">-- Seleziona Società --</option>
@@ -2573,6 +2644,7 @@ window.handleDeleteStaff = async function(id) {
                 name: document.getElementById('m-bp-name').value.trim(), 
                 surname: document.getElementById('m-bp-surname').value.trim().toUpperCase(), 
                 born_date: document.getElementById('m-bp-date').value || null, 
+                medical_expiry: document.getElementById('m-bp-medical').value || null,
                 society_id: document.getElementById('m-bp-soc').value 
             };
             if(!data.name || !data.surname || !data.society_id) return alert("Tutti i campi sono obbligatori!");
@@ -3467,6 +3539,10 @@ window.handleDeleteStaff = async function(id) {
                 <div><label>Nome *</label><input type="text" id="m-atleta-name" value="${editData?.athletes?.name || ''}" required></div>
                 <div><label>N° Maglia</label><input type="number" id="m-atleta-jersey" value="${editData?.jersey_number || ''}"></div>
                 <div><label>Ruolo</label><input type="text" id="m-atleta-role" value="${editData?.role || ''}"></div>
+                <div style="grid-column:span 2;">
+                    <label style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">📋 Scadenza Visita Medica</label>
+                    <input type="date" id="m-atleta-medical" value="${editData?.athletes?.medical_expiry || ''}" style="padding:10px;border-radius:8px;border:1px solid var(--border);width:100%;box-sizing:border-box;">
+                </div>
             </div>
         `);
 
@@ -3526,7 +3602,9 @@ window.handleDeleteStaff = async function(id) {
         document.getElementById('btn-modal-save').onclick = async () => {
             const cog = document.getElementById('m-atleta-surname').value.trim(), nom = document.getElementById('m-atleta-name').value.trim(), sId = mSoc.value;
             if(!cog || !nom || !sId) return alert("Dati mancanti!");
-            let aId = isEdit ? editData.athlete_id : (await client.from('athletes').insert([{surname:cog, name:nom, society_id:sId}]).select().single()).data.id;
+            const medVal = document.getElementById('m-atleta-medical')?.value || null;
+            let aId = isEdit ? editData.athlete_id : (await client.from('athletes').insert([{surname:cog, name:nom, society_id:sId, medical_expiry:medVal}]).select().single()).data.id;
+            if (isEdit && aId) await client.from('athletes').update({ surname:cog, name:nom, medical_expiry:medVal }).eq('id', aId);
             const payload = { athlete_id:aId, society_id:sId, season_id:activeSea, category_id:document.getElementById('m-atleta-cat').value, team_id:document.getElementById('m-atleta-team').value||null, role:document.getElementById('m-atleta-role').value, jersey_number:document.getElementById('m-atleta-jersey').value||null };
             const { error } = isEdit ? await client.from('athlete_team_seasons').update(payload).eq('id', editData.id) : await client.from('athlete_team_seasons').insert(payload);
             if(!error) { modal.close(); _fetchAtletiData(); }
@@ -3564,6 +3642,9 @@ window.handleDeleteStaff = async function(id) {
 
         const assigns = allAssigns || [];
         const athlete = ref.athletes;
+        // Fetch full athlete data including medical_expiry
+        const { data: athleteFull } = await client.from('athletes').select('id,name,surname,born_date,medical_expiry').eq('id', athleteId).single();
+        const athleteMedical = athleteFull || athlete;
 
         const effRole2 = (window._effectiveRole || window._userRole || '').toLowerCase();
         const isGlobal2 = ['admin','manager'].includes(effRole2);
@@ -3609,6 +3690,11 @@ window.handleDeleteStaff = async function(id) {
                         <input type="text" id="mma-surname" value="${athlete?.surname||''}" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
                     <div><label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Nome *</label>
                         <input type="text" id="mma-name" value="${athlete?.name||''}" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);"></div>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">📋 Scadenza Visita Medica</label>
+                    <input type="date" id="mma-medical" value="${athleteMedical?.medical_expiry||''}" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;border:1px solid var(--border);">
+                    <div style="font-size:0.68rem;color:var(--text-muted);margin-top:3px;">Lascia vuoto se non disponibile</div>
                 </div>
 
                 <!-- Assegnazioni correnti -->
@@ -3657,7 +3743,8 @@ window.handleDeleteStaff = async function(id) {
             const sur = document.getElementById('mma-surname').value.trim().toUpperCase();
             const nom = document.getElementById('mma-name').value.trim();
             if (!sur || !nom) return alert('Nome e Cognome obbligatori!');
-            const { error } = await client.from('athletes').update({ surname: sur, name: nom }).eq('id', athleteId);
+            const medExp = document.getElementById('mma-medical')?.value || null;
+            const { error } = await client.from('athletes').update({ surname: sur, name: nom, medical_expiry: medExp }).eq('id', athleteId);
             if (!error) { modal.close(); _fetchAtletiData(); }
             else alert('Errore salvataggio: ' + error.message);
         };
@@ -6111,9 +6198,12 @@ function templateImportAtleti() {
             <h4 style="margin:0 0 10px 0; color: #ffd166; font-size: 14px; font-weight: 800;">⚠️ ISTRUZIONI FILE EXCEL</h4>
             <p style="margin:0; font-size: 13px; color: #c9a84c; line-height: 1.5;">
                 Il file deve essere in formato <b style="color:#92400e;">.xlsx</b> e contenere nella prima riga queste colonne: <br>
-                <b style="color:#92400e;">nome</b> | <b style="color:#92400e;">cognome</b> | <b style="color:#92400e;">data_nascita</b> <br>
+                <b style="color:#92400e;">nome</b> | <b style="color:#92400e;">cognome</b> | <b style="color:#92400e;">data_nascita</b> | <b style="color:#ffd166;">visita_medica</b> <span style="color:#c9a84c;font-size:11px;">(facoltativa)</span><br>
                 <span style="display:inline-block; margin-top:5px; background:rgba(255,209,102,0.1); padding:2px 8px; border-radius:4px; border: 1px solid rgba(255,209,102,0.2);">
-                    💡 La data deve essere nel formato: <b style="color:#92400e;">AAAA-MM-GG</b> (es: 2012-05-24)
+                    💡 Le date devono essere nel formato: <b style="color:#92400e;">AAAA-MM-GG</b> (es: 2012-05-24)
+                </span>
+                <span style="display:inline-block; margin-top:5px; background:rgba(16,185,129,0.08); padding:2px 8px; border-radius:4px; border: 1px solid rgba(16,185,129,0.2);color:#065f46;">
+                    📋 <b>visita_medica</b>: data di scadenza della visita medica (es: 2026-12-31) — accettate anche intestazioni: <i>scadenza_visita, medical_expiry, medical, scadenza_vm</i>
                 </span>
             </p>
         </div>
@@ -6226,6 +6316,7 @@ async function initImportAtleti() {
                         const nome = getVal(row, ['nome', 'name']);
                         const cognome = getVal(row, ['cognome', 'surname']);
                         const rawDate = getVal(row, ['data_nascita', 'nascita', 'data', 'born_date', 'birth_date']);
+                        const rawMedical = getVal(row, ['visita_medica', 'scadenza_visita', 'medical_expiry', 'visita', 'scadenza_vm', 'vm_scadenza', 'medical']);
 
                         if (!nome || !cognome) continue;
 
@@ -6255,10 +6346,12 @@ async function initImportAtleti() {
                         const dataNascita = parseDate(rawDate);
 
                         // A. Inserimento Anagrafica
+                        const dataMedica = parseDate(rawMedical);
                         const { data: ath, error: aErr } = await client.from('athletes').insert({
                             name: nome,
                             surname: cognome,
-                            born_date: dataNascita
+                            born_date: dataNascita,
+                            medical_expiry: dataMedica
                         }).select().single();
 
                         if (aErr) {
