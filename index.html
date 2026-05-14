@@ -996,8 +996,8 @@
                            'nav-anagrafica-pura','nav-visite-mediche','nav-assegnazioni','nav-atleti',
                            'nav-sessioni','nav-partite','nav-test','nav-tornei','nav-import','nav-group-admin'],
             responsabile: ['nav-anagrafica-pura','nav-visite-mediche','nav-atleti','nav-group-admin'],
-            dirigente:    ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
-            allenatore:   ['nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
+            dirigente:    ['nav-visite-mediche','nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
+            allenatore:   ['nav-visite-mediche','nav-atleti','nav-sessioni','nav-partite','nav-test','nav-tornei'],
             'preparatore atletico': ['nav-test'],
             genitore:     ['nav-genitore-mensile'],
         };
@@ -2427,32 +2427,62 @@ window.handleDeleteStaff = async function(id) {
     window._vmAllRows = [];
 
     window.initVisiteMediche = async function() {
-        const effRole = (window._effectiveRole || window._userRole || '').toLowerCase();
-        const isGlobal = ['admin','manager','presidente','segretario'].includes(effRole);
+        const effRole  = (window._effectiveRole || window._userRole || '').toLowerCase();
         const mySocId  = window._currentSocietyId;
+        const userId   = window._currentUserId;
         const now = new Date(); now.setHours(0,0,0,0);
 
-        // ── 1. Fetch athletes with medical_expiry ──────────────────────────
-        let athQ = client.from('athletes')
-            .select('id, name, surname, medical_expiry, society_id, societies(name)')
-            .order('surname');
-        if (!isGlobal && mySocId) athQ = athQ.eq('society_id', mySocId);
-        const { data: athletes } = await athQ;
+        // ── Scope tiers ────────────────────────────────────────────────────
+        // Global   : admin, manager → tutto
+        // Società  : presidente, segretario → solo propria società
+        // Team     : responsabile, dirigente, allenatore → solo team assegnati
+        const isGlobal  = ['admin','manager'].includes(effRole);
+        const isSociety = ['presidente','segretario'].includes(effRole);
+        const isTeam    = ['responsabile','dirigente','allenatore','preparatore atletico'].includes(effRole);
 
-        // ── 2. Fetch all active-season assignments with team/category ──────
+        // Per ruoli team-scoped: carica i team assegnati
+        let scopedTeamIds = null;
+        if (isTeam) {
+            scopedTeamIds = await window.loadUserAssignedTeams() || [];
+            if (!scopedTeamIds.length) {
+                // Nessun team assegnato → mostra avviso
+                const tbody = document.getElementById('vm-body');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Nessun team assegnato al tuo profilo.</td></tr>';
+                return;
+            }
+        }
+
+        // ── 1. Fetch active seasons ────────────────────────────────────────
         const { data: activeSeas } = await client.from('seasons').select('id').eq('is_active', true);
         const activeSeaIds = (activeSeas||[]).map(s => s.id);
 
+        // ── 2. Fetch assignments first (source of truth for scope) ─────────
         let assQ = client.from('athlete_team_seasons')
             .select('athlete_id, society_id, team_id, category_id, teams(name), categories(name), societies(name)');
         if (activeSeaIds.length) assQ = assQ.in('season_id', activeSeaIds);
-        if (!isGlobal && mySocId) assQ = assQ.eq('society_id', mySocId);
+        if (isSociety && mySocId) assQ = assQ.eq('society_id', mySocId);
+        if (isTeam && scopedTeamIds.length) assQ = assQ.in('team_id', scopedTeamIds);
         const { data: assignments } = await assQ;
 
-        // ── 3. Fetch staff (allenatore + responsabile) per team ────────────
+        // Collect visible athlete IDs from assignments (for team/society scope)
+        const visibleAthleteIds = isGlobal
+            ? null   // no restriction
+            : [...new Set((assignments||[]).map(a => a.athlete_id).filter(Boolean))];
+
+        // ── 3. Fetch athletes with medical_expiry ──────────────────────────
+        let athQ = client.from('athletes')
+            .select('id, name, surname, medical_expiry, society_id, societies(name)')
+            .order('surname');
+        if (isSociety && mySocId) athQ = athQ.eq('society_id', mySocId);
+        if (isTeam && visibleAthleteIds?.length) athQ = athQ.in('id', visibleAthleteIds);
+        // Edge: team scope with 0 visible athletes already handled above
+        const { data: athletes } = await athQ;
+
+        // ── 4. Fetch staff (allenatore + responsabile) per team ────────────
         let staffQ = client.from('user_category_seasons')
             .select('team_id, category_id, role, users!fk_staff_user(name)');
-        if (!isGlobal && mySocId) staffQ = staffQ.eq('society_id', mySocId);
+        if (isSociety && mySocId) staffQ = staffQ.eq('society_id', mySocId);
+        if (isTeam && scopedTeamIds.length) staffQ = staffQ.in('team_id', scopedTeamIds);
         if (activeSeaIds.length) staffQ = staffQ.in('season_id', activeSeaIds);
         const { data: staffRaw } = await staffQ;
 
@@ -2477,6 +2507,7 @@ window.handleDeleteStaff = async function(id) {
         });
 
         // ── 5. Build rows — only athletes with issues ──────────────────────
+        // For team scope: further filter assignments to only show relevant teams
         const rows = [];
         (athletes||[]).forEach(ath => {
             const exp = ath.medical_expiry ? new Date(ath.medical_expiry) : null;
@@ -2488,7 +2519,11 @@ window.handleDeleteStaff = async function(id) {
                          : null;
             if (!status) return; // skip valid
 
-            const athAssigns = assMap[ath.id] || [{}];
+            // For team-scoped roles: only show assignments for their teams
+            const rawAssigns = assMap[ath.id] || [];
+            const athAssigns = (isTeam && scopedTeamIds?.length)
+                ? rawAssigns.filter(a => scopedTeamIds.includes(a.team_id))
+                : rawAssigns.length ? rawAssigns : [{}];
             athAssigns.forEach(ass => {
                 const staffKey = ass.team_id || ass.category_id;
                 const st = staffByTeam[staffKey] || { allenatori:[], responsabili:[] };
@@ -2528,6 +2563,10 @@ window.handleDeleteStaff = async function(id) {
         setOpts('vm-f-soc',  socs);
         setOpts('vm-f-cat',  cats);
         setOpts('vm-f-team', teams);
+
+        // Hide società filter if user can only see their own society
+        const socFilterWrap = document.getElementById('vm-f-soc')?.closest('div');
+        if (socFilterWrap) socFilterWrap.style.display = isGlobal ? '' : 'none';
 
         // ── 7. KPI pills ───────────────────────────────────────────────────
         const expired  = rows.filter(r => r.status === 'expired');
