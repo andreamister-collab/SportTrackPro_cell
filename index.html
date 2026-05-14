@@ -2574,16 +2574,108 @@ window.handleDeleteStaff = async function(id) {
         const missing  = rows.filter(r => r.status === 'missing');
         // Deduplicate by ath_id for KPI counts
         const uniqAth = (arr) => [...new Map(arr.map(r=>[r.ath_id,r])).values()];
+        // Build per-type deduplicated sets for popup
+        const _byType = {
+            expired:  rows.filter(r => r.status === 'expired'),
+            expiring: rows.filter(r => r.status === 'expiring'),
+            missing:  rows.filter(r => r.status === 'missing'),
+            all:      rows,
+        };
+
+        const kpiDefs = [
+            { key:'expired',  v: uniqAth(expired).length,  label:'Scadute',            bg:'rgba(239,68,68,0.1)',    color:'#dc2626', icon:'⚠️', cursor:true },
+            { key:'expiring', v: uniqAth(expiring).length, label:'In scadenza (60gg)', bg:'rgba(245,158,11,0.1)',   color:'#d97706', icon:'⏳', cursor:true },
+            { key:'missing',  v: uniqAth(missing).length,  label:'Senza data',         bg:'rgba(100,116,139,0.1)', color:'#475569', icon:'—',  cursor:true },
+            { key:'all',      v: uniqAth(rows).length,     label:'Totale atleti',      bg:'rgba(99,102,241,0.1)',   color:'#6366f1', icon:'👤', cursor:false },
+        ];
+
+        // Store for popup use
+        window._vmRowsByType = _byType;
+
         const kpi = document.getElementById('vm-kpi');
-        if (kpi) kpi.innerHTML = [
-            { v: uniqAth(expired).length,  label:'Scadute',           bg:'rgba(239,68,68,0.1)',   color:'#dc2626', icon:'⚠️' },
-            { v: uniqAth(expiring).length, label:'In scadenza (60gg)',  bg:'rgba(245,158,11,0.1)',  color:'#d97706', icon:'⏳' },
-            { v: uniqAth(missing).length,  label:'Senza data',         bg:'rgba(100,116,139,0.1)', color:'#475569', icon:'—' },
-            { v: uniqAth(rows).length,     label:'Totale atleti',       bg:'rgba(99,102,241,0.1)',  color:'#6366f1', icon:'👤' },
-        ].map(k => `<div style="padding:10px 18px;border-radius:10px;background:${k.bg};border:1px solid ${k.color}33;">
-            <div style="font-size:1.3rem;font-weight:800;color:${k.color};font-family:'DM Mono',monospace;line-height:1;">${k.icon} ${k.v}</div>
-            <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">${k.label}</div>
-        </div>`).join('');
+        if (kpi) kpi.innerHTML = kpiDefs.map(k => {
+            const clickable = k.cursor && k.v > 0;
+            return `<div onclick="${clickable ? "window._vmOpenPopup('"+k.key+"')" : ''}"
+                style="padding:10px 18px;border-radius:10px;background:${k.bg};border:1px solid ${k.color}33;
+                       ${clickable ? 'cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;' : ''}
+                       position:relative;"
+                ${clickable ? `onmouseenter="this.style.boxShadow='0 4px 16px ${k.color}22';this.style.transform='translateY(-1px)'"
+                               onmouseleave="this.style.boxShadow='';this.style.transform=''"` : ''}>
+                <div style="font-size:1.3rem;font-weight:800;color:${k.color};font-family:'DM Mono',monospace;line-height:1;">${k.icon} ${k.v}</div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">${k.label}</div>
+                ${clickable ? `<div style="position:absolute;top:6px;right:8px;font-size:0.6rem;color:${k.color};opacity:0.55;">&#9654; dettaglio</div>` : ''}
+            </div>`;
+        }).join('');
+
+        // ── Popup opener ──────────────────────────────────────────────────
+        window._vmOpenPopup = function(type) {
+            const overlay = document.getElementById('monthly-chart-popup-overlay');
+            const box     = document.getElementById('monthly-chart-popup-content');
+            if (!overlay || !box) return;
+
+            const rows2  = (window._vmRowsByType || {})[type] || [];
+            const labels = { expired:'Visite Scadute', expiring:'In Scadenza (60gg)', missing:'Senza Data Visita' };
+            const colors = { expired:'#dc2626', expiring:'#d97706', missing:'#475569' };
+            const icons  = { expired:'⚠️', expiring:'⏳', missing:'—' };
+            const col    = colors[type] || '#6366f1';
+            const lbl    = labels[type] || 'Elenco';
+
+            // Deduplicate rows by ath_id keeping all team rows separate
+            const tableRows = rows2.map(r => {
+                const exp  = r.medical_expiry ? new Date(r.medical_expiry).toLocaleDateString('it-IT') : null;
+                const diff = r.diff;
+                let badge = '';
+                if (!exp) {
+                    badge = '<span style="padding:2px 8px;border-radius:99px;background:rgba(100,116,139,0.1);color:#475569;font-size:0.72rem;font-weight:700;">— Nessuna data</span>';
+                } else if (diff < 0) {
+                    badge = '<span style="padding:2px 8px;border-radius:99px;background:rgba(239,68,68,0.12);color:#dc2626;font-size:0.72rem;font-weight:700;">Scaduta il ' + exp + '</span>'
+                           +'<div style="font-size:0.68rem;color:#dc2626;">da ' + Math.abs(diff) + ' gg</div>';
+                } else {
+                    const c = diff <= 30 ? '#d97706' : '#0284c7';
+                    const b = diff <= 30 ? 'rgba(245,158,11,0.1)' : 'rgba(2,132,199,0.08)';
+                    badge = '<span style="padding:2px 8px;border-radius:99px;background:'+b+';color:'+c+';font-size:0.72rem;font-weight:700;">Scade il ' + exp + '</span>'
+                           +'<div style="font-size:0.68rem;color:'+c+';">tra ' + diff + ' gg</div>';
+                }
+                const all  = r.allenatori?.length  ? r.allenatori.join(', ')  : '<span style="color:var(--text-muted);">—</span>';
+                const resp = r.responsabili?.length ? r.responsabili.join(', ') : '<span style="color:var(--text-muted);">—</span>';
+                return '<tr style="border-bottom:1px solid var(--border);">'
+                    + '<td style="padding:9px 10px;font-weight:700;font-size:0.85rem;white-space:nowrap;">' + r.surname + ' ' + r.name + '</td>'
+                    + '<td style="padding:9px 10px;">' + badge + '</td>'
+                    + '<td style="padding:9px 10px;font-size:0.78rem;color:var(--text-sub);">' + r.soc_name + '</td>'
+                    + '<td style="padding:9px 10px;font-size:0.78rem;color:var(--text-sub);">' + r.cat_name + '</td>'
+                    + '<td style="padding:9px 10px;font-size:0.78rem;font-weight:600;">' + r.team_name + '</td>'
+                    + '<td style="padding:9px 10px;font-size:0.78rem;color:#2563eb;">' + all + '</td>'
+                    + '<td style="padding:9px 10px;font-size:0.78rem;color:#7c3aed;">' + resp + '</td>'
+                    + '</tr>';
+            }).join('');
+
+            box.innerHTML = `
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                    <div style="width:4px;height:38px;background:${col};border-radius:3px;flex-shrink:0;"></div>
+                    <div>
+                        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);">🏥 VISITE MEDICHE</div>
+                        <div style="font-size:1.2rem;font-weight:800;color:var(--text-main);font-family:'Syne',sans-serif;">${icons[type]} ${lbl}</div>
+                    </div>
+                    <div style="margin-left:auto;padding:6px 14px;border-radius:99px;background:${col}15;border:1px solid ${col}33;font-size:1rem;font-weight:800;color:${col};font-family:'DM Mono',monospace;">
+                        ${rows2.length} atleti
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:600px;">
+                    <thead><tr style="font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);border-bottom:2px solid var(--border);background:rgba(0,0,0,0.02);">
+                        <th style="padding:8px 10px;text-align:left;">Atleta</th>
+                        <th style="padding:8px 10px;text-align:left;">Visita Medica</th>
+                        <th style="padding:8px 10px;text-align:left;">Società</th>
+                        <th style="padding:8px 10px;text-align:left;">Categoria</th>
+                        <th style="padding:8px 10px;text-align:left;">Squadra</th>
+                        <th style="padding:8px 10px;text-align:left;color:#2563eb;">Allenatore</th>
+                        <th style="padding:8px 10px;text-align:left;color:#7c3aed;">Responsabile</th>
+                    </tr></thead>
+                    <tbody>${tableRows || '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Nessun atleta in questa categoria</td></tr>'}</tbody>
+                </table></div>`;
+
+            overlay.style.display = 'flex';
+        };
 
         window.applyVmFilters();
     };
