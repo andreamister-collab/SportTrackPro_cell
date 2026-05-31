@@ -6,6 +6,15 @@
     <title>SportTrackPro - Dashboard</title>
 	<script>
     window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
+
+    // ── Keep-alive Render (ping ogni 10 minuti) ──────────────────
+    (function keepAlive() {
+        const ping = () => fetch(window.SPORTTRACK_API_URL.replace('/api','') + '/health')
+            .then(() => console.log('🟢 keep-alive ok'))
+            .catch(() => console.log('🔴 keep-alive failed'));
+        ping(); // subito all'avvio
+        setInterval(ping, 10 * 60 * 1000); // poi ogni 10 minuti
+    })();
     </script>
 	<script src="./turso_client.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
