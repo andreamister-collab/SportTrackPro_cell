@@ -1,0 +1,3 @@
+export const SUPABASE_URL = 'https://saoghfehqrjgobcpiebz.supabase.co';
+export const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb2doZmVocXJqZ29iY3BpZWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzgwMTcsImV4cCI6MjA4OTE1NDAxN30.3i6bHXbdmKppLt8r2n4YCD5rgeFnm6veeFPmReDmOMY';
+export const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
