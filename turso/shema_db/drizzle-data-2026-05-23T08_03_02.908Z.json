@@ -1,0 +1,1609 @@
+ {
+    "table_name": "athlete_seasons",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "athlete_seasons",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_seasons",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_seasons",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_seasons",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "jersey_number",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "role",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athlete_team_seasons",
+    "column_name": "nickname",
+    "data_type": "text(15)",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "surname",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "born_date",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "medical_expiry",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "original_athlete_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "surname",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "born_date",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "society_name",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_archive",
+    "column_name": "archived_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "original_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "surname",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "born_date",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "athletes_deleted_archive",
+    "column_name": "deleted_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now', 'utc')"
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "status",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "rating",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "performance_note",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "is_justified",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "is_called_up",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "attendances",
+    "column_name": "performance_data",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "'{}'"
+  },
+  {
+    "table_name": "categories",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "categories",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "categories",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "opponent_name",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "meet_time",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "match_start_time",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "address",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "match_status",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "'da giocare'"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "is_friendly",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "goals_for",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "goals_against",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "points_into_table",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "referee",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "scorers",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "match_time",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "meeting_time",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "meeting_place",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "is_home",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "1"
+  },
+  {
+    "table_name": "match_details",
+    "column_name": "result_type",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "session_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "goals",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "yellow_cards",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "red_cards",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "minutes_played",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "match_stats",
+    "column_name": "is_starter",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "parent_athletes",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "parent_athletes",
+    "column_name": "parent_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "parent_athletes",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "parent_athletes",
+    "column_name": "relationship_type",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "parent_athletes",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "start_date",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "end_date",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "is_active",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "sport_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "seasons",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "session_types",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "session_types",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "session_types",
+    "column_name": "icon",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "title",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "session_date",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "type_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "notes",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "societies",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "societies",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "societies",
+    "column_name": "sport_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sports",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "sports",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "sports",
+    "column_name": "icon",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "team_category_season",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "team_category_season",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "team_category_season",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "team_category_season",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "teams",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "teams",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "teams",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "teams",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "teams",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "teams",
+    "column_name": "sport_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_attendances",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "test_attendances",
+    "column_name": "test_session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_attendances",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_attendances",
+    "column_name": "status",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "'convocato'"
+  },
+  {
+    "table_name": "test_attendances",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "description",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "created_by",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_definitions",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "test_def_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "unit",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "lower_is_better",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "test_performances",
+    "column_name": "sort_order",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "test_session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "athlete_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "performance_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "value",
+    "data_type": "REAL",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_results",
+    "column_name": "notes",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "test_def_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "session_date",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "notes",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+  },
+  {
+    "table_name": "test_sessions",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_group_teams",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournament_group_teams",
+    "column_name": "group_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_group_teams",
+    "column_name": "team_name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_group_teams",
+    "column_name": "is_own_team",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "tournament_groups",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournament_groups",
+    "column_name": "tournament_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_groups",
+    "column_name": "letter",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "group_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "home_team",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "away_team",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "goals_home",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "goals_away",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "match_order",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "tournament_matches",
+    "column_name": "session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "phase_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "home_label",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "away_label",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "goals_home",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "goals_away",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "match_order",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "tournament_phase_matches",
+    "column_name": "session_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phases",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournament_phases",
+    "column_name": "tournament_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phases",
+    "column_name": "phase_name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournament_phases",
+    "column_name": "phase_order",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "0"
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))"
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "date",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "location",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "duration_minutes",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "20"
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "qual_per_group",
+    "data_type": "INTEGER",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "2"
+  },
+  {
+    "table_name": "tournaments",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "strftime('%Y-%m-%d %H:%M:%f', 'now')"
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "user_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "category_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "team_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "season_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_category_seasons",
+    "column_name": "role",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_sessions",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "user_sessions",
+    "column_name": "user_id",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_sessions",
+    "column_name": "token",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_sessions",
+    "column_name": "expires_at",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "user_sessions",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "datetime('now')"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "YES",
+    "default_value": "lower(hex(randomblob(16)))"
+  },
+  {
+    "table_name": "users",
+    "column_name": "username",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "TEXT",
+    "is_required": "YES",
+    "is_primary_key": "NO",
+    "default_value": "'allenatore'"
+  },
+  {
+    "table_name": "users",
+    "column_name": "society_id",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": "datetime('now')"
+  },
+  {
+    "table_name": "users",
+    "column_name": "management_role",
+    "data_type": "TEXT",
+    "is_required": "NO",
+    "is_primary_key": "NO",
+    "default_value": null
+  }
+]

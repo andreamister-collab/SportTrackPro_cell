@@ -1,0 +1,17 @@
+SELECT 
+    m.name AS table_name,
+    p.name AS column_name,
+    p.type AS data_type,
+    CASE p.[notnull] WHEN 1 THEN 'YES' ELSE 'NO' END AS is_required,
+    CASE p.pk WHEN 1 THEN 'YES' ELSE 'NO' END AS is_primary_key,
+    p.dflt_value AS default_value
+FROM 
+    sqlite_schema AS m
+JOIN 
+    pragma_table_info(m.name) AS p
+WHERE 
+    m.type = 'table'
+    AND m.name NOT LIKE 'sqlite_%'
+ORDER BY 
+    table_name, 
+    p.cid;

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applicazione SportTrack</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-login { background: #007bff; }
+        .btn-login:hover { background: #0056b3; }
+        .btn-logout { background: #dc3545; }
+        .btn-logout:hover { background: #bd2130; }
+        .hidden { display: none; }
+        h1 { color: #28a745; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. BLOCCO LOGIN (Visibile all'inizio) -->
+    <div id="login-block" class="card">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn-login" onclick="handleLogin()">Accedi</button>
+    </div>
+
+    <!-- 2. BLOCCO HOME (Nascosto, appare dopo il login positivo) -->
+    <div id="home-block" class="card hidden">
+        <h1 id="user-display-name">Nome Utente</h1>
+        <p>Stato sessione: Autenticato su Turso</p>
+        <button class="btn-logout" onclick="handleLogout()">Disconnetti</button>
+    </div>
+
+<script>
+    // Al caricamento della pagina controlla se c'è già una sessione attiva
+    document.addEventListener("DOMContentLoaded", () => {
+        const savedName = localStorage.getItem('loggedUserName');
+        if (savedName) {
+            showHome(savedName);
+        }
+    });
+
+    async function handleLogin() {
+        const userVal = document.getElementById('username').value;
+        const passVal = document.getElementById('password').value;
+
+        if (!userVal || !passVal) {
+            alert("Compila tutti i campi");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: userVal, password: passVal })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Salva il campo NAME ricevuto dal DB nel browser
+                localStorage.setItem('loggedUserName', data.name);
+                showHome(data.name);
+            } else {
+                alert("Errore di autenticazione");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Errore di connessione al backend");
+        }
+    }
+
+    function showHome(name) {
+        document.getElementById('login-block').classList.add('hidden');
+        document.getElementById('home-block').classList.remove('hidden');
+        document.getElementById('user-display-name').textContent = name;
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('loggedUserName');
+        document.getElementById('home-block').classList.add('hidden');
+        document.getElementById('login-block').classList.remove('hidden');
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+    }
+</script>
+
+</body>
+</html>
