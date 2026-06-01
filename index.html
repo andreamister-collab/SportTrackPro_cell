@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SportTrackPro - Dashboard</title>
 	<script>
-    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';;
+    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
     </script>
 	<script src="./turso_client.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -6810,6 +6810,7 @@ async function initImportAtleti() {
                                 .ilike('name', nome.trim())
                                 .ilike('surname', cognome.trim());
                             if (dataNascita) preCheckQ = preCheckQ.eq('born_date', dataNascita);
+                            if (socID) preCheckQ = preCheckQ.eq('society_id', socID);
                             const { data: preExisting } = await preCheckQ.maybeSingle();
                             if (preExisting) {
                                 ath = preExisting;
@@ -6823,7 +6824,8 @@ async function initImportAtleti() {
                             name: nome,
                             surname: cognome,
                             born_date: dataNascita,
-                            medical_expiry: dataMedica
+                            medical_expiry: dataMedica,
+                            society_id: socID || null
                         }).select().single();
 
                         if (aErr) {
@@ -6833,6 +6835,7 @@ async function initImportAtleti() {
                                     .ilike('name', nome.trim())
                                     .ilike('surname', cognome.trim());
                                 if (dataNascita) lookupQ = lookupQ.eq('born_date', dataNascita);
+                                if (socID) lookupQ = lookupQ.eq('society_id', socID);
                                 const { data: existingAth } = await lookupQ.maybeSingle();
                                 ath = existingAth || null;
                                 if (ath) {
