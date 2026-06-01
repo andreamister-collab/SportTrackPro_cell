@@ -158,7 +158,7 @@ const ALLOWED_TABLES = new Set([
     'users','user_category_seasons','individual_test_definitions',
 'individual_test_performances',
 'individual_test_sessions',
-'individual_test_results',
+'individual_test_results','athletes_deleted_archive','athlete_team_seasons_archive',
 ]);
 
 // ── Query builder semplice ─────────────────────────────────────
