@@ -5,16 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SportTrackPro - Dashboard</title>
 	<script>
-    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
-
-    // ── Keep-alive Render (ping ogni 10 minuti) ──────────────────
-    (function keepAlive() {
-        const ping = () => fetch(window.SPORTTRACK_API_URL.replace('/api','') + '/health')
-            .then(() => console.log('🟢 keep-alive ok'))
-            .catch(() => console.log('🔴 keep-alive failed'));
-        ping(); // subito all'avvio
-        setInterval(ping, 10 * 60 * 1000); // poi ogni 10 minuti
-    })();
+    window.SPORTTRACK_API_URL = 'http://localhost:3001/api';
     </script>
 	<script src="./turso_client.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -6839,9 +6830,12 @@ async function initImportAtleti() {
 
                         const dataNascita = parseDate(rawDate);
 
-                        // A. Inserimento Anagrafica
+                        // A. Inserimento Anagrafica (con gestione duplicati)
                         const dataMedica = parseDate(rawMedical);
-                        const { data: ath, error: aErr } = await client.from('athletes').insert({
+                        let ath = null;
+
+                        // Tenta inserimento
+                        const { data: insertedAth, error: aErr } = await client.from('athletes').insert({
                             name: nome,
                             surname: cognome,
                             born_date: dataNascita,
@@ -6849,22 +6843,63 @@ async function initImportAtleti() {
                         }).select().single();
 
                         if (aErr) {
-                            console.error("Errore Atleti:", aErr.message);
-                            continue;
+                            // Se l'atleta esiste già (duplicate / unique violation), cercalo per nome+cognome
+                            if (aErr.code === '23505' || aErr.message?.toLowerCase().includes('duplicate') || aErr.message?.toLowerCase().includes('unique')) {
+                                const { data: existingAth } = await client.from('athletes')
+                                    .select('*')
+                                    .ilike('name', nome.trim())
+                                    .ilike('surname', cognome.trim())
+                                    .maybeSingle();
+                                ath = existingAth || null;
+                                if (!ath) {
+                                    // Ricerca meno restrittiva (senza born_date)
+                                    const { data: existingAth2 } = await client.from('athletes')
+                                        .select('*')
+                                        .ilike('name', nome.trim())
+                                        .ilike('surname', cognome.trim())
+                                        .limit(1)
+                                        .maybeSingle();
+                                    ath = existingAth2 || null;
+                                }
+                                if (ath) {
+                                    console.warn(`Atleta già esistente, uso ID esistente: ${cognome} ${nome} → id=${ath.id}`);
+                                } else {
+                                    console.error("Atleta duplicato ma non trovato in lettura:", aErr.message);
+                                    continue;
+                                }
+                            } else {
+                                console.error("Errore Atleti:", aErr.message);
+                                continue;
+                            }
+                        } else {
+                            ath = insertedAth;
                         }
 
                         // B. Inserimento Legame Stagionale
-                        if (ath) {
-                            const { error: sErr } = await client.from('athlete_team_seasons').insert({
-                                athlete_id: ath.id,
-                                season_id: sID,
-                                society_id: socID,
-                                team_id: tID,
-                                category_id: cID
-                            });
+                        if (ath && ath.id) {
+                            // Verifica se il legame esiste già per evitare duplicati
+                            const { data: existingLink } = await client.from('athlete_team_seasons')
+                                .select('id')
+                                .eq('athlete_id', ath.id)
+                                .eq('season_id', sID)
+                                .eq('team_id', tID)
+                                .maybeSingle();
 
-                            if (!sErr) count++;
-                            else console.error("Errore Legame:", sErr.message);
+                            if (existingLink) {
+                                console.warn(`Legame già esistente per atleta id=${ath.id}, stagione=${sID}, squadra=${tID}`);
+                                count++;
+                            } else {
+                                const { error: sErr } = await client.from('athlete_team_seasons').insert({
+                                    athlete_id: ath.id,
+                                    season_id: sID,
+                                    society_id: socID,
+                                    team_id: tID,
+                                    category_id: cID
+                                });
+
+                                if (!sErr) count++;
+                                else console.error("Errore Legame:", sErr.message);
+                            }
                         }
                     } catch (err) {
                         console.error("Errore riga:", err);
