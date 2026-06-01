@@ -1,11 +1,11 @@
-	<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SportTrackPro - Dashboard</title>
 	<script>
-    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
+    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';;
     </script>
 	<script src="./turso_client.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -3106,58 +3106,28 @@ window.handleDeleteStaff = async function(id) {
         const atleta = _atletiBase.find(a => a.id === id);
         if(!atleta) return;
 
-        if(!confirm(`Sei sicuro di voler eliminare ${atleta.surname}? Tutte le associazioni squadre verranno spostate in archivio.`)) return;
+        if(!confirm(`Sei sicuro di voler eliminare ${atleta.surname} ${atleta.name}?\n\nVerranno eliminate anche tutte le associazioni stagionali collegate.\n\nL'operazione è irreversibile.`)) return;
 
         try {
-            // A. Recupero associazioni attuali
-            const { data: associazioni } = await client
+            // A. Eliminazione associazioni stagionali collegate
+            const { error: errAssoc } = await client
                 .from('athlete_team_seasons')
-                .select('*')
+                .delete()
                 .eq('athlete_id', id);
 
-            // B. Archiviazione Anagrafica con Debug RLS
-            const { error: errArchivioAtleta } = await client
-                .from('athletes_deleted_archive')
-                .insert([{
-                    original_id: atleta.id,
-                    name: atleta.name || null,
-                    surname: atleta.surname || null,
-                    born_date: atleta.born_date || null,
-                    society_id: atleta.society_id
-                }]);
-
-            if (errArchivioAtleta) {
-                console.error("Errore RLS/DB Atleta:", errArchivioAtleta);
-                throw new Error("Errore archiviazione atleta: " + errArchivioAtleta.message);
+            if (errAssoc) {
+                console.error("Errore eliminazione associazioni:", errAssoc);
+                throw new Error("Errore eliminazione associazioni: " + errAssoc.message);
             }
 
-            // C. Archiviazione Associazioni (se presenti)
-            if (associazioni && associazioni.length > 0) {
-                const assoc_to_archive = associazioni.map(as => ({
-                    original_id: as.id,
-                    athlete_id: as.athlete_id,
-                    society_id: as.society_id,
-                    season_id: as.season_id,
-                    category_id: as.category_id,
-                    team_id: as.team_id,
-                    jersey_number: as.jersey_number
-                }));
-
-                const { error: errArchivioAssoc } = await client
-                    .from('athlete_team_seasons_archive')
-                    .insert(assoc_to_archive);
-
-                if (errArchivioAssoc) {
-                    console.error("Errore RLS/DB Associazioni:", errArchivioAssoc);
-                    throw new Error("Errore archiviazione associazioni: " + errArchivioAssoc.message);
-                }
-            }
-
-            // D. Eliminazione definitiva (avviene solo se i passaggi precedenti sono ok)
+            // B. Eliminazione atleta
             const { error: errDelete } = await client.from('athletes').delete().eq('id', id);
-            if (errDelete) throw errDelete;
+            if (errDelete) {
+                console.error("Errore eliminazione atleta:", errDelete);
+                throw errDelete;
+            }
 
-            alert("Archiviazione completata con successo.");
+            alert("Atleta eliminato con successo.");
             await window.initAnagraficaPura();
 
         } catch (err) {
@@ -6834,7 +6804,21 @@ async function initImportAtleti() {
                         const dataMedica = parseDate(rawMedical);
                         let ath = null;
 
-                        // Tenta inserimento
+                        // Prima controlla se l'atleta esiste già (evita duplicati a monte)
+                        {
+                            let preCheckQ = client.from('athletes').select('*')
+                                .ilike('name', nome.trim())
+                                .ilike('surname', cognome.trim());
+                            if (dataNascita) preCheckQ = preCheckQ.eq('born_date', dataNascita);
+                            const { data: preExisting } = await preCheckQ.maybeSingle();
+                            if (preExisting) {
+                                ath = preExisting;
+                                console.warn(`Pre-check: atleta già esistente, salto insert: ${cognome} ${nome} → id=${ath.id}`);
+                            }
+                        }
+
+                        // Tenta inserimento solo se non già trovato
+                        if (!ath) {
                         const { data: insertedAth, error: aErr } = await client.from('athletes').insert({
                             name: nome,
                             surname: cognome,
@@ -6843,24 +6827,14 @@ async function initImportAtleti() {
                         }).select().single();
 
                         if (aErr) {
-                            // Se l'atleta esiste già (duplicate / unique violation), cercalo per nome+cognome
+                            // Se l'atleta esiste già (duplicate / unique violation), cercalo per nome+cognome+nascita
                             if (aErr.code === '23505' || aErr.message?.toLowerCase().includes('duplicate') || aErr.message?.toLowerCase().includes('unique')) {
-                                const { data: existingAth } = await client.from('athletes')
-                                    .select('*')
+                                let lookupQ = client.from('athletes').select('*')
                                     .ilike('name', nome.trim())
-                                    .ilike('surname', cognome.trim())
-                                    .maybeSingle();
+                                    .ilike('surname', cognome.trim());
+                                if (dataNascita) lookupQ = lookupQ.eq('born_date', dataNascita);
+                                const { data: existingAth } = await lookupQ.maybeSingle();
                                 ath = existingAth || null;
-                                if (!ath) {
-                                    // Ricerca meno restrittiva (senza born_date)
-                                    const { data: existingAth2 } = await client.from('athletes')
-                                        .select('*')
-                                        .ilike('name', nome.trim())
-                                        .ilike('surname', cognome.trim())
-                                        .limit(1)
-                                        .maybeSingle();
-                                    ath = existingAth2 || null;
-                                }
                                 if (ath) {
                                     console.warn(`Atleta già esistente, uso ID esistente: ${cognome} ${nome} → id=${ath.id}`);
                                 } else {
@@ -6874,6 +6848,7 @@ async function initImportAtleti() {
                         } else {
                             ath = insertedAth;
                         }
+                        } // end if (!ath)
 
                         // B. Inserimento Legame Stagionale
                         if (ath && ath.id) {
