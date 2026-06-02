@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SportTrackPro - Dashboard</title>
 	<script>
-     window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
+    window.SPORTTRACK_API_URL = 'https://sporttrackpro-cell.onrender.com/api';
     </script>
 	<script src="./turso_client.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -3131,7 +3131,29 @@ window.handleDeleteStaff = async function(id) {
                 throw new Error("Errore archiviazione atleta: " + errArchivio.message);
             }
 
-            // C. Eliminazione associazioni stagionali
+            // C. Archiviazione associazioni stagionali in athlete_team_seasons_archive
+            if (associazioni && associazioni.length > 0) {
+                const assoc_to_archive = associazioni.map(as => ({
+                    original_id:  as.id,
+                    athlete_id:   as.athlete_id,
+                    society_id:   as.society_id,
+                    season_id:    as.season_id,
+                    category_id:  as.category_id,
+                    team_id:      as.team_id,
+                    jersey_number: as.jersey_number
+                }));
+
+                const { error: errArchivioAssoc } = await client
+                    .from('athlete_team_seasons_archive')
+                    .insert(assoc_to_archive);
+
+                if (errArchivioAssoc) {
+                    console.error("Errore archiviazione associazioni:", errArchivioAssoc);
+                    throw new Error("Errore archiviazione associazioni: " + errArchivioAssoc.message);
+                }
+            }
+
+            // D. Eliminazione associazioni stagionali
             const { error: errAssoc } = await client
                 .from('athlete_team_seasons')
                 .delete()
@@ -3142,7 +3164,7 @@ window.handleDeleteStaff = async function(id) {
                 throw new Error("Errore eliminazione associazioni: " + errAssoc.message);
             }
 
-            // D. Eliminazione atleta (solo dopo archiviazione riuscita)
+            // E. Eliminazione atleta (solo dopo archiviazione riuscita)
             const { error: errDelete } = await client.from('athletes').delete().eq('id', id);
             if (errDelete) {
                 console.error("Errore eliminazione atleta:", errDelete);
