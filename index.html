@@ -15049,10 +15049,13 @@ window.openTestTabellino = async function(sessId) {
     ]);
 
     // Build result map: athlete_id → perf_id → value
+    // + note map: athlete_id → nota testuale (una nota per atleta per sessione test)
     const resMap = {};
+    const noteMap = {};
     (existingRes||[]).forEach(r => {
         if (!resMap[r.athlete_id]) resMap[r.athlete_id] = {};
         resMap[r.athlete_id][r.performance_id] = r.value;
+        if (r.notes && !noteMap[r.athlete_id]) noteMap[r.athlete_id] = r.notes;
     });
 
     // Build athlete detail map: athlete_id → { jersey_number, athletes }
@@ -15109,9 +15112,20 @@ window.openTestTabellino = async function(sessId) {
                 </div>
             </td>`;
         }).join('');
+        const noteVal = (noteMap[a.athlete_id] || '').replace(/"/g, '&quot;');
+        const noteCell = `<td style="padding:7px 8px;">
+            <input type="text" class="tres-note" maxlength="200"
+                data-aid="${a.athlete_id}"
+                data-original="${noteVal}"
+                value="${noteVal}"
+                placeholder="Nota..."
+                style="width:160px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit;transition:border-color 0.15s;"
+                oninput="this.style.borderColor=this.value!==this.dataset.original?'#5b7fa6':'var(--border)'">
+        </td>`;
         return `<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">
             <td style="padding:9px 10px;font-weight:600;white-space:nowrap;">${detail?.jersey_number||'--'} ${ath?.surname||''} ${ath?.name||''}</td>
             ${cells}
+            ${noteCell}
         </tr>`;
     }).join('');
 
@@ -15131,6 +15145,7 @@ window.openTestTabellino = async function(sessId) {
                 <thead><tr style="background:rgba(0,0,0,0.03);">
                     <th style="padding:9px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">ATLETA</th>
                     ${perfHeaders}
+                    <th style="padding:9px 10px;text-align:left;font-size:0.66rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">NOTE</th>
                 </tr></thead>
                 <tbody>${athRows}</tbody>
             </table>
@@ -15160,8 +15175,19 @@ window._resetAllTestResults = function() {
 
 window.saveTestTabellino = async function(sessId) {
     const inputs = document.querySelectorAll('.tres-input');
+    const noteInputs = document.querySelectorAll('.tres-note');
     const toUpsert  = [];   // valori da inserire/aggiornare
     const toDelete  = [];   // coppie {athlete_id, performance_id} da eliminare
+    const notesByAthlete = {}; // athlete_id -> nuova nota (solo quelle modificate)
+
+    noteInputs.forEach(inp => {
+        const aid = inp.getAttribute('data-aid');
+        const val = inp.value.trim();
+        const original = inp.dataset.original || '';
+        if (val !== original) {
+            notesByAthlete[aid] = val;
+        }
+    });
 
     inputs.forEach(inp => {
         const aid = inp.getAttribute('data-aid');
@@ -15172,12 +15198,14 @@ window.saveTestTabellino = async function(sessId) {
 
         if (val !== '') {
             // Valore presente: upsert (nuovo o modificato)
-            toUpsert.push({
+            const rec = {
                 test_session_id: sessId,
                 athlete_id: aid,
                 performance_id: pid,
                 value: parseFloat(val)
-            });
+            };
+            if (notesByAthlete.hasOwnProperty(aid)) rec.notes = notesByAthlete[aid];
+            toUpsert.push(rec);
         } else if (original !== '' || cleared) {
             // Campo svuotato che aveva un valore originale → cancellare dal DB
             toDelete.push({ aid, pid });
@@ -15185,7 +15213,7 @@ window.saveTestTabellino = async function(sessId) {
         // Se era vuoto e rimane vuoto: non fare nulla
     });
 
-    if (!toUpsert.length && !toDelete.length) {
+    if (!toUpsert.length && !toDelete.length && !Object.keys(notesByAthlete).length) {
         alert('Nessuna modifica da salvare.');
         return;
     }
@@ -15200,9 +15228,40 @@ window.saveTestTabellino = async function(sessId) {
                 .eq('performance_id', rec.performance_id)
                 .maybeSingle();
             if (ex?.id) {
-                await client.from('test_results').update({ value: rec.value, notes: rec.notes }).eq('id', ex.id);
+                const updatePayload = { value: rec.value };
+                if (rec.hasOwnProperty('notes')) updatePayload.notes = rec.notes;
+                await client.from('test_results').update(updatePayload).eq('id', ex.id);
             } else {
                 await client.from('test_results').insert(rec);
+            }
+        }
+
+        // 1b. Propaga la nota (una per atleta) su tutte le righe risultato già esistenti
+        //     per quell'atleta in questa sessione, anche quelle non toccate sopra.
+        //     Se l'atleta non ha ancora nessuna riga (nessun valore inserito), crea un
+        //     record segnaposto (value nullo) solo per conservare la nota.
+        for (const aid of Object.keys(notesByAthlete)) {
+            const noteVal = notesByAthlete[aid];
+            const { data: existingRows } = await client.from('test_results')
+                .select('id')
+                .eq('test_session_id', sessId)
+                .eq('athlete_id', aid);
+            if (existingRows && existingRows.length) {
+                for (const row of existingRows) {
+                    await client.from('test_results').update({ notes: noteVal }).eq('id', row.id);
+                }
+            } else {
+                const firstInput = document.querySelector(`.tres-input[data-aid="${aid}"]`);
+                const firstPerfId = firstInput ? firstInput.getAttribute('data-pid') : null;
+                if (firstPerfId) {
+                    await client.from('test_results').insert({
+                        test_session_id: sessId,
+                        athlete_id: aid,
+                        performance_id: firstPerfId,
+                        value: null,
+                        notes: noteVal
+                    });
+                }
             }
         }
 
@@ -15217,9 +15276,11 @@ window.saveTestTabellino = async function(sessId) {
         }
 
         window.closeTestPopup();
+        const nNotes = Object.keys(notesByAthlete).length;
         const msg = [
             toUpsert.length  ? `${toUpsert.length} risultat${toUpsert.length===1?'o':'i'} salvat${toUpsert.length===1?'o':'i'}` : '',
-            toDelete.length  ? `${toDelete.length} risultat${toDelete.length===1?'o':'i'} azzerati` : ''
+            toDelete.length  ? `${toDelete.length} risultat${toDelete.length===1?'o':'i'} azzerati` : '',
+            nNotes ? `${nNotes} nota/e aggiornate` : ''
         ].filter(Boolean).join(', ');
         alert(`✅ ${msg}.`);
     } catch(err) {
