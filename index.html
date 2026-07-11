@@ -554,18 +554,32 @@
         }
         .btn:active { transform: translateY(0); }
 
+        /* Standard row-action button (icon-style, subtle tint) — used app-wide for
+           edit / delete / associate actions so every list/table looks consistent. */
         .btn-sm {
-            padding: 0.3rem 0.6rem;
-            border: none; border-radius: 5px;
-            color: white; cursor: pointer;
-            font-size: var(--text-xs); font-family: inherit; font-weight: 600;
-            margin-left: 3px;
-            transition: all 0.14s;
+            width: 30px; height: 30px;
+            padding: 0; border: none; border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem; font-family: inherit; font-weight: 600;
+            margin-left: 4px;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+            background: rgba(15,23,42,0.05); color: var(--text-sub);
+            vertical-align: middle;
         }
-        .btn-sm:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        .btn-sm:hover { transform: translateY(-1px); filter: none; }
 
-        .btn-warning { background: #9c6316; box-shadow: 0 2px 8px rgba(156,99,22,0.3); }
-        .btn-danger  { background: #a52418; box-shadow: 0 2px 8px rgba(165,36,24,0.3); }
+        /* Modifica */
+        .btn-warning { background: rgba(27,58,92,0.1); color: var(--primary); box-shadow: none; }
+        .btn-warning:hover { background: rgba(27,58,92,0.18); }
+        /* Elimina */
+        .btn-danger { background: rgba(180,35,24,0.1); color: var(--danger); box-shadow: none; }
+        .btn-danger:hover { background: rgba(180,35,24,0.18); }
+        /* Associa / collega */
+        .btn-assoc { background: rgba(31,122,77,0.1); color: var(--success); box-shadow: none; }
+        .btn-assoc:hover { background: rgba(31,122,77,0.18); }
+        /* Varianti a testo (icona + etichetta), stesso linguaggio visivo */
+        .btn-sm.with-label { width: auto; height: auto; padding: 0.4rem 0.85rem; border-radius: 7px; gap: 6px; }
 
         /* ── TABLES ── */
         table { width: 100%; border-collapse: collapse; }
@@ -1314,11 +1328,11 @@ async function initStagioni() {
                 </span>
             </td>
             <td style="text-align:right">
-                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="background:${s.is_active ? '#64748b' : '#16a34a'}">
+                <button class="btn-sm btn-action-activate" data-id="${s.id}" data-active="${s.is_active}" style="width:auto;height:auto;padding:0.35rem 0.8rem;background:${s.is_active ? '#55637a' : 'var(--success)'};color:#fff;">
                     ${s.is_active ? 'Spegni' : 'Attiva'}
                 </button>
-                <button class="btn-sm btn-action-edit" data-id="${s.id}" data-name="${s.name}" style="background:orange">✏️</button>
-                <button class="btn-sm btn-action-delete" data-id="${s.id}" style="background:red">🗑️</button>
+                <button class="btn-sm btn-warning btn-action-edit" data-id="${s.id}" data-name="${s.name}">✏️</button>
+                <button class="btn-sm btn-danger btn-action-delete" data-id="${s.id}">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="4" style="text-align:center">Nessuna stagione trovata.</td></tr>';
@@ -1428,8 +1442,8 @@ async function initSport() {
             <td style="font-size:1.5rem">${s.icon || '🏐'}</td>
             <td><strong>${s.name}</strong></td>
             <td style="text-align:right">
-                <button class="btn-sm btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}" style="background:var(--warning)">✏️</button>
-                <button class="btn-sm btn-sport-delete" data-id="${s.id}" style="background:var(--danger)">🗑️</button>
+                <button class="btn-sm btn-warning btn-sport-edit" data-id="${s.id}" data-name="${s.name}" data-icon="${s.icon}">✏️</button>
+                <button class="btn-sm btn-danger btn-sport-delete" data-id="${s.id}">🗑️</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="3">Nessun dato.</td></tr>';
@@ -4725,9 +4739,9 @@ async function initSessioni() {
             <td style="padding:10px; text-align:center; font-weight:bold; color:#8b5cf6;">${stats.i}</td>
             <td style="padding:10px; text-align:center;"><strong>${perc}%</strong></td>
             <td style="padding:10px; text-align:right;">
-                <button class="btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
-                <button class="btn-sm" onclick="openSessionModal('${s.id}')">✏️</button>
-                <button class="btn-sm" style="background:#ef4444; color:white; border:none;" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
+                <button class="btn-sm with-label" style="background:var(--primary); color:white; border:none;" onclick="openAttendanceModal('${s.id}')">👥 Presenze</button>
+                <button class="btn-sm btn-warning" onclick="openSessionModal('${s.id}')">✏️</button>
+                <button class="btn-sm btn-danger" onclick="deleteSession('${s.id}', '${s.title.replace(/'/g, "\\'")}')">🗑️</button>
             </td>
         </tr>`;
     }).join('') || '<tr><td colspan="9" style="text-align:center; padding:20px;">Nessuna sessione trovata.</td></tr>';
@@ -5209,9 +5223,9 @@ async function initPartite() {
             <td style="padding:12px;"><strong>${m.title || 'Gara'}</strong></td>
             <td style="padding:12px;"><span style="color:var(--text-muted);">${m.teams?.name || '---'}</span></td>
             <td style="padding:12px; text-align:center; display:flex; gap:6px; justify-content:center;">
-                <button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="background:var(--primary); color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📋 CONVOCA</button>
-                <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="background:#5b7fa6; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">⚽ TABELLINO</button>
-                <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
+                <button class="btn-sm" onclick="window.openConvocazioni('${m.id}')" style="width:auto;height:auto;background:var(--primary); color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📋 CONVOCA</button>
+                <button class="btn-sm" onclick="window.openTabellino('${m.id}')" style="width:auto;height:auto;background:#5b7fa6; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">⚽ TABELLINO</button>
+                <button class="btn-sm" onclick="window.openStatistiche('${m.id}')" style="width:auto;height:auto;background:#6366f1; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:600;">📊 STATS</button>
 				<button onclick="window.exportConvocazioniIMG('${m.id}')"style="background:#10b981; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">🖼️ IMMAGINE</button>
 			</td>
         </tr>`).join('') || '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-sub);">Nessun match trovato.</td></tr>';
@@ -14040,7 +14054,7 @@ window.renderGenitori = function() {
             <td style="color:var(--text-muted); font-size:0.82rem;">${g.email || '—'}</td>
             <td style="text-align:center;"><div style="display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">${athBadges}</div></td>
             <td style="text-align:right;">
-                <button class="btn-sm btn-warning" onclick="window.openGenitoreModal('${g.id}')">✏️ Modifica</button>
+                <button class="btn-sm btn-warning with-label" onclick="window.openGenitoreModal('${g.id}')">✏️ Modifica</button>
                 <button class="btn-sm btn-danger" onclick="window.deleteGenitore('${g.id}')">🗑️</button>
             </td>
         </tr>`;
@@ -14387,7 +14401,7 @@ window.initTest = async function() {
                     <button onclick="window.openTestTabellino('${s.id}')" style="background:#5b7fa6;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📝 TABELLINO</button>
                     <button onclick="window.openTestStats('${s.id}')" style="background:#6366f1;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📊 STATS</button>
                     <button onclick="window.openTestGrafico('${s.id}')" style="background:#5b7fa6;color:white;border:none;padding:5px 9px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;">📈 GRAFICO</button>
-                    <button onclick="window.deleteTestSession('${s.id}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:5px 9px;border-radius:4px;cursor:pointer;font-size:11px;">🗑</button>
+                    <button onclick="window.deleteTestSession('${s.id}')" style="background:rgba(180,35,24,0.1);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:5px 9px;border-radius:4px;cursor:pointer;font-size:11px;">🗑</button>
                 </div>
             </td>
         </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-sub);">Nessuna sessione trovata.</td></tr>';
@@ -14536,7 +14550,7 @@ window.openTestDefEditor = async function(defId) {
         </button>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
-            ${defId ? `<button onclick="window.deleteTestDef('${defId}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;margin-right:auto;">🗑 Elimina</button>` : ''}
+            ${defId ? `<button onclick="window.deleteTestDef('${defId}')" style="background:rgba(180,35,24,0.1);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;margin-right:auto;">🗑 Elimina</button>` : ''}
             <button onclick="window.closeTestPopup()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
             <button onclick="window.saveTestDef('${defId||''}')" style="background:var(--primary);color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">💾 Salva</button>
         </div>
@@ -14557,7 +14571,7 @@ function _testPerfRow(idx, p, locked) {
     const units = ['sec','min','cm','m','kg','rep','watt','bpm','punti','altro'];
     const removeBtn = locked
         ? `<button disabled title="Performance con risultati: non eliminabile" style="background:rgba(0,0,0,0.04);color:var(--text-muted);border:none;width:28px;height:28px;border-radius:50%;cursor:not-allowed;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0.5;">🔒</button>`
-        : `<button onclick="this.closest('.tdef-perf-row').remove();window._updateAddPerfBtn()" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">×</button>`;
+        : `<button onclick="this.closest('.tdef-perf-row').remove();window._updateAddPerfBtn()" style="background:rgba(180,35,24,0.1);color:var(--danger);border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">×</button>`;
     return `
     <div class="tdef-perf-row" data-perf-id="${p.id||''}" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;background:${locked?'rgba(99,102,241,0.04)':'rgba(0,0,0,0.02)'};border:1px solid ${locked?'rgba(99,102,241,0.15)':'var(--border)'};border-radius:8px;padding:10px 12px;">
         <div>
@@ -14807,13 +14821,13 @@ window.renderTestDefList = async function() {
             </div>
             <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
                 <button onclick="window.openTestDefEditor('${d.id}')"
-                    style="background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
-                    onmouseover="this.style.background='rgba(99,102,241,0.18)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
+                    style="background:rgba(27,58,92,0.1);color:var(--primary);border:1px solid rgba(27,58,92,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(27,58,92,0.18)'" onmouseout="this.style.background='rgba(27,58,92,0.1)'">
                     ✏️ Modifica
                 </button>
                 <button onclick="window.deleteTestDefFromList('${d.id}', '${d.name.replace(/'/g, "\'")}')"
-                    style="background:rgba(239,68,68,0.07);color:#ef4444;border:1px solid rgba(239,68,68,0.18);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
-                    onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">
+                    style="background:rgba(180,35,24,0.1);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(180,35,24,0.18)'" onmouseout="this.style.background='rgba(180,35,24,0.1)'">
                     🗑 Elimina
                 </button>
             </div>
@@ -15109,7 +15123,7 @@ window.openTestTabellino = async function(sessId) {
                 <div style="font-size:1.1rem;font-weight:800;font-family:'Sora',sans-serif;">${sess.test_definitions.name} — ${new Date(sess.session_date).toLocaleDateString('it-IT')}</div>
                 <div style="font-size:0.78rem;color:var(--text-sub);">${sess.teams?.name||''} ${sess.notes?'· '+sess.notes:''}</div>
             </div>
-            <button onclick="window._resetAllTestResults()" style="margin-left:auto;background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:7px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">🗑 Azzera Tutti</button>
+            <button onclick="window._resetAllTestResults()" style="margin-left:auto;background:rgba(180,35,24,0.08);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:7px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;">🗑 Azzera Tutti</button>
         </div>
         ${!athletes.length ? '<p style="color:var(--text-sub);text-align:center;padding:24px;">Nessun atleta convocato. Vai prima in "Convoca".</p>' : `
         <div style="overflow-x:auto;">
@@ -15936,11 +15950,11 @@ window.itRenderDefList = async function() {
             </div>
             <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
                 <button onclick="window.itOpenDefEditor('${d.id}')"
-                    style="background:rgba(139,92,246,0.08);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
-                    onmouseover="this.style.background='rgba(139,92,246,0.18)'" onmouseout="this.style.background='rgba(139,92,246,0.08)'">✏️ Modifica</button>
+                    style="background:rgba(27,58,92,0.1);color:var(--primary);border:1px solid rgba(27,58,92,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(27,58,92,0.18)'" onmouseout="this.style.background='rgba(27,58,92,0.1)'">✏️ Modifica</button>
                 <button onclick="window.itDeleteDef('${d.id}','${d.name.replace(/'/g,"\\'")}')"
-                    style="background:rgba(239,68,68,0.07);color:#ef4444;border:1px solid rgba(239,68,68,0.18);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
-                    onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">🗑 Elimina</button>
+                    style="background:rgba(180,35,24,0.1);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(180,35,24,0.18)'" onmouseout="this.style.background='rgba(180,35,24,0.1)'">🗑 Elimina</button>
             </div>
         </div>`;
     }).join('');
@@ -16044,7 +16058,7 @@ window.itOpenDefEditor = async function(defId) {
             <div id="it-perfs-edit-container"></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:16px;">
-            ${defId ? `<button onclick="window.itDeleteDef('${defId}','${(def?.name||'').replace(/'/g,String.fromCharCode(39))}')" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;margin-right:auto;">🗑 Elimina</button>` : ''}
+            ${defId ? `<button onclick="window.itDeleteDef('${defId}','${(def?.name||'').replace(/'/g,String.fromCharCode(39))}')" style="background:rgba(180,35,24,0.1);color:var(--danger);border:1px solid rgba(180,35,24,0.2);padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;margin-right:auto;">🗑 Elimina</button>` : ''}
             <button onclick="window._itPopupClose()" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);padding:8px 20px;border-radius:6px;cursor:pointer;">Annulla</button>
             <button onclick="window.itSaveDef()" style="background:#8b5cf6;color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-weight:700;">💾 Salva</button>
         </div>
@@ -18967,7 +18981,7 @@ window._torneoLoadList = async function() {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button onclick="window._torneoShowDetail('${t.id}')" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:7px;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;">📊 Tabellone</button>
-                <button onclick="window._torneoEdit('${t.id}')" style="padding:7px 14px;background:rgba(0,0,0,0.05);color:var(--text-main);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">✏️ Modifica</button>
+                <button onclick="window._torneoEdit('${t.id}')" style="padding:7px 14px;background:rgba(27,58,92,0.1);color:var(--primary);border:1px solid rgba(27,58,92,0.2);border-radius:7px;font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;">✏️ Modifica</button>
                 <button onclick="window._torneoPrint('${t.id}')" style="padding:7px 14px;background:rgba(0,0,0,0.05);color:var(--text-main);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">🖨️ Stampa</button>
                 <button onclick="window._torneoDelete('${t.id}','${t.name}')" style="padding:7px 12px;background:rgba(180,35,24,0.08);color:#b42318;border:1px solid rgba(180,35,24,0.2);border-radius:7px;font-family:inherit;font-size:0.78rem;cursor:pointer;">🗑️</button>
             </div>
