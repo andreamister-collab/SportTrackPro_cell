@@ -4138,21 +4138,64 @@ window.handleDeleteStaff = async function(id) {
         }
         const socOptions = socsData.map(s => `<option value="${s.id}" ${s.id===ref.society_id?'selected':''}>${s.name}</option>`).join('');
 
+        window._assignRowLabel = (a) => {
+            const teamPart  = a.teams?.name
+                ? '· <span style="color:#1b3a5c;">' + a.teams.name + '</span>'
+                : '<span style="color:var(--text-muted);">· Intera categoria</span>';
+            const jerseyPart = a.jersey_number ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · #' + a.jersey_number + '</span>' : '';
+            const rolePart   = a.role ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · ' + a.role + '</span>' : '';
+            return '<span style="font-size:0.78rem;color:var(--text-main);flex:1;min-width:120px;">'
+                + '<strong>' + (a.categories?.name||'?') + '</strong> ' + teamPart + jerseyPart + rolePart
+                + '</span>'
+                + '<button onclick="window._editAtletaAssignRow(\'' + a.id + '\', ' + JSON.stringify(a.jersey_number||'') + ', ' + JSON.stringify(a.role||'') + ')" style="background:rgba(27,58,92,0.1);border:1px solid rgba(27,58,92,0.2);color:var(--primary);border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✏️ Modifica</button>'
+                + '<button onclick="window._deleteAtletaAssignRow(\'' + a.id + '\')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#b42318;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✕ Rimuovi</button>';
+        };
+
         const renderAssignRows = (list) => {
             if (!list.length) return '<div style="color:var(--text-muted);font-size:0.8rem;padding:6px 0;">Nessuna assegnazione</div>';
             return list.map(a => {
-                const teamPart  = a.teams?.name
-                    ? '· <span style="color:#1b3a5c;">' + a.teams.name + '</span>'
-                    : '<span style="color:var(--text-muted);">· Intera categoria</span>';
-                const jerseyPart = a.jersey_number ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · #' + a.jersey_number + '</span>' : '';
-                const rolePart   = a.role ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · ' + a.role + '</span>' : '';
                 return '<div id="arow-' + a.id + '" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;">'
-                    + '<span style="font-size:0.78rem;color:var(--text-main);flex:1;min-width:120px;">'
-                    + '<strong>' + (a.categories?.name||'?') + '</strong> ' + teamPart + jerseyPart + rolePart
-                    + '</span>'
-                    + '<button onclick="window._deleteAtletaAssignRow(\'' + a.id + '\')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#b42318;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✕ Rimuovi</button>'
+                    + window._assignRowLabel(a)
                     + '</div>';
             }).join('');
+        };
+
+        // Modalità modifica inline: trasforma la riga in un mini-form maglia/ruolo
+        window._editAtletaAssignRow = (assignId, curJersey, curRole) => {
+            const row = document.getElementById('arow-' + assignId);
+            if (!row) return;
+            if (!row.dataset.origHtml) row.dataset.origHtml = row.innerHTML;
+            const safeRole = String(curRole || '').replace(/"/g, '&quot;');
+            row.innerHTML = '<div style="display:flex;gap:8px;flex:1;flex-wrap:wrap;align-items:flex-end;">'
+                + '<div><label style="font-size:0.65rem;color:var(--text-muted);display:block;margin-bottom:2px;">N° Maglia</label>'
+                + '<input type="number" id="arow-jersey-' + assignId + '" value="' + (curJersey || '') + '" style="width:70px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;"></div>'
+                + '<div><label style="font-size:0.65rem;color:var(--text-muted);display:block;margin-bottom:2px;">Ruolo</label>'
+                + '<input type="text" id="arow-role-' + assignId + '" value="' + safeRole + '" style="width:130px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;"></div>'
+                + '<button onclick="window._saveAtletaAssignRow(\'' + assignId + '\')" style="background:var(--success);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:0.75rem;cursor:pointer;font-weight:700;">✔ Salva</button>'
+                + '<button onclick="window._cancelAtletaAssignRow(\'' + assignId + '\')" style="background:rgba(0,0,0,0.05);color:var(--text-sub);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:0.75rem;cursor:pointer;">Annulla</button>'
+                + '</div>';
+        };
+
+        window._cancelAtletaAssignRow = (assignId) => {
+            const row = document.getElementById('arow-' + assignId);
+            if (row && row.dataset.origHtml) { row.innerHTML = row.dataset.origHtml; delete row.dataset.origHtml; }
+        };
+
+        window._saveAtletaAssignRow = async (assignId) => {
+            const jersey = document.getElementById('arow-jersey-' + assignId)?.value || null;
+            const role   = document.getElementById('arow-role-' + assignId)?.value.trim() || null;
+            const { data, error } = await client.from('athlete_team_seasons')
+                .update({ jersey_number: jersey, role: role })
+                .eq('id', assignId)
+                .select('id, jersey_number, role, team_id, category_id, teams(name), categories(name)')
+                .single();
+            if (error) return alert('Errore salvataggio: ' + error.message);
+            const row = document.getElementById('arow-' + assignId);
+            if (row && data) {
+                row.innerHTML = window._assignRowLabel(data);
+                delete row.dataset.origHtml;
+            }
+            _fetchAtletiData();
         };
 
         modal.open('Modifica Atleta', `
@@ -4270,8 +4313,25 @@ window.handleDeleteStaff = async function(id) {
             .from('athlete_team_seasons').select('id')
             .eq('athlete_id', athleteId).eq('season_id', seaId).eq('category_id', catId).is('team_id', null);
 
-        if ((existing||[]).length > 0 || (existingNull||[]).length > 0) {
-            return alert('Questa assegnazione esiste già!');
+        const dupRow = (existing && existing[0]) || (existingNull && existingNull[0]) || null;
+        if (dupRow) {
+            // Assegnazione già presente per questa categoria/squadra: invece di bloccare
+            // e perdere silenziosamente maglia/ruolo inseriti, aggiorna la riga esistente.
+            const { data: updRow, error: updErr } = await client.from('athlete_team_seasons')
+                .update({ jersey_number: jersey, role: role })
+                .eq('id', dupRow.id)
+                .select('id, jersey_number, role, team_id, category_id, teams(name), categories(name)')
+                .single();
+            if (updErr) return alert('Errore: ' + updErr.message);
+            const row = document.getElementById('arow-' + dupRow.id);
+            if (row && updRow) row.innerHTML = window._assignRowLabel(updRow);
+            if(document.getElementById('mma-cat')) document.getElementById('mma-cat').value='';
+            if(document.getElementById('mma-team')) document.getElementById('mma-team').innerHTML='<option value="">Intera categoria</option>';
+            if(document.getElementById('mma-jersey')) document.getElementById('mma-jersey').value='';
+            if(document.getElementById('mma-role')) document.getElementById('mma-role').value='';
+            _fetchAtletiData();
+            alert('✅ Assegnazione già esistente: maglia/ruolo aggiornati.\n(In futuro puoi usare direttamente "✏️ Modifica" sulla riga qui sopra.)');
+            return;
         }
 
         const { data: newRow, error } = await client.from('athlete_team_seasons').insert({
