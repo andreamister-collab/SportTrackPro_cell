@@ -4266,8 +4266,36 @@ window.handleDeleteStaff = async function(id) {
             if (!sur || !nom) return alert('Nome e Cognome obbligatori!');
             const medExp = document.getElementById('mma-medical')?.value || null;
             const { error } = await client.from('athletes').update({ surname: sur, name: nom, medical_expiry: medExp }).eq('id', athleteId);
-            if (!error) { modal.close(); _fetchAtletiData(); }
-            else alert('Errore salvataggio: ' + error.message);
+            if (error) return alert('Errore salvataggio: ' + error.message);
+
+            // Assegnazione "in sospeso": campi compilati nel form ma senza aver premuto "Aggiungi"
+            const pendCat   = document.getElementById('mma-cat')?.value;
+            const pendJer   = document.getElementById('mma-jersey')?.value;
+            const pendRole  = document.getElementById('mma-role')?.value.trim();
+            if (pendCat) {
+                // categoria/squadra scelta → aggiunge o aggiorna l'assegnazione con maglia e ruolo
+                const ok = await window._mmaAddAssign(athleteId, activeSea, ref.society_id, { silent: true });
+                if (!ok) return; // errore già mostrato: il modale resta aperto
+            } else if (pendJer || pendRole) {
+                // solo maglia/ruolo → se c'è una sola assegnazione la aggiorna
+                const rows = [...document.querySelectorAll('#mma-assign-list [id^="arow-"]')];
+                if (rows.length !== 1) {
+                    return alert('Hai compilato maglia/ruolo: seleziona anche categoria/squadra oppure usa "Modifica" sulla riga dell\'assegnazione.');
+                }
+                const assignId = rows[0].id.replace('arow-', '');
+                const patch = {};
+                if (pendJer)  patch.jersey_number = parseInt(pendJer, 10);
+                if (pendRole) patch.role = pendRole;
+                const { data: upd, error: uErr } = await client.from('athlete_team_seasons')
+                    .update(patch).eq('id', assignId)
+                    .select('id, jersey_number, role').single();
+                if (uErr) return alert('Errore salvataggio assegnazione: ' + uErr.message);
+                const missing = [];
+                if (patch.jersey_number != null && String(upd?.jersey_number) !== String(patch.jersey_number)) missing.push('N° maglia');
+                if (patch.role != null && upd?.role !== patch.role) missing.push('Ruolo');
+                if (missing.length) return alert('Il server NON ha salvato: ' + missing.join(', ') + '.\nControlla la route/whitelist colonne di athlete_team_seasons nel backend.');
+            }
+            modal.close(); _fetchAtletiData();
         };
     };
 
@@ -4293,14 +4321,33 @@ window.handleDeleteStaff = async function(id) {
     };
 
     // Aggiungi nuova assegnazione
-    window._mmaAddAssign = async (athleteId, seaId, defaultSocId) => {
+    window._mmaAddAssign = async (athleteId, seaId, defaultSocId, opts) => {
+        const silent = !!(opts && opts.silent);
+        const fail = (msg) => { alert(msg); return false; };
         const socId = document.getElementById('mma-soc')?.value || defaultSocId;
         const catId = document.getElementById('mma-cat')?.value;
         const teamId = document.getElementById('mma-team')?.value || null;
         const jerseyRaw = document.getElementById('mma-jersey')?.value;
-        const jersey = jerseyRaw ? parseInt(jerseyRaw, 10) : null;
+        const jersey = (jerseyRaw !== undefined && jerseyRaw !== '') ? parseInt(jerseyRaw, 10) : null;
         const role   = document.getElementById('mma-role')?.value.trim() || null;
-        if (!catId) return alert('Seleziona almeno una categoria!');
+        if (!catId) return fail('Seleziona almeno una categoria!');
+
+        // Controlla che il server abbia davvero salvato maglia/ruolo
+        const notSaved = (saved, wanted) => {
+            const bad = [];
+            if (wanted.jersey_number != null && (!saved || String(saved.jersey_number) !== String(wanted.jersey_number))) bad.push('N° maglia');
+            if (wanted.role != null && (!saved || saved.role !== wanted.role)) bad.push('Ruolo');
+            return bad;
+        };
+        const notSavedMsg = (bad) => 'Il server NON ha salvato: ' + bad.join(', ')
+            + '.\nControlla la route/whitelist colonne di athlete_team_seasons nel backend.';
+
+        const resetForm = () => {
+            if(document.getElementById('mma-cat')) document.getElementById('mma-cat').value='';
+            if(document.getElementById('mma-team')) document.getElementById('mma-team').innerHTML='<option value="">Intera categoria</option>';
+            if(document.getElementById('mma-jersey')) document.getElementById('mma-jersey').value='';
+            if(document.getElementById('mma-role')) document.getElementById('mma-role').value='';
+        };
 
         // Verifica duplicato
         const { data: existing } = await client
@@ -4317,23 +4364,26 @@ window.handleDeleteStaff = async function(id) {
 
         const dupRow = (existing && existing[0]) || (existingNull && existingNull[0]) || null;
         if (dupRow) {
-            // Assegnazione già presente per questa categoria/squadra: invece di bloccare
-            // e perdere silenziosamente maglia/ruolo inseriti, aggiorna la riga esistente.
-            const { data: updRow, error: updErr } = await client.from('athlete_team_seasons')
-                .update({ jersey_number: jersey, role: role })
-                .eq('id', dupRow.id)
-                .select('id, jersey_number, role, team_id, category_id, teams(name), categories(name)')
-                .single();
-            if (updErr) return alert('Errore: ' + updErr.message);
-            const row = document.getElementById('arow-' + dupRow.id);
-            if (row && updRow) row.innerHTML = window._assignRowLabel(updRow);
-            if(document.getElementById('mma-cat')) document.getElementById('mma-cat').value='';
-            if(document.getElementById('mma-team')) document.getElementById('mma-team').innerHTML='<option value="">Intera categoria</option>';
-            if(document.getElementById('mma-jersey')) document.getElementById('mma-jersey').value='';
-            if(document.getElementById('mma-role')) document.getElementById('mma-role').value='';
+            // Assegnazione già presente: aggiorna SOLO i campi compilati (non azzera quelli esistenti)
+            const patch = {};
+            if (jersey !== null) patch.jersey_number = jersey;
+            if (role !== null)   patch.role = role;
+            if (Object.keys(patch).length) {
+                const { data: updRow, error: updErr } = await client.from('athlete_team_seasons')
+                    .update(patch)
+                    .eq('id', dupRow.id)
+                    .select('id, jersey_number, role, team_id, category_id, teams(name), categories(name)')
+                    .single();
+                if (updErr) return fail('Errore: ' + updErr.message);
+                const row = document.getElementById('arow-' + dupRow.id);
+                if (row && updRow) row.innerHTML = window._assignRowLabel(updRow);
+                const bad = notSaved(updRow, patch);
+                if (bad.length) return fail(notSavedMsg(bad));
+            }
+            resetForm();
             _fetchAtletiData();
-            alert('✅ Assegnazione già esistente: maglia/ruolo aggiornati.\n(In futuro puoi usare direttamente "✏️ Modifica" sulla riga qui sopra.)');
-            return;
+            if (!silent) alert('✅ Assegnazione già esistente: maglia/ruolo aggiornati.');
+            return true;
         }
 
         const { data: newRow, error } = await client.from('athlete_team_seasons').insert({
@@ -4341,29 +4391,25 @@ window.handleDeleteStaff = async function(id) {
             category_id: catId, team_id: teamId, jersey_number: jersey, role: role
         }).select('id, jersey_number, role, team_id, category_id, society_id, teams(name), categories(name)').single();
 
-        if (error) return alert('Errore: ' + error.message);
+        if (error) return fail('Errore: ' + error.message);
 
         // Aggiunge la riga alla lista senza riaprire il modale
         const list = document.getElementById('mma-assign-list');
-        if (list) {
+        if (list && newRow) {
+            // rimuove il placeholder "Nessuna assegnazione"
+            if (!list.querySelector('[id^="arow-"]')) list.innerHTML = '';
             const div = document.createElement('div');
             div.id = `arow-${newRow.id}`;
             div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;';
-            const teamP2   = newRow.teams?.name ? '· <span style="color:#1b3a5c;">' + newRow.teams.name + '</span>' : '· <span style="color:var(--text-muted);">Intera categoria</span>';
-            const jerseyP2 = jersey ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · #' + jersey + '</span>' : '';
-            const roleP2   = role   ? '<span style="color:var(--text-muted);font-size:0.7rem;"> · ' + role + '</span>'   : '';
-            div.innerHTML = '<span style="font-size:0.78rem;color:var(--text-main);flex:1;min-width:120px;">'
-                + '<strong>' + (newRow.categories?.name||'?') + '</strong> ' + teamP2 + jerseyP2 + roleP2
-                + '</span>'
-                + '<button onclick="window._deleteAtletaAssignRow(\'' + newRow.id + '\')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#b42318;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">✕ Rimuovi</button>';
+            div.innerHTML = window._assignRowLabel(newRow);
             list.appendChild(div);
         }
-        // Reset form
-        if(document.getElementById('mma-cat')) document.getElementById('mma-cat').value='';
-        if(document.getElementById('mma-team')) document.getElementById('mma-team').innerHTML='<option value="">Intera categoria</option>';
-        if(document.getElementById('mma-jersey')) document.getElementById('mma-jersey').value='';
-        if(document.getElementById('mma-role')) document.getElementById('mma-role').value='';
+        resetForm();
         _fetchAtletiData();
+
+        const bad = notSaved(newRow, { jersey_number: jersey, role: role });
+        if (bad.length) return fail(notSavedMsg(bad));
+        return true;
     };
 
     // Rimuovi assegnazione singola
