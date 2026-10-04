@@ -2983,9 +2983,15 @@ window.handleDeleteStaff = async function(id) {
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA</label>
-                    <input type="number" id="m-ass-jersey" placeholder="Esempio: 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1);">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-weight:700; font-size:11px;">NUMERO MAGLIA</label>
+                        <input type="number" id="m-ass-jersey" placeholder="Esempio: 10" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-weight:700; font-size:11px;">RUOLO</label>
+                        <input type="text" id="m-ass-role" placeholder="Esempio: Difensore" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); box-sizing:border-box;">
+                    </div>
                 </div>
             </div>
         `);
@@ -3018,6 +3024,7 @@ window.handleDeleteStaff = async function(id) {
             const seaId = document.getElementById('m-ass-season').value;
             const teamId = document.getElementById('m-ass-team').value || null;
             const num = document.getElementById('m-ass-jersey').value;
+            const role = document.getElementById('m-ass-role')?.value.trim() || null;
 
             if(!catId) return alert("La categoria è obbligatoria!");
 
@@ -3027,19 +3034,28 @@ window.handleDeleteStaff = async function(id) {
                 season_id: seaId,
                 category_id: catId,
                 team_id: teamId,
-                jersey_number: num === "" ? null : parseInt(num)
+                jersey_number: num === "" ? null : parseInt(num, 10),
+                role: role
             };
 
-            // Upsert: check if record exists first
-            const { data: exAts } = await client.from('athlete_team_seasons')
-                .select('id')
+            // Cerca assegnazione esistente (stessa stagione + categoria + squadra, anche null)
+            const { data: sameCat } = await client.from('athlete_team_seasons')
+                .select('id, team_id')
                 .eq('athlete_id', payload.athlete_id)
                 .eq('season_id', payload.season_id)
-                .eq('team_id', payload.team_id || '')
-                .maybeSingle();
-            const { error } = exAts?.id
-                ? await client.from('athlete_team_seasons').update(payload).eq('id', exAts.id)
-                : await client.from('athlete_team_seasons').insert(payload);
+                .eq('category_id', payload.category_id);
+            const exAts = (sameCat || []).find(r => (r.team_id || null) === (payload.team_id || null)) || null;
+
+            let error;
+            if (exAts?.id) {
+                // aggiorna solo i campi compilati: non azzera maglia/ruolo già presenti
+                const patch = { society_id: payload.society_id };
+                if (payload.jersey_number !== null) patch.jersey_number = payload.jersey_number;
+                if (payload.role !== null)          patch.role = payload.role;
+                ({ error } = await client.from('athlete_team_seasons').update(patch).eq('id', exAts.id));
+            } else {
+                ({ error } = await client.from('athlete_team_seasons').insert(payload));
+            }
 
             if(!error) {
                 alert("Salvataggio completato!");
