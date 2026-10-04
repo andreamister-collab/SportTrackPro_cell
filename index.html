@@ -4182,7 +4182,8 @@ window.handleDeleteStaff = async function(id) {
         };
 
         window._saveAtletaAssignRow = async (assignId) => {
-            const jersey = document.getElementById('arow-jersey-' + assignId)?.value || null;
+            const jerseyRaw = document.getElementById('arow-jersey-' + assignId)?.value;
+            const jersey = jerseyRaw ? parseInt(jerseyRaw, 10) : null;
             const role   = document.getElementById('arow-role-' + assignId)?.value.trim() || null;
             const { data, error } = await client.from('athlete_team_seasons')
                 .update({ jersey_number: jersey, role: role })
@@ -4296,8 +4297,9 @@ window.handleDeleteStaff = async function(id) {
         const socId = document.getElementById('mma-soc')?.value || defaultSocId;
         const catId = document.getElementById('mma-cat')?.value;
         const teamId = document.getElementById('mma-team')?.value || null;
-        const jersey = document.getElementById('mma-jersey')?.value || null;
-        const role   = document.getElementById('mma-role')?.value || null;
+        const jerseyRaw = document.getElementById('mma-jersey')?.value;
+        const jersey = jerseyRaw ? parseInt(jerseyRaw, 10) : null;
+        const role   = document.getElementById('mma-role')?.value.trim() || null;
         if (!catId) return alert('Seleziona almeno una categoria!');
 
         // Verifica duplicato

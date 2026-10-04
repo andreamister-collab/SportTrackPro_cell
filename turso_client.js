@@ -230,7 +230,7 @@ QueryBuilder.prototype.range  = function()       { return this; };
 QueryBuilder.prototype.single     = function() { this._single=true;  this._maybeSingle=false; return this; };
 QueryBuilder.prototype.maybeSingle= function() { this._single=true;  this._maybeSingle=true;  return this; };
 
-QueryBuilder.prototype.insert = function(d) { this._method='POST';   this._body=Array.isArray(d)?d[0]:d; return this; };
+QueryBuilder.prototype.insert = function(d) { this._method='POST';   this._bulk=Array.isArray(d); this._body=d; return this; };
 QueryBuilder.prototype.update = function(d) { this._method='PUT';    this._body=d; return this; };
 QueryBuilder.prototype.delete = function()  { this._method='DELETE'; return this; };
 QueryBuilder.prototype.upsert = function(d, opts) {
@@ -253,6 +253,21 @@ QueryBuilder.prototype._execute = async function() {
         return n;
     };
 
+    // Normalizza l'errore in { message } (il server restituisce una stringa)
+    const normErr = (e) => e ? (typeof e === 'string' ? { message: e } : (e.message ? e : { message: JSON.stringify(e) })) : null;
+
+    // Dopo POST/PUT, se c'è un .select('...relazioni...') rilegge la riga con le relazioni risolte
+    const refetchWithSelect = async (qb, id) => {
+        if (!id || !qb._selectStr || qb._selectStr === '*') return null;
+        try {
+            const parsed = parseSelect(qb._selectStr);
+            const r = await apiFetch('/' + table + '/' + id);
+            let rows = r.data ? [r.data] : [];
+            if (parsed.relations.length) rows = await resolveRelations(rows, parsed.relations, table);
+            return rows[0] || null;
+        } catch (e) { console.warn('refetchWithSelect fallito:', table, e.message); return null; }
+    };
+
     if (this._method === 'UPSERT') {
         // Upsert: send to /api/:table/upsert with conflict columns
         const res = await apiFetch('/'+table+'/upsert', {
@@ -263,9 +278,19 @@ QueryBuilder.prototype._execute = async function() {
     }
 
     if (this._method === 'POST') {
-        const res = await apiFetch('/'+table, { method:'POST', body:normBool(this._body) });
-        if (this._single) return { data: res.data, error: res.error||null };
-        return { data: res.data ? [res.data] : [], error: res.error||null };
+        const rows = this._bulk ? this._body : [this._body];
+        const out = [];
+        for (const r of rows) {
+            const res = await apiFetch('/'+table, { method:'POST', body:normBool(r) });
+            if (res.error) {
+                console.error('INSERT', table, 'fallito:', res.error, r);
+                return { data:null, error: normErr(res.error) };
+            }
+            const full = await refetchWithSelect(this, res.data && res.data.id);
+            out.push(full || res.data);
+        }
+        if (this._single) return { data: out[0] || null, error:null };
+        return { data: out, error:null };
     }
     if (this._method === 'PUT') {
         let id = this._id;
@@ -274,8 +299,13 @@ QueryBuilder.prototype._execute = async function() {
             const r = f.data&&f.data[0]; if(!r) return { data:null, error:'Row not found' };
             id = r.id;
         }
-        const res = await apiFetch('/'+table+'/'+id, { method:'PUT', body:this._body });
-        return { data:res.data, error:res.error||null };
+        const res = await apiFetch('/'+table+'/'+id, { method:'PUT', body:normBool(this._body) });
+        if (res.error) {
+            console.error('UPDATE', table, id, 'fallito:', res.error, this._body);
+            return { data:null, error: normErr(res.error) };
+        }
+        const full = await refetchWithSelect(this, id);
+        return { data: full || res.data, error:null };
     }
     if (this._method === 'DELETE') {
         if (this._id) {
