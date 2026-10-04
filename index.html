@@ -6413,13 +6413,7 @@ window.exportConvocazioniIMG = async function(sessionId) {
         // 1. RECUPERO SESSIONE (Società, Categoria, Squadra)
         const { data: session, error: sessError } = await client
             .from('sessions')
-            .select(`
-                team_id,
-                session_date,
-                societies:society_id ( name ),
-                categories:category_id ( name ),
-                teams:team_id ( name )
-            `)
+            .select('*, societies(name), categories(name), teams(name)')
             .eq('id', sessionId)
             .maybeSingle();
 

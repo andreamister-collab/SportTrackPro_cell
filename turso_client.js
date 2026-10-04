@@ -60,11 +60,12 @@ const parseSelect = (selectStr) => {
     for (const t of tokens) {
         // Match "tablename(cols)" OR "tablename (cols)" (with optional space)
         // Also handle "alias:table(cols)" format
-        const rel = t.match(/^(\w+)\s*\((.+)\)$/s);
+        // Supporta anche "alias:colonna_fk(cols)" es. societies:society_id ( name )
+        const rel = t.match(/^(?:(\w+)\s*:\s*)?(\w+)\s*\((.+)\)$/s);
         if (rel) {
-            const [, relTable, relCols] = rel;
+            const [, relAlias, relTable, relCols] = rel;
             const sub = parseSelect(relCols);
-            relations.push({ alias: relTable, table: relTable, cols: sub.baseCols, relations: sub.relations });
+            relations.push({ alias: relAlias || relTable, table: relTable, cols: sub.baseCols, relations: sub.relations });
         } else if (t.trim()) {
             baseCols.push(t.trim());
         }
@@ -139,7 +140,8 @@ const resolveRelations = async (rows, relations, mainTable) => {
     const fkDefs = FK_MAP[mainTable] || {};
     
     for (const rel of relations) {
-        const fkDef = fkDefs[rel.alias] || fkDefs[rel.table];
+        // Risoluzione: per nome colonna FK (alias:society_id), poi per nome tabella, poi per alias
+        const fkDef = Object.values(fkDefs).find(d => d.fk === rel.table) || fkDefs[rel.table] || fkDefs[rel.alias];
         if (!fkDef) continue;
         
         const { fk, pk, table } = fkDef;
